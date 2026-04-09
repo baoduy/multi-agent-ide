@@ -1,4 +1,5 @@
 import type { IPCBridge } from "../ipc/IPCBridge";
+import type { BackgroundJobManager } from "./BackgroundJobManager";
 
 import type { RepoRepository } from "./RepoRepository";
 import type { RepoScanCandidate } from "./RepoScanner";
@@ -11,32 +12,28 @@ export type RepoScanSummary = {
   missing: number;
 };
 
-export class ScanQueue {
-  private running = false;
-  private pending = false;
+const JOB_NAME = "repo-scan";
 
+/**
+ * ScanQueue delegates scanning work to the central BackgroundJobManager.
+ *
+ * Calling `requestScan()` enqueues a single "repo-scan" job.
+ * If a scan is already queued or running, the duplicate is silently ignored
+ * by the job manager — no `pending` flag needed.
+ */
+export class ScanQueue {
   constructor(
     private readonly scanner: RepoScanner,
     private readonly repoRepository: RepoRepository,
-    private readonly bridge: IPCBridge
+    private readonly bridge: IPCBridge,
+    private readonly jobManager: BackgroundJobManager,
   ) {}
 
   async requestScan(roots: string[]): Promise<void> {
-    if (this.running) {
-      this.pending = true;
-      return;
-    }
-
-    await this.runScan(roots);
-
-    if (this.pending) {
-      this.pending = false;
-      await this.runScan(roots);
-    }
+    this.jobManager.enqueue(JOB_NAME, () => this.runScan(roots));
   }
 
   private async runScan(roots: string[]): Promise<void> {
-    this.running = true;
     console.log(`[scan-queue] Starting scan for roots:`, roots);
     this.bridge.emit({ type: "repo:scan:started" });
 
@@ -97,8 +94,6 @@ export class ScanQueue {
     } catch (error) {
       console.error("[scan-queue] Scan failed:", error);
       throw error;
-    } finally {
-      this.running = false;
     }
   }
 }

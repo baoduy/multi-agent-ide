@@ -2,6 +2,7 @@ import { ulid } from "ulid";
 
 import type { Repository } from "@magenta/shared/models";
 import type { DatabaseService } from "../db/DatabaseService";
+import { mapRepoRow, toRepoRow } from "../infrastructure/mappers/repoMapper";
 
 export class RepoRepository {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -23,11 +24,7 @@ export class RepoRepository {
       )
       .all() as Array<Record<string, unknown>>;
 
-    // SQLite returns 0/1 for booleans; convert to proper boolean
-    return rows.map((row) => ({
-      ...row,
-      hasSpecs: Boolean(row.hasSpecs),
-    })) as Repository[];
+    return rows.map(mapRepoRow);
   }
 
   findByPath(path: string): Repository | null {
@@ -44,8 +41,7 @@ export class RepoRepository {
       return null;
     }
 
-    // SQLite returns 0/1 for booleans; convert to proper boolean
-    return { ...row, hasSpecs: Boolean(row.hasSpecs) } as Repository;
+    return mapRepoRow(row);
   }
 
   upsert(repo: Omit<Repository, "id" | "createdAt"> & { id?: string; createdAt?: number }): Repository {
@@ -64,10 +60,9 @@ export class RepoRepository {
                scanned_at = @scannedAt
            WHERE path = @path`
         )
-        .run({
+        .run(toRepoRow({
           ...repo,
-          hasSpecs: repo.hasSpecs ? 1 : 0,
-        });
+        }));
 
       return {
         ...existing,
@@ -89,9 +84,8 @@ export class RepoRepository {
       )
       .run({
         id,
-        ...repo,
+        ...toRepoRow(repo),
         createdAt,
-        hasSpecs: repo.hasSpecs ? 1 : 0,
       });
 
     return {

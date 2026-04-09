@@ -2,7 +2,14 @@ export type AppErrorCode =
   | "INTERNAL_ERROR"
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
-  | "IPC_ERROR";
+  | "IPC_ERROR"
+  | "REPO_NOT_FOUND"
+  | "SPEC_PARSE_ERROR"
+  | "FILE_TOO_LARGE"
+  | "FILE_NOT_FOUND"
+  | "WORKTREE_CONFLICT"
+  | "GIT_ERROR"
+  | "CONFIG_ERROR";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

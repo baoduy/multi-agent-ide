@@ -38,6 +38,9 @@ export interface SessionState {
     sidebarWidth: number | null;
     activityPanelWidth: number | null;
     activityPanelOpen: boolean;
+    sidebarCollapsed: boolean;
+    activityCollapsed: boolean;
+    specPanelHeight: number | null;
     mainTab: MainTab;
     updatedAt: number;
 }

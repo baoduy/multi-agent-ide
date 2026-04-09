@@ -5,10 +5,47 @@ import { SpecItem } from "./SpecItem";
 
 type SpecTreeProps = {
   specs: SpecFolder[];
+  /** True only when we have NO data and are waiting for the initial fetch. */
   isLoading: boolean;
   selectedSpecPath: string | null;
   onSelectSpec: (specPath: string) => void;
 };
+
+/* ── Inline loading bar animation via CSS keyframes ── */
+const loadingBarKeyframes = `
+@keyframes specLoadingBar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+`;
+
+function LoadingBar(): React.ReactElement {
+  return (
+    <>
+      <style>{loadingBarKeyframes}</style>
+      <div
+        style={{
+          height: 2,
+          width: "100%",
+          background: "#e5e2da",
+          overflow: "hidden",
+          borderRadius: 1,
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            width: "50%",
+            height: "100%",
+            background: "#C15F3C",
+            borderRadius: 1,
+            animation: "specLoadingBar 1.2s ease-in-out infinite",
+          }}
+        />
+      </div>
+    </>
+  );
+}
 
 export function SpecTree({
   specs,
@@ -16,10 +53,23 @@ export function SpecTree({
   selectedSpecPath,
   onSelectSpec,
 }: SpecTreeProps): React.ReactElement {
-  if (isLoading) {
+  // Loading — no data yet, waiting for first fetch
+  if (isLoading && specs.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: 12, color: "#9a958c" }}>
-        Loading specs...
+      <div style={{ padding: "14px 16px 8px" }}>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: "#9a958c",
+            marginBottom: 10,
+          }}
+        >
+          Specs
+        </div>
+        <LoadingBar />
       </div>
     );
   }
@@ -46,6 +96,7 @@ export function SpecTree({
       >
         Specs
       </div>
+
       {specs.map((spec) => (
         <SpecItem
           key={spec.id}

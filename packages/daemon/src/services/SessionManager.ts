@@ -1,5 +1,6 @@
 import type { SessionState } from "@magenta/shared/models";
 import type { DatabaseService } from "../db/DatabaseService";
+import { mapSessionRow, toSessionColumns } from "../infrastructure/mappers/sessionMapper";
 
 /**
  * SessionManager handles persistence of user session state (selected repo, spec, panel widths, etc.)
@@ -29,13 +30,15 @@ export class SessionManager {
           sidebar_width as sidebarWidth,
           activity_panel_width as activityPanelWidth,
           activity_panel_open as activityPanelOpen,
+          sidebar_collapsed as sidebarCollapsed,
+          activity_collapsed as activityCollapsed,
           spec_panel_height as specPanelHeight,
           main_tab as mainTab,
           updated_at as updatedAt
          FROM session_state
          WHERE id = 1`
       )
-      .get() as SessionState | undefined;
+      .get() as Record<string, unknown> | undefined;
 
     // Return default state if not found
     if (!row) {
@@ -46,17 +49,15 @@ export class SessionManager {
         sidebarWidth: null,
         activityPanelWidth: null,
         activityPanelOpen: true,
+        sidebarCollapsed: false,
+        activityCollapsed: false,
         specPanelHeight: null,
         mainTab: "specs",
         updatedAt: Date.now(),
       };
     }
 
-    // Convert activity_panel_open from number (0/1) to boolean
-    return {
-      ...row,
-      activityPanelOpen: Boolean(row.activityPanelOpen),
-    };
+    return mapSessionRow(row);
   }
 
   /**
@@ -90,41 +91,7 @@ export class SessionManager {
     this.pendingState = null;
 
     try {
-      const updates: Record<string, unknown> = {
-        updated_at: Date.now(),
-      };
-
-      if (state.selectedRepoPath !== undefined) {
-        updates.selected_repo_path = state.selectedRepoPath;
-      }
-
-      if (state.selectedSpecPath !== undefined) {
-        updates.selected_spec_path = state.selectedSpecPath;
-      }
-
-      if (state.selectedFilePath !== undefined) {
-        updates.selected_file_path = state.selectedFilePath;
-      }
-
-      if (state.sidebarWidth !== undefined) {
-        updates.sidebar_width = state.sidebarWidth;
-      }
-
-      if (state.activityPanelWidth !== undefined) {
-        updates.activity_panel_width = state.activityPanelWidth;
-      }
-
-      if (state.activityPanelOpen !== undefined) {
-        updates.activity_panel_open = state.activityPanelOpen ? 1 : 0;
-      }
-
-      if (state.specPanelHeight !== undefined) {
-        updates.spec_panel_height = state.specPanelHeight;
-      }
-
-      if (state.mainTab !== undefined) {
-        updates.main_tab = state.mainTab;
-      }
+      const updates = toSessionColumns(state);
 
       // Build UPDATE query
       const setClause = Object.keys(updates)

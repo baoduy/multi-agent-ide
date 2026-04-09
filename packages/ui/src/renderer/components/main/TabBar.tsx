@@ -18,18 +18,9 @@ export type ActiveTab =
 type TabBarProps = {
   activeTab: ActiveTab;
   openFiles: OpenFileTab[];
-  onSelectBuiltinTab: (id: BuiltinTabId) => void;
   onSelectFileTab: (filePath: string) => void;
   onCloseFileTab: (filePath: string) => void;
 };
-
-/* ── Built-in tabs ── */
-
-const builtinTabs: { id: BuiltinTabId; label: string }[] = [
-  { id: "specs", label: "Specs" },
-  { id: "workflow", label: "Workflow" },
-  { id: "worktrees", label: "Worktrees" },
-];
 
 /* ── File tab close button ── */
 
@@ -64,15 +55,19 @@ function CloseButton({ onClick }: { onClick: (e: React.MouseEvent) => void }): R
   );
 }
 
-/* ── TabBar component ── */
+/* ── TabBar component (file tabs only) ── */
 
 export function TabBar({
   activeTab,
   openFiles,
-  onSelectBuiltinTab,
   onSelectFileTab,
   onCloseFileTab,
-}: TabBarProps): React.ReactElement {
+}: TabBarProps): React.ReactElement | null {
+  // Don't render at all if there are no open file tabs
+  if (openFiles.length === 0) {
+    return null;
+  }
+
   return (
     <div
       style={{
@@ -84,53 +79,6 @@ export function TabBar({
         flexShrink: 0,
       }}
     >
-      {/* Built-in tabs */}
-      {builtinTabs.map((tab) => {
-        const isActive = activeTab.kind === "builtin" && activeTab.id === tab.id;
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            onClick={() => onSelectBuiltinTab(tab.id)}
-            style={{
-              padding: "10px 18px",
-              fontSize: 13,
-              fontWeight: isActive ? 500 : 400,
-              cursor: "pointer",
-              border: "none",
-              borderBottom: isActive ? "2px solid #C15F3C" : "2px solid transparent",
-              background: "transparent",
-              color: isActive ? "#2c2c2c" : "#9a958c",
-              transition: "color 0.12s, border-color 0.12s",
-              marginBottom: -1,
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-            }}
-            onMouseEnter={(e) => {
-              if (!isActive) e.currentTarget.style.color = "#2c2c2c";
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) e.currentTarget.style.color = "#9a958c";
-            }}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-
-      {/* Separator between built-in and file tabs */}
-      {openFiles.length > 0 && (
-        <div
-          style={{
-            width: 1,
-            alignSelf: "stretch",
-            background: "#e5e2da",
-            margin: "6px 4px",
-            flexShrink: 0,
-          }}
-        />
-      )}
-
       {/* File tabs */}
       {openFiles.map((file) => {
         const isActive = activeTab.kind === "file" && activeTab.filePath === file.filePath;

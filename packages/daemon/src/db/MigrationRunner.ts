@@ -2,6 +2,9 @@ import type { SqliteCompat } from "./SqliteCompat";
 import { runInitialMigration } from "./migrations/0001_initial";
 import { run as run0002 } from "./migrations/0002_add_spec_panel_height";
 import { run as run0003 } from "./migrations/0003_update_main_tab_values";
+import { run as run0004 } from "./migrations/0004_add_sidebar_collapse_columns";
+import { run as run0005 } from "./migrations/0005_add_spec_cache";
+import { run as run0006 } from "./migrations/0006_add_specs_tables";
 
 /**
  * Migration definition: a version number and a function that applies the migration.
@@ -23,6 +26,9 @@ const MIGRATIONS: Migration[] = [
   { version: 1, name: "initial_schema", run: runInitialMigration },
   { version: 2, name: "add_spec_panel_height", run: run0002 },
   { version: 3, name: "update_main_tab_values", run: run0003 },
+  { version: 4, name: "add_sidebar_collapse_columns", run: run0004 },
+  { version: 5, name: "add_spec_cache", run: run0005 },
+  { version: 6, name: "add_specs_tables", run: run0006 },
 ];
 
 /**

@@ -8,11 +8,15 @@ const MIN_PANEL_WIDTH = 180;
 const DEFAULT_SIDEBAR_WIDTH = 280;
 const DEFAULT_ACTIVITY_WIDTH = 260;
 const HANDLE_WIDTH = 5;
+const COLLAPSE_TRANSITION = "width 0.2s ease, min-width 0.2s ease, opacity 0.15s ease";
 
 type MainLayoutProps = {
+  titleBar: React.ReactNode;
   sidebar: React.ReactNode;
   main: React.ReactNode;
   activity: React.ReactNode | null;
+  sidebarCollapsed: boolean;
+  activityCollapsed: boolean;
 };
 
 /* ── Resize handle ── */
@@ -65,11 +69,17 @@ function ResizeHandle({
 
 /* ── Main layout ── */
 
-export function MainLayout({ sidebar, main, activity }: MainLayoutProps): React.ReactElement {
+export function MainLayout({
+  titleBar,
+  sidebar,
+  main,
+  activity,
+  sidebarCollapsed,
+  activityCollapsed,
+}: MainLayoutProps): React.ReactElement {
   const storedSidebarWidth = useSessionStore((s) => s.sidebarWidth);
   const storedActivityWidth = useSessionStore((s) => s.activityPanelWidth);
-  const updateSidebarWidth = useSessionStore((s) => s.updateSidebarWidth);
-  const updateActivityPanelWidth = useSessionStore((s) => s.updateActivityPanelWidth);
+  const patchSession = useSessionStore((s) => s.patchSession);
 
   const [sidebarWidth, setSidebarWidth] = useState(storedSidebarWidth ?? DEFAULT_SIDEBAR_WIDTH);
   const [activityWidth, setActivityWidth] = useState(storedActivityWidth ?? DEFAULT_ACTIVITY_WIDTH);
@@ -116,15 +126,15 @@ export function MainLayout({ sidebar, main, activity }: MainLayoutProps): React.
 
     // Persist final widths
     if (draggingRef.current === "sidebar") {
-      void updateSidebarWidth(sidebarWidth);
+      void patchSession({ sidebarWidth });
     } else {
-      void updateActivityPanelWidth(activityWidth);
+      void patchSession({ activityPanelWidth: activityWidth });
     }
 
     draggingRef.current = null;
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
-  }, [sidebarWidth, activityWidth, updateSidebarWidth, updateActivityPanelWidth]);
+  }, [sidebarWidth, activityWidth, patchSession]);
 
   useEffect(() => {
     window.addEventListener("mousemove", onMouseMove);
@@ -143,11 +153,13 @@ export function MainLayout({ sidebar, main, activity }: MainLayoutProps): React.
     };
   }, []);
 
+  const showActivity = activity != null && !activityCollapsed;
+
   return (
     <div
-      ref={containerRef}
       style={{
         display: "flex",
+        flexDirection: "column",
         height: "100vh",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif",
         fontSize: 13,
@@ -155,48 +167,69 @@ export function MainLayout({ sidebar, main, activity }: MainLayoutProps): React.
         background: "#faf9f5",
       }}
     >
-      {/* Sidebar */}
-      <aside
+      {/* Title bar */}
+      {titleBar}
+
+      {/* Content area below title bar */}
+      <div
+        ref={containerRef}
         style={{
-          width: sidebarWidth,
-          minWidth: MIN_PANEL_WIDTH,
-          flexShrink: 0,
           display: "flex",
-          flexDirection: "column",
-          background: "#f5f4ed",
+          flex: 1,
           overflow: "hidden",
         }}
       >
-        {sidebar}
-      </aside>
+        {/* Sidebar */}
+        <aside
+          style={{
+            width: sidebarCollapsed ? 0 : sidebarWidth,
+            minWidth: sidebarCollapsed ? 0 : MIN_PANEL_WIDTH,
+            flexShrink: 0,
+            display: "flex",
+            flexDirection: "column",
+            background: "#f5f4ed",
+            overflow: "hidden",
+            transition: COLLAPSE_TRANSITION,
+            opacity: sidebarCollapsed ? 0 : 1,
+          }}
+        >
+          {sidebar}
+        </aside>
 
-      {/* Left resize handle */}
-      <ResizeHandle onDragStart={startDrag("sidebar")} side="left" />
+        {/* Left resize handle (hidden when sidebar collapsed) */}
+        {!sidebarCollapsed && (
+          <ResizeHandle onDragStart={startDrag("sidebar")} side="left" />
+        )}
 
-      {/* Main content */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 200 }}>
-        {main}
-      </main>
+        {/* Main content */}
+        <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 200 }}>
+          {main}
+        </main>
 
-      {/* Right resize handle + Activity panel (only when activity content exists) */}
-      {activity != null && (
-        <>
-          <ResizeHandle onDragStart={startDrag("activity")} side="right" />
-          <section
-            style={{
-              width: activityWidth,
-              minWidth: MIN_PANEL_WIDTH,
-              flexShrink: 0,
-              display: "flex",
-              flexDirection: "column",
-              background: "#f5f4ed",
-              overflow: "hidden",
-            }}
-          >
-            {activity}
-          </section>
-        </>
-      )}
+        {/* Right resize handle + Activity panel */}
+        {activity != null && (
+          <>
+            {!activityCollapsed && (
+              <ResizeHandle onDragStart={startDrag("activity")} side="right" />
+            )}
+            <section
+              style={{
+                width: activityCollapsed ? 0 : activityWidth,
+                minWidth: activityCollapsed ? 0 : MIN_PANEL_WIDTH,
+                flexShrink: 0,
+                display: "flex",
+                flexDirection: "column",
+                background: "#f5f4ed",
+                overflow: "hidden",
+                transition: COLLAPSE_TRANSITION,
+                opacity: activityCollapsed ? 0 : 1,
+              }}
+            >
+              {activity}
+            </section>
+          </>
+        )}
+      </div>
     </div>
   );
 }

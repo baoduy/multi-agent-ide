@@ -1,0 +1,96 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#16213e;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="magentaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff00ff;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#e040fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#aa00ff;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#e040fb;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#7c4dff;stop-opacity:0.6" />
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="12" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#bgGrad)" />
+
+  <!-- Subtle grid pattern suggesting code/IDE -->
+  <g opacity="0.06" stroke="#e040fb" stroke-width="1">
+    <line x1="96" y1="16" x2="96" y2="496" />
+    <line x1="176" y1="16" x2="176" y2="496" />
+    <line x1="256" y1="16" x2="256" y2="496" />
+    <line x1="336" y1="16" x2="336" y2="496" />
+    <line x1="416" y1="16" x2="416" y2="496" />
+    <line x1="16" y1="96" x2="496" y2="96" />
+    <line x1="16" y1="176" x2="496" y2="176" />
+    <line x1="16" y1="256" x2="496" y2="256" />
+    <line x1="16" y1="336" x2="496" y2="336" />
+    <line x1="16" y1="416" x2="496" y2="416" />
+  </g>
+
+  <!-- Connection lines between agent nodes (behind the M) -->
+  <g stroke="url(#accentGrad)" stroke-width="2.5" fill="none" filter="url(#softGlow)" opacity="0.5">
+    <!-- Left branch connections -->
+    <line x1="128" y1="360" x2="168" y2="200" />
+    <line x1="168" y1="200" x2="256" y2="300" />
+    <!-- Right branch connections -->
+    <line x1="384" y1="360" x2="344" y2="200" />
+    <line x1="344" y1="200" x2="256" y2="300" />
+    <!-- Cross connections -->
+    <line x1="168" y1="200" x2="344" y2="200" />
+    <line x1="128" y1="360" x2="256" y2="300" />
+    <line x1="384" y1="360" x2="256" y2="300" />
+  </g>
+
+  <!-- The M shape - bold, geometric -->
+  <g filter="url(#glow)">
+    <path d="
+      M 108 390
+      L 108 148
+      L 148 120
+      L 256 268
+      L 364 120
+      L 404 148
+      L 404 390
+      L 356 390
+      L 356 220
+      L 256 348
+      L 156 220
+      L 156 390
+      Z
+    " fill="url(#magentaGrad)" />
+  </g>
+
+  <!-- Agent node dots at key vertices -->
+  <g filter="url(#glow)">
+    <circle cx="128" cy="134" r="10" fill="#ff80ff" opacity="0.9" />
+    <circle cx="384" cy="134" r="10" fill="#ff80ff" opacity="0.9" />
+    <circle cx="256" cy="268" r="12" fill="#ffffff" opacity="0.9" />
+    <circle cx="128" cy="390" r="8" fill="#ce93d8" opacity="0.7" />
+    <circle cx="384" cy="390" r="8" fill="#ce93d8" opacity="0.7" />
+  </g>
+
+  <!-- Small orbiting dots suggesting multi-agent activity -->
+  <circle cx="200" cy="140" r="4" fill="#e040fb" opacity="0.6" />
+  <circle cx="312" cy="140" r="4" fill="#e040fb" opacity="0.6" />
+  <circle cx="180" cy="310" r="3.5" fill="#7c4dff" opacity="0.5" />
+  <circle cx="332" cy="310" r="3.5" fill="#7c4dff" opacity="0.5" />
+</svg>

@@ -4,6 +4,7 @@ import { useRepoStore } from "../../store/repoStore";
 import { useSpecStore } from "../../store/specStore";
 import { useConfigStore } from "../../store/configStore";
 import { useSessionStore } from "../../store/sessionStore";
+import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoList } from "./RepoList";
 import { SpecTree } from "./SpecTree";
 import { SettingsDialog } from "../settings/SettingsDialog";
@@ -20,14 +21,13 @@ export function Sidebar(): React.ReactElement {
   const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
   const isLoading = useSpecStore((state) => state.isLoading);
   const fetchSpecs = useSpecStore((state) => state.fetchSpecs);
-  const setSelectedSpecPath = useSpecStore((state) => state.setSelectedSpecPath);
   const initializeSubscriptions = useSpecStore((state) => state.initializeSubscriptions);
 
   const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const initializeConfigSubscriptions = useConfigStore((state) => state.initializeSubscriptions);
 
   const storedSpecPanelHeight = useSessionStore((state) => state.specPanelHeight);
-  const updateSpecPanelHeight = useSessionStore((state) => state.updateSpecPanelHeight);
+  const patchSession = useSessionStore((state) => state.patchSession);
 
   const [showSettings, setShowSettings] = useState(false);
   const [specHeight, setSpecHeight] = useState(storedSpecPanelHeight ?? DEFAULT_SPEC_HEIGHT);
@@ -77,8 +77,8 @@ export function Sidebar(): React.ReactElement {
     draggingRef.current = false;
     document.body.style.cursor = "";
     document.body.style.userSelect = "";
-    void updateSpecPanelHeight(specHeight);
-  }, [specHeight, updateSpecPanelHeight]);
+    void patchSession({ specPanelHeight: specHeight });
+  }, [specHeight, patchSession]);
 
   useEffect(() => {
     window.addEventListener("mousemove", onMouseMove);
@@ -93,6 +93,10 @@ export function Sidebar(): React.ReactElement {
     draggingRef.current = true;
     document.body.style.cursor = "row-resize";
     document.body.style.userSelect = "none";
+  }, []);
+
+  const handleSelectSpec = useCallback((path: string | null) => {
+    SessionCoordinator.selectSpec(path);
   }, []);
 
   return (
@@ -171,7 +175,7 @@ export function Sidebar(): React.ReactElement {
               specs={specs}
               isLoading={isLoading}
               selectedSpecPath={selectedSpecPath}
-              onSelectSpec={setSelectedSpecPath}
+              onSelectSpec={handleSelectSpec}
             />
           </div>
         </>

@@ -1,6 +1,10 @@
-import type { IpcResponse } from "@magenta/shared/ipc";
 import type { ConfigManager } from "../config/ConfigManager";
 import type { DatabaseService } from "../db/DatabaseService";
+import type { SessionManager } from "../services/SessionManager";
+import type { SpecSyncService } from "../services/SpecSyncService";
+import type { BackgroundJobManager } from "../services/BackgroundJobManager";
+import type { RepoRepository } from "../services/RepoRepository";
+import type { ScanQueue } from "../services/ScanQueue";
 import { registerRepoHandlers } from "./handlers/repoHandlers";
 import { registerSpecHandlers } from "./handlers/specHandlers";
 
@@ -8,42 +12,43 @@ import { IPCBridge } from "./IPCBridge";
 import { registerConfigHandlers } from "./handlers/configHandlers";
 import { registerFileHandlers } from "./handlers/fileHandlers";
 import { registerWorktreeHandlers } from "./handlers/worktreeHandlers";
+import { registerSessionHandlers } from "./handlers/sessionHandlers";
+
+import { RepoApplicationService } from "../application/RepoApplicationService";
+import { SpecApplicationService } from "../application/SpecApplicationService";
+import { FileApplicationService } from "../application/FileApplicationService";
+import { WorktreeApplicationService } from "../application/WorktreeApplicationService";
+import { SessionApplicationService } from "../application/SessionApplicationService";
+import { ConfigApplicationService } from "../application/ConfigApplicationService";
 
 export type HandlerContext = {
   databaseService: DatabaseService;
   configManager: ConfigManager;
   sessionManager: SessionManager;
+  specSyncService: SpecSyncService;
+  jobManager: BackgroundJobManager;
+  repoRepository: RepoRepository;
+  scanQueue: ScanQueue;
 };
-import type { SessionManager } from "../services/SessionManager";
-import { registerSessionHandlers } from "./handlers/sessionHandlers";
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
-  registerRepoHandlers({
-    bridge,
-    databaseService: context.databaseService,
-    configManager: context.configManager,
-  });
+  // Create application services
+  const repoService = new RepoApplicationService(
+    context.repoRepository,
+    context.configManager,
+    context.scanQueue,
+    context.specSyncService,
+  );
+  const specService = new SpecApplicationService(context.specSyncService);
+  const fileService = new FileApplicationService();
+  const worktreeService = new WorktreeApplicationService();
+  const sessionService = new SessionApplicationService(context.sessionManager);
+  const configService = new ConfigApplicationService(context.configManager);
 
-  registerSpecHandlers({
-    bridge,
-    configManager: context.configManager,
-  });
-
-  registerSessionHandlers({
-    bridge,
-    sessionManager: context.sessionManager,
-  });
-
-  registerConfigHandlers({
-    bridge,
-    configManager: context.configManager,
-  });
-
-  registerFileHandlers({
-    bridge,
-  });
-
-  registerWorktreeHandlers({
-    bridge,
-  });
+  registerRepoHandlers({ bridge, repoService });
+  registerSpecHandlers({ bridge, specService });
+  registerSessionHandlers({ bridge, sessionService });
+  registerConfigHandlers({ bridge, configService });
+  registerFileHandlers({ bridge, fileService });
+  registerWorktreeHandlers({ bridge, worktreeService });
 }

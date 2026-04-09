@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
+import { MagentaLogo } from "../components/common/MagentaLogo";
 import { useSessionStore } from "../store/sessionStore";
 import { useRepoStore } from "../store/repoStore";
 import { useConfigStore } from "../store/configStore";
@@ -130,6 +131,9 @@ export function WelcomePage(): React.ReactElement {
       }}
     >
       <div style={{ maxWidth: 500, textAlign: "center" }}>
+        <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
+          <MagentaLogo size={80} />
+        </div>
         <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12, color: "#2c2c2c" }}>
           Welcome to Magenta IDE
         </h1>

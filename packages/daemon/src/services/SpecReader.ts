@@ -1,11 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
-import { execSync } from "child_process";
 import { ulid } from "ulid";
 
 import type { PipelineStage, PipelineStageMetadata, SpecFolder } from "@magenta/shared/models";
 import type { PipelineStageName, StageStatus } from "@magenta/shared/constants";
 import { PIPELINE_STAGES } from "@magenta/shared/constants";
+import { SpecParser } from "../domain/SpecParser";
+import { SpecGitGateway } from "../infrastructure/SpecGitGateway";
 
 interface ParsedStageMetadata {
   taskCount?: number;
@@ -22,6 +23,9 @@ interface ParsedStageMetadata {
  * other branches via `git show` / `git ls-tree` without checking out.
  */
 export class SpecReader {
+  private readonly parser = new SpecParser();
+  private readonly gitGateway = new SpecGitGateway();
+
   /* ═══════════════════════════════════════════════════════
      Public API
      ═══════════════════════════════════════════════════════ */
@@ -74,14 +78,14 @@ export class SpecReader {
    * virtual file paths in the form `gitref://<branch>/specs/<name>/<file>`.
    */
   async listAllBranchSpecs(repoPath: string): Promise<SpecFolder[]> {
-    const currentBranch = this.getCurrentBranch(repoPath);
+    const currentBranch = this.gitGateway.getCurrentBranch(repoPath);
 
     // 1. Specs from working tree (current branch) — full filesystem parsing
     const currentSpecs = this.listSpecs(repoPath, currentBranch);
     const currentSpecNames = new Set(currentSpecs.map((s) => s.name));
 
     // 2. List all local branches
-    const branches = this.listLocalBranches(repoPath);
+    const branches = this.gitGateway.listLocalBranches(repoPath);
 
     // 3. For each non-current branch, list specs via git
     const otherSpecs: SpecFolder[] = [];
@@ -90,7 +94,7 @@ export class SpecReader {
       if (branch === currentBranch) continue;
 
       try {
-        const specNames = this.gitListSpecDirs(repoPath, branch);
+        const specNames = this.gitGateway.gitListSpecDirs(repoPath, branch);
 
         for (const specName of specNames) {
           // Skip if this spec already exists on current branch
@@ -118,111 +122,9 @@ export class SpecReader {
    * @returns File content as string, or null if not found
    */
   readGitFile(repoPath: string, ref: string, relativePath: string): string | null {
-    try {
-      return execSync(`git show "${ref}:${relativePath}"`, {
-        cwd: repoPath,
-        encoding: "utf-8",
-        maxBuffer: 5 * 1024 * 1024,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-    } catch {
-      return null;
-    }
+    return this.gitGateway.readGitFile(repoPath, ref, relativePath);
   }
 
-  /* ═══════════════════════════════════════════════════════
-     Git helpers
-     ═══════════════════════════════════════════════════════ */
-
-  private getCurrentBranch(repoPath: string): string {
-    try {
-      return execSync("git rev-parse --abbrev-ref HEAD", {
-        cwd: repoPath,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
-    } catch {
-      return "unknown";
-    }
-  }
-
-  private listLocalBranches(repoPath: string): string[] {
-    try {
-      const output = execSync("git branch --format='%(refname:short)'", {
-        cwd: repoPath,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      return output
-        .split("\n")
-        .map((b) => b.trim().replace(/^'|'$/g, ""))
-        .filter(Boolean);
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Lists spec directory names under `specs/` on the given branch via `git ls-tree`.
-   */
-  private gitListSpecDirs(repoPath: string, branch: string): string[] {
-    try {
-      const output = execSync(
-        `git ls-tree --name-only "${branch}" -- specs/`,
-        {
-          cwd: repoPath,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      // git ls-tree returns "specs/001-foo", "specs/002-bar" etc.
-      return output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.replace(/^specs\//, ""));
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Lists files inside a spec directory on the given branch via `git ls-tree`.
-   */
-  private gitListSpecFiles(repoPath: string, branch: string, specName: string): string[] {
-    try {
-      const output = execSync(
-        `git ls-tree --name-only "${branch}" -- "specs/${specName}/"`,
-        {
-          cwd: repoPath,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      return output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.replace(`specs/${specName}/`, ""));
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Checks if a file/tree exists on a given branch.
-   */
-  private gitPathExists(repoPath: string, branch: string, relativePath: string): boolean {
-    try {
-      execSync(`git cat-file -e "${branch}:${relativePath}"`, {
-        cwd: repoPath,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  }
 
   /* ═══════════════════════════════════════════════════════
      Git-based spec parsing (non-current branches)
@@ -239,7 +141,7 @@ export class SpecReader {
   ): SpecFolder | null {
     try {
       const stages = this.parseGitStages(repoPath, branch, specName);
-      const fileNames = this.gitListSpecFiles(repoPath, branch, specName);
+      const fileNames = this.gitGateway.gitListSpecFiles(repoPath, branch, specName);
 
       // Virtual file paths with gitref:// prefix
       const files = fileNames.map(
@@ -297,7 +199,7 @@ export class SpecReader {
       relativePath = `specs/${specName}/${stageFileMap[stageName]}`;
     }
 
-    const exists = this.gitPathExists(repoPath, branch, relativePath);
+    const exists = this.gitGateway.gitPathExists(repoPath, branch, relativePath);
 
     if (!exists) {
       return {
@@ -313,9 +215,9 @@ export class SpecReader {
     let metadata: PipelineStageMetadata | undefined;
 
     if (stageName === "tasks") {
-      const content = this.readGitFile(repoPath, branch, relativePath);
+      const content = this.gitGateway.readGitFile(repoPath, branch, relativePath);
       if (content) {
-        const parsed = this.parseTasksContent(content);
+        const parsed = SpecParser.parseTasksContent(content);
         metadata = parsed.metadata;
         status = parsed.status;
       }
@@ -328,9 +230,9 @@ export class SpecReader {
 
     // Check for approval marker in file content (not implementation)
     if (stageName !== "implementation") {
-      const content = this.readGitFile(repoPath, branch, relativePath);
+      const content = this.gitGateway.readGitFile(repoPath, branch, relativePath);
       if (content) {
-        const approval = this.parseApprovalMarkerFromContent(content);
+        const approval = SpecParser.parseApprovalMarkerFromContent(content);
         if (approval) {
           status = "approved";
           metadata = {
@@ -454,24 +356,6 @@ export class SpecReader {
      ═══════════════════════════════════════════════════════ */
 
   /**
-   * Parses tasks metadata from file content string.
-   */
-  private parseTasksContent(
-    content: string,
-  ): { metadata: PipelineStageMetadata; status: StageStatus } {
-    const totalMatches = content.match(/^-\s+\[\s*[\sx]\s*\]/gm) || [];
-    const completedMatches = content.match(/^-\s+\[[xX]\]/gm) || [];
-
-    const taskCount = totalMatches.length;
-    const completedCount = completedMatches.length;
-
-    return {
-      metadata: { taskCount, completedCount },
-      status: taskCount > 0 ? "draft" : "draft",
-    };
-  }
-
-  /**
    * Parses tasks metadata from a file on disk.
    */
   private parseTasksMetadata(
@@ -483,7 +367,7 @@ export class SpecReader {
       }
 
       const content = fs.readFileSync(tasksFilePath, "utf-8");
-      return this.parseTasksContent(content);
+      return SpecParser.parseTasksContent(content);
     } catch (error) {
       console.error(`Failed to parse tasks metadata from ${tasksFilePath}:`, error);
       return { metadata: {}, status: "draft" };
@@ -500,34 +384,27 @@ export class SpecReader {
 
       const entries = fs.readdirSync(implementationFolderPath, { withFileTypes: true });
 
-      let worktreeCount = 0;
-      let implementationProgress: number | undefined;
+      // Build entry objects for SpecParser
+      const parsedEntries: { name: string; isDirectory: boolean; content?: string }[] = [];
 
       for (const entry of entries) {
+        const entryData: { name: string; isDirectory: boolean; content?: string } = {
+          name: entry.name,
+          isDirectory: entry.isDirectory(),
+        };
+
         if (entry.name === "progress.json") {
           try {
-            const progressData = JSON.parse(
-              fs.readFileSync(path.join(implementationFolderPath, entry.name), "utf-8"),
-            );
-            if (typeof progressData.progress === "number") {
-              implementationProgress = progressData.progress;
-            }
+            entryData.content = fs.readFileSync(path.join(implementationFolderPath, entry.name), "utf-8");
           } catch {
-            // Silently ignore progress.json parse errors
+            // Silently ignore read errors
           }
-        } else if (entry.isDirectory() && !entry.name.startsWith(".")) {
-          worktreeCount++;
         }
+
+        parsedEntries.push(entryData);
       }
 
-      const metadata: PipelineStageMetadata = { worktreeCount };
-
-      if (implementationProgress !== undefined) {
-        metadata.implementationProgress = implementationProgress;
-      }
-
-      const status = implementationProgress !== undefined && implementationProgress > 0 ? "running" : "idle";
-      return { metadata, status };
+      return SpecParser.parseImplementationEntries(parsedEntries);
     } catch (error) {
       console.error(`Failed to parse implementation metadata from ${implementationFolderPath}:`, error);
       return { metadata: {}, status: "idle" };
@@ -542,28 +419,10 @@ export class SpecReader {
   ): { approvedBy: string; approvedAt: string } | null {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      return this.parseApprovalMarkerFromContent(content);
+      return SpecParser.parseApprovalMarkerFromContent(content);
     } catch {
       return null;
     }
-  }
-
-  /**
-   * Parses the approval marker from file content string.
-   */
-  private parseApprovalMarkerFromContent(
-    content: string,
-  ): { approvedBy: string; approvedAt: string } | null {
-    const match = content.match(
-      /\*\*Approved by:\*\*\s*([^|]+?)\s*\|\s*\*\*Date:\*\*\s*(\S+)/,
-    );
-    if (match) {
-      return {
-        approvedBy: match[1].trim(),
-        approvedAt: match[2].trim(),
-      };
-    }
-    return null;
   }
 
   private listSpecFiles(specPath: string): string[] {

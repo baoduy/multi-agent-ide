@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 
 import type { IpcRequest, IpcResponse } from "@magenta/shared/ipc";
+import { IpcRequestSchema } from "@magenta/shared/ipc";
 
 type RequestByType<TType extends IpcRequest["type"]> = Extract<IpcRequest, { type: TType }>;
 
@@ -16,9 +17,19 @@ export class IPCBridge {
     this.handlers.set(type, handler as unknown as IpcHandler);
   }
 
-  async invoke(request: IpcRequest): Promise<IpcResponse> {
-    const handler = this.handlers.get(request.type);
+  async invoke(payload: unknown): Promise<IpcResponse> {
+    // Validate the incoming request payload
+    let request: IpcRequest;
+    try {
+      request = IpcRequestSchema.parse(payload);
+    } catch (error) {
+      return {
+        type: "error",
+        message: `Invalid IPC request: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
 
+    const handler = this.handlers.get(request.type);
     if (!handler) {
       return {
         type: "error",

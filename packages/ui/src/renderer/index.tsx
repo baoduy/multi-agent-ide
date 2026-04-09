@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { MainPage } from "./pages/Main";
 
 // Initialize app
@@ -13,7 +14,9 @@ function initializeApp(): void {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <MainPage />
+      <ErrorBoundary>
+        <MainPage />
+      </ErrorBoundary>
     </React.StrictMode>
   );
 }

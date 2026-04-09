@@ -6,6 +6,7 @@ import hljs from "highlight.js";
 
 import { ipc } from "../../utils/ipc";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
+import { useWorktreeStore } from "../../store/worktreeStore";
 
 /* ═══════════════════════════════════════════════════════
    Marked instance — configured once with highlight.js
@@ -34,7 +35,7 @@ marked.setOptions({
   breaks: false,
 });
 
-// Custom renderer to handle mermaid code blocks and add copy buttons
+// Custom renderer to handle mermaid code blocks, copy buttons, and heading IDs
 const renderer = new marked.Renderer();
 const origCodeRenderer = renderer.code.bind(renderer);
 
@@ -50,6 +51,25 @@ renderer.code = function (
   const copyBtn = `<button class="md-copy-btn" data-code="${encodeURIComponent(token.text)}" title="Copy code">Copy</button>`;
   const defaultHtml = origCodeRenderer(token);
   return `<div class="md-code-block">${langLabel}${copyBtn}${defaultHtml}</div>`;
+};
+
+/** Generate a slug from heading text (for anchor IDs). */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
+// Override heading renderer to inject id attributes for ToC navigation
+const origHeadingRenderer = renderer.heading.bind(renderer);
+renderer.heading = function (
+  token: { type: "heading"; raw: string; depth: number; text: string },
+): string {
+  const id = `heading-${slugify(token.text)}`;
+  return `<h${token.depth} id="${id}">${token.text}</h${token.depth}>\n`;
 };
 
 marked.use({ renderer });
@@ -168,6 +188,182 @@ function useCopyButtons(containerRef: React.RefObject<HTMLDivElement | null>, vi
     container.addEventListener("click", handleClick);
     return () => container.removeEventListener("click", handleClick);
   }, [containerRef, viewMode]);
+}
+
+/* ═══════════════════════════════════════════════════════
+   Table of Contents — types, extraction, active tracking
+   ═══════════════════════════════════════════════════════ */
+
+type TocHeading = {
+  id: string;
+  text: string;
+  level: number;
+};
+
+/** Parse raw markdown and extract headings for the ToC. */
+function extractHeadings(md: string): TocHeading[] {
+  const headings: TocHeading[] = [];
+  // Match lines like "# Heading", "## Sub-heading", etc.
+  // but skip headings inside fenced code blocks.
+  let inCodeBlock = false;
+
+  for (const line of md.split("\n")) {
+    if (line.trimStart().startsWith("```")) {
+      inCodeBlock = !inCodeBlock;
+      continue;
+    }
+    if (inCodeBlock) continue;
+
+    const match = line.match(/^(#{1,6})\s+(.+)$/);
+    if (match) {
+      const level = match[1].length;
+      const text = match[2].replace(/\*\*/g, "").replace(/\*/g, "").trim();
+      const id = `heading-${slugify(text)}`;
+      headings.push({ id, text, level });
+    }
+  }
+
+  return headings;
+}
+
+/**
+ * Hook that watches scroll position inside a container and returns
+ * the `id` of the heading currently at (or just above) the viewport top.
+ */
+function useActiveHeading(
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  headings: TocHeading[],
+  viewMode: string,
+): string | null {
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || viewMode !== "preview" || headings.length === 0) {
+      setActiveId(null);
+      return;
+    }
+
+    const handleScroll = () => {
+      const offset = 80; // px from top to consider "active"
+      let current: string | null = null;
+
+      for (const h of headings) {
+        const el = container.querySelector(`#${CSS.escape(h.id)}`);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        const relativeTop = rect.top - containerRect.top;
+
+        if (relativeTop <= offset) {
+          current = h.id;
+        }
+      }
+
+      setActiveId(current);
+    };
+
+    handleScroll(); // initial check
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [containerRef, headings, viewMode]);
+
+  return activeId;
+}
+
+/** Table of Contents sidebar component. */
+function TableOfContents({
+  headings,
+  activeId,
+  containerRef,
+}: {
+  headings: TocHeading[];
+  activeId: string | null;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+}): React.ReactElement | null {
+  if (headings.length === 0) return null;
+
+  const minLevel = Math.min(...headings.map((h) => h.level));
+
+  const handleClick = (id: string) => {
+    const container = containerRef.current;
+    if (!container) return;
+    const el = container.querySelector(`#${CSS.escape(id)}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  return (
+    <nav
+      style={{
+        width: 200,
+        minWidth: 200,
+        flexShrink: 0,
+        position: "sticky",
+        top: 0,
+        alignSelf: "flex-start",
+        padding: "20px 12px 20px 0",
+        borderLeft: "1px solid #e5e2da",
+        overflowY: "auto",
+        maxHeight: "100%",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          color: "#9a958c",
+          padding: "0 12px 8px",
+        }}
+      >
+        On this page
+      </div>
+      {headings.map((h) => {
+        const isActive = h.id === activeId;
+        const indent = (h.level - minLevel) * 12;
+
+        return (
+          <button
+            key={h.id}
+            type="button"
+            onClick={() => handleClick(h.id)}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "4px 12px",
+              paddingLeft: 12 + indent,
+              fontSize: 11,
+              lineHeight: 1.4,
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? "#C15F3C" : "#6b6560",
+              background: "transparent",
+              border: "none",
+              borderLeft: isActive ? "2px solid #C15F3C" : "2px solid transparent",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "color 0.12s",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={h.text}
+            onMouseEnter={(e) => {
+              if (!isActive) e.currentTarget.style.color = "#2c2c2c";
+            }}
+            onMouseLeave={(e) => {
+              if (!isActive) e.currentTarget.style.color = "#6b6560";
+            }}
+          >
+            {h.text}
+          </button>
+        );
+      })}
+    </nav>
+  );
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -550,13 +746,23 @@ function ApproveButton({
   const [showWorktreeDialog, setShowWorktreeDialog] = useState(false);
   const [worktreeError, setWorktreeError] = useState<string | null>(null);
 
+  // Look up existing worktree from the global store
+  const getWorktreeForBranch = useWorktreeStore((s) => s.getWorktreeForBranch);
+  const addWorktree = useWorktreeStore((s) => s.addWorktree);
+  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
+
   const isGitRef = isGitRefPath(filePath);
   const gitRef = isGitRef ? parseGitRef(filePath) : null;
+
+  // Check if a worktree already exists for this repo+branch
+  const existingWorktree =
+    isGitRef && gitRef && repoPath
+      ? getWorktreeForBranch(repoPath, gitRef.ref)
+      : null;
 
   // Check if already approved
   const isAlreadyApproved = /\*\*Approved by:\*\*/.test(content);
   if (isAlreadyApproved || approved) {
-    // Show approved sticker
     const match = content.match(
       /\*\*Approved by:\*\*\s*([^|]+?)\s*\|\s*\*\*Date:\*\*\s*(\S+)/
     );
@@ -618,7 +824,49 @@ function ApproveButton({
     setApproving(false);
   };
 
-  /** Approve a gitref file: create worktree, write to worktree, signal success. */
+  /**
+   * Approve via an existing or newly-created worktree.
+   * If worktreePath is provided, use it directly (skip IPC create).
+   */
+  const handleWorktreeApproveWithPath = async (worktreePath: string) => {
+    if (!gitRef) return;
+
+    setApproving(true);
+    setWorktreeError(null);
+
+    try {
+      const targetFilePath = `${worktreePath}/${gitRef.relativePath}`;
+
+      // Read file from worktree
+      const readResp = await ipc.send({ type: "file:read", filePath: targetFilePath });
+      if (readResp.type !== "file:read:result") {
+        setWorktreeError(`Could not read file in worktree: ${readResp.type === "error" ? readResp.message : "Unknown error"}`);
+        setApproving(false);
+        return;
+      }
+
+      // Write approved content
+      const newContent = buildApprovedContent(readResp.content);
+      const writeResp = await ipc.send({
+        type: "file:write",
+        filePath: targetFilePath,
+        content: newContent,
+      });
+
+      if (writeResp.type === "file:write:result" && writeResp.success) {
+        setApproved(true);
+        onApproved(newContent);
+      } else {
+        setWorktreeError("Failed to write approval to the worktree file.");
+      }
+    } catch (err) {
+      console.error("Error during worktree approval:", err);
+      setWorktreeError(err instanceof Error ? err.message : String(err));
+    }
+    setApproving(false);
+  };
+
+  /** Approve a gitref file via a new worktree (after user confirms name in dialog). */
   const handleWorktreeApprove = async (worktreeName: string) => {
     if (!gitRef || !repoPath) return;
 
@@ -647,43 +895,34 @@ function ApproveButton({
         return;
       }
 
-      const worktreePath = wtResp.worktreePath;
-
-      // 2. The file in the worktree is at worktreePath + "/" + relativePath
-      const targetFilePath = `${worktreePath}/${gitRef.relativePath}`;
-
-      // 3. Read the file from the worktree (it's now on disk)
-      const readResp = await ipc.send({ type: "file:read", filePath: targetFilePath });
-      if (readResp.type !== "file:read:result") {
-        setWorktreeError(`Could not read file in worktree: ${readResp.type === "error" ? readResp.message : "Unknown error"}`);
-        setApproving(false);
-        return;
-      }
-
-      // 4. Write the approved content
-      const newContent = buildApprovedContent(readResp.content);
-      const writeResp = await ipc.send({
-        type: "file:write",
-        filePath: targetFilePath,
-        content: newContent,
+      // Register the new worktree in the store so future approvals skip the dialog
+      addWorktree({
+        repoPath,
+        worktreePath: wtResp.worktreePath,
+        branch: gitRef.ref,
+        name: worktreeName,
+        createdAt: Date.now(),
       });
 
-      if (writeResp.type === "file:write:result" && writeResp.success) {
-        setApproved(true);
-        onApproved(newContent);
-      } else {
-        setWorktreeError("Failed to write approval to the worktree file.");
-      }
+      // Also refresh the full list from the daemon
+      void fetchWorktrees(repoPath);
+
+      // 2. Approve using the newly created worktree path
+      setApproving(false); // handleWorktreeApproveWithPath sets it again
+      await handleWorktreeApproveWithPath(wtResp.worktreePath);
     } catch (err) {
-      console.error("Error during worktree approval:", err);
+      console.error("Error during worktree creation:", err);
       setWorktreeError(err instanceof Error ? err.message : String(err));
+      setApproving(false);
     }
-    setApproving(false);
   };
 
   const handleClick = () => {
-    if (isGitRef) {
-      // Remote branch — show worktree dialog
+    if (isGitRef && existingWorktree) {
+      // Worktree already exists — approve directly, no dialog
+      void handleWorktreeApproveWithPath(existingWorktree.worktreePath);
+    } else if (isGitRef) {
+      // No worktree yet — show dialog
       setShowWorktreeDialog(true);
     } else {
       // Current branch — approve directly
@@ -691,11 +930,25 @@ function ApproveButton({
     }
   };
 
+  // Determine button label
+  let buttonLabel = "Approve";
+  if (approving) {
+    buttonLabel = "Approving...";
+  } else if (isGitRef && existingWorktree) {
+    buttonLabel = "Approve";
+  } else if (isGitRef) {
+    buttonLabel = "Approve via Worktree";
+  }
+
   return (
     <>
       <button
         type="button"
-        title={isGitRef ? "Create worktree and approve this file" : "Approve this file"}
+        title={
+          isGitRef && !existingWorktree
+            ? "Create worktree and approve this file"
+            : "Approve this file"
+        }
         onClick={handleClick}
         disabled={approving}
         onMouseEnter={() => setHovered(true)}
@@ -716,11 +969,15 @@ function ApproveButton({
           fontFamily: "inherit",
         }}
       >
-        {isGitRef ? <GitBranch size={13} strokeWidth={2} /> : <CheckCircle size={13} strokeWidth={2} />}
-        <span>{approving ? "Approving..." : isGitRef ? "Approve via Worktree" : "Approve"}</span>
+        {isGitRef && !existingWorktree ? (
+          <GitBranch size={13} strokeWidth={2} />
+        ) : (
+          <CheckCircle size={13} strokeWidth={2} />
+        )}
+        <span>{buttonLabel}</span>
       </button>
 
-      {/* Worktree name dialog */}
+      {/* Worktree name dialog — only shown when no existing worktree */}
       {showWorktreeDialog && gitRef && (
         <WorktreeDialog
           branch={gitRef.ref}
@@ -844,6 +1101,18 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
     return renderMarkdownToHtml(content);
   }, [content]);
 
+  // Extract headings for Table of Contents
+  const headings = useMemo(() => {
+    if (!content) return [];
+    return extractHeadings(content);
+  }, [content]);
+
+  // Track which heading is currently in view
+  const activeHeadingId = useActiveHeading(contentRef, headings, viewMode);
+
+  const isMd = content !== null && isMarkdownFile(filePath);
+  const showToc = isMd && viewMode === "preview" && headings.length > 1;
+
   if (loading) {
     return (
       <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
@@ -872,8 +1141,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   }
 
   if (content === null) return <div />;
-
-  const isMd = isMarkdownFile(filePath);
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -922,15 +1189,27 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
         </div>
       )}
 
-      {/* Content area */}
+      {/* Content area — with optional ToC sidebar */}
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>
         {isMd ? (
           viewMode === "preview" ? (
-            <div
-              className="md-viewer"
-              style={{ padding: "20px 28px" }}
-              dangerouslySetInnerHTML={{ __html: renderedHtml }}
-            />
+            <div style={{ display: "flex" }}>
+              {/* Main markdown content */}
+              <div
+                className="md-viewer"
+                style={{ padding: "20px 28px", flex: 1, minWidth: 0 }}
+                dangerouslySetInnerHTML={{ __html: renderedHtml }}
+              />
+
+              {/* Table of Contents — right sidebar */}
+              {showToc && (
+                <TableOfContents
+                  headings={headings}
+                  activeId={activeHeadingId}
+                  containerRef={contentRef}
+                />
+              )}
+            </div>
           ) : (
             <RawMarkdownView content={content} />
           )

@@ -16,7 +16,14 @@ import { ConfigManager } from "./config/ConfigManager";
 import { DatabaseService } from "./db/DatabaseService";
 import { IPCBridge } from "./ipc/IPCBridge";
 import { registerHandlers } from "./ipc/registerHandlers";
+import { BackgroundJobManager } from "./services/BackgroundJobManager";
+import { DirWatcher } from "./services/DirWatcher";
+import { RepoRepository } from "./services/RepoRepository";
+import { RepoScanner } from "./services/RepoScanner";
+import { ScanQueue } from "./services/ScanQueue";
 import { SessionManager } from "./services/SessionManager";
+import { SpecRepository } from "./services/SpecRepository";
+import { SpecSyncService } from "./services/SpecSyncService";
 
 async function main() {
   console.log("[daemon-worker] Starting...");
@@ -32,12 +39,36 @@ async function main() {
     console.log("[daemon-worker] ConfigManager ready, workingDirs:", configManager.getConfig().workingDirs);
 
     const ipcBridge = new IPCBridge();
+    const jobManager = new BackgroundJobManager();
     const sessionManager = new SessionManager(databaseService);
+
+    // Data access layers
+    const repoRepository = new RepoRepository(databaseService);
+    const specRepository = new SpecRepository(databaseService);
+
+    // Repo scanning
+    const scanner = new RepoScanner(3);
+    const scanQueue = new ScanQueue(scanner, repoRepository, ipcBridge, jobManager);
+
+    // Spec sync service (replaces SpecCacheService)
+    const specSyncService = new SpecSyncService(
+      specRepository,
+      repoRepository,
+      ipcBridge,
+      jobManager,
+    );
+
+    // Directory watcher for auto-detecting new/removed repos
+    const dirWatcher = new DirWatcher(scanQueue, configManager);
 
     registerHandlers(ipcBridge, {
       databaseService,
       configManager,
       sessionManager,
+      specSyncService,
+      jobManager,
+      repoRepository,
+      scanQueue,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -46,7 +77,8 @@ async function main() {
       "repo:scan:started",
       "repo:scan:progress",
       "repo:scan:complete",
-      "spec:list:updated",
+      "spec:sync:started",
+      "spec:sync:complete",
       "config:updated",
     ];
 
@@ -55,6 +87,16 @@ async function main() {
         console.log(`[daemon-worker] Emitting event: ${eventType}`);
         if (process.send) {
           process.send({ kind: "event", payload });
+        }
+      });
+    }
+
+    // Forward background job lifecycle events to the parent process
+    for (const jobEvent of ["job:started", "job:completed", "job:failed"] as const) {
+      jobManager.on(jobEvent, (payload: unknown) => {
+        console.log(`[daemon-worker] Emitting event: ${jobEvent}`);
+        if (process.send) {
+          process.send({ kind: "event", payload: { type: jobEvent, ...(payload as Record<string, unknown>) } });
         }
       });
     }
@@ -89,6 +131,15 @@ async function main() {
         }
       }
     });
+
+    // Start background services after IPC is ready
+    // 1. Watch all configured working directories for new/removed repos
+    for (const dir of configManager.getConfig().workingDirs) {
+      dirWatcher.watchDir(dir);
+    }
+
+    // 2. Start the 5-minute spec sync schedule (runs immediately on first call)
+    specSyncService.start();
 
     // Tell parent we're ready
     if (process.send) {

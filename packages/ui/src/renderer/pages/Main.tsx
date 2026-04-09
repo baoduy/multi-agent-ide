@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { MainLayout } from "../components/layouts/MainLayout";
+import { TitleBar } from "../components/titlebar/TitleBar";
 import { Sidebar } from "../components/sidebar/Sidebar";
 import { TabBar } from "../components/main/TabBar";
 import { SpecsListView } from "../components/main/SpecsListView";
@@ -14,6 +15,7 @@ import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { useRepoStore } from "../store/repoStore";
 import { useSessionStore } from "../store/sessionStore";
 import { useConfigStore } from "../store/configStore";
+import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 
 import type { ActiveTab, BuiltinTabId, OpenFileTab } from "../components/main/TabBar";
@@ -27,6 +29,56 @@ type RepoTabSnapshot = {
   openFiles: OpenFileTab[];
   activeTab: ActiveTab;
 };
+
+/**
+ * Simple navigation history for back/forward tab navigation.
+ */
+function useNavHistory() {
+  const historyRef = useRef<ActiveTab[]>([]);
+  const indexRef = useRef(-1);
+  const [, setTick] = useState(0);
+
+  const push = useCallback((tab: ActiveTab) => {
+    const current = historyRef.current[indexRef.current];
+    // Don't push duplicates
+    if (current && isSameTab(current, tab)) return;
+
+    // Trim forward history
+    historyRef.current = historyRef.current.slice(0, indexRef.current + 1);
+    historyRef.current.push(tab);
+    indexRef.current = historyRef.current.length - 1;
+    setTick((t) => t + 1);
+  }, []);
+
+  const goBack = useCallback((): ActiveTab | null => {
+    if (indexRef.current <= 0) return null;
+    indexRef.current -= 1;
+    setTick((t) => t + 1);
+    return historyRef.current[indexRef.current];
+  }, []);
+
+  const goForward = useCallback((): ActiveTab | null => {
+    if (indexRef.current >= historyRef.current.length - 1) return null;
+    indexRef.current += 1;
+    setTick((t) => t + 1);
+    return historyRef.current[indexRef.current];
+  }, []);
+
+  return {
+    push,
+    goBack,
+    goForward,
+    canGoBack: indexRef.current > 0,
+    canGoForward: indexRef.current < historyRef.current.length - 1,
+  };
+}
+
+function isSameTab(a: ActiveTab, b: ActiveTab): boolean {
+  if (a.kind !== b.kind) return false;
+  if (a.kind === "builtin" && b.kind === "builtin") return a.id === b.id;
+  if (a.kind === "file" && b.kind === "file") return a.filePath === b.filePath;
+  return false;
+}
 
 export function MainPage(): React.ReactElement {
   // Initialize session on mount
@@ -49,6 +101,10 @@ export function MainPage(): React.ReactElement {
   const [activeTab, setActiveTab] = useState<ActiveTab>({ kind: "builtin", id: "specs" });
   const [openFiles, setOpenFiles] = useState<OpenFileTab[]>([]);
 
+  // Navigation history
+  const nav = useNavHistory();
+  const isNavAction = useRef(false);
+
   // Per-repo tab snapshots — survives across repo switches within the session
   const repoTabSnapshots = useRef<Map<string, RepoTabSnapshot>>(new Map());
   // Track the previous repo so we can snapshot on switch
@@ -63,6 +119,27 @@ export function MainPage(): React.ReactElement {
   const setSelectedSpecPath = useSpecStore((state) => state.setSelectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
   const fetchSpecs = useSpecStore((state) => state.fetchSpecs);
+  const fetchWorktreesForAll = useWorktreeStore((state) => state.fetchWorktreesForAll);
+  const fetchWorktrees = useWorktreeStore((state) => state.fetchWorktrees);
+
+  // Sidebar collapse state
+  const sidebarCollapsed = useSessionStore((state) => state.sidebarCollapsed);
+  const activityCollapsed = useSessionStore((state) => state.activityCollapsed);
+  const patchSession = useSessionStore((state) => state.patchSession);
+
+  // ── Fetch worktrees for all repos once repos are loaded ──
+  useEffect(() => {
+    if (repos.length > 0) {
+      void fetchWorktreesForAll(repos.map((r) => r.path));
+    }
+  }, [repos, fetchWorktreesForAll]);
+
+  // ── Refresh worktrees when the active repo changes ──
+  useEffect(() => {
+    if (activeRepoPath) {
+      void fetchWorktrees(activeRepoPath);
+    }
+  }, [activeRepoPath, fetchWorktrees]);
 
   // ── Save / restore open file tabs when the active repo changes ──
   useEffect(() => {
@@ -92,6 +169,15 @@ export function MainPage(): React.ReactElement {
     prevRepoPath.current = activeRepoPath;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to activeRepoPath changes
   }, [activeRepoPath]);
+
+  // Push active tab changes into navigation history (but not when navigating via back/forward)
+  useEffect(() => {
+    if (!isNavAction.current) {
+      nav.push(activeTab);
+    }
+    isNavAction.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Show loading spinner during initialization
   if (!sessionInitialized || isLoading) {
@@ -141,6 +227,34 @@ export function MainPage(): React.ReactElement {
 
   const handleSelectFileTab = (filePath: string) => {
     setActiveTab({ kind: "file", filePath });
+  };
+
+  /* ── Navigation ── */
+
+  const handleGoBack = () => {
+    const tab = nav.goBack();
+    if (tab) {
+      isNavAction.current = true;
+      setActiveTab(tab);
+    }
+  };
+
+  const handleGoForward = () => {
+    const tab = nav.goForward();
+    if (tab) {
+      isNavAction.current = true;
+      setActiveTab(tab);
+    }
+  };
+
+  /* ── Sidebar toggles ── */
+
+  const handleToggleSidebar = () => {
+    void patchSession({ sidebarCollapsed: !sidebarCollapsed });
+  };
+
+  const handleToggleActivity = () => {
+    void patchSession({ activityCollapsed: !activityCollapsed });
   };
 
   /* ── Spec selection from SpecsListView ── */
@@ -201,15 +315,33 @@ export function MainPage(): React.ReactElement {
     }
   }
 
+  const hasActivity = selectedSpec != null && selectedSpec.files.length > 0;
+
   return (
     <MainLayout
+      titleBar={
+        <TitleBar
+          sidebarCollapsed={sidebarCollapsed}
+          activityCollapsed={activityCollapsed}
+          hasActivity={hasActivity}
+          onToggleSidebar={handleToggleSidebar}
+          onToggleActivity={handleToggleActivity}
+          canGoBack={nav.canGoBack}
+          canGoForward={nav.canGoForward}
+          onGoBack={handleGoBack}
+          onGoForward={handleGoForward}
+          activeTab={activeTab}
+          onSelectBuiltinTab={handleSelectBuiltinTab}
+        />
+      }
       sidebar={<Sidebar />}
+      sidebarCollapsed={sidebarCollapsed}
+      activityCollapsed={activityCollapsed}
       main={
         <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
           <TabBar
             activeTab={activeTab}
             openFiles={openFiles}
-            onSelectBuiltinTab={handleSelectBuiltinTab}
             onSelectFileTab={handleSelectFileTab}
             onCloseFileTab={handleCloseFileTab}
           />
@@ -219,7 +351,7 @@ export function MainPage(): React.ReactElement {
         </div>
       }
       activity={
-        selectedSpec && selectedSpec.files.length > 0
+        hasActivity
           ? <ActivityPanel onOpenFile={handleOpenFile} />
           : null
       }

@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { MagentaConfig } from "@magenta/shared/config";
 import { ipc } from "../utils/ipc";
+import { sendOrThrow } from "../services/ipcClient";
 
 type ConfigStoreState = {
   workingDirs: string[];
@@ -24,16 +25,8 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await ipc.send({ type: "config:get" });
-
-      if (response.type === "config:response") {
-        set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
-        return;
-      }
-
-      if (response.type === "error") {
-        set({ error: response.message, isLoading: false });
-      }
+      const response = await sendOrThrow({ type: "config:get" });
+      set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false });
@@ -44,16 +37,8 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await ipc.send({ type: "config:add-working-dir", path });
-
-      if (response.type === "config:response") {
-        set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
-        return;
-      }
-
-      if (response.type === "error") {
-        set({ error: response.message, isLoading: false });
-      }
+      const response = await sendOrThrow({ type: "config:add-working-dir", path });
+      set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false });
@@ -64,16 +49,8 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await ipc.send({ type: "config:remove-working-dir", path });
-
-      if (response.type === "config:response") {
-        set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
-        return;
-      }
-
-      if (response.type === "error") {
-        set({ error: response.message, isLoading: false });
-      }
+      const response = await sendOrThrow({ type: "config:remove-working-dir", path });
+      set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false });

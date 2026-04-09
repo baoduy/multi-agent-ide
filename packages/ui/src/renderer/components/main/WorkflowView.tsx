@@ -5,6 +5,7 @@ import type { SpecFolder } from "@magenta/shared/models";
 import { FlowDiagram } from "../flow/FlowDiagram";
 import { ipc } from "../../utils/ipc";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
+import { useWorktreeStore } from "../../store/worktreeStore";
 
 type WorkflowViewProps = {
   spec: SpecFolder | null;
@@ -45,6 +46,11 @@ export function WorkflowView({
     relativePath: string;
   } | null>(null);
   const [worktreeError, setWorktreeError] = useState<string | null>(null);
+
+  // Worktree store — look up existing worktrees
+  const getWorktreeForBranch = useWorktreeStore((s) => s.getWorktreeForBranch);
+  const addWorktree = useWorktreeStore((s) => s.addWorktree);
+  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
   /** Build approval content from existing file text. */
   const buildApprovedContent = (existing: string): string => {
@@ -100,7 +106,46 @@ export function WorkflowView({
     [onSpecChanged],
   );
 
-  /** Approve via worktree — called after user confirms worktree name. */
+  /** Approve using an existing worktree path (no dialog needed). */
+  const handleApproveWithWorktreePath = useCallback(
+    async (stageName: string, worktreePath: string, relativePath: string) => {
+      setApproving(stageName);
+      setWorktreeError(null);
+
+      try {
+        const targetFilePath = `${worktreePath}/${relativePath}`;
+
+        const readResp = await ipc.send({ type: "file:read", filePath: targetFilePath });
+        if (readResp.type !== "file:read:result") {
+          setWorktreeError("Could not read file in worktree.");
+          setApproving(null);
+          return;
+        }
+
+        const newContent = buildApprovedContent(readResp.content);
+        const writeResp = await ipc.send({
+          type: "file:write",
+          filePath: targetFilePath,
+          content: newContent,
+        });
+
+        if (writeResp.type === "file:write:result" && writeResp.success) {
+          setLastApproved(stageName);
+          onSpecChanged?.();
+        } else {
+          setWorktreeError("Failed to write approval to worktree file.");
+        }
+      } catch (err) {
+        console.error("Error during worktree approval:", err);
+        setWorktreeError(err instanceof Error ? err.message : String(err));
+      }
+
+      setApproving(null);
+    },
+    [onSpecChanged],
+  );
+
+  /** Approve via worktree — called after user confirms worktree name in dialog. */
   const handleWorktreeApprove = useCallback(
     async (worktreeName: string) => {
       if (!worktreeDialogState || !repoPath) return;
@@ -130,59 +175,55 @@ export function WorkflowView({
           return;
         }
 
-        const worktreePath = wtResp.worktreePath;
-        const targetFilePath = `${worktreePath}/${relativePath}`;
-
-        // 2. Read file from worktree
-        const readResp = await ipc.send({ type: "file:read", filePath: targetFilePath });
-        if (readResp.type !== "file:read:result") {
-          setWorktreeError("Could not read file in worktree.");
-          setApproving(null);
-          return;
-        }
-
-        // 3. Write approved content
-        const newContent = buildApprovedContent(readResp.content);
-        const writeResp = await ipc.send({
-          type: "file:write",
-          filePath: targetFilePath,
-          content: newContent,
+        // Register the new worktree in the store
+        addWorktree({
+          repoPath,
+          worktreePath: wtResp.worktreePath,
+          branch,
+          name: worktreeName,
+          createdAt: Date.now(),
         });
 
-        if (writeResp.type === "file:write:result" && writeResp.success) {
-          setLastApproved(stageName);
-          onSpecChanged?.();
-        } else {
-          setWorktreeError("Failed to write approval to worktree file.");
-        }
-      } catch (err) {
-        console.error("Error during worktree approval:", err);
-        setWorktreeError(err instanceof Error ? err.message : String(err));
-      }
+        // Refresh the full list from daemon
+        void fetchWorktrees(repoPath);
 
-      setApproving(null);
+        // 2. Approve using the worktree
+        setApproving(null); // handleApproveWithWorktreePath will set it
+        await handleApproveWithWorktreePath(stageName, wtResp.worktreePath, relativePath);
+      } catch (err) {
+        console.error("Error during worktree creation:", err);
+        setWorktreeError(err instanceof Error ? err.message : String(err));
+        setApproving(null);
+      }
     },
-    [worktreeDialogState, repoPath, onSpecChanged],
+    [worktreeDialogState, repoPath, addWorktree, fetchWorktrees, handleApproveWithWorktreePath],
   );
 
-  /** Dispatch: current-branch files approve directly, remote-branch shows dialog. */
+  /** Dispatch: current-branch files approve directly, remote-branch checks store first. */
   const handleApprove = useCallback(
     async (stageName: string, filePath: string) => {
       const gitRef = parseGitRef(filePath);
-      if (gitRef) {
-        // Remote branch — show worktree dialog
-        setWorktreeDialogState({
-          stageName,
-          filePath,
-          branch: gitRef.ref,
-          relativePath: gitRef.relativePath,
-        });
+      if (gitRef && repoPath) {
+        // Check if a worktree already exists for this branch
+        const existing = getWorktreeForBranch(repoPath, gitRef.ref);
+        if (existing) {
+          // Worktree exists — approve directly, skip dialog
+          await handleApproveWithWorktreePath(stageName, existing.worktreePath, gitRef.relativePath);
+        } else {
+          // No worktree — show dialog
+          setWorktreeDialogState({
+            stageName,
+            filePath,
+            branch: gitRef.ref,
+            relativePath: gitRef.relativePath,
+          });
+        }
       } else {
         // Current branch — approve directly
         await handleDirectApprove(stageName, filePath);
       }
     },
-    [handleDirectApprove],
+    [handleDirectApprove, handleApproveWithWorktreePath, getWorktreeForBranch, repoPath],
   );
 
   if (!spec) {

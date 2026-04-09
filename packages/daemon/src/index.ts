@@ -1,46 +1,32 @@
+import { DaemonContainer } from "./DaemonContainer";
 import { ConfigManager } from "./config/ConfigManager";
-import { DatabaseService } from "./db/DatabaseService";
-import { IPCBridge } from "./ipc/IPCBridge";
-import { registerHandlers } from "./ipc/registerHandlers";
-
-import { SessionManager } from "./services/SessionManager";
+import type { IPCBridge } from "./ipc/IPCBridge";
+import type { SpecSyncService } from "./services/SpecSyncService";
+import type { DirWatcher } from "./services/DirWatcher";
 
 export type DaemonBootstrapResult = {
   startedAt: number;
   services: string[];
   bridge: IPCBridge;
+  specSyncService: SpecSyncService;
+  dirWatcher: DirWatcher;
 };
 
 /**
- * Bootstrap the daemon. Now async because sql.js (WASM) initialization is async.
+ * Bootstrap the daemon using the composition root.
  */
 export async function bootstrapDaemon(): Promise<DaemonBootstrapResult> {
   const startedAt = Date.now();
 
-  // DatabaseService.create() is async (sql.js WASM loading)
-  const databaseService = await DatabaseService.create();
-  const configManager = ConfigManager.getInstance();
-  const ipcBridge = new IPCBridge();
-  const sessionManager = new SessionManager(databaseService);
-
-  registerHandlers(ipcBridge, {
-    databaseService,
-    configManager,
-    sessionManager,
-  });
-
-  const services = [
-    "DatabaseService",
-    "ConfigManager",
-    "IPCBridge",
-    "IPCHandlers",
-    "SessionManager",
-  ];
+  const container = await DaemonContainer.create();
+  container.registerAllHandlers();
 
   return {
     startedAt,
-    services,
-    bridge: ipcBridge,
+    services: container.serviceNames,
+    bridge: container.bridge,
+    specSyncService: container.specSyncService,
+    dirWatcher: container.dirWatcher,
   };
 }
 
@@ -51,6 +37,14 @@ if (require.main === module) {
       console.log(
         `Daemon bootstrap initialized at ${result.startedAt} with ${result.services.length} services`
       );
+
+      // Start background services
+      const configManager = ConfigManager.getInstance();
+      for (const dir of configManager.getConfig().workingDirs) {
+        result.dirWatcher.watchDir(dir);
+      }
+      result.specSyncService.start();
+
       console.log("Daemon listening...");
     })
     .catch((err) => {

@@ -49,6 +49,8 @@ export const SessionStateSchema = z.object({
   sidebarWidth: z.number().int().positive().nullable(),
   activityPanelWidth: z.number().int().positive().nullable(),
   activityPanelOpen: z.boolean(),
+  sidebarCollapsed: z.boolean(),
+  activityCollapsed: z.boolean(),
   specPanelHeight: z.number().int().positive().nullable(),
   mainTab: z.enum(MAIN_TABS),
   updatedAt: z.number().int().nonnegative(),
@@ -70,6 +72,7 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("branch:checkout"), repoPath: z.string(), branch: z.string() }),
   z.object({ type: z.literal("gitfile:read"), repoPath: z.string(), ref: z.string(), relativePath: z.string() }),
   z.object({ type: z.literal("worktree:create"), repoPath: z.string(), branch: z.string(), name: z.string() }),
+  z.object({ type: z.literal("worktree:list"), repoPath: z.string().optional() }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -89,7 +92,8 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     missing: z.number().int().nonnegative(),
   }),
   z.object({ type: z.literal("spec:list:result"), repoPath: z.string(), specs: z.array(SpecFolderSchema) }),
-  z.object({ type: z.literal("spec:list:updated"), repoPath: z.string(), specs: z.array(SpecFolderSchema) }),
+  z.object({ type: z.literal("spec:sync:started"), repoPath: z.string() }),
+  z.object({ type: z.literal("spec:sync:complete"), repoPath: z.string() }),
   z.object({ type: z.literal("session:response"), state: SessionStateSchema }),
   z.object({ type: z.literal("session:updated") }),
   z.object({ type: z.literal("config:response"), config: MagentaConfigSchema }),
@@ -105,6 +109,19 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("branch:checkout:result"), repoPath: z.string(), branch: z.string(), success: z.boolean() }),
   z.object({ type: z.literal("gitfile:read:result"), filePath: z.string(), content: z.string() }),
   z.object({ type: z.literal("worktree:create:result"), repoPath: z.string(), worktreePath: z.string(), branch: z.string(), success: z.boolean() }),
+  z.object({
+    type: z.literal("worktree:list:result"),
+    worktrees: z.array(z.object({
+      repoPath: z.string(),
+      worktreePath: z.string(),
+      branch: z.string(),
+      name: z.string(),
+      createdAt: z.number().int().nonnegative(),
+    })),
+  }),
+  z.object({ type: z.literal("job:started"), name: z.string() }),
+  z.object({ type: z.literal("job:completed"), name: z.string(), elapsed: z.number() }),
+  z.object({ type: z.literal("job:failed"), name: z.string(), error: z.string() }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

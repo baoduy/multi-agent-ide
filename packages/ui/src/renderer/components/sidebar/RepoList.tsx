@@ -3,6 +3,7 @@ import { Search, X } from "lucide-react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useConfigStore } from "../../store/configStore";
+import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoItem } from "./RepoItem";
 import { DirectoryTree } from "./DirectoryTree";
 import { ScanProgress } from "./ScanProgress";
@@ -15,7 +16,6 @@ export function RepoList(): React.ReactElement {
   const scanProgress = useRepoStore((state) => state.scanProgress);
   const error = useRepoStore((state) => state.error);
   const initializeSubscriptions = useRepoStore((state) => state.initializeSubscriptions);
-  const setActiveRepoPath = useRepoStore((state) => state.setActiveRepoPath);
   const togglePin = useRepoStore((state) => state.togglePin);
   const workingDirs = useConfigStore((state) => state.workingDirs);
   const searchQuery = useRepoStore((state) => state.searchQuery);
@@ -55,6 +55,10 @@ export function RepoList(): React.ReactElement {
     setSearchQuery("");
     inputRef.current?.focus();
   }, [setSearchQuery]);
+
+  const handleSelectRepo = useCallback((path: string | null) => {
+    SessionCoordinator.selectRepo(path);
+  }, []);
 
   return (
     <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
@@ -161,7 +165,7 @@ export function RepoList(): React.ReactElement {
                     repo={repo}
                     active={repo.path === activeRepoPath}
                     pinned
-                    onSelect={setActiveRepoPath}
+                    onSelect={handleSelectRepo}
                     onTogglePin={togglePin}
                   />
                 ))}
@@ -175,7 +179,7 @@ export function RepoList(): React.ReactElement {
               workingDirs={workingDirs}
               activeRepoPath={activeRepoPath}
               pinnedPaths={pinnedPaths}
-              onSelectRepo={setActiveRepoPath}
+              onSelectRepo={handleSelectRepo}
               onTogglePin={togglePin}
             />
           </>

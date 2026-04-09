@@ -62,11 +62,6 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
   setRepos: (repos) => set({ repos }),
   setActiveRepoPath(path: string | null) {
     set({ activeRepoPath: path });
-    Promise.resolve().then(async () => {
-      const { useSessionStore } = await import("./sessionStore");
-      const updateSelectedRepoPath = useSessionStore.getState().updateSelectedRepoPath;
-      void updateSelectedRepoPath(path);
-    });
   },
   togglePin(repoPath: string) {
     const current = get().pinnedPaths;

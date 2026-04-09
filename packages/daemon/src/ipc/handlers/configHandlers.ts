@@ -1,108 +1,62 @@
 import type { IPCBridge } from "../IPCBridge";
-import type { ConfigManager } from "../../config/ConfigManager";
+import type { ConfigApplicationService } from "../../application/ConfigApplicationService";
+import { safeHandle } from "../createHandler";
 
 type ConfigHandlerContext = {
   bridge: IPCBridge;
-  configManager: ConfigManager;
+  configService: ConfigApplicationService;
 };
 
-export function registerConfigHandlers({ bridge, configManager }: ConfigHandlerContext): void {
+export function registerConfigHandlers({ bridge, configService }: ConfigHandlerContext): void {
   /**
    * Handles "config:get" requests.
    * Returns the current configuration.
    */
-  bridge.handle("config:get", async () => {
-    try {
-      const config = configManager.getConfig();
-
-      return {
-        type: "config:response" as const,
-        config,
-      };
-    } catch (error) {
-      console.error("Failed to get config:", error);
-
-      return {
-        type: "error" as const,
-        message: `Failed to get config: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
+  safeHandle(bridge, "config:get", async () => {
+    const config = configService.getConfig();
+    return {
+      type: "config:response",
+      config,
+    };
   });
 
   /**
    * Handles "config:add-working-dir" requests.
    * Adds a working directory and triggers a scan.
    */
-  bridge.handle("config:add-working-dir", async (payload) => {
-    try {
-      const path = (payload as Record<string, unknown>).path as string | undefined;
-      console.log("[config-handler] config:add-working-dir → path:", path);
+  safeHandle(bridge, "config:add-working-dir", async (msg) => {
+    console.log("[config-handler] config:add-working-dir → path:", msg.path);
+    const config = configService.addWorkingDir(msg.path);
+    console.log("[config-handler] Working dirs now:", config.workingDirs);
 
-      if (!path) {
-        console.error("[config-handler] Missing path in request payload:", payload);
-        return {
-          type: "error" as const,
-          message: "Missing path in config:add-working-dir request",
-        };
-      }
+    // Emit config update event to all listeners
+    bridge.emit({
+      type: "config:updated",
+      config,
+    });
 
-      const config = configManager.addWorkingDir(path);
-      console.log("[config-handler] Working dirs now:", config.workingDirs);
-
-  // Emit config update event to all listeners
-  bridge.emit({
-        type: "config:updated" as const,
-        config,
-      });
-
-      return {
-        type: "config:response" as const,
-        config,
-      };
-    } catch (error) {
-      console.error("Failed to add working directory:", error);
-
-      return {
-        type: "error" as const,
-        message: `Failed to add working directory: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
+    return {
+      type: "config:response",
+      config,
+    };
   });
 
   /**
    * Handles "config:remove-working-dir" requests.
    * Removes a working directory.
    */
-  bridge.handle("config:remove-working-dir", async (payload) => {
-    try {
-      const path = (payload as Record<string, unknown>).path as string | undefined;
+  safeHandle(bridge, "config:remove-working-dir", async (msg) => {
+    const config = configService.removeWorkingDir(msg.path);
 
-      if (!path) {
-        return {
-          type: "error" as const,
-          message: "Missing path in config:remove-working-dir request",
-        };
-      }
+    // Emit config update event to all listeners
+    bridge.emit({
+      type: "config:updated",
+      config,
+    });
 
-      const config = configManager.removeWorkingDir(path);
-
-  // Emit config update event to all listeners
-  bridge.emit({
-        type: "config:updated" as const,
-        config,
-      });
-
-      return {
-        type: "config:response" as const,
-        config,
-      };
-    } catch (error) {
-      console.error("Failed to remove working directory:", error);
-
-      return {
-        type: "error" as const,
-        message: `Failed to remove working directory: ${error instanceof Error ? error.message : String(error)}`,
-      };
-    }
+    return {
+      type: "config:response",
+      config,
+    };
   });
 }

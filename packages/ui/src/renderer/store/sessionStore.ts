@@ -8,14 +8,7 @@ type SessionStoreState = SessionState & {
   error: string | null;
   initialized: boolean;
   loadSessionState: () => Promise<void>;
-  updateSelectedRepoPath: (path: string | null) => Promise<void>;
-  updateSelectedSpecPath: (path: string | null) => Promise<void>;
-  updateSelectedFilePath: (path: string | null) => Promise<void>;
-  updateSidebarWidth: (width: number | null) => Promise<void>;
-  updateActivityPanelWidth: (width: number | null) => Promise<void>;
-  updateActivityPanelOpen: (open: boolean) => Promise<void>;
-  updateSpecPanelHeight: (height: number | null) => Promise<void>;
-  updateMainTab: (tab: "specs" | "worktrees" | "workflow") => Promise<void>;
+  patchSession: (patch: Partial<SessionState>) => Promise<void>;
 };
 
 export const useSessionStore = create<SessionStoreState>((set, get) => ({
@@ -26,6 +19,8 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   sidebarWidth: null,
   activityPanelWidth: null,
   activityPanelOpen: true,
+  sidebarCollapsed: false,
+  activityCollapsed: false,
   specPanelHeight: null,
   mainTab: "specs",
   updatedAt: Date.now(),
@@ -62,67 +57,17 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     }
   },
 
-  async updateSelectedRepoPath(path: string | null) {
-    set({ selectedRepoPath: path });
-    await ipc.send({
-      type: "session:update",
-      state: { selectedRepoPath: path },
-    });
-  },
-
-  async updateSelectedSpecPath(path: string | null) {
-    set({ selectedSpecPath: path });
-    await ipc.send({
-      type: "session:update",
-      state: { selectedSpecPath: path },
-    });
-  },
-
-  async updateSelectedFilePath(path: string | null) {
-    set({ selectedFilePath: path });
-    await ipc.send({
-      type: "session:update",
-      state: { selectedFilePath: path },
-    });
-  },
-
-  async updateSidebarWidth(width: number | null) {
-    set({ sidebarWidth: width });
-    await ipc.send({
-      type: "session:update",
-      state: { sidebarWidth: width },
-    });
-  },
-
-  async updateActivityPanelWidth(width: number | null) {
-    set({ activityPanelWidth: width });
-    await ipc.send({
-      type: "session:update",
-      state: { activityPanelWidth: width },
-    });
-  },
-
-  async updateActivityPanelOpen(open: boolean) {
-    set({ activityPanelOpen: open });
-    await ipc.send({
-      type: "session:update",
-      state: { activityPanelOpen: open },
-    });
-  },
-
-  async updateSpecPanelHeight(height: number | null) {
-    set({ specPanelHeight: height });
-    await ipc.send({
-      type: "session:update",
-      state: { specPanelHeight: height },
-    });
-  },
-
-  async updateMainTab(tab: "specs" | "worktrees" | "workflow") {
-    set({ mainTab: tab });
-    await ipc.send({
-      type: "session:update",
-      state: { mainTab: tab },
-    });
+  async patchSession(patch: Partial<SessionState>) {
+    // Optimistically update local state
+    set(patch as Partial<SessionStoreState>);
+    // Fire and forget the persistence
+    try {
+      await ipc.send({ type: "session:update", state: patch });
+    } catch (error) {
+      console.warn(
+        "[session] patchSession failed:",
+        error instanceof Error ? error.message : String(error)
+      );
+    }
   },
 }));

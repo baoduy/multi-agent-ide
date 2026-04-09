@@ -7,6 +7,10 @@ type SpecStoreState = {
   specs: SpecFolder[];
   selectedSpecPath: string | null;
   currentRepoPath: string | null;
+  /**
+   * True ONLY when we have NO data and are waiting for the first fetch.
+   * Background sync is completely invisible to the user.
+   */
   isLoading: boolean;
   error: string | null;
   subscriptionsReady: boolean;
@@ -29,24 +33,34 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
 
   setSelectedSpecPath(path: string | null) {
     set({ selectedSpecPath: path });
-    // Persist to session store via dynamic import to avoid circular deps
-    Promise.resolve().then(async () => {
-      const { useSessionStore } = await import("./sessionStore");
-      const updateSelectedSpecPath = useSessionStore.getState().updateSelectedSpecPath;
-      void updateSelectedSpecPath(path);
-    });
   },
 
   setCurrentRepoPath: (path) => set({ currentRepoPath: path }),
 
   async fetchSpecs(repoPath: string) {
-    set({ isLoading: true, error: null, currentRepoPath: repoPath });
+    const state = get();
+    const hasData = state.currentRepoPath === repoPath && state.specs.length > 0;
+
+    // Update repo path immediately
+    set({ currentRepoPath: repoPath, error: null });
+
+    // Only show loading if we have no data yet
+    if (!hasData) {
+      set({ isLoading: true });
+    }
 
     try {
       const response = await ipc.send({ type: "spec:list", repoPath });
 
+      // Guard: repo may have changed while we were waiting
+      if (get().currentRepoPath !== repoPath) return;
+
       if (response.type === "spec:list:result") {
-        set({ specs: response.specs, error: null, isLoading: false });
+        set({
+          specs: response.specs,
+          error: null,
+          isLoading: false,
+        });
         return;
       }
 
@@ -54,6 +68,7 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
         set({ error: response.message, isLoading: false, specs: [] });
       }
     } catch (error) {
+      if (get().currentRepoPath !== repoPath) return;
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false, specs: [] });
     }
@@ -64,13 +79,15 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
       return;
     }
 
-    // Subscribe to spec:list:updated events for real-time updates (Phase 6)
-    ipc.on("spec:list:updated", (payload) => {
+    // Subscribe to spec:sync:complete events.
+    // Fires when the background sync finishes for a repo.
+    // Re-fetch specs from DB silently (no loading indicator).
+    ipc.on("spec:sync:complete", (payload) => {
       const currentRepoPath = get().currentRepoPath;
 
-      // Only update if the event is for the currently loaded repo
       if (payload.repoPath === currentRepoPath) {
-        set({ specs: payload.specs });
+        // Silently re-fetch from DB — background sync may have updated data
+        void get().fetchSpecs(currentRepoPath);
       }
     });
 

@@ -1,39 +1,67 @@
-import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import Database from "better-sqlite3";
-import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
-
-import * as schema from "./schema";
+import { SqliteCompat } from "./SqliteCompat";
 import { runInitialMigration } from "./migrations/0001_initial";
 
+/**
+ * DatabaseService wraps sql.js (pure WASM SQLite) with a better-sqlite3-compatible
+ * API. Using WASM eliminates all native module compilation / ABI issues.
+ *
+ * Because sql.js initialization is async, use `DatabaseService.create()` instead
+ * of `getInstance()` for the first initialization.
+ */
 export class DatabaseService {
   private static instance: DatabaseService | null = null;
 
-  private readonly sqlite: Database.Database;
-  private readonly db: BetterSQLite3Database<typeof schema>;
+  private readonly sqlite: SqliteCompat;
+  private saveTimer: ReturnType<typeof setInterval> | null = null;
 
-  private constructor(databasePath?: string) {
-    const resolvedPath = databasePath ?? DatabaseService.getDefaultDatabasePath();
+  private constructor(sqlite: SqliteCompat) {
+    this.sqlite = sqlite;
 
-    fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
-
-    this.sqlite = new Database(resolvedPath);
-    this.sqlite.pragma("journal_mode = WAL");
-    this.sqlite.pragma("foreign_keys = ON");
-    this.sqlite.pragma("busy_timeout = 5000");
-
-    runInitialMigration(this.sqlite);
-
-    this.db = drizzle(this.sqlite, { schema });
+    // Auto-save every 5 seconds if there are pending changes
+    this.saveTimer = setInterval(() => {
+      this.sqlite.save();
+    }, 5000);
   }
 
-  static getInstance(databasePath?: string): DatabaseService {
-    if (DatabaseService.instance === null) {
-      DatabaseService.instance = new DatabaseService(databasePath);
+  /**
+   * Async factory — creates the singleton instance.
+   * Must be called once at startup before getInstance().
+   */
+  static async create(databasePath?: string): Promise<DatabaseService> {
+    if (DatabaseService.instance !== null) {
+      return DatabaseService.instance;
     }
 
+    const resolvedPath = databasePath ?? DatabaseService.getDefaultDatabasePath();
+    console.log(`[DatabaseService] Opening database at: ${resolvedPath}`);
+
+    const sqlite = await SqliteCompat.open(resolvedPath);
+
+    // Set pragmas
+    sqlite.pragma("journal_mode = WAL");
+    sqlite.pragma("foreign_keys = ON");
+    sqlite.pragma("busy_timeout = 5000");
+
+    // Run migrations
+    runInitialMigration(sqlite);
+
+    // Persist after migration
+    sqlite.save();
+
+    DatabaseService.instance = new DatabaseService(sqlite);
+    return DatabaseService.instance;
+  }
+
+  /**
+   * Returns the existing singleton. Throws if create() hasn't been called yet.
+   */
+  static getInstance(): DatabaseService {
+    if (DatabaseService.instance === null) {
+      throw new Error("DatabaseService not initialized. Call DatabaseService.create() first.");
+    }
     return DatabaseService.instance;
   }
 
@@ -48,20 +76,36 @@ export class DatabaseService {
     return path.join(os.homedir(), ".magenta", "magenta.db");
   }
 
-  getDrizzle(): BetterSQLite3Database<typeof schema> {
-    return this.db;
-  }
-
-  getSqlite(): Database.Database {
+  /**
+   * Returns the SqliteCompat instance for raw queries.
+   * This provides the same prepare().all() / .get() / .run() API as better-sqlite3.
+   */
+  getSqlite(): SqliteCompat {
     return this.sqlite;
   }
 
-  transaction<T>(run: (db: BetterSQLite3Database<typeof schema>) => T): T {
-    const wrapped = this.sqlite.transaction(() => run(this.db));
-    return wrapped();
+  /**
+   * Run a function inside a transaction.
+   */
+  transaction<T>(run: () => T): T {
+    const wrapped = this.sqlite.transaction(run);
+    const result = wrapped();
+    this.sqlite.save();
+    return result as T;
+  }
+
+  /**
+   * Persist pending changes to disk immediately.
+   */
+  flush(): void {
+    this.sqlite.save();
   }
 
   close(): void {
+    if (this.saveTimer) {
+      clearInterval(this.saveTimer);
+      this.saveTimer = null;
+    }
     this.sqlite.close();
   }
 }

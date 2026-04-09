@@ -10,6 +10,7 @@ const api = {
   async send(request: IpcRequest): Promise<IpcResponse> {
     return ipcRenderer.invoke("magenta:ipc", request) as Promise<IpcResponse>;
   },
+
   on(type: IpcResponse["type"], listener: Listener): void {
     const wrapped = (_event: Electron.IpcRendererEvent, payload: IpcResponse) => {
       if (payload.type === type) {
@@ -20,6 +21,7 @@ const api = {
     listeners.set(listener, wrapped);
     ipcRenderer.on("magenta:event", wrapped);
   },
+
   off(listener: Listener): void {
     const wrapped = listeners.get(listener);
 
@@ -29,6 +31,13 @@ const api = {
 
     ipcRenderer.off("magenta:event", wrapped);
     listeners.delete(listener);
+  },
+
+  /**
+   * Opens a native folder picker dialog. Returns the selected path or null if cancelled.
+   */
+  async selectFolder(): Promise<string | null> {
+    return ipcRenderer.invoke("magenta:select-folder") as Promise<string | null>;
   },
 };
 

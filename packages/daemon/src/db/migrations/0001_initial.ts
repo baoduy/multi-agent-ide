@@ -1,4 +1,4 @@
-import type BetterSqlite3 from "better-sqlite3";
+import type { SqliteCompat } from "../SqliteCompat";
 
 export const initialMigrationStatements = [
   `CREATE TABLE IF NOT EXISTS repos (
@@ -24,7 +24,7 @@ export const initialMigrationStatements = [
     sidebar_width INTEGER DEFAULT 300,
     activity_panel_width INTEGER DEFAULT 300,
     activity_panel_open INTEGER DEFAULT 1,
-    main_tab TEXT DEFAULT 'flow',
+    main_tab TEXT DEFAULT 'plan',
     updated_at INTEGER NOT NULL
   )`,
   `INSERT OR IGNORE INTO session_state (
@@ -37,15 +37,11 @@ export const initialMigrationStatements = [
     activity_panel_open,
     main_tab,
     updated_at
-  ) VALUES (1, NULL, NULL, NULL, 300, 300, 1, 'flow', strftime('%s', 'now'))`,
+  ) VALUES (1, NULL, NULL, NULL, 300, 300, 1, 'plan', strftime('%s', 'now'))`,
 ];
 
-export function runInitialMigration(sqlite: BetterSqlite3.Database): void {
-  const transaction = sqlite.transaction(() => {
-    for (const statement of initialMigrationStatements) {
-      sqlite.prepare(statement).run();
-    }
-  });
-
-  transaction();
+export function runInitialMigration(sqlite: SqliteCompat): void {
+  for (const statement of initialMigrationStatements) {
+    sqlite.exec(statement);
+  }
 }

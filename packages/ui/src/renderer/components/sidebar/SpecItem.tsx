@@ -9,38 +9,23 @@ type SpecItemProps = {
   onSelect: (specPath: string) => void;
 };
 
-/**
- * Renders a single spec folder item in the spec tree.
- * Displays the spec name, stage progress dots, and handles selection.
- */
 export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.ReactElement {
-  const containerStyle: React.CSSProperties = {
-    padding: "8px 12px",
-    marginBottom: 4,
-    backgroundColor: isSelected ? "#e0e7ff" : "transparent",
-    borderRadius: 4,
-    cursor: "pointer",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    transition: "background-color 0.2s",
-  };
-
-  const nameStyle: React.CSSProperties = {
-    fontSize: 13,
-    fontWeight: isSelected ? 600 : 400,
-    color: "#1f2937",
-    flex: 1,
-    marginRight: 12,
-  };
-
   return (
     <div
-      style={containerStyle}
+      style={{
+        padding: "8px 16px",
+        backgroundColor: isSelected ? "#f0f0ff" : "transparent",
+        borderLeft: isSelected ? "2px solid #5b57d1" : "2px solid transparent",
+        cursor: "pointer",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        transition: "background-color 0.12s",
+      }}
       onClick={() => onSelect(spec.path)}
       onMouseEnter={(e) => {
         if (!isSelected) {
-          e.currentTarget.style.backgroundColor = "#f3f4f6";
+          e.currentTarget.style.backgroundColor = "#f4f4f6";
         }
       }}
       onMouseLeave={(e) => {
@@ -49,7 +34,18 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
         }
       }}
     >
-      <span style={nameStyle}>{spec.name}</span>
+      <span
+        style={{
+          fontSize: 12,
+          fontWeight: isSelected ? 500 : 400,
+          color: "#1e1e2e",
+          flex: 1,
+          marginRight: 12,
+          lineHeight: 1.4,
+        }}
+      >
+        {spec.name}
+      </span>
       <StageDots stages={spec.stages} />
     </div>
   );

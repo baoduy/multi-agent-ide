@@ -17,14 +17,21 @@ export function registerRepoHandlers({ bridge, databaseService, configManager }:
   const scanner = new RepoScanner(3);
   const queue = new ScanQueue(scanner, repository, bridge);
 
-  bridge.handle("repo:list", async () => ({
-    type: "repo:list:result",
-    repos: repository.listAll(),
-  }));
+  bridge.handle("repo:list", async () => {
+    const repos = repository.listAll();
+    console.log(`[repo-handler] repo:list → returning ${repos.length} repos`);
+    return {
+      type: "repo:list:result",
+      repos,
+    };
+  });
 
   bridge.handle("repo:scan", async () => {
     const config = configManager.getConfig();
-    void queue.requestScan(config.workingDirs);
+    console.log(`[repo-handler] repo:scan → scanning ${config.workingDirs.length} dirs:`, config.workingDirs);
+    void queue.requestScan(config.workingDirs).catch((err) => {
+      console.error("[repo-handler] Scan failed:", err);
+    });
 
     return {
       type: "repo:scan:started",

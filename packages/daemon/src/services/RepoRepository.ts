@@ -6,6 +6,13 @@ import type { DatabaseService } from "../db/DatabaseService";
 export class RepoRepository {
   constructor(private readonly databaseService: DatabaseService) {}
 
+  /**
+   * Persist pending changes to disk (sql.js is in-memory).
+   */
+  flush(): void {
+    this.databaseService.flush();
+  }
+
   listAll(): Repository[] {
     const rows = this.databaseService
       .getSqlite()
@@ -14,9 +21,13 @@ export class RepoRepository {
          FROM repos
          ORDER BY name ASC`
       )
-      .all() as Repository[];
+      .all() as Array<Record<string, unknown>>;
 
-    return rows;
+    // SQLite returns 0/1 for booleans; convert to proper boolean
+    return rows.map((row) => ({
+      ...row,
+      hasSpecs: Boolean(row.hasSpecs),
+    })) as Repository[];
   }
 
   findByPath(path: string): Repository | null {
@@ -27,9 +38,14 @@ export class RepoRepository {
          FROM repos
          WHERE path = ?`
       )
-      .get(path) as Repository | undefined;
+      .get(path) as Record<string, unknown> | undefined;
 
-    return row ?? null;
+    if (!row) {
+      return null;
+    }
+
+    // SQLite returns 0/1 for booleans; convert to proper boolean
+    return { ...row, hasSpecs: Boolean(row.hasSpecs) } as Repository;
   }
 
   upsert(repo: Omit<Repository, "id" | "createdAt"> & { id?: string; createdAt?: number }): Repository {

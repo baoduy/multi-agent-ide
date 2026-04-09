@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import ReactFlow, { Controls, Background } from "reactflow";
-import "reactflow/dist/style.css";
+// @ts-ignore – esbuild loads .css as text via the "text" loader
+import reactflowCSS from "reactflow/dist/style.css";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { specToFlowDiagram } from "./diagramUtils";
@@ -15,6 +16,17 @@ type FlowDiagramProps = {
  * Displays status, progress, and allows pan/zoom/fit-to-view controls.
  */
 export function FlowDiagram({ spec }: FlowDiagramProps): React.ReactElement {
+  // Inject reactflow CSS once into the document head
+  useEffect(() => {
+    const id = "reactflow-styles";
+    if (!document.getElementById(id)) {
+      const style = document.createElement("style");
+      style.id = id;
+      style.textContent = reactflowCSS as unknown as string;
+      document.head.appendChild(style);
+    }
+  }, []);
+
   const { nodes, edges } = useMemo(() => {
     if (!spec) {
       return { nodes: [], edges: [] };

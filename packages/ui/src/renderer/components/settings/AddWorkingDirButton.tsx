@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 
 import { useConfigStore } from "../../store/configStore";
+import { selectFolder } from "../../utils/ipc";
 
 type AddWorkingDirButtonProps = {
   onError?: (error: string | null) => void;
@@ -14,11 +15,9 @@ export function AddWorkingDirButton({ onError }: AddWorkingDirButtonProps): Reac
   const addWorkingDir = useConfigStore((state) => state.addWorkingDir);
 
   const handleClick = async (): Promise<void> => {
-    // In a real app, we'd use a file picker dialog
-    // For now, we'll use a prompt for simplicity
-    const path = window.prompt("Enter path to working directory:", "");
+    const path = await selectFolder();
 
-    if (!path || path.trim() === "") {
+    if (!path) {
       return;
     }
 
@@ -40,6 +39,8 @@ export function AddWorkingDirButton({ onError }: AddWorkingDirButtonProps): Reac
       type="button"
       onClick={handleClick}
       disabled={isLoading}
+      aria-label="Add new working directory"
+      title="Add a new working directory to scan for repositories"
       style={{
         width: "100%",
         padding: "8px 12px",
@@ -53,8 +54,6 @@ export function AddWorkingDirButton({ onError }: AddWorkingDirButtonProps): Reac
         opacity: isLoading ? 0.7 : 1,
       }}
     >
-        aria-label="Add new working directory"
-        title="Add a new working directory to scan for repositories"
       {isLoading ? "Adding..." : "+ Add Working Directory"}
     </button>
   );

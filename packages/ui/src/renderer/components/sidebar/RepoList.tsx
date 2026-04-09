@@ -12,45 +12,41 @@ export function RepoList(): React.ReactElement {
     scanProgress,
     error,
     initializeSubscriptions,
-    fetchRepos,
-    triggerScan,
     setActiveRepoPath,
   } = useRepoStore();
 
   useEffect(() => {
     initializeSubscriptions();
-    void fetchRepos();
-  }, [initializeSubscriptions, fetchRepos]);
+  }, [initializeSubscriptions]);
 
   return (
-    <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 13, letterSpacing: 0.4, textTransform: "uppercase", color: "#6b7280" }}>
-          Repositories
-        </h2>
-        <button type="button" onClick={() => void triggerScan()} style={{ fontSize: 12 }}>
-          Rescan
-        </button>
-      </div>
-
+    <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {isScanning && scanProgress ? (
         <ScanProgress scanned={scanProgress.scanned} total={scanProgress.total} currentDir={scanProgress.currentDir} />
       ) : null}
 
-      {error ? <div style={{ color: "#b91c1c", marginBottom: 10, fontSize: 12 }}>{error}</div> : null}
+      {error ? (
+        <div style={{ color: "#c93c37", padding: "6px 16px", fontSize: 12, background: "#fef2f2" }}>
+          {error}
+        </div>
+      ) : null}
 
-      {repos.length === 0 ? (
-        <div style={{ color: "#6b7280", fontSize: 13 }}>No repositories found yet.</div>
-      ) : (
-        repos.map((repo) => (
-          <RepoItem
-            key={repo.id}
-            repo={repo}
-            active={repo.path === activeRepoPath}
-            onSelect={setActiveRepoPath}
-          />
-        ))
-      )}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {repos.length === 0 ? (
+          <div style={{ color: "#8b8b96", fontSize: 12, padding: "12px 16px" }}>
+            No repositories found.
+          </div>
+        ) : (
+          repos.map((repo) => (
+            <RepoItem
+              key={repo.id}
+              repo={repo}
+              active={repo.path === activeRepoPath}
+              onSelect={setActiveRepoPath}
+            />
+          ))
+        )}
+      </div>
     </section>
   );
 }

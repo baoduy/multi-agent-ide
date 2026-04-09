@@ -10,52 +10,37 @@
       padding: 0;
       box-sizing: border-box;
     }
+    html, body, #root {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: #1e1e1e;
-      color: #e0e0e0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      background: #ffffff;
+      color: #1e1e2e;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    .container {
-      text-align: center;
-      padding: 2rem;
-    }
-    h1 {
-      font-size: 2.5rem;
-      margin-bottom: 1rem;
-      color: #fff;
-    }
-    p {
-      font-size: 1.1rem;
-      color: #b0b0b0;
-      margin: 0.5rem 0;
-    }
-    .status {
-      margin-top: 2rem;
-      padding: 1rem;
-      background: #2d2d2d;
-      border-radius: 8px;
-      border-left: 4px solid #007acc;
-    }
-    .loading {
-      display: inline-block;
-      animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
+    /* Enterprise scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #c8c8d0; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #a0a0ae; }
+    /* Selection color */
+    ::selection { background: #d0d7ff; }
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="root"></div>
   <noscript>
-    <div class="container">
-      <h1>🧠 Magenta IDE</h1>
-      <p>JavaScript is required to run Magenta IDE</p>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+      <p>JavaScript is required to run Magenta IDE.</p>
     </div>
   </noscript>
   <script src="../../ui/dist/bundle.js"></script>

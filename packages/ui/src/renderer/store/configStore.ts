@@ -46,7 +46,7 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
     try {
       const response = await ipc.send({ type: "config:add-working-dir", path });
 
-      if (response.type === "config:updated") {
+      if (response.type === "config:response") {
         set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
         return;
       }
@@ -66,7 +66,7 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
     try {
       const response = await ipc.send({ type: "config:remove-working-dir", path });
 
-      if (response.type === "config:updated") {
+      if (response.type === "config:response") {
         set({ workingDirs: response.config.workingDirs, isLoading: false, error: null });
         return;
       }

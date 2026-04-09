@@ -1,4 +1,4 @@
-import chokidar from "chokidar";
+import { watch as chokidarWatch, type FSWatcher as ChokidarFSWatcher } from "chokidar";
 import path from "node:path";
 
 type FileWatcherCallbacks = {
@@ -10,7 +10,7 @@ type FileWatcherCallbacks = {
  * Emits debounced callbacks when files in the specs/ directory change.
  */
 export class FileWatcher {
-  private watcher: chokidar.FSWatcher | null = null;
+  private watcher: ChokidarFSWatcher | null = null;
   private currentWatchPath: string | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
   private readonly debounceMs = 500;
@@ -29,7 +29,7 @@ export class FileWatcher {
     this.callbacks = callbacks;
 
     // Watch the specs directory with debouncing
-    this.watcher = chokidar.watch(specsPath, {
+    this.watcher = chokidarWatch(specsPath, {
       persistent: true,
       ignoreInitial: true,
       ignored: /(^|[/\\])\.|node_modules|\.git/,

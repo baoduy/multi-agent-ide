@@ -17,7 +17,7 @@ interface PipelineNodeData {
 
 type CustomNodeProps = {
   data: PipelineNodeData;
-  isConnected: boolean;
+  isConnected?: boolean;
 };
 
 /**

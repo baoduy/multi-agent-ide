@@ -45,7 +45,7 @@ export class SessionManager {
         sidebarWidth: null,
         activityPanelWidth: null,
         activityPanelOpen: true,
-        mainTab: "flow",
+        mainTab: "plan",
         updatedAt: Date.now(),
       };
     }

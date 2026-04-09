@@ -37,11 +37,12 @@ export class ScanQueue {
 
   private async runScan(roots: string[]): Promise<void> {
     this.running = true;
+    console.log(`[scan-queue] Starting scan for roots:`, roots);
     this.bridge.emit({ type: "repo:scan:started" });
 
     try {
       const scanTimestamp = Date.now();
-      const { results } = await this.scanner.scan(roots, (progress) => {
+      const { results, scanned } = await this.scanner.scan(roots, (progress) => {
         this.bridge.emit({
           type: "repo:scan:progress",
           scanned: progress.scanned,
@@ -50,11 +51,14 @@ export class ScanQueue {
         });
       });
 
+      console.log(`[scan-queue] Scan complete: found ${results.length} repos in ${scanned} directories`);
+
       const seenPaths = new Set<string>();
       let added = 0;
       let updated = 0;
 
       for (const candidate of results) {
+        console.log(`[scan-queue] Found repo: ${candidate.name} at ${candidate.path} (branch: ${candidate.branch})`);
         const existing = this.repoRepository.findByPath(candidate.path);
         if (existing) {
           updated += 1;
@@ -78,6 +82,11 @@ export class ScanQueue {
       const missing = this.repoRepository.markMissingAbsentPaths(seenPaths, scanTimestamp);
       const repos = this.repoRepository.listAll();
 
+      // Persist to disk (sql.js is in-memory, needs explicit save)
+      this.repoRepository.flush();
+
+      console.log(`[scan-queue] Emitting repo:scan:complete with ${repos.length} repos (added=${added}, updated=${updated}, missing=${missing})`);
+
       this.bridge.emit({
         type: "repo:scan:complete",
         repos,
@@ -85,6 +94,9 @@ export class ScanQueue {
         updated,
         missing,
       });
+    } catch (error) {
+      console.error("[scan-queue] Scan failed:", error);
+      throw error;
     } finally {
       this.running = false;
     }

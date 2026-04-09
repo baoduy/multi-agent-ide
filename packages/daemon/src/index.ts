@@ -5,64 +5,59 @@ import { registerHandlers } from "./ipc/registerHandlers";
 
 import { SessionManager } from "./services/SessionManager";
 
-type DaemonBootstrapResult = {
+export type DaemonBootstrapResult = {
   startedAt: number;
   services: string[];
+  bridge: IPCBridge;
 };
 
-class DaemonApp {
-  private readonly databaseService: DatabaseService;
-  private readonly configManager: ConfigManager;
-  private readonly ipcBridge: IPCBridge;
-  private readonly sessionManager: SessionManager;
-  private readonly services: string[];
+/**
+ * Bootstrap the daemon. Now async because sql.js (WASM) initialization is async.
+ */
+export async function bootstrapDaemon(): Promise<DaemonBootstrapResult> {
+  const startedAt = Date.now();
 
-  constructor() {
-    this.databaseService = DatabaseService.getInstance();
-    this.configManager = ConfigManager.getInstance();
-    this.ipcBridge = new IPCBridge();
-    this.sessionManager = new SessionManager(this.databaseService);
+  // DatabaseService.create() is async (sql.js WASM loading)
+  const databaseService = await DatabaseService.create();
+  const configManager = ConfigManager.getInstance();
+  const ipcBridge = new IPCBridge();
+  const sessionManager = new SessionManager(databaseService);
 
-    registerHandlers(this.ipcBridge, {
-      databaseService: this.databaseService,
-      configManager: this.configManager,
-      sessionManager: this.sessionManager,
+  registerHandlers(ipcBridge, {
+    databaseService,
+    configManager,
+    sessionManager,
+  });
+
+  const services = [
+    "DatabaseService",
+    "ConfigManager",
+    "IPCBridge",
+    "IPCHandlers",
+    "SessionManager",
+  ];
+
+  return {
+    startedAt,
+    services,
+    bridge: ipcBridge,
+  };
+}
+
+// Run daemon standalone if this is the entry point
+if (require.main === module) {
+  bootstrapDaemon()
+    .then((result) => {
+      console.log(
+        `Daemon bootstrap initialized at ${result.startedAt} with ${result.services.length} services`
+      );
+      console.log("Daemon listening...");
+    })
+    .catch((err) => {
+      console.error("Daemon bootstrap failed:", err);
+      process.exit(1);
     });
 
-    this.services = [
-      "DatabaseService",
-      "ConfigManager",
-      "IPCBridge",
-      "IPCHandlers",
-      "SessionManager",
-    ];
-  }
-
-  start(): DaemonBootstrapResult {
-    const startedAt = Date.now();
-
-    // Phase 1 bootstrap placeholder: concrete service wiring follows in Phase 2.
-    return {
-      startedAt,
-      services: [...this.services],
-    };
-  }
-}
-
-export function bootstrapDaemon(): DaemonBootstrapResult {
-  const app = new DaemonApp();
-  return app.start();
-}
-
-// Run daemon if this is the entry point
-if (require.main === module) {
-  const result = bootstrapDaemon();
-  console.log(
-    `Daemon bootstrap initialized at ${result.startedAt} with ${result.services.length} services`
-  );
-  
-  // Keep daemon running
-  console.log("Daemon listening...");
   process.on("SIGTERM", () => {
     console.log("Daemon shutting down");
     process.exit(0);
@@ -71,7 +66,7 @@ if (require.main === module) {
     console.log("Daemon shutting down");
     process.exit(0);
   });
-  
+
   // Keep the process alive
   setInterval(() => {}, 1000);
 }

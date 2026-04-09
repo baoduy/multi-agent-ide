@@ -6,6 +6,7 @@ declare global {
       send(request: IpcRequest): Promise<IpcResponse>;
       on(type: IpcResponse["type"], listener: (payload: IpcResponse) => void): void;
       off(listener: (payload: IpcResponse) => void): void;
+      selectFolder(): Promise<string | null>;
     };
   }
 }

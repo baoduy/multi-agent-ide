@@ -14,7 +14,7 @@ type SessionStoreState = SessionState & {
   updateSidebarWidth: (width: number | null) => Promise<void>;
   updateActivityPanelWidth: (width: number | null) => Promise<void>;
   updateActivityPanelOpen: (open: boolean) => Promise<void>;
-  updateMainTab: (tab: "flow" | "editor" | "worktrees") => Promise<void>;
+  updateMainTab: (tab: "plan" | "worktrees" | "spec") => Promise<void>;
 };
 
 export const useSessionStore = create<SessionStoreState>((set, get) => ({
@@ -25,7 +25,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   sidebarWidth: null,
   activityPanelWidth: null,
   activityPanelOpen: true,
-  mainTab: "flow",
+  mainTab: "plan",
   updatedAt: Date.now(),
 
   // Store state
@@ -38,6 +38,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
 
     try {
       const response = await ipc.send({ type: "session:get" });
+      console.log("[session] loadSessionState response:", response.type);
 
       if (response.type === "session:response") {
         set({
@@ -48,11 +49,13 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
         return;
       }
 
-      if (response.type === "error") {
-        set({ error: response.message, isLoading: false, initialized: true });
-      }
+      // Any non-success response (including "error") — mark as initialized anyway
+      const errorMsg = response.type === "error" ? (response as any).message : `Unexpected response: ${response.type}`;
+      console.warn("[session] loadSessionState error:", errorMsg);
+      set({ error: errorMsg, isLoading: false, initialized: true });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error("[session] loadSessionState exception:", errorMessage);
       set({ error: errorMessage, isLoading: false, initialized: true });
     }
   },
@@ -105,7 +108,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     });
   },
 
-  async updateMainTab(tab: "flow" | "editor" | "worktrees") {
+  async updateMainTab(tab: "plan" | "worktrees" | "spec") {
     set({ mainTab: tab });
     await ipc.send({
       type: "session:update",

@@ -36,8 +36,10 @@ export function registerConfigHandlers({ bridge, configManager }: ConfigHandlerC
   bridge.handle("config:add-working-dir", async (payload) => {
     try {
       const path = (payload as Record<string, unknown>).path as string | undefined;
+      console.log("[config-handler] config:add-working-dir → path:", path);
 
       if (!path) {
+        console.error("[config-handler] Missing path in request payload:", payload);
         return {
           type: "error" as const,
           message: "Missing path in config:add-working-dir request",
@@ -45,6 +47,7 @@ export function registerConfigHandlers({ bridge, configManager }: ConfigHandlerC
       }
 
       const config = configManager.addWorkingDir(path);
+      console.log("[config-handler] Working dirs now:", config.workingDirs);
 
   // Emit config update event to all listeners
   bridge.emit({

@@ -10,6 +10,8 @@
         ".specify/scripts/bash/": true,
         ".specify/scripts/powershell/": true
     },
-    "chat.agent.maxRequests": 1000
+    "chat.agent.maxRequests": 1000,
+    "terminal.integrated.shellIntegration.enabled": true,
+    "terminal.integrated.defaultProfile.linux": "bash",
 }
 

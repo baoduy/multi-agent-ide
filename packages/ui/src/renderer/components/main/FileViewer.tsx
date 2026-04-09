@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, FileCode, Copy, Check, Clipboard, CheckCircle } from "lucide-react";
+import { Eye, FileCode, Copy, Check, Clipboard, CheckCircle, GitBranch } from "lucide-react";
 import { Marked } from "marked";
 import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 
 import { ipc } from "../../utils/ipc";
+import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 
 /* ═══════════════════════════════════════════════════════
    Marked instance — configured once with highlight.js
@@ -534,15 +535,23 @@ function CopyContentButton({ content }: { content: string }): React.ReactElement
 function ApproveButton({
   filePath,
   content,
+  repoPath,
   onApproved,
 }: {
   filePath: string;
   content: string;
+  /** Required for gitref:// files — the repo root path */
+  repoPath?: string;
   onApproved: (newContent: string) => void;
 }): React.ReactElement | null {
   const [approving, setApproving] = useState(false);
   const [approved, setApproved] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [showWorktreeDialog, setShowWorktreeDialog] = useState(false);
+  const [worktreeError, setWorktreeError] = useState<string | null>(null);
+
+  const isGitRef = isGitRefPath(filePath);
+  const gitRef = isGitRef ? parseGitRef(filePath) : null;
 
   // Check if already approved
   const isAlreadyApproved = /\*\*Approved by:\*\*/.test(content);
@@ -574,23 +583,25 @@ function ApproveButton({
     );
   }
 
-  const handleApprove = async () => {
+  /** Build the new content with the approval line inserted. */
+  const buildApprovedContent = (original: string): string => {
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const approvalLine = `**Approved by:** Steven | **Date:** ${dateStr}`;
+
+    const headingMatch = original.match(/^(#[^\n]*\n)/);
+    if (headingMatch) {
+      const idx = (headingMatch.index ?? 0) + headingMatch[0].length;
+      return original.slice(0, idx) + "\n" + approvalLine + "\n" + original.slice(idx);
+    }
+    return approvalLine + "\n\n" + original;
+  };
+
+  /** Approve a local (current-branch) file directly. */
+  const handleDirectApprove = async () => {
     setApproving(true);
     try {
-      const now = new Date();
-      const dateStr = now.toISOString().split("T")[0];
-      const approvalLine = `**Approved by:** Steven | **Date:** ${dateStr}`;
-
-      let newContent: string;
-      const headingMatch = content.match(/^(#[^\n]*\n)/);
-      if (headingMatch) {
-        const idx = (headingMatch.index ?? 0) + headingMatch[0].length;
-        newContent =
-          content.slice(0, idx) + "\n" + approvalLine + "\n" + content.slice(idx);
-      } else {
-        newContent = approvalLine + "\n\n" + content;
-      }
-
+      const newContent = buildApprovedContent(content);
       const writeResp = await ipc.send({
         type: "file:write",
         filePath,
@@ -607,33 +618,141 @@ function ApproveButton({
     setApproving(false);
   };
 
+  /** Approve a gitref file: create worktree, write to worktree, signal success. */
+  const handleWorktreeApprove = async (worktreeName: string) => {
+    if (!gitRef || !repoPath) return;
+
+    setShowWorktreeDialog(false);
+    setApproving(true);
+    setWorktreeError(null);
+
+    try {
+      // 1. Create the worktree
+      const wtResp = await ipc.send({
+        type: "worktree:create",
+        repoPath,
+        branch: gitRef.ref,
+        name: worktreeName,
+      });
+
+      if (wtResp.type === "error") {
+        setWorktreeError(wtResp.message);
+        setApproving(false);
+        return;
+      }
+
+      if (wtResp.type !== "worktree:create:result") {
+        setWorktreeError("Unexpected response when creating worktree.");
+        setApproving(false);
+        return;
+      }
+
+      const worktreePath = wtResp.worktreePath;
+
+      // 2. The file in the worktree is at worktreePath + "/" + relativePath
+      const targetFilePath = `${worktreePath}/${gitRef.relativePath}`;
+
+      // 3. Read the file from the worktree (it's now on disk)
+      const readResp = await ipc.send({ type: "file:read", filePath: targetFilePath });
+      if (readResp.type !== "file:read:result") {
+        setWorktreeError(`Could not read file in worktree: ${readResp.type === "error" ? readResp.message : "Unknown error"}`);
+        setApproving(false);
+        return;
+      }
+
+      // 4. Write the approved content
+      const newContent = buildApprovedContent(readResp.content);
+      const writeResp = await ipc.send({
+        type: "file:write",
+        filePath: targetFilePath,
+        content: newContent,
+      });
+
+      if (writeResp.type === "file:write:result" && writeResp.success) {
+        setApproved(true);
+        onApproved(newContent);
+      } else {
+        setWorktreeError("Failed to write approval to the worktree file.");
+      }
+    } catch (err) {
+      console.error("Error during worktree approval:", err);
+      setWorktreeError(err instanceof Error ? err.message : String(err));
+    }
+    setApproving(false);
+  };
+
+  const handleClick = () => {
+    if (isGitRef) {
+      // Remote branch — show worktree dialog
+      setShowWorktreeDialog(true);
+    } else {
+      // Current branch — approve directly
+      void handleDirectApprove();
+    }
+  };
+
   return (
-    <button
-      type="button"
-      title="Approve this file"
-      onClick={handleApprove}
-      disabled={approving}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "4px 10px",
-        fontSize: 11,
-        fontWeight: 600,
-        color: "#fff",
-        background: approving ? "#86efac" : hovered ? "#15803d" : "#16A34A",
-        border: "none",
-        borderRadius: 6,
-        cursor: approving ? "wait" : "pointer",
-        transition: "all 0.15s",
-        fontFamily: "inherit",
-      }}
-    >
-      <CheckCircle size={13} strokeWidth={2} />
-      <span>{approving ? "Approving..." : "Approve"}</span>
-    </button>
+    <>
+      <button
+        type="button"
+        title={isGitRef ? "Create worktree and approve this file" : "Approve this file"}
+        onClick={handleClick}
+        disabled={approving}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "4px 10px",
+          fontSize: 11,
+          fontWeight: 600,
+          color: "#fff",
+          background: approving ? "#86efac" : hovered ? "#15803d" : "#16A34A",
+          border: "none",
+          borderRadius: 6,
+          cursor: approving ? "wait" : "pointer",
+          transition: "all 0.15s",
+          fontFamily: "inherit",
+        }}
+      >
+        {isGitRef ? <GitBranch size={13} strokeWidth={2} /> : <CheckCircle size={13} strokeWidth={2} />}
+        <span>{approving ? "Approving..." : isGitRef ? "Approve via Worktree" : "Approve"}</span>
+      </button>
+
+      {/* Worktree name dialog */}
+      {showWorktreeDialog && gitRef && (
+        <WorktreeDialog
+          branch={gitRef.ref}
+          onConfirm={handleWorktreeApprove}
+          onCancel={() => setShowWorktreeDialog(false)}
+        />
+      )}
+
+      {/* Error toast */}
+      {worktreeError && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            background: "#fae8e1",
+            border: "1px solid #e5b8a5",
+            borderRadius: 8,
+            padding: "10px 16px",
+            fontSize: 12,
+            color: "#a14a2f",
+            maxWidth: 360,
+            zIndex: 10000,
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            cursor: "pointer",
+          }}
+          onClick={() => setWorktreeError(null)}
+        >
+          {worktreeError}
+        </div>
+      )}
+    </>
   );
 }
 
@@ -782,24 +901,23 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: "#9a958c",
-                  background: "#f0ede8",
+                  color: "#7c6a3e",
+                  background: "#fef3c7",
                   padding: "3px 8px",
                   borderRadius: 4,
                 }}
               >
-                read-only
+                remote branch
               </span>
             )}
             <ViewModeToggle mode={viewMode} onChange={setViewMode} />
             <CopyContentButton content={content} />
-            {!isGitRef && (
-              <ApproveButton
-                filePath={filePath}
-                content={content}
-                onApproved={(newContent) => setContent(newContent)}
-              />
-            )}
+            <ApproveButton
+              filePath={filePath}
+              content={content}
+              repoPath={repoPath}
+              onApproved={(newContent) => setContent(newContent)}
+            />
           </div>
         </div>
       )}

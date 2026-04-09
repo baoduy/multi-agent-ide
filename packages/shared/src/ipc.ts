@@ -69,6 +69,7 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("branch:list"), repoPath: z.string() }),
   z.object({ type: z.literal("branch:checkout"), repoPath: z.string(), branch: z.string() }),
   z.object({ type: z.literal("gitfile:read"), repoPath: z.string(), ref: z.string(), relativePath: z.string() }),
+  z.object({ type: z.literal("worktree:create"), repoPath: z.string(), branch: z.string(), name: z.string() }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -103,6 +104,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("branch:list:result"), repoPath: z.string(), branches: z.array(z.string()), current: z.string() }),
   z.object({ type: z.literal("branch:checkout:result"), repoPath: z.string(), branch: z.string(), success: z.boolean() }),
   z.object({ type: z.literal("gitfile:read:result"), filePath: z.string(), content: z.string() }),
+  z.object({ type: z.literal("worktree:create:result"), repoPath: z.string(), worktreePath: z.string(), branch: z.string(), success: z.boolean() }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

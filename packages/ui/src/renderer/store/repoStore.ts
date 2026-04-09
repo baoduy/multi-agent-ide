@@ -9,36 +9,89 @@ type ScanProgress = {
   currentDir: string;
 };
 
+type BranchState = {
+  branches: string[];
+  current: string;
+  isLoading: boolean;
+  isCheckingOut: boolean;
+};
+
 type RepoStoreState = {
   repos: Repository[];
   activeRepoPath: string | null;
+  pinnedPaths: Set<string>;
   isScanning: boolean;
   scanProgress: ScanProgress | null;
   error: string | null;
   subscriptionsReady: boolean;
+  searchQuery: string;
+  branchStateByRepo: Record<string, BranchState>;
   setRepos: (repos: Repository[]) => void;
-    setActiveRepoPath: (path: string | null) => void;
+  setActiveRepoPath: (path: string | null) => void;
+  togglePin: (repoPath: string) => void;
+  isPinned: (repoPath: string) => boolean;
   fetchRepos: () => Promise<void>;
   triggerScan: () => Promise<void>;
   initializeSubscriptions: () => void;
+  setSearchQuery: (query: string) => void;
+  fetchBranches: (repoPath: string) => Promise<void>;
+  checkoutBranch: (repoPath: string, branch: string) => Promise<boolean>;
 };
+
+// Persist pinned repos to a simple JSON file via the daemon config,
+// but for now use an in-memory set (survives within session).
+function loadPinnedPaths(): Set<string> {
+  try {
+    const stored = globalThis.localStorage?.getItem("magenta:pinned-repos");
+    if (stored) {
+      return new Set(JSON.parse(stored) as string[]);
+    }
+  } catch {
+    // Ignore — localStorage may not exist in Electron
+  }
+  return new Set();
+}
+
+function savePinnedPaths(paths: Set<string>): void {
+  try {
+    globalThis.localStorage?.setItem("magenta:pinned-repos", JSON.stringify([...paths]));
+  } catch {
+    // Ignore
+  }
+}
 
 export const useRepoStore = create<RepoStoreState>((set, get) => ({
   repos: [],
   activeRepoPath: null,
+  pinnedPaths: loadPinnedPaths(),
   isScanning: false,
   scanProgress: null,
   error: null,
   subscriptionsReady: false,
+  searchQuery: "",
+  branchStateByRepo: {},
   setRepos: (repos) => set({ repos }),
   setActiveRepoPath(path: string | null) {
     set({ activeRepoPath: path });
-    // Persist to session store via dynamic import to avoid circular deps
     Promise.resolve().then(async () => {
       const { useSessionStore } = await import("./sessionStore");
       const updateSelectedRepoPath = useSessionStore.getState().updateSelectedRepoPath;
       void updateSelectedRepoPath(path);
     });
+  },
+  togglePin(repoPath: string) {
+    const current = get().pinnedPaths;
+    const next = new Set(current);
+    if (next.has(repoPath)) {
+      next.delete(repoPath);
+    } else {
+      next.add(repoPath);
+    }
+    savePinnedPaths(next);
+    set({ pinnedPaths: next });
+  },
+  isPinned(repoPath: string) {
+    return get().pinnedPaths.has(repoPath);
   },
   async fetchRepos() {
     const response = await ipc.send({ type: "repo:list" });
@@ -51,6 +104,89 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
     if (response.type === "error") {
       set({ error: response.message });
     }
+  },
+  setSearchQuery(query: string) {
+    set({ searchQuery: query });
+  },
+  async fetchBranches(repoPath: string) {
+    // Mark loading
+    set((state) => ({
+      branchStateByRepo: {
+        ...state.branchStateByRepo,
+        [repoPath]: {
+          ...(state.branchStateByRepo[repoPath] ?? { branches: [], current: "", isCheckingOut: false }),
+          isLoading: true,
+        },
+      },
+    }));
+
+    const response = await ipc.send({ type: "branch:list", repoPath });
+
+    if (response.type === "branch:list:result") {
+      set((state) => ({
+        branchStateByRepo: {
+          ...state.branchStateByRepo,
+          [repoPath]: {
+            branches: response.branches,
+            current: response.current,
+            isLoading: false,
+            isCheckingOut: false,
+          },
+        },
+      }));
+    } else {
+      set((state) => ({
+        branchStateByRepo: {
+          ...state.branchStateByRepo,
+          [repoPath]: {
+            ...(state.branchStateByRepo[repoPath] ?? { branches: [], current: "" }),
+            isLoading: false,
+            isCheckingOut: false,
+          },
+        },
+      }));
+    }
+  },
+  async checkoutBranch(repoPath: string, branch: string): Promise<boolean> {
+    // Mark checking out
+    set((state) => ({
+      branchStateByRepo: {
+        ...state.branchStateByRepo,
+        [repoPath]: {
+          ...(state.branchStateByRepo[repoPath] ?? { branches: [], current: "", isLoading: false }),
+          isCheckingOut: true,
+        },
+      },
+    }));
+
+    const response = await ipc.send({ type: "branch:checkout", repoPath, branch });
+
+    if (response.type === "branch:checkout:result" && response.success) {
+      // Update repo branch in local state
+      set((state) => ({
+        repos: state.repos.map((r) => (r.path === repoPath ? { ...r, branch } : r)),
+        branchStateByRepo: {
+          ...state.branchStateByRepo,
+          [repoPath]: {
+            ...(state.branchStateByRepo[repoPath] ?? { branches: [], isLoading: false }),
+            current: branch,
+            isCheckingOut: false,
+          },
+        },
+      }));
+      return true;
+    }
+
+    set((state) => ({
+      branchStateByRepo: {
+        ...state.branchStateByRepo,
+        [repoPath]: {
+          ...(state.branchStateByRepo[repoPath] ?? { branches: [], current: "", isLoading: false }),
+          isCheckingOut: false,
+        },
+      },
+    }));
+    return false;
   },
   async triggerScan() {
     set({ isScanning: true, scanProgress: null, error: null });

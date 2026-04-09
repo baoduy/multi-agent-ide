@@ -25,9 +25,9 @@ function Badge({ label, bg, color }: { label: string; bg: string; color: string 
 
 function AgentDot({ variant }: { variant: "claude" | "copilot" | "idle" }): React.ReactElement {
   const colors: Record<string, string> = {
-    claude: "#5b57d1",
-    copilot: "#1a7f37",
-    idle: "#c8c8d0",
+    claude: "#C15F3C",
+    copilot: "#3d7a2a",
+    idle: "#d1cec6",
   };
   return (
     <span
@@ -44,15 +44,7 @@ function AgentDot({ variant }: { variant: "claude" | "copilot" | "idle" }): Reac
 
 function ProgressBar({ percent, color }: { percent: number; color: string }): React.ReactElement {
   return (
-    <div
-      style={{
-        height: 3,
-        borderRadius: 2,
-        background: "#e5e5ec",
-        marginTop: 6,
-        overflow: "hidden",
-      }}
-    >
+    <div style={{ height: 3, borderRadius: 2, background: "#e5e2da", marginTop: 6, overflow: "hidden" }}>
       <div style={{ height: "100%", borderRadius: 2, width: `${percent}%`, background: color }} />
     </div>
   );
@@ -74,10 +66,10 @@ function Card({ card }: { card: TaskCard }): React.ReactElement {
   return (
     <div
       style={{
-        border: card.active ? "1px solid #5b57d1" : "1px solid #e5e5ec",
+        border: card.active ? "1px solid #C15F3C" : "1px solid #e5e2da",
         borderRadius: 8,
         padding: "12px 14px",
-        background: "#ffffff",
+        background: "#faf9f5",
         cursor: "pointer",
         flex: 1,
         minWidth: 160,
@@ -85,31 +77,28 @@ function Card({ card }: { card: TaskCard }): React.ReactElement {
         transition: "border-color 0.12s, box-shadow 0.12s",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "#c8c8d0";
-        e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
+        e.currentTarget.style.borderColor = "#d1cec6";
+        e.currentTarget.style.boxShadow = "0 1px 4px rgba(0,0,0,0.05)";
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = card.active ? "#5b57d1" : "#e5e5ec";
+        e.currentTarget.style.borderColor = card.active ? "#C15F3C" : "#e5e2da";
         e.currentTarget.style.boxShadow = "none";
       }}
     >
-      <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 4, color: "#1e1e2e" }}>
+      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, color: "#2c2c2c" }}>
         {card.title}
       </div>
-      <div style={{ fontSize: 12, color: "#8b8b96", lineHeight: 1.5 }}>{card.subtitle}</div>
+      <div style={{ fontSize: 12, color: "#6b6560", lineHeight: 1.5 }}>{card.subtitle}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
         <AgentDot variant={card.agent ?? "idle"} />
         {card.badge ? (
           <Badge label={card.badge.label} bg={card.badge.bg} color={card.badge.color} />
         ) : (
-          <span style={{ fontSize: 11, color: "#8b8b96" }}>{card.agentLabel ?? ""}</span>
+          <span style={{ fontSize: 11, color: "#9a958c" }}>{card.agentLabel ?? ""}</span>
         )}
       </div>
       {card.progress != null && (
-        <ProgressBar
-          percent={card.progress}
-          color={card.agent === "copilot" ? "#1a7f37" : "#5b57d1"}
-        />
+        <ProgressBar percent={card.progress} color={card.agent === "copilot" ? "#3d7a2a" : "#C15F3C"} />
       )}
     </div>
   );
@@ -126,7 +115,7 @@ function PhaseRow({ label, cards }: { label: string; cards: TaskCard[] }): React
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#8b8b96",
+          color: "#9a958c",
           marginBottom: 10,
         }}
       >
@@ -150,7 +139,7 @@ type PlanTasksViewProps = {
 export function PlanTasksView({ specs }: PlanTasksViewProps): React.ReactElement {
   if (specs.length === 0) {
     return (
-      <div style={{ padding: 20, color: "#8b8b96", fontSize: 13 }}>
+      <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
         No specs found for this repository. Create a spec folder to get started.
       </div>
     );
@@ -166,7 +155,6 @@ export function PlanTasksView({ specs }: PlanTasksViewProps): React.ReactElement
   return (
     <div style={{ padding: 20 }}>
       <PhaseRow label="Spec & Design" cards={specPhaseCards} />
-
       <PhaseRow
         label="Implementation tasks"
         cards={[

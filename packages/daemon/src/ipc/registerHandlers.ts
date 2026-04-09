@@ -6,6 +6,7 @@ import { registerSpecHandlers } from "./handlers/specHandlers";
 
 import { IPCBridge } from "./IPCBridge";
 import { registerConfigHandlers } from "./handlers/configHandlers";
+import { registerFileHandlers } from "./handlers/fileHandlers";
 
 export type HandlerContext = {
   databaseService: DatabaseService;
@@ -35,5 +36,9 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerConfigHandlers({
     bridge,
     configManager: context.configManager,
+  });
+
+  registerFileHandlers({
+    bridge,
   });
 }

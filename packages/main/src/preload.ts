@@ -39,6 +39,13 @@ const api = {
   async selectFolder(): Promise<string | null> {
     return ipcRenderer.invoke("magenta:select-folder") as Promise<string | null>;
   },
+
+  /**
+   * Opens the given path in the system file manager (Finder on macOS, Explorer on Windows).
+   */
+  async openInFileManager(dirPath: string): Promise<void> {
+    await ipcRenderer.invoke("magenta:open-in-file-manager", dirPath);
+  },
 };
 
 contextBridge.exposeInMainWorld("magentaIpc", api);

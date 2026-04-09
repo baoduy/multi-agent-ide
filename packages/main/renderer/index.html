@@ -16,25 +16,23 @@
       overflow: hidden;
     }
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif;
       font-size: 13px;
       line-height: 1.5;
-      background: #ffffff;
-      color: #1e1e2e;
+      background: #faf9f5;
+      color: #2c2c2c;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: 'kern' 1, 'liga' 1;
     }
-    /* Enterprise scrollbar */
+    /* Warm scrollbar matching Claude palette */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #c8c8d0; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #a0a0ae; }
-    /* Selection color */
-    ::selection { background: #d0d7ff; }
+    ::-webkit-scrollbar-thumb { background: #d1cec6; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #b5b1a8; }
+    /* Selection */
+    ::selection { background: #C15F3C30; }
   </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <div id="root"></div>

@@ -101,6 +101,36 @@ export class RepoScanner {
     return relativePath.split(path.sep).length;
   }
 
+  /**
+   * List all local branches for a repo. Returns branch names and the current branch.
+   */
+  async listBranches(repoPath: string): Promise<{ branches: string[]; current: string }> {
+    const git = simpleGit(repoPath);
+    try {
+      const summary = await git.branchLocal();
+      return {
+        branches: summary.all,
+        current: summary.current,
+      };
+    } catch {
+      return { branches: [], current: "unknown" };
+    }
+  }
+
+  /**
+   * Checkout a branch in the given repo.
+   */
+  async checkoutBranch(repoPath: string, branch: string): Promise<boolean> {
+    const git = simpleGit(repoPath);
+    try {
+      await git.checkout(branch);
+      return true;
+    } catch (err) {
+      console.error(`[RepoScanner] checkout failed for ${repoPath} → ${branch}:`, err);
+      return false;
+    }
+  }
+
   private async inspectRepo(repoPath: string): Promise<RepoScanCandidate> {
     const git = simpleGit(repoPath);
 

@@ -29,6 +29,7 @@ export class SessionManager {
           sidebar_width as sidebarWidth,
           activity_panel_width as activityPanelWidth,
           activity_panel_open as activityPanelOpen,
+          spec_panel_height as specPanelHeight,
           main_tab as mainTab,
           updated_at as updatedAt
          FROM session_state
@@ -45,7 +46,8 @@ export class SessionManager {
         sidebarWidth: null,
         activityPanelWidth: null,
         activityPanelOpen: true,
-        mainTab: "plan",
+        specPanelHeight: null,
+        mainTab: "specs",
         updatedAt: Date.now(),
       };
     }
@@ -114,6 +116,10 @@ export class SessionManager {
 
       if (state.activityPanelOpen !== undefined) {
         updates.activity_panel_open = state.activityPanelOpen ? 1 : 0;
+      }
+
+      if (state.specPanelHeight !== undefined) {
+        updates.spec_panel_height = state.specPanelHeight;
       }
 
       if (state.mainTab !== undefined) {

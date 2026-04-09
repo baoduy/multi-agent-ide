@@ -11,16 +11,12 @@
   },
   "dependencies": {
     "@magenta/shared": "workspace:*",
-    "better-sqlite3": "*",
     "chokidar": "*",
-    "drizzle-orm": "*",
     "simple-git": "*",
     "ulid": "*",
     "zod": "*"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "*",
-    "@types/chokidar": "*",
     "@types/node": "*",
     "typescript": "*"
   }

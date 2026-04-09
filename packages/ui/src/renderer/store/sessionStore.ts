@@ -14,7 +14,8 @@ type SessionStoreState = SessionState & {
   updateSidebarWidth: (width: number | null) => Promise<void>;
   updateActivityPanelWidth: (width: number | null) => Promise<void>;
   updateActivityPanelOpen: (open: boolean) => Promise<void>;
-  updateMainTab: (tab: "plan" | "worktrees" | "spec") => Promise<void>;
+  updateSpecPanelHeight: (height: number | null) => Promise<void>;
+  updateMainTab: (tab: "specs" | "worktrees" | "workflow") => Promise<void>;
 };
 
 export const useSessionStore = create<SessionStoreState>((set, get) => ({
@@ -25,7 +26,8 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   sidebarWidth: null,
   activityPanelWidth: null,
   activityPanelOpen: true,
-  mainTab: "plan",
+  specPanelHeight: null,
+  mainTab: "specs",
   updatedAt: Date.now(),
 
   // Store state
@@ -108,7 +110,15 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     });
   },
 
-  async updateMainTab(tab: "plan" | "worktrees" | "spec") {
+  async updateSpecPanelHeight(height: number | null) {
+    set({ specPanelHeight: height });
+    await ipc.send({
+      type: "session:update",
+      state: { specPanelHeight: height },
+    });
+  },
+
+  async updateMainTab(tab: "specs" | "worktrees" | "workflow") {
     set({ mainTab: tab });
     await ipc.send({
       type: "session:update",

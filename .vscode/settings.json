@@ -14,4 +14,3 @@
     "terminal.integrated.shellIntegration.enabled": true,
     "terminal.integrated.defaultProfile.linux": "bash",
 }
-

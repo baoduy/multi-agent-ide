@@ -2,7 +2,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { SqliteCompat } from "./SqliteCompat";
-import { runInitialMigration } from "./migrations/0001_initial";
+import { runMigrations } from "./MigrationRunner";
 
 /**
  * DatabaseService wraps sql.js (pure WASM SQLite) with a better-sqlite3-compatible
@@ -45,8 +45,8 @@ export class DatabaseService {
     sqlite.pragma("foreign_keys = ON");
     sqlite.pragma("busy_timeout = 5000");
 
-    // Run migrations
-    runInitialMigration(sqlite);
+    // Run migrations (applies any pending schema changes)
+    runMigrations(sqlite);
 
     // Persist after migration
     sqlite.save();

@@ -1,28 +1,41 @@
 import React from "react";
 
 import type { PipelineStage } from "@magenta/shared/models";
+import type { StageStatus } from "@magenta/shared/constants";
+import { stageStatusColor } from "../../utils/stageColors";
 
 type StageDotsProps = {
   stages: PipelineStage[];
 };
 
 /**
- * Renders a series of progress dots, one for each pipeline stage.
- * - Filled/green dot: stage exists and has content
- * - Hollow/gray dot: stage is missing
+ * Renders a series of colour-coded progress dots, one per pipeline stage.
+ * Each dot's colour reflects its current status so the sidebar stays
+ * visually consistent with the detailed stage pills in the Specs tab:
+ *
+ *  - missing  → hollow gray ring
+ *  - draft    → amber
+ *  - review   → blue
+ *  - approved → green
+ *  - idle     → light green
+ *  - running  → amber (pulsing)
  */
 export function StageDots({ stages }: StageDotsProps): React.ReactElement {
   return (
-    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+    <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
       {stages.map((stage) => {
-        const isFilled = stage.status !== "missing";
-        const dotColor = isFilled ? "#10b981" : "#d1d5db";
+        const isMissing = stage.status === "missing";
+        const isRunning = stage.status === "running";
+        const colors = stageStatusColor(stage.status as StageStatus);
+
         const dotStyle: React.CSSProperties = {
           width: 8,
           height: 8,
           borderRadius: "50%",
-          backgroundColor: dotColor,
-          border: isFilled ? "none" : "1px solid #9ca3af",
+          backgroundColor: isMissing ? "transparent" : colors.dot,
+          border: isMissing ? "1.5px solid #d1cec6" : "none",
+          transition: "background-color 0.2s, border-color 0.2s",
+          ...(isRunning ? { animation: "stagePulse 1.4s ease-in-out infinite" } : {}),
         };
 
         return (
@@ -33,6 +46,11 @@ export function StageDots({ stages }: StageDotsProps): React.ReactElement {
           />
         );
       })}
+
+      {/* Pulse animation for "running" stages */}
+      {stages.some((s) => s.status === "running") && (
+        <style>{`@keyframes stagePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
+      )}
     </div>
   );
 }

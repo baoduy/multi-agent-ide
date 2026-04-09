@@ -7,7 +7,7 @@ type WorktreesViewProps = {
 export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElement {
   if (!repoName) {
     return (
-      <div style={{ padding: 20, color: "#8b8b96", fontSize: 13 }}>
+      <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
         Select a repository to view worktrees.
       </div>
     );
@@ -21,7 +21,7 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#8b8b96",
+          color: "#9a958c",
           marginBottom: 12,
         }}
       >
@@ -30,10 +30,10 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
 
       <div
         style={{
-          color: "#8b8b96",
+          color: "#9a958c",
           fontSize: 13,
           padding: "16px 0",
-          borderBottom: "1px solid #e5e5ec",
+          borderBottom: "1px solid #e5e2da",
         }}
       >
         No active worktrees. Start a task to create one.
@@ -45,7 +45,7 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#8b8b96",
+          color: "#9a958c",
           marginBottom: 12,
           marginTop: 20,
         }}
@@ -53,7 +53,7 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
         Queued worktrees
       </div>
 
-      <div style={{ color: "#8b8b96", fontSize: 13 }}>
+      <div style={{ color: "#9a958c", fontSize: 13 }}>
         No queued worktrees.
       </div>
     </div>

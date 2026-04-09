@@ -37,4 +37,36 @@ export function registerRepoHandlers({ bridge, databaseService, configManager }:
       type: "repo:scan:started",
     };
   });
+
+  bridge.handle("branch:list", async (msg) => {
+    console.log(`[repo-handler] branch:list → ${msg.repoPath}`);
+    const { branches, current } = await scanner.listBranches(msg.repoPath);
+    return {
+      type: "branch:list:result",
+      repoPath: msg.repoPath,
+      branches,
+      current,
+    };
+  });
+
+  bridge.handle("branch:checkout", async (msg) => {
+    console.log(`[repo-handler] branch:checkout → ${msg.repoPath} → ${msg.branch}`);
+    const success = await scanner.checkoutBranch(msg.repoPath, msg.branch);
+
+    // Update the branch in the database if checkout succeeded
+    if (success) {
+      const existing = repository.findByPath(msg.repoPath);
+      if (existing) {
+        repository.upsert({ ...existing, branch: msg.branch, scannedAt: Date.now() });
+        repository.flush();
+      }
+    }
+
+    return {
+      type: "branch:checkout:result",
+      repoPath: msg.repoPath,
+      branch: msg.branch,
+      success,
+    };
+  });
 }

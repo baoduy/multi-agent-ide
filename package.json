@@ -21,8 +21,13 @@
     "reactflow": "^11.11.4",
     "simple-git": "^3.35.2",
     "ulid": "^3.0.2",
+    "lucide-react": "^0.474.0",
     "zustand": "^5.0.12",
-    "zod": "4.3.6"
+    "zod": "4.3.6",
+    "marked": "^15.0.0",
+    "marked-highlight": "^2.2.0",
+    "highlight.js": "^11.11.0",
+    "mermaid": "^11.4.0"
   },
   "devDependencies": {
     "@types/sql.js": "^1.4.9",

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import path from "path";
 import { fork, type ChildProcess } from "child_process";
 
@@ -64,6 +64,13 @@ function registerIpcHandler() {
     }
 
     return result.filePaths[0];
+  });
+
+  // Open a path in the system file manager (Finder / Explorer)
+  ipcMain.handle("magenta:open-in-file-manager", async (_event, dirPath: string) => {
+    if (dirPath) {
+      shell.showItemInFolder(dirPath);
+    }
   });
 
   ipcMain.handle("magenta:ipc", async (_event, request) => {

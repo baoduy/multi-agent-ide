@@ -24,6 +24,8 @@ export const PipelineStageSchema = z.object({
       completedCount: z.number().int().nonnegative().optional(),
       worktreeCount: z.number().int().nonnegative().optional(),
       implementationProgress: z.number().min(0).max(100).optional(),
+      approvedBy: z.string().optional(),
+      approvedAt: z.string().optional(),
     })
     .optional(),
 });
@@ -33,6 +35,8 @@ export const SpecFolderSchema = z.object({
   repoPath: z.string(),
   name: z.string(),
   path: z.string(),
+  branch: z.string().optional(),
+  isCurrentBranch: z.boolean().optional(),
   stages: z.array(PipelineStageSchema),
   files: z.array(z.string()),
   createdAt: z.number().int().nonnegative(),
@@ -45,6 +49,7 @@ export const SessionStateSchema = z.object({
   sidebarWidth: z.number().int().positive().nullable(),
   activityPanelWidth: z.number().int().positive().nullable(),
   activityPanelOpen: z.boolean(),
+  specPanelHeight: z.number().int().positive().nullable(),
   mainTab: z.enum(MAIN_TABS),
   updatedAt: z.number().int().nonnegative(),
 });
@@ -53,11 +58,17 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:list") }),
   z.object({ type: z.literal("repo:scan") }),
   z.object({ type: z.literal("spec:list"), repoPath: z.string() }),
+  z.object({ type: z.literal("file:read"), filePath: z.string() }),
+  z.object({ type: z.literal("file:write"), filePath: z.string(), content: z.string() }),
+  z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
   z.object({ type: z.literal("session:get") }),
   z.object({ type: z.literal("session:update"), state: SessionStateSchema.partial() }),
   z.object({ type: z.literal("config:get") }),
   z.object({ type: z.literal("config:add-working-dir"), path: z.string() }),
   z.object({ type: z.literal("config:remove-working-dir"), path: z.string() }),
+  z.object({ type: z.literal("branch:list"), repoPath: z.string() }),
+  z.object({ type: z.literal("branch:checkout"), repoPath: z.string(), branch: z.string() }),
+  z.object({ type: z.literal("gitfile:read"), repoPath: z.string(), ref: z.string(), relativePath: z.string() }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -82,6 +93,16 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("session:updated") }),
   z.object({ type: z.literal("config:response"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("config:updated"), config: MagentaConfigSchema }),
+  z.object({ type: z.literal("file:read:result"), filePath: z.string(), content: z.string() }),
+  z.object({ type: z.literal("file:write:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({
+    type: z.literal("dir:list:result"),
+    dirPath: z.string(),
+    entries: z.array(z.object({ name: z.string(), path: z.string(), isDirectory: z.boolean() })),
+  }),
+  z.object({ type: z.literal("branch:list:result"), repoPath: z.string(), branches: z.array(z.string()), current: z.string() }),
+  z.object({ type: z.literal("branch:checkout:result"), repoPath: z.string(), branch: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("gitfile:read:result"), filePath: z.string(), content: z.string() }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

@@ -1,5 +1,9 @@
 import React from "react";
 
+import { useSpecStore } from "../../store/specStore";
+import { useRepoStore } from "../../store/repoStore";
+import { SpecFileList } from "./SpecFileList";
+
 /* ── Section wrapper ── */
 
 function Section({
@@ -15,7 +19,7 @@ function Section({
     <div
       style={{
         padding: "14px 16px",
-        borderBottom: "1px solid #e5e5ec",
+        borderBottom: "1px solid #e5e2da",
         ...style,
       }}
     >
@@ -25,80 +29,18 @@ function Section({
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#8b8b96",
+          color: "#9a958c",
           marginBottom: 10,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
         }}
+        title={title}
       >
         {title}
       </div>
       {children}
     </div>
-  );
-}
-
-/* ── Agent Activity log ── */
-
-function LogLine({
-  agent,
-  message,
-}: {
-  agent?: string;
-  message: string;
-}): React.ReactElement {
-  return (
-    <div
-      style={{
-        fontSize: 12,
-        color: "#8b8b96",
-        padding: "3px 0",
-        fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
-      }}
-    >
-      {agent && <span style={{ color: "#1e1e2e", fontWeight: 500 }}>{agent} </span>}
-      {message}
-    </div>
-  );
-}
-
-/* ── Action button ── */
-
-function ActionButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick?: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      style={{
-        display: "block",
-        width: "100%",
-        padding: "8px 12px",
-        fontSize: 12,
-        fontWeight: 400,
-        border: "1px solid #d0d0d8",
-        borderRadius: 6,
-        background: "#ffffff",
-        color: "#1e1e2e",
-        cursor: "pointer",
-        textAlign: "left",
-        marginBottom: 6,
-        transition: "background 0.12s, border-color 0.12s",
-      }}
-      onClick={onClick}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "#f4f4f6";
-        e.currentTarget.style.borderColor = "#c8c8d0";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "#ffffff";
-        e.currentTarget.style.borderColor = "#d0d0d8";
-      }}
-    >
-      {label}
-    </button>
   );
 }
 
@@ -123,35 +65,47 @@ function LegendItem({
           flexShrink: 0,
         }}
       />
-      <span style={{ fontSize: 12, color: "#8b8b96" }}>{label}</span>
+      <span style={{ fontSize: 12, color: "#9a958c" }}>{label}</span>
     </div>
   );
 }
 
 /* ── Main panel ── */
 
-export function ActivityPanel(): React.ReactElement {
+type ActivityPanelProps = {
+  onOpenFile?: (filePath: string) => void;
+};
+
+export function ActivityPanel({ onOpenFile }: ActivityPanelProps): React.ReactElement {
+  const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
+  const specs = useSpecStore((state) => state.specs);
+  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
+
+  const selectedSpec = specs.find((s) => s.path === selectedSpecPath) ?? null;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Agent Activity */}
-      <Section title="Agent Activity">
-        <LogLine message="No agents running" />
-      </Section>
-
-      {/* Quick Actions */}
-      <Section title="Quick Actions">
-        <ActionButton label="View diff" />
-        <ActionButton label="Pause agents" />
-        <ActionButton label="New spec" />
-        <ActionButton label="Run queued" />
-      </Section>
+      {/* Spec Files */}
+      {selectedSpec ? (
+        <Section title={selectedSpec.name} style={{ flex: 1, overflowY: "auto", borderBottom: "none" }}>
+          <SpecFileList files={selectedSpec.files} onOpenFile={onOpenFile} />
+        </Section>
+      ) : activeRepoPath ? (
+        <Section title="Files">
+          <div style={{ fontSize: 12, color: "#9a958c" }}>Select a spec to view its files.</div>
+        </Section>
+      ) : (
+        <Section title="Files">
+          <div style={{ fontSize: 12, color: "#9a958c" }}>Select a repository and spec.</div>
+        </Section>
+      )}
 
       {/* Legend */}
-      <Section title="Legend" style={{ flex: 1, overflowY: "auto", borderBottom: "none" }}>
+      <Section title="Legend" style={{ flexShrink: 0, borderBottom: "none" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <LegendItem color="#5b57d1" label="Claude Code agent" />
-          <LegendItem color="#1a7f37" label="GitHub Copilot agent" />
-          <LegendItem color="#c8c8d0" label="Idle / queued" />
+          <LegendItem color="#C15F3C" label="Claude Code agent" />
+          <LegendItem color="#3d7a2a" label="GitHub Copilot agent" />
+          <LegendItem color="#d1cec6" label="Idle / queued" />
         </div>
       </Section>
     </div>

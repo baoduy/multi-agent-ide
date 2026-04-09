@@ -28,6 +28,21 @@ export async function selectFolder(): Promise<string | null> {
   }
 }
 
+/**
+ * Opens the given path in the system file manager (Finder / Explorer).
+ */
+export async function openInFileManager(dirPath: string): Promise<void> {
+  if (!ipcAvailable() || typeof window.magentaIpc.openInFileManager !== "function") {
+    console.warn("[ipc] openInFileManager not available");
+    return;
+  }
+  try {
+    await window.magentaIpc.openInFileManager(dirPath);
+  } catch (error) {
+    console.error("[ipc] openInFileManager failed:", error);
+  }
+}
+
 export const ipc = {
   async send(request: IpcRequest): Promise<IpcResponse> {
     if (!ipcAvailable()) {

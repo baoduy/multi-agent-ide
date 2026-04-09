@@ -9,13 +9,15 @@ import { nodeTypes } from "./nodeTypes";
 
 type FlowDiagramProps = {
   spec: SpecFolder | null;
+  onOpenFile?: (filePath: string) => void;
+  onApprove?: (stageName: string, filePath: string) => void;
 };
 
 /**
  * Renders an interactive React Flow diagram showing the 5-stage pipeline.
- * Displays status, progress, and allows pan/zoom/fit-to-view controls.
+ * Nodes are clickable to open files, and approvable stages show an approve button on hover.
  */
-export function FlowDiagram({ spec }: FlowDiagramProps): React.ReactElement {
+export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): React.ReactElement {
   // Inject reactflow CSS once into the document head
   useEffect(() => {
     const id = "reactflow-styles";
@@ -28,48 +30,34 @@ export function FlowDiagram({ spec }: FlowDiagramProps): React.ReactElement {
   }, []);
 
   const { nodes, edges } = useMemo(() => {
-    if (!spec) {
-      return { nodes: [], edges: [] };
-    }
+    if (!spec) return { nodes: [], edges: [] };
+    return specToFlowDiagram(spec, { onOpenFile, onApprove });
+  }, [spec, onOpenFile, onApprove]);
 
-    return specToFlowDiagram(spec);
-  }, [spec]);
-
-  const onNodesChange = useCallback(() => {
-    // No-op: nodes are read-only in this view
-  }, []);
-
-  const onEdgesChange = useCallback(() => {
-    // No-op: edges are read-only in this view
-  }, []);
-
-  const containerStyle: React.CSSProperties = {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#fafafa",
-  };
+  const onNodesChange = useCallback(() => {}, []);
+  const onEdgesChange = useCallback(() => {}, []);
 
   if (!spec) {
     return (
-      <div style={containerStyle}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            color: "#9ca3af",
-            fontSize: 14,
-          }}
-        >
-          Select a spec folder to view the pipeline
-        </div>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#9a958c",
+          fontSize: 13,
+          backgroundColor: "#1a1a2e",
+        }}
+      >
+        Select a spec to view the workflow
       </div>
     );
   }
 
   return (
-    <div style={containerStyle}>
+    <div style={{ width: "100%", height: "100%", backgroundColor: "#1a1a2e" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -77,9 +65,17 @@ export function FlowDiagram({ spec }: FlowDiagramProps): React.ReactElement {
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         fitView
+        fitViewOptions={{ padding: 0.3 }}
+        minZoom={0.3}
+        maxZoom={2}
       >
-        <Background />
-        <Controls />
+        <Background color="#2a2a3e" gap={20} />
+        <Controls
+          style={{
+            bottom: 12,
+            left: 12,
+          }}
+        />
       </ReactFlow>
     </div>
   );

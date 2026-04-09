@@ -23,6 +23,6 @@ export const STAGE_STATUSES = [
 
 export type StageStatus = (typeof STAGE_STATUSES)[number];
 
-export const MAIN_TABS = ["plan", "worktrees", "spec"] as const;
+export const MAIN_TABS = ["specs", "workflow", "worktrees"] as const;
 
 export type MainTab = (typeof MAIN_TABS)[number];

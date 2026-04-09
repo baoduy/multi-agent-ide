@@ -7,6 +7,7 @@ declare global {
       on(type: IpcResponse["type"], listener: (payload: IpcResponse) => void): void;
       off(listener: (payload: IpcResponse) => void): void;
       selectFolder(): Promise<string | null>;
+      openInFileManager(dirPath: string): Promise<void>;
     };
   }
 }

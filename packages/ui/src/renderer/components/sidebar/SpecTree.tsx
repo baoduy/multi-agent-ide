@@ -18,7 +18,7 @@ export function SpecTree({
 }: SpecTreeProps): React.ReactElement {
   if (isLoading) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: 12, color: "#8b8b96" }}>
+      <div style={{ padding: "12px 16px", fontSize: 12, color: "#9a958c" }}>
         Loading specs...
       </div>
     );
@@ -26,7 +26,7 @@ export function SpecTree({
 
   if (specs.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: 12, color: "#8b8b96" }}>
+      <div style={{ padding: "12px 16px", fontSize: 12, color: "#9a958c" }}>
         No specs found
       </div>
     );
@@ -41,7 +41,7 @@ export function SpecTree({
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#8b8b96",
+          color: "#9a958c",
         }}
       >
         Specs

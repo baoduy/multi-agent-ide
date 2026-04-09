@@ -11,7 +11,7 @@ type SpecEditorViewProps = {
 export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.ReactElement {
   if (!spec) {
     return (
-      <div style={{ padding: 20, color: "#8b8b96", fontSize: 13 }}>
+      <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
         Select a spec from the sidebar to view the pipeline.
       </div>
     );
@@ -20,14 +20,14 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Spec metadata header */}
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e5ec" }}>
+      <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e2da" }}>
         <div
           style={{
             fontSize: 11,
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            color: "#8b8b96",
+            color: "#9a958c",
             marginBottom: 8,
           }}
         >
@@ -35,17 +35,17 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
         </div>
         <div
           style={{
-            border: "1px solid #e5e5ec",
+            border: "1px solid #e5e2da",
             borderRadius: 8,
             padding: "14px 16px",
-            background: "#f8f8fa",
+            background: "#f5f4ed",
             fontSize: 13,
             lineHeight: 1.6,
-            color: "#1e1e2e",
+            color: "#2c2c2c",
           }}
         >
           <div style={{ fontWeight: 500, marginBottom: 6 }}>{spec.name}</div>
-          <div style={{ color: "#8b8b96", fontSize: 12 }}>
+          <div style={{ color: "#9a958c", fontSize: 12 }}>
             Stages: {spec.stages.length > 0 ? spec.stages.map((s) => s.name).join(" \u2192 ") : "No stages detected"}
           </div>
         </div>
@@ -59,17 +59,17 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
               fontSize: 13,
               border: "none",
               borderRadius: 6,
-              background: "#5b57d1",
+              background: "#C15F3C",
               color: "#ffffff",
               cursor: "pointer",
               fontWeight: 500,
               transition: "background 0.12s",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#4a46b8";
+              e.currentTarget.style.background = "#a84e30";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#5b57d1";
+              e.currentTarget.style.background = "#C15F3C";
             }}
           >
             Approve & generate tasks
@@ -79,16 +79,16 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
             style={{
               padding: "8px 16px",
               fontSize: 13,
-              border: "1px solid #d0d0d8",
+              border: "1px solid #d1cec6",
               borderRadius: 6,
               background: "transparent",
-              color: "#1e1e2e",
+              color: "#2c2c2c",
               cursor: "pointer",
               fontWeight: 400,
               transition: "background 0.12s",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#f4f4f6";
+              e.currentTarget.style.background = "#eeece6";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";

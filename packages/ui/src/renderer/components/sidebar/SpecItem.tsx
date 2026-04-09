@@ -13,9 +13,9 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
   return (
     <div
       style={{
-        padding: "8px 16px",
-        backgroundColor: isSelected ? "#f0f0ff" : "transparent",
-        borderLeft: isSelected ? "2px solid #5b57d1" : "2px solid transparent",
+        padding: "7px 16px",
+        backgroundColor: isSelected ? "#f0ebe4" : "transparent",
+        borderLeft: isSelected ? "2px solid #C15F3C" : "2px solid transparent",
         cursor: "pointer",
         display: "flex",
         justifyContent: "space-between",
@@ -25,7 +25,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
       onClick={() => onSelect(spec.path)}
       onMouseEnter={(e) => {
         if (!isSelected) {
-          e.currentTarget.style.backgroundColor = "#f4f4f6";
+          e.currentTarget.style.backgroundColor = "#eeece6";
         }
       }}
       onMouseLeave={(e) => {
@@ -38,7 +38,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
         style={{
           fontSize: 12,
           fontWeight: isSelected ? 500 : 400,
-          color: "#1e1e2e",
+          color: "#2c2c2c",
           flex: 1,
           marginRight: 12,
           lineHeight: 1.4,

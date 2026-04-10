@@ -789,11 +789,24 @@ function ApproveButton({
     );
   }
 
+  // Fetch git user name/email when repoPath is available
+  const [gitUserName, setGitUserName] = useState<string>("");
+  useEffect(() => {
+    if (!repoPath) return;
+    ipc.send({ type: "git:user", repoPath }).then((resp) => {
+      if (resp.type === "git:user:result") {
+        setGitUserName(resp.name || resp.email || "Unknown");
+      }
+    }).catch(() => {
+      // Fallback silently
+    });
+  }, [repoPath]);
+
   /** Build the new content with the approval line inserted. */
   const buildApprovedContent = (original: string): string => {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
-    const approvalLine = `**Approved by:** Steven | **Date:** ${dateStr}`;
+    const approvalLine = `**Approved by:** ${gitUserName || "Unknown"} | **Date:** ${dateStr}`;
 
     const headingMatch = original.match(/^(#[^\n]*\n)/);
     if (headingMatch) {

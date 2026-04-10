@@ -6,6 +6,34 @@ import { execSync } from "child_process";
  */
 export class SpecGitGateway {
   /**
+   * Returns the git user name and email from the repo's git config.
+   * Falls back to global config, then to empty strings.
+   */
+  getGitUser(repoPath: string): { name: string; email: string } {
+    let name = "";
+    let email = "";
+    try {
+      name = execSync("git config user.name", {
+        cwd: repoPath,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    } catch {
+      // no user.name configured
+    }
+    try {
+      email = execSync("git config user.email", {
+        cwd: repoPath,
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      }).trim();
+    } catch {
+      // no user.email configured
+    }
+    return { name, email };
+  }
+
+  /**
    * Get the current branch name.
    */
   getCurrentBranch(repoPath: string): string {

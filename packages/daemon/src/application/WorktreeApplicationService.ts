@@ -20,6 +20,80 @@ export class WorktreeApplicationService {
     return this.gitGateway.listWorktrees(repoPath);
   }
 
+  getWorktreeStatus(repoPath: string, worktreePath: string): {
+    files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }>;
+    ahead: number;
+    behind: number;
+  } {
+    if (!worktreePath) {
+      throw new AppError("VALIDATION_ERROR", "Missing worktreePath");
+    }
+
+    try {
+      return this.gitGateway.getWorktreeStatus(worktreePath);
+    } catch (error) {
+      throw new AppError(
+        "GIT_ERROR",
+        `Failed to get worktree status: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  mergeWorktree(
+    repoPath: string,
+    worktreePath: string,
+    worktreeBranch: string,
+    targetBranch: string,
+  ): { success: boolean; message: string } {
+    if (!repoPath || !worktreeBranch || !targetBranch) {
+      throw new AppError("VALIDATION_ERROR", "Missing repoPath, worktreeBranch, or targetBranch");
+    }
+
+    if (worktreeBranch === targetBranch) {
+      throw new AppError("VALIDATION_ERROR", "Cannot merge a branch into itself");
+    }
+
+    try {
+      return this.gitGateway.mergeWorktree(repoPath, worktreeBranch, targetBranch);
+    } catch (error) {
+      throw new AppError(
+        "GIT_ERROR",
+        `Failed to merge worktree: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  listLocalBranches(repoPath: string): { branches: string[]; current: string } {
+    if (!repoPath) {
+      throw new AppError("VALIDATION_ERROR", "Missing repoPath");
+    }
+
+    try {
+      return this.gitGateway.listLocalBranches(repoPath);
+    } catch (error) {
+      throw new AppError(
+        "GIT_ERROR",
+        `Failed to list branches: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  deleteWorktree(repoPath: string, worktreePath: string): { success: boolean; message: string } {
+    if (!repoPath || !worktreePath) {
+      throw new AppError("VALIDATION_ERROR", "Missing repoPath or worktreePath");
+    }
+
+    try {
+      this.gitGateway.removeWorktree(repoPath, worktreePath);
+      return { success: true, message: "Worktree removed successfully." };
+    } catch (error) {
+      throw new AppError(
+        "GIT_ERROR",
+        `Failed to remove worktree: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
   createWorktree(repoPath: string, branch: string, name: string): { worktreePath: string; success: boolean } {
     if (!repoPath || !branch || !name) {
       throw new AppError("VALIDATION_ERROR", "Missing repoPath, branch, or name");

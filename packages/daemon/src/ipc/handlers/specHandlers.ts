@@ -25,6 +25,15 @@ export function registerSpecHandlers({ bridge, specService }: SpecHandlerContext
   });
 
   /**
+   * Handles "git:user" requests.
+   * Returns the git user name and email configured for the repo.
+   */
+  safeHandle(bridge, "git:user", async (msg) => {
+    const { name, email } = specService.getGitUser(msg.repoPath);
+    return { type: "git:user:result", name, email };
+  });
+
+  /**
    * Handles "gitfile:read" requests.
    * Reads a file from a non-current branch via `git show`.
    */

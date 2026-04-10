@@ -78,6 +78,11 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:upgrade-specify"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:onboard:cancel"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:force-reload"), repoPath: z.string() }),
+  z.object({ type: z.literal("git:user"), repoPath: z.string() }),
+  z.object({ type: z.literal("worktree:status"), repoPath: z.string(), worktreePath: z.string() }),
+  z.object({ type: z.literal("worktree:merge"), repoPath: z.string(), worktreePath: z.string(), worktreeBranch: z.string(), targetBranch: z.string() }),
+  z.object({ type: z.literal("worktree:branches"), repoPath: z.string() }),
+  z.object({ type: z.literal("worktree:delete"), repoPath: z.string(), worktreePath: z.string() }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -135,6 +140,33 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("job:started"), name: z.string() }),
   z.object({ type: z.literal("job:completed"), name: z.string(), elapsed: z.number() }),
   z.object({ type: z.literal("job:failed"), name: z.string(), error: z.string() }),
+  z.object({ type: z.literal("git:user:result"), name: z.string(), email: z.string() }),
+  z.object({
+    type: z.literal("worktree:status:result"),
+    worktreePath: z.string(),
+    files: z.array(z.object({
+      path: z.string(),
+      status: z.enum(["added", "modified", "deleted", "renamed", "copied", "untracked"]),
+    })),
+    ahead: z.number().int().nonnegative(),
+    behind: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("worktree:merge:result"),
+    success: z.boolean(),
+    message: z.string(),
+  }),
+  z.object({
+    type: z.literal("worktree:branches:result"),
+    repoPath: z.string(),
+    branches: z.array(z.string()),
+    current: z.string(),
+  }),
+  z.object({
+    type: z.literal("worktree:delete:result"),
+    success: z.boolean(),
+    message: z.string(),
+  }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

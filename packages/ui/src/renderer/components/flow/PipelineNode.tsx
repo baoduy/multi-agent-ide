@@ -110,7 +110,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
             <span>done</span>
           </>
         ) : (
-          <span>{data.status}</span>
+          <span>{data.status === "missing" ? "pending" : data.status}</span>
         )}
       </div>
 

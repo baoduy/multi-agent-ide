@@ -19,6 +19,11 @@ type SpecStoreState = {
   fetchSpecs: (repoPath: string) => Promise<void>;
   setCurrentRepoPath: (path: string | null) => void;
   initializeSubscriptions: () => void;
+  /**
+   * Optimistically mark a stage as "approved" so the UI updates immediately
+   * after the user approves a file, without waiting for the background sync.
+   */
+  optimisticApproveStage: (specPath: string, stageName: string, approvedBy: string) => void;
 };
 
 export const useSpecStore = create<SpecStoreState>((set, get) => ({
@@ -72,6 +77,30 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
       const errorMessage = error instanceof Error ? error.message : String(error);
       set({ error: errorMessage, isLoading: false, specs: [] });
     }
+  },
+
+  optimisticApproveStage(specPath: string, stageName: string, approvedBy: string) {
+    const dateStr = new Date().toISOString().split("T")[0];
+    set({
+      specs: get().specs.map((spec) => {
+        if (spec.path !== specPath) return spec;
+        return {
+          ...spec,
+          stages: spec.stages.map((stage) => {
+            if (stage.name !== stageName) return stage;
+            return {
+              ...stage,
+              status: "approved" as const,
+              metadata: {
+                ...stage.metadata,
+                approvedBy,
+                approvedAt: dateStr,
+              },
+            };
+          }),
+        };
+      }),
+    });
   },
 
   initializeSubscriptions() {

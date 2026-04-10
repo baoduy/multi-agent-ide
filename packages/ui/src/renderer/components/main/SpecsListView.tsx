@@ -7,6 +7,8 @@ import {
   ChevronRight,
   Layers,
   GitBranch,
+  ListChecks,
+  Play,
 } from "lucide-react";
 
 import type { SpecFolder, PipelineStage } from "@magenta/shared/models";
@@ -17,30 +19,50 @@ import { stageStatusColor } from "../../utils/stageColors";
    Spec high-level state derivation
    ═══════════════════════════════════════════════════════ */
 
-type SpecState = "spec" | "planned" | "implemented";
+type SpecState = "spec" | "planned" | "tasks" | "implementing" | "done";
 
 function deriveSpecState(spec: SpecFolder): SpecState {
   const stageMap = new Map(spec.stages.map((s) => [s.name, s]));
 
   const tasks = stageMap.get("tasks");
   const impl = stageMap.get("implementation");
+  const plan = stageMap.get("plan");
 
-  // "Implemented" = tasks stage has all completed OR implementation has 100% progress
+  // "Done" = all tasks completed OR implementation at 100%
   if (tasks?.metadata?.taskCount && tasks.metadata.taskCount > 0) {
     if (tasks.metadata.completedCount === tasks.metadata.taskCount) {
-      return "implemented";
+      return "done";
     }
   }
   if (impl?.metadata?.implementationProgress === 100) {
-    return "implemented";
+    return "done";
   }
 
-  // "Planned" = plan or tasks stage exists and isn't missing
-  const plan = stageMap.get("plan");
+  // "Implementing" = implementation stage is active (running/in-progress)
+  // or some tasks are completed but not all
   if (
-    (plan && plan.status !== "missing") ||
-    (tasks && tasks.status !== "missing")
+    impl &&
+    (impl.status === "running" || impl.status === "in-progress")
   ) {
+    return "implementing";
+  }
+  if (
+    tasks?.metadata?.taskCount &&
+    tasks.metadata.taskCount > 0 &&
+    tasks.metadata.completedCount !== undefined &&
+    tasks.metadata.completedCount > 0 &&
+    tasks.metadata.completedCount < tasks.metadata.taskCount
+  ) {
+    return "implementing";
+  }
+
+  // "Tasks" = tasks stage exists and isn't missing
+  if (tasks && tasks.status !== "missing") {
+    return "tasks";
+  }
+
+  // "Planned" = plan stage exists and isn't missing
+  if (plan && plan.status !== "missing") {
     return "planned";
   }
 
@@ -54,24 +76,41 @@ function deriveSpecState(spec: SpecFolder): SpecState {
 
 const STATE_CONFIG: Record<
   SpecState,
-  { label: string; bg: string; color: string; Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }> }
+  { label: string; bg: string; color: string; border: string; Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }> }
 > = {
   spec: {
     label: "Spec",
     bg: "#dbeafe",
     color: "#1e40af",
+    border: "#bfdbfe",
     Icon: FileText,
   },
   planned: {
     label: "Planned",
     bg: "#fef3c7",
     color: "#92400e",
+    border: "#fde68a",
     Icon: ClipboardList,
   },
-  implemented: {
-    label: "Implemented",
+  tasks: {
+    label: "Tasks",
+    bg: "#fef3c7",
+    color: "#9a3412",
+    border: "#fed7aa",
+    Icon: ListChecks,
+  },
+  implementing: {
+    label: "In Progress",
+    bg: "#fce4ec",
+    color: "#9f1239",
+    border: "#fda4af",
+    Icon: Circle,
+  },
+  done: {
+    label: "Done",
     bg: "#dcfce7",
     color: "#166534",
+    border: "#bbf7d0",
     Icon: CheckCircle,
   },
 };
@@ -89,27 +128,29 @@ function statusColor(status: StageStatus): { bg: string; color: string } {
    Progress stepper (Spec → Planned → Implemented)
    ═══════════════════════════════════════════════════════ */
 
-const STEPS: SpecState[] = ["spec", "planned", "implemented"];
+const STEPS: SpecState[] = ["spec", "planned", "tasks", "implementing", "done"];
 
 function ProgressStepper({ current }: { current: SpecState }): React.ReactElement {
   const currentIdx = STEPS.indexOf(current);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
       {STEPS.map((step, i) => {
-        const isActive = i <= currentIdx;
+        const isCompleted = i < currentIdx;
         const isCurrent = i === currentIdx;
+        const isActive = i <= currentIdx;
         const cfg = STATE_CONFIG[step];
+        const prevCfg = i > 0 ? STATE_CONFIG[STEPS[i - 1]] : cfg;
 
         return (
           <React.Fragment key={step}>
             {i > 0 && (
               <div
                 style={{
-                  width: 16,
+                  width: 12,
                   height: 2,
                   borderRadius: 1,
-                  background: i <= currentIdx ? cfg.color : "#e5e2da",
+                  background: isActive ? prevCfg.color : "#e5e2da",
                   transition: "background 0.2s",
                 }}
               />
@@ -118,15 +159,18 @@ function ProgressStepper({ current }: { current: SpecState }): React.ReactElemen
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
-                padding: "2px 8px",
+                gap: 3,
+                padding: isCurrent ? "2px 7px" : "2px 4px",
                 borderRadius: 10,
                 background: isCurrent ? cfg.bg : "transparent",
-                transition: "background 0.2s",
+                border: isCurrent ? `1px solid ${cfg.border}` : "1px solid transparent",
+                transition: "all 0.2s",
               }}
             >
-              {isActive ? (
-                <CheckCircle size={10} color={cfg.color} strokeWidth={2} />
+              {isCompleted ? (
+                <CheckCircle size={10} color={cfg.color} strokeWidth={2.5} />
+              ) : isCurrent ? (
+                <cfg.Icon size={10} color={cfg.color} strokeWidth={2.5} />
               ) : (
                 <Circle size={10} color="#d1cec6" strokeWidth={2} />
               )}
@@ -264,6 +308,7 @@ function SpecCard({
             borderRadius: 12,
             background: stateConfig.bg,
             color: stateConfig.color,
+            border: `1px solid ${stateConfig.border}`,
             fontSize: 11,
             fontWeight: 600,
             flexShrink: 0,
@@ -363,6 +408,8 @@ export function SpecsListView({
   onSelectSpec,
   onOpenSpec,
 }: SpecsListViewProps): React.ReactElement {
+  const [filterState, setFilterState] = useState<SpecState | null>(null);
+
   if (specs.length === 0) {
     return (
       <div style={{ padding: 24, color: "#9a958c", fontSize: 13, textAlign: "center" }}>
@@ -376,42 +423,66 @@ export function SpecsListView({
   }
 
   // Group by state
-  const grouped: Record<SpecState, SpecFolder[]> = { spec: [], planned: [], implemented: [] };
+  const grouped: Record<SpecState, SpecFolder[]> = { spec: [], planned: [], tasks: [], implementing: [], done: [] };
   for (const s of specs) {
     grouped[deriveSpecState(s)].push(s);
   }
 
+  // Apply filter
+  const filteredSpecs = filterState ? grouped[filterState] : specs;
+
   return (
     <div style={{ padding: 20 }}>
-      {/* Summary bar */}
+      {/* Summary filter bar */}
       <div
         style={{
           display: "flex",
-          gap: 12,
+          gap: 4,
           marginBottom: 20,
-          padding: "10px 14px",
+          padding: "6px 8px",
           background: "#f5f4ed",
           borderRadius: 8,
           border: "1px solid #e5e2da",
         }}
       >
-        {(["spec", "planned", "implemented"] as SpecState[]).map((state) => {
+        {(STEPS as SpecState[]).map((state) => {
           const cfg = STATE_CONFIG[state];
+          const count = grouped[state].length;
+          const isActive = filterState === state;
           return (
-            <div key={state} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <cfg.Icon size={14} color={cfg.color} strokeWidth={1.8} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: cfg.color }}>
-                {grouped[state].length}
+            <button
+              type="button"
+              key={state}
+              onClick={() => setFilterState(isActive ? null : state)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "5px 10px",
+                borderRadius: 6,
+                border: isActive ? `1px solid ${cfg.border}` : "1px solid transparent",
+                background: isActive ? cfg.bg : "transparent",
+                cursor: count > 0 ? "pointer" : "default",
+                opacity: count > 0 ? 1 : 0.4,
+                pointerEvents: count > 0 ? "auto" : "none",
+                transition: "all 0.15s",
+              }}
+            >
+              <cfg.Icon size={13} color={isActive ? cfg.color : "#9a958c"} strokeWidth={1.8} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? cfg.color : "#6b6560" }}>
+                {count}
               </span>
-              <span style={{ fontSize: 11, color: "#9a958c" }}>{cfg.label}</span>
-            </div>
+              <span style={{ fontSize: 11, color: isActive ? cfg.color : "#9a958c" }}>
+                {cfg.label}
+              </span>
+            </button>
           );
         })}
       </div>
 
       {/* Spec cards */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {specs.map((spec) => (
+        {filteredSpecs.map((spec) => (
           <SpecCard
             key={spec.id}
             spec={spec}

@@ -33,10 +33,15 @@ type ResponseForRequest = {
   "gitfile:read": Extract<IpcResponse, { type: "gitfile:read:result" }>;
   "worktree:create": Extract<IpcResponse, { type: "worktree:create:result" }>;
   "worktree:list": Extract<IpcResponse, { type: "worktree:list:result" }>;
+  "worktree:status": Extract<IpcResponse, { type: "worktree:status:result" }>;
+  "worktree:merge": Extract<IpcResponse, { type: "worktree:merge:result" }>;
+  "worktree:branches": Extract<IpcResponse, { type: "worktree:branches:result" }>;
+  "worktree:delete": Extract<IpcResponse, { type: "worktree:delete:result" }>;
   "repo:onboard": Extract<IpcResponse, { type: "repo:onboard:started" }>;
   "repo:upgrade-specify": Extract<IpcResponse, { type: "repo:upgrade-specify:started" }>;
   "repo:onboard:cancel": Extract<IpcResponse, { type: "repo:onboard:cancelled" }>;
   "repo:force-reload": Extract<IpcResponse, { type: "repo:force-reload:started" }>;
+  "git:user": Extract<IpcResponse, { type: "git:user:result" }>;
 };
 
 /**

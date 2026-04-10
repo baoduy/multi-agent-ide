@@ -11,11 +11,18 @@ import { useSpecStore } from "../store/specStore";
  */
 export const SessionCoordinator = {
   /**
-   * Select a repo — updates repoStore and persists to session.
+   * Select a repo — updates repoStore, fetches specs, and persists to session.
+   * The UI (Main.tsx) handles snapshotting / restoring per-repo state
+   * (selected spec, current screen, open files) via repoSnapshots.
    */
   selectRepo(path: string | null): void {
     useRepoStore.getState().setActiveRepoPath(path);
     void useSessionStore.getState().patchSession({ selectedRepoPath: path });
+
+    // Fetch specs for the new repo so the sidebar and workflow are populated
+    if (path) {
+      void useSpecStore.getState().fetchSpecs(path);
+    }
   },
 
   /**

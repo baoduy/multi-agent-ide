@@ -46,10 +46,6 @@ type SpecFileListProps = {
 };
 
 export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.ReactElement {
-  if (files.length === 0) {
-    return <div style={{ fontSize: 12, color: "#9a958c" }}>No files in this spec.</div>;
-  }
-
   const entries = useMemo(() => sortEntries(toEntries(files)), [files]);
 
   /* Lazy-load folder children via IPC */
@@ -98,6 +94,10 @@ export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.Re
     },
     [onOpenFile],
   );
+
+  if (files.length === 0) {
+    return <div style={{ fontSize: 12, color: "#9a958c" }}>No files in this spec.</div>;
+  }
 
   return (
     <FileTree

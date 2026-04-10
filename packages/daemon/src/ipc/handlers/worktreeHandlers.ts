@@ -33,4 +33,55 @@ export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHa
       success: true,
     };
   });
+
+  safeHandle(bridge, "worktree:status", async (msg) => {
+    const { files, ahead, behind } = worktreeService.getWorktreeStatus(msg.repoPath, msg.worktreePath);
+    return {
+      type: "worktree:status:result" as const,
+      worktreePath: msg.worktreePath,
+      files,
+      ahead,
+      behind,
+    };
+  });
+
+  safeHandle(bridge, "worktree:merge", async (msg) => {
+    const result = worktreeService.mergeWorktree(
+      msg.repoPath,
+      msg.worktreePath,
+      msg.worktreeBranch,
+      msg.targetBranch,
+    );
+    return {
+      type: "worktree:merge:result" as const,
+      success: result.success,
+      message: result.message,
+    };
+  });
+
+  safeHandle(bridge, "worktree:delete", async (msg) => {
+    const result = worktreeService.deleteWorktree(msg.repoPath, msg.worktreePath);
+
+    // Emit refresh signal so the UI can update worktree list
+    bridge.emit({
+      type: "worktree:list:result",
+      worktrees: [],
+    });
+
+    return {
+      type: "worktree:delete:result" as const,
+      success: result.success,
+      message: result.message,
+    };
+  });
+
+  safeHandle(bridge, "worktree:branches", async (msg) => {
+    const { branches, current } = worktreeService.listLocalBranches(msg.repoPath);
+    return {
+      type: "worktree:branches:result" as const,
+      repoPath: msg.repoPath,
+      branches,
+      current,
+    };
+  });
 }

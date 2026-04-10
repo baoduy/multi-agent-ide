@@ -1,11 +1,12 @@
-import React, { useCallback, useState } from "react";
-import { CheckCircle, Layers } from "lucide-react";
+import React, { useCallback, useEffect, useState } from "react";
+import { CheckCircle, GitBranch, Layers } from "lucide-react";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { FlowDiagram } from "../flow/FlowDiagram";
 import { ipc } from "../../utils/ipc";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { useSpecStore } from "../../store/specStore";
 
 type WorkflowViewProps = {
   spec: SpecFolder | null;
@@ -37,6 +38,19 @@ export function WorkflowView({
 }: WorkflowViewProps): React.ReactElement {
   const [approving, setApproving] = useState<string | null>(null);
   const [lastApproved, setLastApproved] = useState<string | null>(null);
+  const [gitUserName, setGitUserName] = useState<string>("");
+
+  // Fetch git user name/email when repoPath changes
+  useEffect(() => {
+    if (!repoPath) return;
+    ipc.send({ type: "git:user", repoPath }).then((resp) => {
+      if (resp.type === "git:user:result") {
+        setGitUserName(resp.name || resp.email || "Unknown");
+      }
+    }).catch(() => {
+      // Fallback silently
+    });
+  }, [repoPath]);
 
   // Worktree dialog state for remote-branch approval
   const [worktreeDialogState, setWorktreeDialogState] = useState<{
@@ -47,6 +61,9 @@ export function WorkflowView({
   } | null>(null);
   const [worktreeError, setWorktreeError] = useState<string | null>(null);
 
+  // Spec store — optimistic approval update
+  const optimisticApproveStage = useSpecStore((s) => s.optimisticApproveStage);
+
   // Worktree store — look up existing worktrees
   const getWorktreeForBranch = useWorktreeStore((s) => s.getWorktreeForBranch);
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
@@ -56,7 +73,7 @@ export function WorkflowView({
   const buildApprovedContent = (existing: string): string => {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
-    const approvalLine = `**Approved by:** Steven | **Date:** ${dateStr}`;
+    const approvalLine = `**Approved by:** ${gitUserName || "Unknown"} | **Date:** ${dateStr}`;
 
     if (/^\*\*Approved by:\*\*/.test(existing) || /\n\*\*Approved by:\*\*/.test(existing)) {
       return existing.replace(/\*\*Approved by:\*\*.*$/m, approvalLine);
@@ -93,6 +110,10 @@ export function WorkflowView({
 
         if (writeResp.type === "file:write:result" && writeResp.success) {
           setLastApproved(stageName);
+          // Optimistically update the store so the node color changes immediately
+          if (spec) {
+            optimisticApproveStage(spec.path, stageName, gitUserName || "Unknown");
+          }
           onSpecChanged?.();
         } else {
           console.error("Failed to write approval:", writeResp);
@@ -103,7 +124,7 @@ export function WorkflowView({
 
       setApproving(null);
     },
-    [onSpecChanged],
+    [onSpecChanged, spec, optimisticApproveStage, gitUserName],
   );
 
   /** Approve using an existing worktree path (no dialog needed). */
@@ -131,6 +152,10 @@ export function WorkflowView({
 
         if (writeResp.type === "file:write:result" && writeResp.success) {
           setLastApproved(stageName);
+          // Optimistically update the store so the node color changes immediately
+          if (spec) {
+            optimisticApproveStage(spec.path, stageName, gitUserName || "Unknown");
+          }
           onSpecChanged?.();
         } else {
           setWorktreeError("Failed to write approval to worktree file.");
@@ -142,7 +167,7 @@ export function WorkflowView({
 
       setApproving(null);
     },
-    [onSpecChanged],
+    [onSpecChanged, spec, optimisticApproveStage, gitUserName],
   );
 
   /** Approve via worktree — called after user confirms worktree name in dialog. */
@@ -270,9 +295,17 @@ export function WorkflowView({
             {spec.name}
           </span>
           {repoName && (
-            <span style={{ fontSize: 12, color: "#9a958c", marginLeft: 8 }}>
-              {repoName}
-            </span>
+            <>
+              <GitBranch
+                size={12}
+                color="#9a958c"
+                strokeWidth={1.8}
+                style={{ marginLeft: 8, verticalAlign: "middle", display: "inline" }}
+              />
+              <span style={{ fontSize: 12, color: "#9a958c", marginLeft: 4 }}>
+                {repoName}
+              </span>
+            </>
           )}
         </div>
 
@@ -323,20 +356,6 @@ export function WorkflowView({
             Approving {approving}...
           </span>
         )}
-      </div>
-
-      {/* Instruction bar */}
-      <div
-        style={{
-          padding: "8px 20px",
-          background: "#f5f4ed",
-          borderBottom: "1px solid #e5e2da",
-          fontSize: 11,
-          color: "#9a958c",
-          flexShrink: 0,
-        }}
-      >
-        Click a stage to open its file. Hover and click <strong>Approve</strong> to add approval to the file header.
       </div>
 
       {/* Flow diagram fills remaining space */}

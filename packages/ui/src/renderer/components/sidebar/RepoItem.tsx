@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Star, FolderOpen, Clipboard, GitBranch, Rocket, ArrowUpCircle, RefreshCw } from "lucide-react";
+import { Star, FolderOpen, Clipboard, GitBranch, Rocket, ArrowUpCircle, RefreshCw, GitFork } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
@@ -7,6 +7,7 @@ import type { ContextMenuAction } from "../common/ContextMenu";
 import { openInFileManager } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
+import { AddWorktreeDialog } from "../dialogs/AddWorktreeDialog";
 
 /* ── Badge helpers ── */
 
@@ -42,6 +43,7 @@ type RepoItemProps = {
 export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoItemProps): React.ReactElement {
   const badge = getRepoBadge(repo);
   const [hovered, setHovered] = useState(false);
+  const [showAddWorktree, setShowAddWorktree] = useState(false);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
   const startProcess = useOnboardStore((s) => s.startProcess);
@@ -63,6 +65,11 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       label: "Copy path",
       Icon: Clipboard,
       action: () => void navigator.clipboard.writeText(repo.path),
+    },
+    {
+      label: "Add Worktree",
+      Icon: GitFork,
+      action: () => setShowAddWorktree(true),
     },
   ];
 
@@ -256,6 +263,15 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       {/* Context menu */}
       {contextMenu && (
         <ContextMenu position={contextMenu} items={ctxItems} onClose={closeContextMenu} />
+      )}
+
+      {/* Add Worktree dialog */}
+      {showAddWorktree && (
+        <AddWorktreeDialog
+          repoPath={repo.path}
+          onCreated={() => setShowAddWorktree(false)}
+          onCancel={() => setShowAddWorktree(false)}
+        />
       )}
     </div>
   );

@@ -1,16 +1,31 @@
-import React, { useState } from "react";
-import { GitBranch, FolderOpen, Clock, ExternalLink } from "lucide-react";
+import React, { useState, useMemo, useCallback } from "react";
+import { GitBranch, FolderOpen, Clock, ChevronRight, ChevronDown } from "lucide-react";
 
 import { useWorktreeStore, type WorktreeInfo } from "../../store/worktreeStore";
 import { useRepoStore } from "../../store/repoStore";
+import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
 
 type WorktreesViewProps = {
   repoName: string | null;
+  /** Called when user clicks a file in a worktree — opens it in a new tab. */
+  onOpenFile?: (filePath: string) => void;
 };
 
-/* ── Single worktree card ── */
+/* ── Single worktree card (collapsible) ── */
 
-function WorktreeCard({ wt }: { wt: WorktreeInfo }): React.ReactElement {
+const WorktreeCard = React.memo(function WorktreeCard({
+  wt,
+  isExpanded,
+  onToggle,
+  onOpenFile,
+  onDeleted,
+}: {
+  wt: WorktreeInfo;
+  isExpanded: boolean;
+  onToggle: (worktreePath: string) => void;
+  onOpenFile?: (filePath: string) => void;
+  onDeleted?: (worktreePath: string) => void;
+}): React.ReactElement {
   const [hovered, setHovered] = useState(false);
 
   const createdDate = new Date(wt.createdAt);
@@ -20,114 +35,316 @@ function WorktreeCard({ wt }: { wt: WorktreeInfo }): React.ReactElement {
     day: "numeric",
   });
 
+  const handleToggle = useCallback(() => onToggle(wt.worktreePath), [onToggle, wt.worktreePath]);
+  const handleDeleted = useCallback(() => onDeleted?.(wt.worktreePath), [onDeleted, wt.worktreePath]);
+
   return (
-    <div
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "12px 16px",
-        background: hovered ? "#faf9f5" : "#fff",
-        border: "1px solid #e5e2da",
-        borderRadius: 8,
-        transition: "background 0.12s",
-      }}
-    >
-      {/* Icon */}
+    <div>
+      {/* Card header (click to expand/collapse) */}
       <div
+        onClick={handleToggle}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          width: 32,
-          height: 32,
-          borderRadius: 6,
-          background: "#f0ede8",
-          flexShrink: 0,
+          gap: 12,
+          padding: "12px 16px",
+          background: isExpanded ? "#faf5f2" : hovered ? "#faf9f5" : "#fff",
+          border: "1px solid",
+          borderColor: isExpanded ? "#e5b8a5" : "#e5e2da",
+          borderRadius: isExpanded ? "8px 8px 0 0" : 8,
+          transition: "background 0.12s, border-color 0.12s",
+          cursor: "pointer",
         }}
       >
-        <GitBranch size={16} color="#C15F3C" strokeWidth={1.8} />
-      </div>
-
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#2c2c2c",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {wt.name}
-        </div>
+        {/* Icon */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
-            marginTop: 3,
-            fontSize: 11,
-            color: "#9a958c",
+            justifyContent: "center",
+            width: 32,
+            height: 32,
+            borderRadius: 6,
+            background: isExpanded ? "#fae8e1" : "#f0ede8",
+            flexShrink: 0,
           }}
         >
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 3,
-            }}
-          >
-            <GitBranch size={10} strokeWidth={1.5} />
-            {wt.branch}
-          </span>
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 3,
-            }}
-          >
-            <Clock size={10} strokeWidth={1.5} />
-            {dateStr}
-          </span>
+          <GitBranch size={16} color="#C15F3C" strokeWidth={1.8} />
         </div>
+
+        {/* Info */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: "#2c2c2c",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {wt.name}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginTop: 3,
+              fontSize: 11,
+              color: "#9a958c",
+            }}
+          >
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+              }}
+            >
+              <GitBranch size={10} strokeWidth={1.5} />
+              {wt.branch}
+            </span>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 3,
+              }}
+            >
+              <Clock size={10} strokeWidth={1.5} />
+              {dateStr}
+            </span>
+          </div>
+        </div>
+
+        {/* Path (truncated) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            fontSize: 10,
+            color: "#9a958c",
+            fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+            maxWidth: 200,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            flexShrink: 0,
+          }}
+          title={wt.worktreePath}
+        >
+          <FolderOpen size={10} strokeWidth={1.5} />
+          {wt.worktreePath.split("/").slice(-2).join("/")}
+        </div>
+
+        {/* Expand/collapse indicator */}
+        {isExpanded ? (
+          <ChevronDown
+            size={14}
+            strokeWidth={1.5}
+            color="#C15F3C"
+            style={{ flexShrink: 0 }}
+          />
+        ) : (
+          <ChevronRight
+            size={14}
+            strokeWidth={1.5}
+            color={hovered ? "#C15F3C" : "#c4c1ba"}
+            style={{ flexShrink: 0, transition: "color 0.12s" }}
+          />
+        )}
       </div>
 
-      {/* Path (truncated) */}
-      <div
+      {/* Expanded: inline panel with file list, merge, delete/keep */}
+      {isExpanded && (
+        <div
+          style={{
+            borderLeft: "1px solid #e5b8a5",
+            borderRight: "1px solid #e5b8a5",
+            borderBottom: "1px solid #e5b8a5",
+            borderRadius: "0 0 8px 8px",
+            overflow: "hidden",
+          }}
+        >
+          <WorktreeInlinePanel
+            worktree={wt}
+            onOpenFile={onOpenFile}
+            onDeleted={handleDeleted}
+          />
+        </div>
+      )}
+    </div>
+  );
+});
+
+/* ── Repo group section ── */
+
+const RepoGroup = React.memo(function RepoGroup({
+  repoPath,
+  repoName,
+  worktrees,
+  isActive,
+  isExpanded,
+  onToggleRepo,
+  expandedWorktree,
+  onToggleWorktree,
+  onOpenFile,
+  onWorktreeDeleted,
+}: {
+  repoPath: string;
+  repoName: string;
+  worktrees: WorktreeInfo[];
+  isActive: boolean;
+  isExpanded: boolean;
+  onToggleRepo: (repoPath: string) => void;
+  expandedWorktree: string | null;
+  onToggleWorktree: (worktreePath: string) => void;
+  onOpenFile?: (filePath: string) => void;
+  onWorktreeDeleted: (worktreePath: string) => void;
+}): React.ReactElement {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* Repo header */}
+      <button
+        type="button"
+        onClick={() => onToggleRepo(repoPath)}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 4,
-          fontSize: 10,
-          color: "#9a958c",
-          fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-          maxWidth: 200,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          flexShrink: 0,
+          gap: 6,
+          width: "100%",
+          padding: "6px 0",
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          fontFamily: "inherit",
         }}
-        title={wt.worktreePath}
       >
-        <FolderOpen size={10} strokeWidth={1.5} />
-        {wt.worktreePath.split("/").slice(-2).join("/")}
-      </div>
+        <ChevronRight
+          size={12}
+          strokeWidth={2}
+          color="#9a958c"
+          style={{
+            transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 0.15s",
+          }}
+        />
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: isActive ? "#C15F3C" : "#6b6560",
+          }}
+        >
+          {repoName}
+        </span>
+        {isActive && (
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 600,
+              color: "#C15F3C",
+              background: "#faf5f2",
+              padding: "2px 6px",
+              borderRadius: 4,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+            }}
+          >
+            Active
+          </span>
+        )}
+        <span
+          style={{
+            fontSize: 11,
+            color: "#9a958c",
+            marginLeft: "auto",
+          }}
+        >
+          {worktrees.length} worktree{worktrees.length !== 1 ? "s" : ""}
+        </span>
+      </button>
+
+      {/* Worktree cards */}
+      {isExpanded && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 6 }}>
+          {worktrees.map((wt) => (
+            <WorktreeCard
+              key={wt.worktreePath}
+              wt={wt}
+              isExpanded={expandedWorktree === wt.worktreePath}
+              onToggle={onToggleWorktree}
+              onOpenFile={onOpenFile}
+              onDeleted={onWorktreeDeleted}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
-}
+});
 
 /* ── Main view ── */
 
-export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElement {
+export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): React.ReactElement {
   const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
   const allWorktrees = useWorktreeStore((state) => state.worktrees);
   const repos = useRepoStore((state) => state.repos);
+
+  // Persisted UI state from worktreeStore (survives tab switches)
+  const expandedRepos = useWorktreeStore((state) => state.expandedRepos);
+  const expandedWorktreePath = useWorktreeStore((state) => state.expandedWorktreePath);
+  const toggleRepoExpanded = useWorktreeStore((state) => state.toggleRepoExpanded);
+  const setExpandedWorktreePath = useWorktreeStore((state) => state.setExpandedWorktreePath);
+
+  // Stable callbacks — read expandedWorktreePath from store at call time
+  // to avoid closing over a reactive value that changes identity.
+  const handleToggleWorktree = useCallback((worktreePath: string) => {
+    const current = useWorktreeStore.getState().expandedWorktreePath;
+    setExpandedWorktreePath(current === worktreePath ? null : worktreePath);
+  }, [setExpandedWorktreePath]);
+
+  const handleWorktreeDeleted = useCallback((worktreePath: string) => {
+    if (useWorktreeStore.getState().expandedWorktreePath === worktreePath) {
+      setExpandedWorktreePath(null);
+    }
+  }, [setExpandedWorktreePath]);
+
+  // O(1) repo-name lookup map — replaces repeated .find() calls
+  const repoNameByPath = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const r of repos) {
+      map.set(r.path, r.name);
+    }
+    return map;
+  }, [repos]);
+
+  // Group ALL worktrees by repo path (memoized)
+  const byRepo = useMemo(() => {
+    const map = new Map<string, WorktreeInfo[]>();
+    for (const wt of allWorktrees) {
+      const list = map.get(wt.repoPath) ?? [];
+      list.push(wt);
+      map.set(wt.repoPath, list);
+    }
+    return map;
+  }, [allWorktrees]);
+
+  // Sort: active repo first, then alphabetical by name (memoized)
+  const sortedEntries = useMemo(() => {
+    return Array.from(byRepo.entries()).sort(([pathA], [pathB]) => {
+      if (pathA === activeRepoPath) return -1;
+      if (pathB === activeRepoPath) return 1;
+      const nameA = repoNameByPath.get(pathA) ?? pathA;
+      const nameB = repoNameByPath.get(pathB) ?? pathB;
+      return nameA.localeCompare(nameB);
+    });
+  }, [byRepo, activeRepoPath, repoNameByPath]);
 
   if (!repoName) {
     return (
@@ -137,23 +354,9 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
     );
   }
 
-  // Worktrees for the active repo
-  const repoWorktrees = allWorktrees.filter((w) => w.repoPath === activeRepoPath);
-
-  // Worktrees for OTHER repos
-  const otherWorktrees = allWorktrees.filter((w) => w.repoPath !== activeRepoPath);
-
-  // Group other worktrees by repo
-  const otherByRepo = new Map<string, WorktreeInfo[]>();
-  for (const wt of otherWorktrees) {
-    const list = otherByRepo.get(wt.repoPath) ?? [];
-    list.push(wt);
-    otherByRepo.set(wt.repoPath, list);
-  }
-
   return (
     <div style={{ padding: 20 }}>
-      {/* Active repo section */}
+      {/* Section header */}
       <div
         style={{
           fontSize: 11,
@@ -161,80 +364,52 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           color: "#9a958c",
-          marginBottom: 12,
+          marginBottom: 16,
         }}
       >
-        Active worktrees — {repoName}
+        Worktrees by repository
       </div>
 
-      {repoWorktrees.length === 0 ? (
+      {allWorktrees.length === 0 ? (
         <div
           style={{
             color: "#9a958c",
             fontSize: 13,
             padding: "16px 0",
-            borderBottom: "1px solid #e5e2da",
           }}
         >
           No worktrees yet. Approve a file from a remote branch to create one.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingBottom: 16, borderBottom: "1px solid #e5e2da" }}>
-          {repoWorktrees.map((wt) => (
-            <WorktreeCard key={wt.worktreePath} wt={wt} />
-          ))}
-        </div>
-      )}
+        sortedEntries.map(([repoPath, wts]) => {
+          const name = repoNameByPath.get(repoPath) ?? repoPath.split("/").pop() ?? repoPath;
+          const isActive = repoPath === activeRepoPath;
 
-      {/* Other repos section */}
-      {otherByRepo.size > 0 && (
-        <>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "#9a958c",
-              marginBottom: 12,
-              marginTop: 20,
-            }}
-          >
-            Other repositories
-          </div>
-
-          {Array.from(otherByRepo.entries()).map(([repoPath, wts]) => {
-            const repo = repos.find((r) => r.path === repoPath);
-            const name = repo?.name ?? repoPath.split("/").pop() ?? repoPath;
-
-            return (
-              <div key={repoPath} style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "#6b6560",
-                    marginBottom: 8,
-                  }}
-                >
-                  {name}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {wts.map((wt) => (
-                    <WorktreeCard key={wt.worktreePath} wt={wt} />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </>
+          return (
+            <RepoGroup
+              key={repoPath}
+              repoPath={repoPath}
+              repoName={name}
+              worktrees={wts}
+              isActive={isActive}
+              isExpanded={!!expandedRepos[repoPath]}
+              onToggleRepo={toggleRepoExpanded}
+              expandedWorktree={expandedWorktreePath}
+              onToggleWorktree={handleToggleWorktree}
+              onOpenFile={onOpenFile}
+              onWorktreeDeleted={handleWorktreeDeleted}
+            />
+          );
+        })
       )}
 
       {/* Summary */}
       {allWorktrees.length > 0 && (
         <div
           style={{
-            marginTop: 20,
+            marginTop: 8,
+            paddingTop: 12,
+            borderTop: "1px solid #f0ede8",
             fontSize: 11,
             color: "#9a958c",
             display: "flex",
@@ -244,8 +419,7 @@ export function WorktreesView({ repoName }: WorktreesViewProps): React.ReactElem
         >
           <GitBranch size={11} strokeWidth={1.5} />
           {allWorktrees.length} worktree{allWorktrees.length !== 1 ? "s" : ""} across{" "}
-          {new Set(allWorktrees.map((w) => w.repoPath)).size} repo
-          {new Set(allWorktrees.map((w) => w.repoPath)).size !== 1 ? "s" : ""}
+          {byRepo.size} repo{byRepo.size !== 1 ? "s" : ""}
         </div>
       )}
     </div>

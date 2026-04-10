@@ -3,6 +3,7 @@ import { GitBranch, X, ChevronDown, Loader2 } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { useSessionStore } from "../../store/sessionStore";
 
 type AddWorktreeDialogProps = {
   /** The repository path to create the worktree in */
@@ -34,6 +35,10 @@ export function AddWorktreeDialog({
 
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
+  const toggleRepoExpanded = useWorktreeStore((s) => s.toggleRepoExpanded);
+  const expandedRepos = useWorktreeStore((s) => s.expandedRepos);
+  const setExpandedWorktreePath = useWorktreeStore((s) => s.setExpandedWorktreePath);
+  const patchSession = useSessionStore((s) => s.patchSession);
 
   // Fetch branches on mount
   useEffect(() => {
@@ -111,12 +116,19 @@ export function AddWorktreeDialog({
       // Refresh worktree list from daemon
       void fetchWorktrees(repoPath);
 
+      // Navigate to worktrees tab, expand the repo group, and select the new worktree
+      void patchSession({ mainTab: "worktrees" });
+      if (!expandedRepos[repoPath]) {
+        toggleRepoExpanded(repoPath);
+      }
+      setExpandedWorktreePath(result.worktreePath);
+
       onCreated?.();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : String(err));
       setIsCreating(false);
     }
-  }, [name, selectedBranch, repoPath, addWorktree, fetchWorktrees, onCreated]);
+  }, [name, selectedBranch, repoPath, addWorktree, fetchWorktrees, patchSession, expandedRepos, toggleRepoExpanded, setExpandedWorktreePath, onCreated]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

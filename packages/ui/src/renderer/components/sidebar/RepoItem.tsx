@@ -73,32 +73,37 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
     },
   ];
 
-  // Show "Onboard to Specify" only for repos not yet onboarded
+  // Force reload: rescan repo + refresh spec info
+  ctxItems.push({
+    label: "Force Reload",
+    Icon: RefreshCw,
+    separator: true,
+    action: () => {
+      void sendOrThrow({ type: "repo:force-reload", repoPath: repo.path });
+    },
+  });
+
+  // Show "Onboard to Specify" or "Upgrade Specify" last
   if (!repo.hasSpecs) {
     ctxItems.push({
       label: existingProcess?.phase === "running"
         ? "View Onboarding..."
         : "Onboard to Specify",
       Icon: Rocket,
-      separator: true,
       action: () => {
         if (existingProcess) {
-          // Re-open the dialog for an existing process
           setDialogOpen(repo.path, true);
         } else {
-          // Start a new process (opens dialog via OnboardDialogManager)
           startProcess("onboard", repo.path, repo.name);
         }
       },
     });
   } else {
-    // Show "Upgrade Specify" for repos already onboarded
     ctxItems.push({
       label: existingProcess?.phase === "running"
         ? "View Upgrade..."
         : "Upgrade Specify",
       Icon: ArrowUpCircle,
-      separator: true,
       action: () => {
         if (existingProcess) {
           setDialogOpen(repo.path, true);
@@ -108,15 +113,6 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       },
     });
   }
-
-  // Force reload: rescan repo + refresh spec info
-  ctxItems.push({
-    label: "Force Reload",
-    Icon: RefreshCw,
-    action: () => {
-      void sendOrThrow({ type: "repo:force-reload", repoPath: repo.path });
-    },
-  });
 
   return (
     <div

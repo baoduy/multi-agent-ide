@@ -27,6 +27,10 @@ permissions:
   contents: write
   packages: write
 
+# Opt into Node.js 24 for all GitHub Actions (Node.js 20 deprecated June 2026)
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ────────────────────────────────────────────────────────────────────────────
   # Job 1: Quality checks + version calculation

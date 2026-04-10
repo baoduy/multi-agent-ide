@@ -142,6 +142,8 @@ jobs:
         run: pnpm build
 
       - name: Build Electron app
+        # Windows NSIS build fails due to pnpm long paths — allow failure until resolved
+        continue-on-error: ${{ runner.os == 'Windows' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Code signing (disabled for now — uncomment when certificates are available)

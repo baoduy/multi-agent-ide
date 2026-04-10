@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020"],
+    "declaration": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "bundler",
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@magenta/shared": ["packages/shared/dist/index.d.ts"],
+      "@magenta/shared/*": ["packages/shared/dist/*"],
+      "@magenta/daemon": ["packages/daemon/dist/index.d.ts"],
+      "@magenta/daemon/*": ["packages/daemon/dist/*"],
+      "@magenta/ui": ["packages/ui/dist/index.d.ts"],
+      "@magenta/ui/*": ["packages/ui/dist/*"],
+      "@magenta/main": ["packages/main/dist/index.d.ts"],
+      "@magenta/main/*": ["packages/main/dist/*"]
+    }
+  }
+}

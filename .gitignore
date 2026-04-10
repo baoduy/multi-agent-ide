@@ -137,3 +137,13 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# electron-builder output
+release/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/

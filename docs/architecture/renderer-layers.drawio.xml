@@ -1,0 +1,68 @@
+<mxGraphModel>
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <mxCell id="title" value="Magenta IDE — Renderer Layer Architecture" style="text;html=1;fontSize=20;fontStyle=1;align=center;verticalAlign=middle;whiteSpace=wrap;" vertex="1" parent="1">
+      <mxGeometry x="60" y="10" width="680" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="comp_layer" value="React Components" style="swimlane;startSize=24;fillColor=#E3F2FD;strokeColor=#1565C0;rounded=1;fontSize=12;fontStyle=1;fontColor=#1565C0;" vertex="1" parent="1">
+      <mxGeometry x="30" y="60" width="740" height="90" as="geometry"/>
+    </mxCell>
+    <mxCell id="sidebar" value="Sidebar" style="rounded=1;whiteSpace=wrap;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="comp_layer">
+      <mxGeometry x="15" y="32" width="80" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="repolist" value="RepoList" style="rounded=1;whiteSpace=wrap;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="comp_layer">
+      <mxGeometry x="110" y="32" width="80" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="mainlayout" value="MainLayout" style="rounded=1;whiteSpace=wrap;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="comp_layer">
+      <mxGeometry x="205" y="32" width="80" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="spectree" value="SpecTree" style="rounded=1;whiteSpace=wrap;fillColor=#BBDEFB;strokeColor=#1565C0;fontSize=10;" vertex="1" parent="comp_layer">
+      <mxGeometry x="300" y="32" width="80" height="40" as="geometry"/>
+    </mxCell>
+    <mxCell id="hook_restore" value="useSessionRestoration&#10;(uses SessionCoordinator)" style="rounded=1;whiteSpace=wrap;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=9;fontStyle=1;" vertex="1" parent="comp_layer">
+      <mxGeometry x="450" y="32" width="180" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="coord_layer" value="Services (cross-cutting coordination)" style="swimlane;startSize=24;fillColor=#FFF8E1;strokeColor=#F57F17;rounded=1;fontSize=12;fontStyle=1;fontColor=#F57F17;" vertex="1" parent="1">
+      <mxGeometry x="30" y="170" width="740" height="90" as="geometry"/>
+    </mxCell>
+    <mxCell id="coordinator" value="SessionCoordinator&#10;&#10;selectRepo() | selectSpec()&#10;restoreSession() | validateSpecSelection()" style="rounded=1;whiteSpace=wrap;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="coord_layer">
+      <mxGeometry x="15" y="30" width="300" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="ipc_client" value="Typed IPC Client&#10;&#10;sendOrThrow() | sendCommand()&#10;IpcError | ResponseForRequest map" style="rounded=1;whiteSpace=wrap;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;fontStyle=1;align=center;" vertex="1" parent="coord_layer">
+      <mxGeometry x="340" y="30" width="250" height="50" as="geometry"/>
+    </mxCell>
+    <mxCell id="action_factory" value="createAsync&#10;Action()" style="rounded=1;whiteSpace=wrap;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=10;fontStyle=1;" vertex="1" parent="coord_layer">
+      <mxGeometry x="615" y="30" width="100" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="store_layer" value="Zustand Stores (state containers only)" style="swimlane;startSize=24;fillColor=#E8F5E9;strokeColor=#2E7D32;rounded=1;fontSize=12;fontStyle=1;fontColor=#2E7D32;" vertex="1" parent="1">
+      <mxGeometry x="30" y="280" width="740" height="110" as="geometry"/>
+    </mxCell>
+    <mxCell id="config_store" value="configStore&#10;&#10;workingDirs&#10;uses sendOrThrow" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=center;" vertex="1" parent="store_layer">
+      <mxGeometry x="15" y="30" width="120" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="repo_store" value="repoStore&#10;&#10;repos | activeRepoPath&#10;No dynamic imports" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=center;" vertex="1" parent="store_layer">
+      <mxGeometry x="155" y="30" width="130" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="spec_store" value="specStore&#10;&#10;specs | currentRepoPath&#10;Race guard in fetchSpecs" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=center;" vertex="1" parent="store_layer">
+      <mxGeometry x="305" y="30" width="140" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="session_store" value="sessionStore&#10;&#10;SessionState fields&#10;patchSession(partial)" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=center;" vertex="1" parent="store_layer">
+      <mxGeometry x="465" y="30" width="130" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="wt_store" value="worktreeStore&#10;&#10;worktrees&#10;uses sendOrThrow" style="rounded=1;whiteSpace=wrap;fillColor=#C8E6C9;strokeColor=#2E7D32;fontSize=9;align=center;" vertex="1" parent="store_layer">
+      <mxGeometry x="615" y="30" width="110" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ipc_layer2" value="IPC Bridge (Electron preload)" style="swimlane;startSize=24;fillColor=#F3E5F5;strokeColor=#7B1FA2;rounded=1;fontSize=12;fontStyle=1;fontColor=#7B1FA2;" vertex="1" parent="1">
+      <mxGeometry x="30" y="410" width="740" height="70" as="geometry"/>
+    </mxCell>
+    <mxCell id="ipc_util" value="ipc.send(request)  |  ipc.on(type, listener)  |  selectFolder()  |  openInFileManager()" style="rounded=1;whiteSpace=wrap;fillColor=#E1BEE7;strokeColor=#7B1FA2;fontSize=10;align=center;" vertex="1" parent="ipc_layer2">
+      <mxGeometry x="15" y="30" width="710" height="28" as="geometry"/>
+    </mxCell>
+  </root>
+</mxGraphModel>

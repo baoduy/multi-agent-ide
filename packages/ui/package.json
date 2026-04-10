@@ -1,0 +1,25 @@
+{
+  "name": "@magenta/ui",
+  "version": "0.1.0",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "node esbuild.mjs --watch",
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo 'No linter configured'",
+    "test": "echo 'No tests configured'"
+  },
+  "dependencies": {
+    "@magenta/shared": "workspace:*",
+    "react": "*",
+    "react-dom": "*",
+    "zustand": "*"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "@types/react": "*",
+    "@types/react-dom": "*",
+    "esbuild": "^0.24.2",
+    "typescript": "*"
+  }
+}

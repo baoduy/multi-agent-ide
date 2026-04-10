@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magenta IDE</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body, #root {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      background: #faf9f5;
+      color: #2c2c2c;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      font-feature-settings: 'kern' 1, 'liga' 1;
+    }
+    /* Warm scrollbar matching Claude palette */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1cec6; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #b5b1a8; }
+    /* Selection */
+    ::selection { background: #C15F3C30; }
+    /* Electron custom title bar: prevent body scroll under frameless window */
+    html, body { overflow: hidden; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <noscript>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;">
+      <p>JavaScript is required to run Magenta IDE.</p>
+    </div>
+  </noscript>
+  <script src="../../ui/dist/bundle.js"></script>
+</body>
+</html>

@@ -25,6 +25,57 @@ import { SessionManager } from "./services/SessionManager";
 import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
 
+// Track services for graceful shutdown
+let shutdownServices: {
+  dirWatcher?: DirWatcher;
+  specSyncService?: SpecSyncService;
+  databaseService?: DatabaseService;
+} = {};
+let isShuttingDown = false;
+
+/**
+ * Gracefully shut down all daemon services.
+ * Called on SIGTERM, SIGINT, or disconnect from parent.
+ */
+async function gracefulShutdown(reason: string): Promise<void> {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+
+  console.log(`[daemon-worker] Graceful shutdown initiated (reason: ${reason})`);
+
+  try {
+    // 1. Stop file watchers (chokidar)
+    if (shutdownServices.dirWatcher) {
+      console.log("[daemon-worker] Closing file watchers...");
+      shutdownServices.dirWatcher.unwatchAll();
+    }
+
+    // 2. Stop spec sync interval
+    if (shutdownServices.specSyncService) {
+      console.log("[daemon-worker] Stopping spec sync service...");
+      shutdownServices.specSyncService.stop();
+    }
+
+    // 3. Flush and close database
+    if (shutdownServices.databaseService) {
+      console.log("[daemon-worker] Flushing and closing database...");
+      shutdownServices.databaseService.flush();
+      shutdownServices.databaseService.close();
+    }
+
+    console.log("[daemon-worker] Graceful shutdown complete");
+  } catch (error) {
+    console.error("[daemon-worker] Error during shutdown:", error);
+  }
+
+  process.exit(0);
+}
+
+// Register shutdown handlers
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("disconnect", () => gracefulShutdown("parent disconnected"));
+
 async function main() {
   console.log("[daemon-worker] Starting...");
 
@@ -60,6 +111,9 @@ async function main() {
 
     // Directory watcher for auto-detecting new/removed repos
     const dirWatcher = new DirWatcher(scanQueue, configManager);
+
+    // Store references for graceful shutdown
+    shutdownServices = { dirWatcher, specSyncService, databaseService };
 
     registerHandlers(ipcBridge, {
       databaseService,

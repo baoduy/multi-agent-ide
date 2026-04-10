@@ -223,11 +223,21 @@ function startDaemon() {
       daemonEnv["MAGENTA_RESOURCES_PATH"] = process.resourcesPath;
     }
 
+    // Resolve the Node.js executable for the daemon child process:
+    // 1. MAGENTA_NODE_PATH env var (explicit override)
+    // 2. In packaged app: use Electron's own binary (it embeds Node.js)
+    // 3. In development: use system "node"
+    const nodeExecPath =
+      process.env["MAGENTA_NODE_PATH"] ||
+      (isPackaged ? process.execPath : "node");
+
     daemonProcess = fork(daemonEntryPath, [], {
       stdio: ["pipe", "pipe", "pipe", "ipc"],
-      // Use the system Node.js, not Electron's embedded one
-      execPath: process.env["MAGENTA_NODE_PATH"] || "node",
-      env: daemonEnv,
+      execPath: nodeExecPath,
+      env: {
+        ...daemonEnv,
+        ELECTRON_RUN_AS_NODE: "1",
+      },
     });
 
     daemonProcess.stdout?.on("data", (data: Buffer) => {

@@ -2,6 +2,7 @@
   "name": "multi-agent-ide",
   "private": true,
   "version": "0.1.0",
+  "main": "packages/main/dist/index.js",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "dev": "pnpm build && pnpm -C packages/main dev",
@@ -10,7 +11,12 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "install-all": "bash install-all.sh"
+    "pack": "pnpm build && pnpm exec electron-builder --dir",
+    "dist": "pnpm build && pnpm exec electron-builder",
+    "dist:mac": "pnpm build && pnpm exec electron-builder --mac",
+    "dist:win": "pnpm build && pnpm exec electron-builder --win",
+    "dist:linux": "pnpm build && pnpm exec electron-builder --linux",
+    "release": "pnpm build && pnpm exec electron-builder --publish always"
   },
   "dependencies": {
     "sql.js": "^1.14.1",
@@ -29,30 +35,13 @@
     "highlight.js": "^11.11.1",
     "mermaid": "^11.14.0"
   },
-  "build": {
-    "appId": "com.magenta.ide",
-    "productName": "Magenta IDE",
-    "directories": {
-      "buildResources": "build"
-    },
-    "mac": {
-      "icon": "build/icons/icon.iconset",
-      "category": "public.app-category.developer-tools"
-    },
-    "win": {
-      "icon": "build/icons/icon.ico"
-    },
-    "linux": {
-      "icon": "build/icons",
-      "category": "Development"
-    }
-  },
   "devDependencies": {
     "@types/sql.js": "^1.4.11",
     "@types/node": "25.5.2",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "esbuild": "^0.28.0",
+    "electron-builder": "^25.1.8",
     "typescript": "6.0.2"
   }
 }

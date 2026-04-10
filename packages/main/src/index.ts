@@ -211,10 +211,23 @@ function startDaemon() {
   console.log(`Forking daemon from: ${daemonEntryPath}`);
 
   try {
+    // Detect whether we're running inside a packaged Electron app.
+    // In packaged mode, process.resourcesPath points to the resources
+    // directory where electron-builder places extraResources (e.g. the
+    // sql.js WASM binary). We pass this to the daemon child process via
+    // an environment variable since the daemon runs on system Node.js
+    // and doesn't have access to Electron-specific process properties.
+    const isPackaged = app.isPackaged;
+    const daemonEnv: Record<string, string> = { ...process.env } as Record<string, string>;
+    if (isPackaged) {
+      daemonEnv["MAGENTA_RESOURCES_PATH"] = process.resourcesPath;
+    }
+
     daemonProcess = fork(daemonEntryPath, [], {
       stdio: ["pipe", "pipe", "pipe", "ipc"],
       // Use the system Node.js, not Electron's embedded one
       execPath: process.env["MAGENTA_NODE_PATH"] || "node",
+      env: daemonEnv,
     });
 
     daemonProcess.stdout?.on("data", (data: Buffer) => {

@@ -1,0 +1,210 @@
+# Build & Release workflow
+# Triggers on every push to main. Automatically calculates the next semantic
+# version from git tags, builds the Electron app for macOS, Windows, and Linux,
+# creates a git tag, and publishes the artifacts to a GitHub Release.
+#
+# Version bumping:
+#   - Include "(MAJOR)" in a commit message for a major bump
+#   - Include "(MINOR)" in a commit message for a minor bump
+#   - All other commits bump the patch version
+
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+# Permissions needed to create tags and releases
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 1: Quality checks + version calculation
+  # ────────────────────────────────────────────────────────────────────────────
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    outputs:
+      next_version: ${{ steps.version.outputs.version }}
+      version_tag: ${{ steps.version.outputs.version_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      # ── Version calculation ──────────────────────────────────────────────
+      - name: Calculate next version
+        id: version
+        uses: paulhatch/semantic-version@v6.0.2
+        with:
+          tag_prefix: "v"
+          major_pattern: "(MAJOR)"
+          minor_pattern: "(MINOR)"
+          version_format: "${major}.${minor}.${patch}"
+          bump_each_commit: false
+          search_commit_body: false
+
+      - name: Print calculated version
+        run: |
+          echo "Next version: ${{ steps.version.outputs.version }}"
+          echo "Version tag:  v${{ steps.version.outputs.version }}"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 2: Build the Electron app for each platform
+  # ────────────────────────────────────────────────────────────────────────────
+  build:
+    name: Build (${{ matrix.os-name }})
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            os-name: macOS
+            build-args: --mac
+          - os: ubuntu-latest
+            os-name: Linux
+            build-args: --linux
+          - os: windows-latest
+            os-name: Windows
+            build-args: --win
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Stamp the calculated version into package.json before building
+      - name: Set version in package.json
+        run: npm version ${{ needs.quality.outputs.next_version }} --no-git-tag-version --allow-same-version
+
+      - name: Build all packages
+        run: pnpm build
+
+      - name: Build Electron app
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Code signing (disabled for now — uncomment when certificates are available)
+          # CSC_LINK: ${{ secrets.CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Apple notarization (macOS only)
+          # APPLE_ID: ${{ secrets.APPLE_ID }}
+          # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm exec electron-builder ${{ matrix.build-args }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os-name }}
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.exe
+            release/*.AppImage
+            release/*.deb
+            release/*.yml
+            release/*.yaml
+          if-no-files-found: warn
+          retention-days: 30
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 3: Create GitHub Release with all platform artifacts
+  # ────────────────────────────────────────────────────────────────────────────
+  release:
+    name: Create Release
+    needs: [quality, build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      # Collect all distributable files into a single directory
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -type f \( \
+            -name "*.dmg" -o \
+            -name "*.zip" -o \
+            -name "*.exe" -o \
+            -name "*.AppImage" -o \
+            -name "*.deb" -o \
+            -name "*.yml" -o \
+            -name "*.yaml" \
+          \) -exec cp {} release-assets/ \;
+          echo "=== Release assets ==="
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2.6.1
+        with:
+          tag_name: v${{ needs.quality.outputs.next_version }}
+          name: Magenta IDE v${{ needs.quality.outputs.next_version }}
+          generate_release_notes: true
+          make_latest: true
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

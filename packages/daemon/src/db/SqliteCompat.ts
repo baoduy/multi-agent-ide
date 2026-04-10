@@ -45,7 +45,20 @@ export class SqliteCompat {
     // Dynamic import to handle WASM loading
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const initSqlJsFn = require("sql.js") as typeof initSqlJs;
-    const SQL: SqlJsStatic = await initSqlJsFn();
+
+    // In a packaged Electron app the WASM binary lives in the resources
+    // directory (placed there by electron-builder's extraResources config).
+    // The main process passes the path via the MAGENTA_RESOURCES_PATH env var
+    // since the daemon runs as a forked child process on system Node.js
+    // (not Electron) and doesn't have process.resourcesPath.
+    const resourcesPath = process.env["MAGENTA_RESOURCES_PATH"];
+
+    const initConfig: Record<string, unknown> = {};
+    if (resourcesPath) {
+      initConfig.locateFile = (file: string) => path.join(resourcesPath, file);
+    }
+
+    const SQL: SqlJsStatic = await initSqlJsFn(initConfig as Parameters<typeof initSqlJs>[0]);
 
     let db: SqlJsDatabase;
 

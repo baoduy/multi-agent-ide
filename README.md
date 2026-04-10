@@ -18,6 +18,7 @@ A desktop-first developer tool that manages the full software development lifecy
 - [Pipeline Stages](#pipeline-stages)
 - [Data Model](#data-model)
 - [IPC Contract](#ipc-contract)
+- [Installation](#installation)
 - [Getting Started](#getting-started)
 - [Development](#development)
 - [Testing](#testing)
@@ -311,20 +312,47 @@ Every request is validated at the IPC boundary by `IPCBridge.invoke()` before re
 
 ---
 
+## Installation
+
+### Homebrew (macOS)
+
+```bash
+brew tap magenta-ide/magenta
+brew install --cask magenta-ide
+```
+
+### Download from GitHub Releases
+
+Download the latest release from the [Releases page](https://github.com/magenta-ide/magenta-ide/releases).
+
+**macOS:** After downloading, macOS may block the app because it is not yet code-signed. To fix this, open Terminal and run:
+
+```bash
+xattr -cr /Applications/Magenta\ IDE.app
+```
+
+Then open the app normally. Alternatively, you can right-click the app and select "Open" to bypass Gatekeeper on first launch.
+
+**Windows:** Run the `.exe` installer. If SmartScreen warns about an unrecognized app, click "More info" → "Run anyway".
+
+**Linux:** Download the `.AppImage` or `.deb` package. For AppImage, make it executable with `chmod +x Magenta-IDE-*.AppImage` before running.
+
+---
+
 ## Getting Started
 
-### Prerequisites
+### Prerequisites (for development)
 
 - **Node.js 22+** — runtime for the daemon and build tooling
 - **pnpm 9+** — package manager (monorepo workspaces)
 - **Git 2.30+** — required for repository operations and worktree support
 - **Claude Code CLI** (`claude`) and/or **GitHub CLI** (`gh`) — for AI agent dispatch
 
-### Installation
+### Building from Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/magenta-ide.git
+git clone https://github.com/magenta-ide/magenta-ide.git
 cd magenta-ide
 
 # Install all dependencies across the monorepo

@@ -1,3 +1,4 @@
+import type { MagentaConfig } from "@magenta/shared/config";
 import type { ConfigManager } from "../config/ConfigManager";
 
 /**
@@ -8,6 +9,10 @@ export class ConfigApplicationService {
 
   getConfig() {
     return this.configManager.getConfig();
+  }
+
+  updateConfig(partial: Partial<MagentaConfig>) {
+    return this.configManager.updateConfig(partial);
   }
 
   addWorkingDir(path: string) {

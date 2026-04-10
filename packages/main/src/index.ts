@@ -66,6 +66,19 @@ function createWindow() {
   console.log(`Loading renderer from: ${rendererPath}`);
   mainWindow.loadFile(rendererPath);
 
+  // Disable Cmd+R / Ctrl+R / F5 reload shortcuts in production to prevent
+  // accidental reloads that lose in-progress state (e.g. running onboard processes).
+  mainWindow.webContents.on("before-input-event", (_event, input) => {
+    const isReload =
+      (input.key === "r" && (input.meta || input.control)) ||
+      (input.key === "R" && (input.meta || input.control)) ||
+      input.key === "F5";
+
+    if (isReload) {
+      _event.preventDefault();
+    }
+  });
+
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription) => {
     console.error("Failed to load:", errorCode, errorDescription);
   });

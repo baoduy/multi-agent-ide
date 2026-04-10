@@ -225,7 +225,7 @@ function FolderNode({
         ) : (
           <span
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: expanded ? 600 : 500,
               color: folderColor,
               overflow: "hidden",
@@ -243,7 +243,7 @@ function FolderNode({
         {showCountBadge && countItems && (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 9,
               color: "#b5b1a8",
               marginLeft: "auto",
               flexShrink: 0,
@@ -256,7 +256,7 @@ function FolderNode({
 
         {/* Loading */}
         {loading && (
-          <span style={{ fontSize: 10, color: "#9a958c", marginLeft: "auto", flexShrink: 0 }}>...</span>
+          <span style={{ fontSize: 9, color: "#9a958c", marginLeft: "auto", flexShrink: 0 }}>...</span>
         )}
       </button>
 
@@ -285,7 +285,7 @@ function FolderNode({
         <div
           style={{
             padding: `3px 8px 3px ${22 + indent}px`,
-            fontSize: 11,
+            fontSize: 10,
             color: "#b5b1a8",
             fontStyle: "italic",
           }}
@@ -353,7 +353,7 @@ function FileNode({
         ) : (
           <span
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 500,
               color: "#2c2c2c",
               overflow: "hidden",

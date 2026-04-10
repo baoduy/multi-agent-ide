@@ -36,7 +36,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
     >
       <span
         style={{
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: isSelected ? 500 : 400,
           color: "#2c2c2c",
           flex: 1,

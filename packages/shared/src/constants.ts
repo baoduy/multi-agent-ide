@@ -19,6 +19,9 @@ export const STAGE_STATUSES = [
   "approved",
   "idle",
   "running",
+  "pending",
+  "in-progress",
+  "done",
 ] as const;
 
 export type StageStatus = (typeof STAGE_STATUSES)[number];

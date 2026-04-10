@@ -187,11 +187,11 @@ export function TitleBar({
   activeTab,
   onSelectBuiltinTab,
 }: TitleBarProps): React.ReactElement {
-  const { jobs, runningCount, failedCount, clearCompleted } = useBackgroundJobs();
+  const { jobs, runningCount, failedCount, totalCount, clearCompleted } = useBackgroundJobs();
   const [jobsOpen, setJobsOpen] = useState(false);
   const toggleJobs = useCallback(() => setJobsOpen((o) => !o), []);
 
-  const badgeCount = runningCount + failedCount;
+  const badgeCount = totalCount;
 
   return (
     <div

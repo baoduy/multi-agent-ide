@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Star, FolderOpen, Clipboard, GitBranch } from "lucide-react";
+import { Star, FolderOpen, Clipboard, GitBranch, Rocket, ArrowUpCircle, RefreshCw } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
 import { openInFileManager } from "../../utils/ipc";
+import { sendOrThrow } from "../../services/ipcClient";
+import { useOnboardStore } from "../../store/onboardStore";
 
 /* ── Badge helpers ── */
 
@@ -18,7 +20,7 @@ function getRepoBadge(repo: Repository): BadgeInfo {
   if (repo.status === "missing") {
     return { label: "missing", bg: "#fae8e1", color: "#a14a2f" };
   }
-  if (repo.specCount > 0 && repo.hasSpecs) {
+  if (repo.hasSpecs) {
     return { label: "spec", bg: "#e8e5f5", color: "#6b5ebd" };
   }
   if (repo.status === "active") {
@@ -42,6 +44,10 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
   const [hovered, setHovered] = useState(false);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
+  const startProcess = useOnboardStore((s) => s.startProcess);
+  const setDialogOpen = useOnboardStore((s) => s.setDialogOpen);
+  const existingProcess = useOnboardStore((s) => s.processes[repo.path]);
+
   const ctxItems: ContextMenuAction[] = [
     {
       label: pinned ? "Unpin repository" : "Pin to top",
@@ -59,6 +65,51 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       action: () => void navigator.clipboard.writeText(repo.path),
     },
   ];
+
+  // Show "Onboard to Specify" only for repos not yet onboarded
+  if (!repo.hasSpecs) {
+    ctxItems.push({
+      label: existingProcess?.phase === "running"
+        ? "View Onboarding..."
+        : "Onboard to Specify",
+      Icon: Rocket,
+      separator: true,
+      action: () => {
+        if (existingProcess) {
+          // Re-open the dialog for an existing process
+          setDialogOpen(repo.path, true);
+        } else {
+          // Start a new process (opens dialog via OnboardDialogManager)
+          startProcess("onboard", repo.path, repo.name);
+        }
+      },
+    });
+  } else {
+    // Show "Upgrade Specify" for repos already onboarded
+    ctxItems.push({
+      label: existingProcess?.phase === "running"
+        ? "View Upgrade..."
+        : "Upgrade Specify",
+      Icon: ArrowUpCircle,
+      separator: true,
+      action: () => {
+        if (existingProcess) {
+          setDialogOpen(repo.path, true);
+        } else {
+          startProcess("upgrade", repo.path, repo.name);
+        }
+      },
+    });
+  }
+
+  // Force reload: rescan repo + refresh spec info
+  ctxItems.push({
+    label: "Force Reload",
+    Icon: RefreshCw,
+    action: () => {
+      void sendOrThrow({ type: "repo:force-reload", repoPath: repo.path });
+    },
+  });
 
   return (
     <div
@@ -109,7 +160,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           <div
             style={{
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: 12,
               color: "#2c2c2c",
               lineHeight: 1.4,
               overflow: "hidden",
@@ -121,7 +172,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           </div>
           <div
             style={{
-              fontSize: 11,
+              fontSize: 10,
               color: "#9a958c",
               marginTop: 2,
               display: "flex",
@@ -134,7 +185,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
                 display: "inline-block",
                 padding: "1px 6px",
                 borderRadius: 3,
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 500,
                 background: badge.bg,
                 color: badge.color,
@@ -152,7 +203,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
                 gap: 3,
                 padding: "1px 6px",
                 borderRadius: 8,
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: 600,
                 background: "#dcfce7",
                 color: "#166534",

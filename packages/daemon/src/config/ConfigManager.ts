@@ -35,6 +35,15 @@ export class ConfigManager {
     return { ...this.config, workingDirs: [...this.config.workingDirs] };
   }
 
+  /**
+   * Merges partial config updates into the current config and persists.
+   */
+  updateConfig(partial: Partial<MagentaConfig>): MagentaConfig {
+    this.config = { ...this.config, ...partial };
+    this.writeConfig(this.config);
+    return this.getConfig();
+  }
+
   addWorkingDir(dirPath: string): MagentaConfig {
     const normalizedPath = this.normalizePath(dirPath);
 

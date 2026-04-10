@@ -59,4 +59,22 @@ export function registerConfigHandlers({ bridge, configService }: ConfigHandlerC
       config,
     };
   });
+
+  /**
+   * Handles "config:update" requests.
+   * Merges partial config updates (e.g. specifyCommand).
+   */
+  safeHandle(bridge, "config:update", async (msg) => {
+    const config = configService.updateConfig(msg.config as Record<string, unknown>);
+
+    bridge.emit({
+      type: "config:updated",
+      config,
+    });
+
+    return {
+      type: "config:response",
+      config,
+    };
+  });
 }

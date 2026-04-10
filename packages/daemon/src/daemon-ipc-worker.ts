@@ -80,6 +80,11 @@ async function main() {
       "spec:sync:started",
       "spec:sync:complete",
       "config:updated",
+      "repo:onboard:output",
+      "repo:onboard:complete",
+      "repo:upgrade-specify:output",
+      "repo:upgrade-specify:complete",
+      "repo:onboard:cancelled",
     ];
 
     for (const eventType of pushEventTypes) {

@@ -59,7 +59,7 @@ export function SpecTree({
       <div style={{ padding: "14px 16px 8px" }}>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
@@ -76,7 +76,7 @@ export function SpecTree({
 
   if (specs.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: 12, color: "#9a958c" }}>
+      <div style={{ padding: "12px 16px", fontSize: 11, color: "#9a958c" }}>
         No specs found
       </div>
     );
@@ -87,7 +87,7 @@ export function SpecTree({
       <div
         style={{
           padding: "14px 16px 8px",
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",

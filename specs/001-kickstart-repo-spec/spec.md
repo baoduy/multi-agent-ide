@@ -1,5 +1,7 @@
 # Feature Specification: Kick-Start Feature — Repo Scanner & Spec Flow Diagram
 
+**Approved by:** Steven | **Date:** 2026-04-10
+
 **Feature Branch**: `001-kickstart-repo-spec`  
 **Created**: 2026-04-08  
 **Status**: Draft  

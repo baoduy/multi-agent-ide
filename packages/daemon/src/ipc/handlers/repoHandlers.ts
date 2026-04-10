@@ -27,4 +27,9 @@ export function registerRepoHandlers({ bridge, repoService }: RepoHandlerContext
     const success = await repoService.checkoutBranch(msg.repoPath, msg.branch);
     return { type: "branch:checkout:result", repoPath: msg.repoPath, branch: msg.branch, success };
   });
+
+  safeHandle(bridge, "repo:force-reload", async (msg) => {
+    repoService.forceReload(msg.repoPath);
+    return { type: "repo:force-reload:started", repoPath: msg.repoPath };
+  });
 }

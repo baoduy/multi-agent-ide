@@ -1,18 +1,35 @@
 import type { Node, Edge } from "reactflow";
+import { MarkerType } from "reactflow";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { PIPELINE_STAGES } from "@magenta/shared/constants";
 import type { PipelineStageName } from "@magenta/shared/constants";
 import type { PipelineNodeData } from "./PipelineNode";
 
-/** Stages to display in the workflow diagram (implementation hidden until AI integration). */
-const VISIBLE_STAGES: PipelineStageName[] = ["constitution", "spec", "plan", "tasks"];
+/** All five pipeline stages are visible in the workflow diagram. */
+const VISIBLE_STAGES: PipelineStageName[] = [
+  "constitution",
+  "spec",
+  "plan",
+  "tasks",
+  "implementation",
+];
+
+/** Stages placed on the bottom row (everything except constitution). */
+const BOTTOM_ROW_STAGES: PipelineStageName[] = ["spec", "plan", "tasks", "implementation"];
 
 /**
  * Converts a SpecFolder to React Flow nodes and edges representing the pipeline.
- * Linear left-to-right layout:
- *   Constitution → Spec → Plan → Tasks
- * (Implementation is hidden until AI agent integration is ready.)
+ *
+ * Hierarchical layout:
+ *
+ *              Constitution
+ *                  │
+ *         Spec → Plan → Tasks → Implementation
+ *
+ * Constitution sits centred on the top row and connects down
+ * to Spec only.  The bottom row chains left-to-right through
+ * to Implementation.
  */
 export function specToFlowDiagram(
   spec: SpecFolder,
@@ -24,19 +41,28 @@ export function specToFlowDiagram(
   const nodes: Node<PipelineNodeData>[] = [];
   const edges: Edge[] = [];
 
-  // Layout: linear left-to-right flow
-  // Constitution → Spec → Plan → Tasks
-  const stageSpacing = 260;
-
   const stageMap = new Map(spec.stages.map((s) => [s.name, s]));
 
-  VISIBLE_STAGES.forEach((stageName, index) => {
-    const stage = stageMap.get(stageName);
-    if (!stage) return;
+  // ── Layout constants ────────────────────────────────────
+  const nodeWidth = 200; // matches PipelineNode width
+  const colSpacing = 260; // horizontal gap between bottom-row nodes
+  const rowGap = 180; // vertical gap between top and bottom row
 
-    const position = { x: index * stageSpacing, y: 0 };
-    const nodeId = `stage-${stageName}`;
-    const nodeData: PipelineNodeData = {
+  // Bottom row positions (y = rowGap, x increments by colSpacing)
+  const bottomRowPositions = new Map<PipelineStageName, { x: number; y: number }>();
+  BOTTOM_ROW_STAGES.forEach((name, i) => {
+    bottomRowPositions.set(name, { x: i * colSpacing, y: rowGap });
+  });
+
+  // Constitution centred directly above Spec (single vertical connection)
+  const specX = bottomRowPositions.get("spec")!.x;
+  const constitutionX = specX;
+
+  // ── Create nodes ────────────────────────────────────────
+  const buildNodeData = (stageName: PipelineStageName): PipelineNodeData | null => {
+    const stage = stageMap.get(stageName);
+    if (!stage) return null;
+    return {
       label: stageName.charAt(0).toUpperCase() + stageName.slice(1),
       stageName,
       status: stage.status,
@@ -45,29 +71,74 @@ export function specToFlowDiagram(
       onOpenFile: callbacks?.onOpenFile,
       onApprove: callbacks?.onApprove,
     };
+  };
 
+  // Constitution (top row)
+  const constData = buildNodeData("constitution");
+  if (constData) {
     nodes.push({
-      id: nodeId,
-      data: nodeData,
-      position,
+      id: "stage-constitution",
+      data: constData,
+      position: { x: constitutionX, y: 0 },
       type: "pipeline",
     });
-  });
+  }
 
-  // Edges: linear chain between visible stages
-  for (let i = 0; i < VISIBLE_STAGES.length - 1; i++) {
-    const src = VISIBLE_STAGES[i];
-    const tgt = VISIBLE_STAGES[i + 1];
-    const srcStage = stageMap.get(src);
+  // Bottom row stages
+  for (const stageName of BOTTOM_ROW_STAGES) {
+    const nodeData = buildNodeData(stageName);
+    if (!nodeData) continue;
+    nodes.push({
+      id: `stage-${stageName}`,
+      data: nodeData,
+      position: bottomRowPositions.get(stageName)!,
+      type: "pipeline",
+    });
+  }
+
+  // ── Helpers ─────────────────────────────────────────────
+  const edgeColor = (name: PipelineStageName): string => {
+    const s = stageMap.get(name);
+    if (!s) return "#86efac";
+    if (s.status === "approved" || s.status === "done") return "#16A34A";
+    if (s.status === "in-progress") return "#3b82f6";
+    return "#86efac";
+  };
+  const isAnimated = (name: PipelineStageName): boolean => {
+    const s = stageMap.get(name);
+    return s?.status === "running" || s?.status === "in-progress";
+  };
+
+  // ── Edge: Constitution → Spec  (single vertical connection) ─────────
+  if (stageMap.has("spec")) {
+    edges.push({
+      id: "edge-constitution-to-spec",
+      source: "stage-constitution",
+      target: "stage-spec",
+      sourceHandle: "bottom",
+      targetHandle: "top",
+      type: "smoothstep",
+      animated: isAnimated("constitution"),
+      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor("constitution") },
+      style: { stroke: edgeColor("constitution"), strokeWidth: 2 },
+    });
+  }
+
+  // ── Edges: horizontal chain  Spec → Plan → Tasks → Implementation ──
+  for (let i = 0; i < BOTTOM_ROW_STAGES.length - 1; i++) {
+    const src = BOTTOM_ROW_STAGES[i];
+    const tgt = BOTTOM_ROW_STAGES[i + 1];
+    if (!stageMap.has(src) || !stageMap.has(tgt)) continue;
     edges.push({
       id: `edge-${src}-to-${tgt}`,
       source: `stage-${src}`,
       target: `stage-${tgt}`,
-      animated: srcStage?.status === "running",
-      style: {
-        stroke: srcStage?.status === "approved" ? "#16A34A" : "#86efac",
-        strokeWidth: 2,
-      },
+      sourceHandle: "right",
+      targetHandle: "left",
+      type: "smoothstep",
+      animated: isAnimated(src),
+      markerEnd: { type: MarkerType.ArrowClosed, color: edgeColor(src) },
+      style: { stroke: edgeColor(src), strokeWidth: 2 },
     });
   }
 
@@ -82,19 +153,23 @@ export function getStageColor(status: string): {
   border: string;
   text: string;
 } {
+  // Unified colour palette:
+  //   Pending / missing / idle → Blue
+  //   Review / draft / running / in-progress → Yellow / Amber
+  //   Approved / done → Green
   switch (status) {
     case "missing":
-      return { bg: "#f3f4f6", border: "#d1d5db", text: "#6b7280" };
-    case "draft":
-      return { bg: "#fef3c7", border: "#fcd34d", text: "#92400e" };
-    case "review":
-      return { bg: "#dbeafe", border: "#93c5fd", text: "#1e40af" };
-    case "approved":
-      return { bg: "#dcfce7", border: "#16A34A", text: "#166534" };
+    case "pending":
     case "idle":
-      return { bg: "#f0fdf4", border: "#86efac", text: "#15803d" };
+      return { bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" };
+    case "draft":
+    case "review":
     case "running":
-      return { bg: "#fbbf24", border: "#f59e0b", text: "#78350f" };
+    case "in-progress":
+      return { bg: "#fef3c7", border: "#f59e0b", text: "#92400e" };
+    case "approved":
+    case "done":
+      return { bg: "#dcfce7", border: "#16A34A", text: "#166534" };
     default:
       return { bg: "#ffffff", border: "#e5e7eb", text: "#000000" };
   }

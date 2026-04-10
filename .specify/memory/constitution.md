@@ -1,5 +1,7 @@
 # Magenta IDE Constitution
 
+**Approved by:** Steven | **Date:** 2026-04-10
+
 ## Core Principles
 
 ### I. Agent-First Orchestration

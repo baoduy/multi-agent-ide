@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from "react";
 import { Handle, Position } from "reactflow";
-import { CheckCircle, FileText, Eye } from "lucide-react";
+import { CheckCircle, FileText } from "lucide-react";
 
 import { calculateCompletionPercent, getStageColor } from "./diagramUtils";
 
@@ -31,11 +31,16 @@ type CustomNodeProps = {
 export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
   const isMissing = data.status === "missing";
+  const isPending = data.status === "pending";
+  const isInactive = isMissing || isPending;
   const colors = getStageColor(data.status);
   const completionPercent = calculateCompletionPercent(data.metadata);
   const hasFile = !!data.filePath;
   const isApproved = data.status === "approved";
-  const canApprove = hasFile && !isApproved && !isMissing;
+  const isDone = data.status === "done";
+  const isImplementation = data.stageName === "implementation";
+  // Implementation has no approval — only file-based stages can be approved
+  const canApprove = hasFile && !isApproved && !isInactive && !isImplementation;
 
   const handleClick = useCallback(() => {
     if (data.filePath && data.onOpenFile) {
@@ -62,14 +67,14 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
         width: 200,
         padding: 14,
         borderRadius: 10,
-        border: `2px solid ${isMissing ? "#d1d5db" : colors.border}`,
-        backgroundColor: isMissing ? "#f3f4f6" : colors.bg,
+        border: `2px solid ${colors.border}`,
+        backgroundColor: colors.bg,
         cursor: isMissing ? "not-allowed" : hasFile ? "pointer" : "default",
         textAlign: "left",
         fontSize: 13,
         transition: "box-shadow 0.15s, transform 0.12s, opacity 0.15s",
-        boxShadow: hovered && hasFile && !isMissing ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
-        transform: hovered && hasFile && !isMissing ? "translateY(-1px)" : "none",
+        boxShadow: hovered && hasFile && !isInactive ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
+        transform: hovered && hasFile && !isInactive ? "translateY(-1px)" : "none",
         opacity: isMissing ? 0.45 : 1,
         position: "relative",
       }}
@@ -79,7 +84,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
         <span style={{ fontWeight: 700, fontSize: 14, color: colors.text, flex: 1 }}>
           {data.label}
         </span>
-        {isApproved && <CheckCircle size={14} color="#16A34A" strokeWidth={2} />}
+        {(isApproved || isDone) && <CheckCircle size={14} color="#16A34A" strokeWidth={2} />}
       </div>
 
       {/* Status line */}
@@ -98,6 +103,11 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
           <>
             <CheckCircle size={10} strokeWidth={2} />
             <span>approved</span>
+          </>
+        ) : isDone ? (
+          <>
+            <CheckCircle size={10} strokeWidth={2} />
+            <span>done</span>
           </>
         ) : (
           <span>{data.status}</span>
@@ -165,6 +175,30 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
         </div>
       )}
 
+      {/* Done badge — visible when implementation is complete */}
+      {isDone && (
+        <div
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: "5px 10px",
+            fontSize: 11,
+            fontWeight: 600,
+            borderRadius: 5,
+            background: "#dcfce7",
+            border: "1px solid #16A34A",
+            color: "#166534",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
+          }}
+        >
+          <CheckCircle size={11} strokeWidth={2} />
+          All tasks complete
+        </div>
+      )}
+
       {/* Approved badge — always visible when stage is approved */}
       {isApproved && (
         <div
@@ -221,28 +255,13 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
         </button>
       )}
 
-      {/* Open file hint — hidden for missing stages */}
-      {hasFile && hovered && !isMissing && (
-        <div
-          style={{
-            position: "absolute",
-            top: 6,
-            right: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 22,
-            height: 22,
-            borderRadius: 4,
-            background: "rgba(0,0,0,0.08)",
-          }}
-        >
-          <Eye size={12} color={colors.text} strokeWidth={1.8} />
-        </div>
-      )}
+      {/* Horizontal handles (left-to-right chain) */}
+      <Handle type="target" id="left" position={Position.Left} style={{ background: colors.border }} />
+      <Handle type="source" id="right" position={Position.Right} style={{ background: colors.border }} />
 
-      <Handle type="target" position={Position.Left} style={{ background: colors.border }} />
-      <Handle type="source" position={Position.Right} style={{ background: colors.border }} />
+      {/* Vertical handles (constitution branches down to bottom row) */}
+      <Handle type="target" id="top" position={Position.Top} style={{ background: colors.border }} />
+      <Handle type="source" id="bottom" position={Position.Bottom} style={{ background: colors.border }} />
     </div>
   );
 }

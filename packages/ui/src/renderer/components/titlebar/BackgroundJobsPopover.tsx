@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { ipc } from "../../utils/ipc";
+import { useOnboardStore } from "../../store/onboardStore";
+import type { OnboardProcess } from "../../store/onboardStore";
 
 /* ── Types ── */
 
@@ -66,10 +68,26 @@ export function useBackgroundJobs() {
     setJobs((prev) => prev.filter((j) => j.status === "running"));
   }, []);
 
-  const runningCount = jobs.filter((j) => j.status === "running").length;
-  const failedCount = jobs.filter((j) => j.status === "failed").length;
+  // Also count onboard processes
+  const onboardProcesses = useOnboardStore((s) => s.processes);
+  const onboardRunning = Object.values(onboardProcesses).filter(
+    (p) => p.phase === "running",
+  ).length;
+  const onboardFailed = Object.values(onboardProcesses).filter(
+    (p) => p.phase === "done" && !p.success,
+  ).length;
 
-  return { jobs, runningCount, failedCount, clearCompleted };
+  const onboardDone = Object.values(onboardProcesses).filter(
+    (p) => p.phase === "done",
+  ).length;
+
+  const runningCount = jobs.filter((j) => j.status === "running").length + onboardRunning;
+  const completedCount = jobs.filter((j) => j.status === "completed").length + onboardDone - onboardFailed;
+  const failedCount = jobs.filter((j) => j.status === "failed").length + onboardFailed;
+  // Badge shows all uncleared notifications (running + completed + failed)
+  const totalCount = runningCount + completedCount + failedCount;
+
+  return { jobs, runningCount, failedCount, totalCount, clearCompleted };
 }
 
 /* ── Status dot colors ── */
@@ -174,6 +192,108 @@ function formatElapsed(ms?: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+/* ── Onboard process job row ── */
+
+function OnboardJobRow({
+  process,
+  onViewOutput,
+}: {
+  process: OnboardProcess;
+  onViewOutput: () => void;
+}): React.ReactElement {
+  const [hovered, setHovered] = useState(false);
+  const label =
+    process.kind === "onboard"
+      ? `Onboard: ${process.repoName}`
+      : `Upgrade: ${process.repoName}`;
+
+  const status: JobStatus =
+    process.phase === "running"
+      ? "running"
+      : process.success
+        ? "completed"
+        : "failed";
+
+  return (
+    <div
+      style={{
+        padding: "10px 14px",
+        borderBottom: "1px solid #f0ede6",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+      }}
+    >
+      {/* Status indicator */}
+      {status === "running" ? (
+        <Spinner />
+      ) : (
+        <span
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: STATUS_COLORS[status],
+            flexShrink: 0,
+          }}
+        />
+      )}
+
+      {/* Job info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontSize: 12,
+            color: "#2c2c2c",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {label}
+        </div>
+        {process.phase === "done" && !process.success && process.error && (
+          <div
+            style={{
+              fontSize: 11,
+              color: "#c44",
+              marginTop: 2,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={process.error}
+          >
+            {process.error}
+          </div>
+        )}
+      </div>
+
+      {/* View output button */}
+      <button
+        type="button"
+        onClick={onViewOutput}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          fontSize: 11,
+          color: hovered ? "#C15F3C" : "#9a958c",
+          background: hovered ? "#f0ede6" : "none",
+          border: "none",
+          cursor: "pointer",
+          padding: "2px 8px",
+          borderRadius: 4,
+          flexShrink: 0,
+          fontFamily: "inherit",
+          transition: "color 0.12s, background 0.12s",
+        }}
+      >
+        View
+      </button>
+    </div>
+  );
+}
+
 /* ── Popover ── */
 
 type BackgroundJobsPopoverProps = {
@@ -188,6 +308,11 @@ export function BackgroundJobsPopover({
   onClose,
 }: BackgroundJobsPopoverProps): React.ReactElement {
   const ref = useRef<HTMLDivElement>(null);
+  const onboardProcesses = useOnboardStore((s) => s.processes);
+  const setDialogOpen = useOnboardStore((s) => s.setDialogOpen);
+  const dismiss = useOnboardStore((s) => s.dismiss);
+
+  const processList = Object.values(onboardProcesses);
 
   // Close on click outside
   useEffect(() => {
@@ -201,6 +326,27 @@ export function BackgroundJobsPopover({
   }, [onClose]);
 
   const hasNonRunning = jobs.some((j) => j.status !== "running");
+  const hasCompletedOnboard = processList.some((p) => p.phase === "done");
+
+  const handleClearAll = useCallback(() => {
+    onClearCompleted();
+    // Also dismiss completed onboard processes
+    for (const p of processList) {
+      if (p.phase === "done") {
+        dismiss(p.repoPath);
+      }
+    }
+  }, [onClearCompleted, processList, dismiss]);
+
+  const handleViewOutput = useCallback(
+    (repoPath: string) => {
+      setDialogOpen(repoPath, true);
+      onClose();
+    },
+    [setDialogOpen, onClose],
+  );
+
+  const isEmpty = jobs.length === 0 && processList.length === 0;
 
   return (
     <div
@@ -237,10 +383,10 @@ export function BackgroundJobsPopover({
         <span style={{ fontSize: 12, fontWeight: 600, color: "#2c2c2c" }}>
           Background Jobs
         </span>
-        {hasNonRunning && (
+        {(hasNonRunning || hasCompletedOnboard) && (
           <button
             type="button"
-            onClick={onClearCompleted}
+            onClick={handleClearAll}
             style={{
               fontSize: 11,
               color: "#9a958c",
@@ -266,7 +412,7 @@ export function BackgroundJobsPopover({
 
       {/* Job list */}
       <div style={{ overflowY: "auto", flex: 1 }}>
-        {jobs.length === 0 ? (
+        {isEmpty ? (
           <div
             style={{
               padding: "24px 14px",
@@ -278,76 +424,88 @@ export function BackgroundJobsPopover({
             No background jobs
           </div>
         ) : (
-          jobs.map((job) => (
-            <div
-              key={job.name}
-              style={{
-                padding: "10px 14px",
-                borderBottom: "1px solid #f0ede6",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-              }}
-            >
-              {/* Status indicator */}
-              {job.status === "running" ? (
-                <Spinner />
-              ) : (
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    background: STATUS_COLORS[job.status],
-                    flexShrink: 0,
-                  }}
-                />
-              )}
+          <>
+            {/* Onboard/Upgrade processes */}
+            {processList.map((proc) => (
+              <OnboardJobRow
+                key={proc.repoPath}
+                process={proc}
+                onViewOutput={() => handleViewOutput(proc.repoPath)}
+              />
+            ))}
 
-              {/* Job info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "#2c2c2c",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {job.name}
-                </div>
-                {job.error && (
+            {/* Regular background jobs */}
+            {jobs.map((job) => (
+              <div
+                key={job.name}
+                style={{
+                  padding: "10px 14px",
+                  borderBottom: "1px solid #f0ede6",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                {/* Status indicator */}
+                {job.status === "running" ? (
+                  <Spinner />
+                ) : (
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background: STATUS_COLORS[job.status],
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+
+                {/* Job info */}
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <div
                     style={{
-                      fontSize: 11,
-                      color: "#c44",
-                      marginTop: 2,
+                      fontSize: 12,
+                      color: "#2c2c2c",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
                     }}
-                    title={job.error}
                   >
-                    {job.error}
+                    {job.name}
                   </div>
+                  {job.error && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "#c44",
+                        marginTop: 2,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={job.error}
+                    >
+                      {job.error}
+                    </div>
+                  )}
+                </div>
+
+                {/* Elapsed time */}
+                {job.elapsed != null && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "#9a958c",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {formatElapsed(job.elapsed)}
+                  </span>
                 )}
               </div>
-
-              {/* Elapsed time */}
-              {job.elapsed != null && (
-                <span
-                  style={{
-                    fontSize: 11,
-                    color: "#9a958c",
-                    flexShrink: 0,
-                  }}
-                >
-                  {formatElapsed(job.elapsed)}
-                </span>
-              )}
-            </div>
-          ))
+            ))}
+          </>
         )}
       </div>
     </div>

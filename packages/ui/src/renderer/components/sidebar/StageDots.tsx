@@ -25,17 +25,19 @@ export function StageDots({ stages }: StageDotsProps): React.ReactElement {
     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
       {stages.map((stage) => {
         const isMissing = stage.status === "missing";
+        const isPending = stage.status === "pending";
         const isRunning = stage.status === "running";
+        const isInProgress = stage.status === "in-progress";
         const colors = stageStatusColor(stage.status as StageStatus);
 
         const dotStyle: React.CSSProperties = {
           width: 8,
           height: 8,
           borderRadius: "50%",
-          backgroundColor: isMissing ? "transparent" : colors.dot,
-          border: isMissing ? "1.5px solid #d1cec6" : "none",
+          backgroundColor: isMissing || isPending ? "transparent" : colors.dot,
+          border: isMissing || isPending ? "1.5px solid #d1cec6" : "none",
           transition: "background-color 0.2s, border-color 0.2s",
-          ...(isRunning ? { animation: "stagePulse 1.4s ease-in-out infinite" } : {}),
+          ...(isRunning || isInProgress ? { animation: "stagePulse 1.4s ease-in-out infinite" } : {}),
         };
 
         return (
@@ -48,7 +50,7 @@ export function StageDots({ stages }: StageDotsProps): React.ReactElement {
       })}
 
       {/* Pulse animation for "running" stages */}
-      {stages.some((s) => s.status === "running") && (
+      {stages.some((s) => s.status === "running" || s.status === "in-progress") && (
         <style>{`@keyframes stagePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
       )}
     </div>

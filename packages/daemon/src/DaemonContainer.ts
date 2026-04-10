@@ -65,6 +65,9 @@ export class DaemonContainer {
       this.jobManager
     );
 
+    // Wire spec sync into scan queue (avoids circular dep at construction)
+    this.scanQueue.setSpecSyncService(this.specSyncService);
+
     // Directory watcher
     this.dirWatcher = new DirWatcher(this.scanQueue, this.configManager);
   }

@@ -27,11 +27,16 @@ type ResponseForRequest = {
   "config:get": Extract<IpcResponse, { type: "config:response" }>;
   "config:add-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:remove-working-dir": Extract<IpcResponse, { type: "config:response" }>;
+  "config:update": Extract<IpcResponse, { type: "config:response" }>;
   "branch:list": Extract<IpcResponse, { type: "branch:list:result" }>;
   "branch:checkout": Extract<IpcResponse, { type: "branch:checkout:result" }>;
   "gitfile:read": Extract<IpcResponse, { type: "gitfile:read:result" }>;
   "worktree:create": Extract<IpcResponse, { type: "worktree:create:result" }>;
   "worktree:list": Extract<IpcResponse, { type: "worktree:list:result" }>;
+  "repo:onboard": Extract<IpcResponse, { type: "repo:onboard:started" }>;
+  "repo:upgrade-specify": Extract<IpcResponse, { type: "repo:upgrade-specify:started" }>;
+  "repo:onboard:cancel": Extract<IpcResponse, { type: "repo:onboard:cancelled" }>;
+  "repo:force-reload": Extract<IpcResponse, { type: "repo:force-reload:started" }>;
 };
 
 /**

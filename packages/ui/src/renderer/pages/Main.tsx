@@ -17,6 +17,7 @@ import { useSessionStore } from "../store/sessionStore";
 import { useConfigStore } from "../store/configStore";
 import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
+import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
 
 import type { ActiveTab, BuiltinTabId, OpenFileTab } from "../components/main/TabBar";
 
@@ -339,6 +340,8 @@ export function MainPage(): React.ReactElement {
   const hasActivity = selectedSpec != null && selectedSpec.files.length > 0;
 
   return (
+    <>
+    <OnboardDialogManager />
     <MainLayout
       titleBar={
         <TitleBar
@@ -377,5 +380,6 @@ export function MainPage(): React.ReactElement {
           : null
       }
     />
+    </>
   );
 }

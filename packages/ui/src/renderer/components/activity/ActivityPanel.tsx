@@ -25,7 +25,7 @@ function Section({
     >
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
@@ -65,7 +65,7 @@ function LegendItem({
           flexShrink: 0,
         }}
       />
-      <span style={{ fontSize: 12, color: "#9a958c" }}>{label}</span>
+      <span style={{ fontSize: 11, color: "#9a958c" }}>{label}</span>
     </div>
   );
 }
@@ -92,11 +92,11 @@ export function ActivityPanel({ onOpenFile }: ActivityPanelProps): React.ReactEl
         </Section>
       ) : activeRepoPath ? (
         <Section title="Files">
-          <div style={{ fontSize: 12, color: "#9a958c" }}>Select a spec to view its files.</div>
+          <div style={{ fontSize: 11, color: "#9a958c" }}>Select a spec to view its files.</div>
         </Section>
       ) : (
         <Section title="Files">
-          <div style={{ fontSize: 12, color: "#9a958c" }}>Select a repository and spec.</div>
+          <div style={{ fontSize: 11, color: "#9a958c" }}>Select a repository and spec.</div>
         </Section>
       )}
 

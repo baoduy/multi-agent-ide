@@ -3,6 +3,7 @@ import type { BackgroundJobManager } from "./BackgroundJobManager";
 
 import type { RepoRepository } from "./RepoRepository";
 import type { RepoScanCandidate } from "./RepoScanner";
+import type { SpecSyncService } from "./SpecSyncService";
 import { RepoScanner } from "./RepoScanner";
 
 export type RepoScanSummary = {
@@ -22,6 +23,8 @@ const JOB_NAME = "repo-scan";
  * by the job manager — no `pending` flag needed.
  */
 export class ScanQueue {
+  private specSyncService: SpecSyncService | null = null;
+
   constructor(
     private readonly scanner: RepoScanner,
     private readonly repoRepository: RepoRepository,
@@ -29,8 +32,62 @@ export class ScanQueue {
     private readonly jobManager: BackgroundJobManager,
   ) {}
 
+  /**
+   * Set the SpecSyncService reference (avoids circular dependency at construction time).
+   */
+  setSpecSyncService(service: SpecSyncService): void {
+    this.specSyncService = service;
+  }
+
   async requestScan(roots: string[]): Promise<void> {
     this.jobManager.enqueue(JOB_NAME, () => this.runScan(roots));
+  }
+
+  /**
+   * Force-reload a single repo: re-scan it and update its record.
+   * Enqueued as a named background job for deduplication and notification.
+   */
+  requestSingleRepoReload(repoPath: string): void {
+    const jobName = `Reload: ${repoPath.split("/").pop() ?? repoPath}`;
+    this.jobManager.enqueue(jobName, () => this.runSingleRepoReload(repoPath));
+  }
+
+  private async runSingleRepoReload(repoPath: string): Promise<void> {
+    console.log(`[scan-queue] Force reloading single repo: ${repoPath}`);
+
+    const scanTimestamp = Date.now();
+    const { results } = await this.scanner.scan([repoPath], () => {});
+
+    if (results.length > 0) {
+      for (const candidate of results) {
+        this.repoRepository.upsert({
+          name: candidate.name,
+          path: candidate.path,
+          branch: candidate.branch,
+          hasSpecs: candidate.hasSpecs,
+          specCount: candidate.specCount,
+          status: "active",
+          scannedAt: scanTimestamp,
+        });
+      }
+    } else {
+      // Repo not found at path — mark as missing
+      const existing = this.repoRepository.findByPath(repoPath);
+      if (existing) {
+        this.repoRepository.upsert({ ...existing, status: "missing", scannedAt: scanTimestamp });
+      }
+    }
+
+    this.repoRepository.flush();
+
+    // Emit updated repo list so the UI refreshes
+    const repos = this.repoRepository.listAll();
+    this.bridge.emit({ type: "repo:scan:complete", repos, added: 0, updated: results.length, missing: results.length === 0 ? 1 : 0 });
+
+    // Sync specs after the repo record is updated
+    if (this.specSyncService) {
+      await this.specSyncService.syncRepo(repoPath);
+    }
   }
 
   private async runScan(roots: string[]): Promise<void> {

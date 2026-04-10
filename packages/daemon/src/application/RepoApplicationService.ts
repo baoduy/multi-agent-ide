@@ -34,6 +34,15 @@ export class RepoApplicationService {
     });
   }
 
+  /**
+   * Force-reload a single repo: re-scan it, refresh its spec info.
+   * Runs as a background job so the UI is notified via the notification bell.
+   * Spec sync happens inside the job after the scan completes.
+   */
+  forceReload(repoPath: string): void {
+    this.scanQueue.requestSingleRepoReload(repoPath);
+  }
+
   async listBranches(repoPath: string) {
     console.log(`[repo-service] branch:list → ${repoPath}`);
     return await this.scanner.listBranches(repoPath);

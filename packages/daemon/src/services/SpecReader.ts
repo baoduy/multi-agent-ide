@@ -205,6 +205,12 @@ export class SpecReader {
     specName: string,
     stageName: PipelineStageName,
   ): PipelineStage {
+    // ── Implementation — derived from tasks.md checkbox progress ──
+    if (stageName === "implementation") {
+      return this.buildGitImplementationStage(repoPath, branch, specName);
+    }
+
+    // ── File-based stages (constitution, spec, plan, tasks) ──────
     let relativePath: string;
     if (stageName === "constitution") {
       relativePath = ".specify/memory/constitution.md";
@@ -213,7 +219,6 @@ export class SpecReader {
         spec: "spec.md",
         plan: "plan.md",
         tasks: "tasks.md",
-        implementation: "implementation",
       };
       relativePath = `specs/${specName}/${stageFileMap[stageName]}`;
     }
@@ -230,36 +235,19 @@ export class SpecReader {
 
     const virtualPath = `gitref://${branch}/${relativePath}`;
 
-    let status: StageStatus = "draft";
+    let status: StageStatus = "review";
     let metadata: PipelineStageMetadata | undefined;
 
-    if (stageName === "tasks") {
-      const content = this.gitGateway.readGitFile(repoPath, branch, relativePath);
-      if (content) {
-        const parsed = SpecParser.parseTasksContent(content);
-        metadata = parsed.metadata;
-        status = parsed.status;
-      }
-    } else if (stageName === "implementation") {
-      // Can't easily parse implementation folder metadata from git — mark as idle
-      status = "idle";
-    } else {
-      status = "review";
-    }
-
-    // Check for approval marker in file content (not implementation)
-    if (stageName !== "implementation") {
-      const content = this.gitGateway.readGitFile(repoPath, branch, relativePath);
-      if (content) {
-        const approval = SpecParser.parseApprovalMarkerFromContent(content);
-        if (approval) {
-          status = "approved";
-          metadata = {
-            ...metadata,
-            approvedBy: approval.approvedBy,
-            approvedAt: approval.approvedAt,
-          };
-        }
+    // Check for approval marker
+    const content = this.gitGateway.readGitFile(repoPath, branch, relativePath);
+    if (content) {
+      const approval = SpecParser.parseApprovalMarkerFromContent(content);
+      if (approval) {
+        status = "approved";
+        metadata = {
+          approvedBy: approval.approvedBy,
+          approvedAt: approval.approvedAt,
+        };
       }
     }
 
@@ -269,6 +257,33 @@ export class SpecReader {
       filePath: virtualPath,
       metadata,
     };
+  }
+
+  /**
+   * Builds the Implementation stage for a git branch by reading tasks.md content.
+   */
+  private buildGitImplementationStage(
+    repoPath: string,
+    branch: string,
+    specName: string,
+  ): PipelineStage {
+    const tasksRelPath = `specs/${specName}/tasks.md`;
+    const exists = this.gitGateway.gitPathExists(repoPath, branch, tasksRelPath);
+
+    if (!exists) {
+      return { name: "implementation", status: "pending", filePath: null };
+    }
+
+    const virtualPath = `gitref://${branch}/${tasksRelPath}`;
+    const content = this.gitGateway.readGitFile(repoPath, branch, tasksRelPath);
+
+    if (!content) {
+      return { name: "implementation", status: "pending", filePath: virtualPath };
+    }
+
+    const { taskCount, completedCount } = SpecParser.parseTaskCounts(content);
+    const { metadata, status } = SpecParser.deriveImplementationStatus(taskCount, completedCount);
+    return { name: "implementation", status, filePath: virtualPath, metadata };
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -307,8 +322,16 @@ export class SpecReader {
   }
 
   private parseStage(repoPath: string, specPath: string, stageName: PipelineStageName): PipelineStage {
+    // ── Implementation stage ──────────────────────────────────────
+    // Implementation derives its status from the tasks.md checkbox counts,
+    // not from a folder on disk.  Clicking the node opens tasks.md.
+    if (stageName === "implementation") {
+      return this.buildImplementationStage(specPath);
+    }
+
+    // ── All other stages are file-based ───────────────────────────
     // Constitution lives at the repo level: .specify/memory/constitution.md
-    // All other stages live inside the spec folder.
+    // Spec / Plan / Tasks live inside the spec folder.
     let stagePath: string;
     if (stageName === "constitution") {
       stagePath = path.join(repoPath, ".specify", "memory", "constitution.md");
@@ -317,7 +340,6 @@ export class SpecReader {
         spec: "spec.md",
         plan: "plan.md",
         tasks: "tasks.md",
-        implementation: "implementation/",
       };
       stagePath = path.join(specPath, stageFileMap[stageName]);
     }
@@ -333,33 +355,18 @@ export class SpecReader {
       };
     }
 
-    // Determine status and extract metadata
-    let status: StageStatus = "draft";
+    // Determine status — "review" by default (tasks included, same as spec/plan)
+    let status: StageStatus = "review";
     let metadata: PipelineStageMetadata | undefined;
 
-    if (stageName === "tasks") {
-      const parsed = this.parseTasksMetadata(stagePath);
-      metadata = parsed.metadata;
-      status = parsed.status;
-    } else if (stageName === "implementation") {
-      const parsed = this.parseImplementationMetadata(stagePath);
-      metadata = parsed.metadata;
-      status = parsed.status;
-    } else {
-      status = "review";
-    }
-
-    // Check for approval marker in any file-based stage (not implementation folder)
-    if (stageName !== "implementation") {
-      const approval = this.parseApprovalMarker(stagePath);
-      if (approval) {
-        status = "approved";
-        metadata = {
-          ...metadata,
-          approvedBy: approval.approvedBy,
-          approvedAt: approval.approvedAt,
-        };
-      }
+    // Check for approval marker
+    const approval = this.parseApprovalMarker(stagePath);
+    if (approval) {
+      status = "approved";
+      metadata = {
+        approvedBy: approval.approvedBy,
+        approvedAt: approval.approvedAt,
+      };
     }
 
     return {
@@ -370,65 +377,31 @@ export class SpecReader {
     };
   }
 
+  /**
+   * Builds the Implementation stage by reading tasks.md for checkbox progress.
+   * The filePath points to tasks.md so clicking the node opens it.
+   * Status: pending → in-progress → done (based on completed tasks).
+   */
+  private buildImplementationStage(specPath: string): PipelineStage {
+    const tasksPath = path.join(specPath, "tasks.md");
+
+    if (!fs.existsSync(tasksPath)) {
+      return { name: "implementation", status: "pending", filePath: null };
+    }
+
+    try {
+      const content = fs.readFileSync(tasksPath, "utf-8");
+      const { taskCount, completedCount } = SpecParser.parseTaskCounts(content);
+      const { metadata, status } = SpecParser.deriveImplementationStatus(taskCount, completedCount);
+      return { name: "implementation", status, filePath: tasksPath, metadata };
+    } catch {
+      return { name: "implementation", status: "pending", filePath: tasksPath };
+    }
+  }
+
   /* ═══════════════════════════════════════════════════════
      Content parsers (shared by filesystem & git paths)
      ═══════════════════════════════════════════════════════ */
-
-  /**
-   * Parses tasks metadata from a file on disk.
-   */
-  private parseTasksMetadata(
-    tasksFilePath: string,
-  ): { metadata: PipelineStageMetadata; status: StageStatus } {
-    try {
-      if (!fs.existsSync(tasksFilePath) || fs.statSync(tasksFilePath).isDirectory()) {
-        return { metadata: {}, status: "draft" };
-      }
-
-      const content = fs.readFileSync(tasksFilePath, "utf-8");
-      return SpecParser.parseTasksContent(content);
-    } catch (error) {
-      console.error(`Failed to parse tasks metadata from ${tasksFilePath}:`, error);
-      return { metadata: {}, status: "draft" };
-    }
-  }
-
-  private parseImplementationMetadata(
-    implementationFolderPath: string,
-  ): { metadata: PipelineStageMetadata; status: StageStatus } {
-    try {
-      if (!fs.existsSync(implementationFolderPath)) {
-        return { metadata: {}, status: "idle" };
-      }
-
-      const entries = fs.readdirSync(implementationFolderPath, { withFileTypes: true });
-
-      // Build entry objects for SpecParser
-      const parsedEntries: { name: string; isDirectory: boolean; content?: string }[] = [];
-
-      for (const entry of entries) {
-        const entryData: { name: string; isDirectory: boolean; content?: string } = {
-          name: entry.name,
-          isDirectory: entry.isDirectory(),
-        };
-
-        if (entry.name === "progress.json") {
-          try {
-            entryData.content = fs.readFileSync(path.join(implementationFolderPath, entry.name), "utf-8");
-          } catch {
-            // Silently ignore read errors
-          }
-        }
-
-        parsedEntries.push(entryData);
-      }
-
-      return SpecParser.parseImplementationEntries(parsedEntries);
-    } catch (error) {
-      console.error(`Failed to parse implementation metadata from ${implementationFolderPath}:`, error);
-      return { metadata: {}, status: "idle" };
-    }
-  }
 
   /**
    * Parses the approval marker from a file on disk.

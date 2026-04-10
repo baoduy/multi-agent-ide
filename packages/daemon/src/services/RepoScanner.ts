@@ -141,11 +141,14 @@ export class RepoScanner {
       branch = "unknown";
     }
 
-    const specsPath = path.join(repoPath, "specs");
-    const hasSpecs = fs.existsSync(specsPath) && fs.lstatSync(specsPath).isDirectory();
+    // Detect Specify by checking for .specify/ folder
+    const specifyPath = path.join(repoPath, ".specify");
+    const hasSpecs = fs.existsSync(specifyPath) && fs.lstatSync(specifyPath).isDirectory();
 
+    // Count spec folders inside specs/ if it exists
     let specCount = 0;
-    if (hasSpecs) {
+    const specsPath = path.join(repoPath, "specs");
+    if (fs.existsSync(specsPath) && fs.lstatSync(specsPath).isDirectory()) {
       specCount = fs
         .readdirSync(specsPath, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())

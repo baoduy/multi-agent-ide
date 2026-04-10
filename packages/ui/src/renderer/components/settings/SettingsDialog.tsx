@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 
 import { useConfigStore } from "../../store/configStore";
 import { AddWorkingDirButton } from "./AddWorkingDirButton";
+import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
 import { WorkingDirList } from "./WorkingDirList";
 
 type SettingsDialogProps = {
@@ -47,7 +48,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
         justifyContent: "center",
         zIndex: 1000,
       }}
-      onClick={onClose}
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
       role="presentation"
     >
       <div
@@ -61,7 +62,6 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
           maxHeight: "90vh",
           overflowY: "auto",
         }}
-        onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-title"
@@ -106,6 +106,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
           <WorkingDirList />
 
           <AddWorkingDirButton onError={setLocalError} />
+        </div>
+
+        <div style={{ marginBottom: 24, borderTop: "1px solid #e5e7eb", paddingTop: 20 }}>
+          <SpecifyCommandSetting />
         </div>
 
         {error && (

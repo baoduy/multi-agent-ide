@@ -7,21 +7,42 @@ import type { StageStatus } from "@magenta/shared/constants";
  */
 export class SpecParser {
   /**
-   * Parses task metadata from file content string.
-   * Counts completed and total tasks from markdown checkbox syntax.
+   * Parses task counts from markdown checkbox syntax in tasks.md content.
+   * Returns raw counts only — callers decide which stage gets the metadata.
    */
-  static parseTasksContent(
+  static parseTaskCounts(
     content: string,
-  ): { metadata: PipelineStageMetadata; status: StageStatus } {
+  ): { taskCount: number; completedCount: number } {
     const totalMatches = content.match(/^-\s+\[\s*[\sxX]\s*\]/gm) || [];
     const completedMatches = content.match(/^-\s+\[[xX]\]/gm) || [];
+    return {
+      taskCount: totalMatches.length,
+      completedCount: completedMatches.length,
+    };
+  }
 
-    const taskCount = totalMatches.length;
-    const completedCount = completedMatches.length;
+  /**
+   * Derives the Implementation stage status from task completion counts.
+   *   - "pending"     → no tasks completed (or no tasks at all)
+   *   - "in-progress" → some tasks completed
+   *   - "done"        → all tasks completed
+   */
+  static deriveImplementationStatus(
+    taskCount: number,
+    completedCount: number,
+  ): { metadata: PipelineStageMetadata; status: StageStatus } {
+    let status: StageStatus;
+    if (taskCount === 0 || completedCount === 0) {
+      status = "pending";
+    } else if (completedCount >= taskCount) {
+      status = "done";
+    } else {
+      status = "in-progress";
+    }
 
     return {
       metadata: { taskCount, completedCount },
-      status: taskCount > 0 ? "draft" : "draft",
+      status,
     };
   }
 

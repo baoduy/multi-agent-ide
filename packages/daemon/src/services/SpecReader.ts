@@ -82,13 +82,17 @@ export class SpecReader {
 
     // 1. Specs from working tree (current branch) — full filesystem parsing
     const currentSpecs = this.listSpecs(repoPath, currentBranch);
+
+    // Current-branch specs always win — no need to compare timestamps
     const currentSpecNames = new Set(currentSpecs.map((s) => s.name));
 
     // 2. List all local branches
     const branches = this.gitGateway.listLocalBranches(repoPath);
 
-    // 3. For each non-current branch, list specs via git
-    const otherSpecs: SpecFolder[] = [];
+    // 3. For each non-current branch, collect candidate specs.
+    //    When the same spec name appears on multiple non-current branches,
+    //    keep the one from the branch with the newest commit.
+    const bestCandidates = new Map<string, { branch: string; timestamp: number }>();
 
     for (const branch of branches) {
       if (branch === currentBranch) continue;
@@ -97,16 +101,31 @@ export class SpecReader {
         const specNames = this.gitGateway.gitListSpecDirs(repoPath, branch);
 
         for (const specName of specNames) {
-          // Skip if this spec already exists on current branch
+          // Current-branch specs always take priority
           if (currentSpecNames.has(specName)) continue;
 
-          const spec = this.parseGitSpecFolder(repoPath, branch, specName);
-          if (spec) {
-            otherSpecs.push(spec);
+          const ts = this.gitGateway.getLatestCommitTimestamp(
+            repoPath,
+            branch,
+            `specs/${specName}`,
+          );
+
+          const existing = bestCandidates.get(specName);
+          if (!existing || ts > existing.timestamp) {
+            bestCandidates.set(specName, { branch, timestamp: ts });
           }
         }
       } catch {
         // Branch might be corrupt or inaccessible — skip
+      }
+    }
+
+    // 4. Parse only the winning branch for each spec
+    const otherSpecs: SpecFolder[] = [];
+    for (const [specName, { branch }] of bestCandidates) {
+      const spec = this.parseGitSpecFolder(repoPath, branch, specName);
+      if (spec) {
+        otherSpecs.push(spec);
       }
     }
 

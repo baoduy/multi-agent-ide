@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useSpecStore } from "../../store/specStore";
@@ -31,6 +32,23 @@ export function Sidebar(): React.ReactElement {
 
   const [showSettings, setShowSettings] = useState(false);
   const [specHeight, setSpecHeight] = useState(storedSpecPanelHeight ?? DEFAULT_SPEC_HEIGHT);
+
+  /* ── Inline search state ── */
+  const searchQuery = useRepoStore((state) => state.searchQuery);
+  const setSearchQuery = useRepoStore((state) => state.setSearchQuery);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const openSearch = useCallback(() => {
+    setSearchOpen(true);
+    // Focus after React re-renders
+    requestAnimationFrame(() => searchInputRef.current?.focus());
+  }, []);
+
+  const closeSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchOpen(false);
+  }, [setSearchQuery]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -103,27 +121,123 @@ export function Sidebar(): React.ReactElement {
     <div ref={containerRef} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <SettingsDialog isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
-      {/* Section header */}
+      {/* Section header — label toggles into inline search */}
       <div
         style={{
-          padding: "14px 16px 10px",
+          padding: "8px 10px 6px",
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
+          gap: 6,
           flexShrink: 0,
+          minHeight: 32,
         }}
       >
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: "#9a958c",
-          }}
-        >
-          Repositories
-        </span>
+        {searchOpen ? (
+          /* ── Inline search input ── */
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "#f5f3ef",
+              borderRadius: 6,
+              padding: "0 8px",
+              border: "1px solid #c5c0b8",
+              height: 26,
+              boxSizing: "border-box",
+            }}
+          >
+            <Search size={13} color="#9a958c" strokeWidth={1.8} style={{ flexShrink: 0 }} />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") closeSearch();
+              }}
+              onBlur={() => {
+                if (!searchQuery) setSearchOpen(false);
+              }}
+              placeholder="Search repositories..."
+              style={{
+                flex: 1,
+                border: "none",
+                background: "transparent",
+                outline: "none",
+                fontSize: 12,
+                color: "#2c2c2c",
+                padding: 0,
+                lineHeight: "18px",
+              }}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={closeSearch}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "1px",
+                  lineHeight: 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  color: "#9a958c",
+                  borderRadius: 3,
+                }}
+                title="Clear search"
+              >
+                <X size={12} strokeWidth={2} />
+              </button>
+            )}
+          </div>
+        ) : (
+          /* ── Label + search icon ── */
+          <>
+            <button
+              type="button"
+              onClick={openSearch}
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "none",
+                border: "1px solid transparent",
+                cursor: "pointer",
+                padding: "0 4px",
+                borderRadius: 6,
+                height: 26,
+                boxSizing: "border-box",
+                transition: "background 0.12s",
+              }}
+              title="Search repositories"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "#eae8e1";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "none";
+              }}
+            >
+              <Search size={11} color="#b5b0a6" strokeWidth={2} style={{ flexShrink: 0 }} />
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  color: "#9a958c",
+                }}
+              >
+                Repositories
+              </span>
+            </button>
+          </>
+        )}
+
+        {/* Settings gear — always visible */}
         <button
           type="button"
           onClick={() => setShowSettings(true)}
@@ -131,11 +245,12 @@ export function Sidebar(): React.ReactElement {
             background: "none",
             border: "none",
             cursor: "pointer",
-            fontSize: 18,
+            fontSize: 16,
             color: "#9a958c",
-            padding: "4px 6px",
+            padding: "3px 5px",
             borderRadius: 5,
             lineHeight: 1,
+            flexShrink: 0,
             transition: "color 0.15s, background 0.15s",
           }}
           title="Settings"

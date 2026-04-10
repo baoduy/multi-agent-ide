@@ -172,7 +172,7 @@ function ChevronRightIcon(): React.ReactElement {
 
 /* ── Title Bar ── */
 
-export const TITLE_BAR_HEIGHT = 52;
+export const TITLE_BAR_HEIGHT = 40;
 
 export function TitleBar({
   sidebarCollapsed,
@@ -258,7 +258,8 @@ export function TitleBar({
         </ToolbarButton>
       </div>
 
-      {/* Center: Built-in tabs */}
+      {/* Center: Built-in tabs — inherits drag from parent;
+           individual TitleBarTab buttons are no-drag so clicks still register */}
       <div
         style={{
           flex: 1,
@@ -267,10 +268,7 @@ export function TitleBar({
           justifyContent: "center",
           gap: 2,
           overflow: "hidden",
-          // no-drag so tab clicks work; the surrounding bar is still draggable
-          appRegion: "no-drag",
-          WebkitAppRegion: "no-drag",
-        } as React.CSSProperties}
+        }}
       >
         {builtinTabs.map((tab) => (
           <TitleBarTab

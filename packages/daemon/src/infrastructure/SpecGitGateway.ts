@@ -102,6 +102,27 @@ export class SpecGitGateway {
   }
 
   /**
+   * Returns the Unix timestamp (seconds) of the latest commit touching a path on a branch.
+   * Returns 0 if the path has no commits or an error occurs.
+   */
+  getLatestCommitTimestamp(repoPath: string, branch: string, relativePath: string): number {
+    try {
+      const output = execSync(
+        `git log -1 --format=%ct "${branch}" -- "${relativePath}"`,
+        {
+          cwd: repoPath,
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        },
+      );
+      const ts = parseInt(output.trim(), 10);
+      return Number.isFinite(ts) ? ts : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
    * Reads a file from a git ref (branch) without checkout.
    * @param repoPath Repository root
    * @param ref Branch or ref name

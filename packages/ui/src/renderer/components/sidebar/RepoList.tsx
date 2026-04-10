@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { Search, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo } from "react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useConfigStore } from "../../store/configStore";
@@ -19,9 +18,6 @@ export function RepoList(): React.ReactElement {
   const togglePin = useRepoStore((state) => state.togglePin);
   const workingDirs = useConfigStore((state) => state.workingDirs);
   const searchQuery = useRepoStore((state) => state.searchQuery);
-  const setSearchQuery = useRepoStore((state) => state.setSearchQuery);
-
-  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     initializeSubscriptions();
@@ -51,74 +47,12 @@ export function RepoList(): React.ReactElement {
     return { pinned: p, unpinned: u };
   }, [filteredRepos, pinnedPaths]);
 
-  const handleClear = useCallback(() => {
-    setSearchQuery("");
-    inputRef.current?.focus();
-  }, [setSearchQuery]);
-
   const handleSelectRepo = useCallback((path: string | null) => {
     SessionCoordinator.selectRepo(path);
   }, []);
 
   return (
     <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Search input */}
-      {repos.length > 0 && (
-        <div style={{ padding: "4px 12px 6px", flexShrink: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: "#f5f3ef",
-              borderRadius: 6,
-              padding: "5px 8px",
-              border: "1px solid #e5e2da",
-              transition: "border-color 0.15s",
-            }}
-          >
-            <Search size={13} color="#9a958c" strokeWidth={1.8} style={{ flexShrink: 0 }} />
-            <input
-              ref={inputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search repositories..."
-              style={{
-                flex: 1,
-                border: "none",
-                background: "transparent",
-                outline: "none",
-                fontSize: 12,
-                color: "#2c2c2c",
-                padding: 0,
-                lineHeight: "18px",
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={handleClear}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "1px",
-                  lineHeight: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  color: "#9a958c",
-                  borderRadius: 3,
-                }}
-                title="Clear search"
-              >
-                <X size={12} strokeWidth={2} />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {isScanning && scanProgress ? (
         <ScanProgress scanned={scanProgress.scanned} total={scanProgress.total} currentDir={scanProgress.currentDir} />
       ) : null}

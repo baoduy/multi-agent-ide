@@ -21,14 +21,23 @@ import { WelcomePage } from "./Welcome";
 import type { ActiveTab, BuiltinTabId, OpenFileTab } from "../components/main/TabBar";
 
 /**
- * Per-repo snapshot of open file tabs and the active tab.
- * Stored in a Map keyed by repo path so we can restore when
- * the user switches back to a previously visited repo.
+ * Snapshot of open file tabs and the active tab.
+ * Stored in a Map keyed by a composite "repoPath::specPath" key so we can
+ * restore when the user switches back to a previously visited repo+spec.
  */
-type RepoTabSnapshot = {
+type TabSnapshot = {
   openFiles: OpenFileTab[];
   activeTab: ActiveTab;
 };
+
+/**
+ * Build a composite key for the tab snapshot map.
+ * Each unique repo + spec combination gets its own set of open file tabs.
+ */
+function snapshotKey(repoPath: string | null, specPath: string | null): string | null {
+  if (!repoPath) return null;
+  return specPath ? `${repoPath}::${specPath}` : repoPath;
+}
 
 /**
  * Simple navigation history for back/forward tab navigation.
@@ -105,10 +114,11 @@ export function MainPage(): React.ReactElement {
   const nav = useNavHistory();
   const isNavAction = useRef(false);
 
-  // Per-repo tab snapshots — survives across repo switches within the session
-  const repoTabSnapshots = useRef<Map<string, RepoTabSnapshot>>(new Map());
-  // Track the previous repo so we can snapshot on switch
+  // Per-repo+spec tab snapshots — survives across repo/spec switches within the session
+  const tabSnapshots = useRef<Map<string, TabSnapshot>>(new Map());
+  // Track the previous repo+spec so we can snapshot on switch
   const prevRepoPath = useRef<string | null>(null);
+  const prevSpecPath = useRef<string | null>(null);
 
   // Get state from stores
   const sessionInitialized = useSessionStore((state) => state.initialized);
@@ -141,21 +151,31 @@ export function MainPage(): React.ReactElement {
     }
   }, [activeRepoPath, fetchWorktrees]);
 
-  // ── Save / restore open file tabs when the active repo changes ──
+  // ── Save / restore open file tabs when the active repo or spec changes ──
   useEffect(() => {
-    const prev = prevRepoPath.current;
+    const prevRepo = prevRepoPath.current;
+    const prevSpec = prevSpecPath.current;
+    const prevKey = snapshotKey(prevRepo, prevSpec);
+    const nextKey = snapshotKey(activeRepoPath, selectedSpecPath);
 
-    // Save snapshot for the repo we're leaving
-    if (prev && prev !== activeRepoPath) {
-      repoTabSnapshots.current.set(prev, {
+    // Nothing changed — skip
+    if (prevKey === nextKey) {
+      prevRepoPath.current = activeRepoPath;
+      prevSpecPath.current = selectedSpecPath;
+      return;
+    }
+
+    // Save snapshot for the repo+spec we're leaving
+    if (prevKey) {
+      tabSnapshots.current.set(prevKey, {
         openFiles: openFiles,
         activeTab: activeTab,
       });
     }
 
-    // Restore snapshot for the repo we're entering (or reset)
-    if (activeRepoPath && activeRepoPath !== prev) {
-      const snapshot = repoTabSnapshots.current.get(activeRepoPath);
+    // Restore snapshot for the repo+spec we're entering (or reset)
+    if (nextKey) {
+      const snapshot = tabSnapshots.current.get(nextKey);
       if (snapshot) {
         setOpenFiles(snapshot.openFiles);
         setActiveTab(snapshot.activeTab);
@@ -167,8 +187,9 @@ export function MainPage(): React.ReactElement {
     }
 
     prevRepoPath.current = activeRepoPath;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to activeRepoPath changes
-  }, [activeRepoPath]);
+    prevSpecPath.current = selectedSpecPath;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to activeRepoPath/selectedSpecPath changes
+  }, [activeRepoPath, selectedSpecPath]);
 
   // Push active tab changes into navigation history (but not when navigating via back/forward)
   useEffect(() => {

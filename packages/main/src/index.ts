@@ -45,13 +45,13 @@ function createWindow() {
     height: 900,
     icon: getIconPath(),
     titleBarStyle: "hidden",
-    trafficLightPosition: { x: 16, y: 18 },
+    trafficLightPosition: { x: 16, y: 12 },
     ...(process.platform !== "darwin"
       ? {
           titleBarOverlay: {
             color: "#f5f4ed",
             symbolColor: "#2c2c2c",
-            height: 52,
+            height: 40,
           },
         }
       : {}),

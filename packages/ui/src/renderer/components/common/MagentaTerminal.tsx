@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
 import { Terminal } from "lucide-react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
@@ -8,6 +8,11 @@ import { TERMINAL_THEMES } from "../../utils/terminalThemes";
 import { useTerminalStore } from "../../store/terminalStore";
 
 export type MagentaTerminalStatus = "idle" | "running" | "done" | "canceled" | "error";
+
+/** Imperative handle exposed to parent via ref. */
+export interface MagentaTerminalHandle {
+  createTab: () => void;
+}
 
 export interface MagentaTerminalProps {
   readonly: boolean;
@@ -21,6 +26,10 @@ export interface MagentaTerminalProps {
   fontSize?: number; // Default: 11
   fontFamily?: string; // Default: "'SF Mono', 'Fira Code', ui-monospace, monospace"
   enableTabs?: boolean; // Default: false
+  /** Called when the last tab is closed (all terminals gone). */
+  onAllTabsClosed?: () => void;
+  /** Ref for imperative handle */
+  ref?: React.Ref<MagentaTerminalHandle>;
 }
 
 // ── Dark theme (always) ──────────────────────────────────────────────────────
@@ -32,6 +41,27 @@ const PULSE_STYLE = `
   @keyframes magenta-terminal-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
+  }
+`;
+
+/** Makes the xterm internal scrollbar as thin as possible */
+const XTERM_SCROLLBAR_STYLE = `
+  .xterm .xterm-viewport::-webkit-scrollbar {
+    width: 4px !important;
+  }
+  .xterm .xterm-viewport::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  .xterm .xterm-viewport::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12) !important;
+    border-radius: 2px !important;
+  }
+  .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.25) !important;
+  }
+  .xterm .xterm-viewport {
+    scrollbar-width: thin !important;
+    scrollbar-color: rgba(255, 255, 255, 0.12) transparent !important;
   }
 `;
 
@@ -135,111 +165,81 @@ function MagentaTerminalReadonly({
   );
 }
 
+// ── Per-tab state ───────────────────────────────────────────────────────────
+
+/** Each tab owns its own xterm instance, DOM container, and daemon PTY session. */
+interface TabState {
+  id: string;
+  label: string;
+  sessionId: string | null;
+  xterm: XTerm;
+  fitAddon: FitAddon;
+  /** The persistent DOM div this tab's xterm is rendered into. */
+  hostEl: HTMLDivElement;
+  /** Data disposable returned by xterm.onData (keyboard input) */
+  dataDisposable: { dispose: () => void };
+  /** Tracks how much output has already been written to xterm */
+  lastOutputLength: number;
+  /** Whether "[Session closed]" has already been printed */
+  sessionClosedPrinted: boolean;
+}
+
 // ── Interactive branch ───────────────────────────────────────────────────────
 
-function MagentaTerminalInteractive({
+const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(function MagentaTerminalInteractive({
   cwd,
   maxHeight = 300,
   fontSize = 9,
   fontFamily = "'SF Mono', 'Fira Code', ui-monospace, monospace",
   enableTabs = true,
-}: MagentaTerminalProps): React.ReactElement {
-  const spawn = useTerminalStore((s) => s.spawn);
-  const write = useTerminalStore((s) => s.write);
-  const resize = useTerminalStore((s) => s.resize);
-  const close = useTerminalStore((s) => s.close);
+  onAllTabsClosed,
+}, ref): React.ReactElement {
+  const spawnSession = useTerminalStore((s) => s.spawn);
+  const writeSession = useTerminalStore((s) => s.write);
+  const resizeSession = useTerminalStore((s) => s.resize);
+  const closeSession = useTerminalStore((s) => s.close);
   const sessions = useTerminalStore((s) => s.sessions);
   const initSubs = useTerminalStore((s) => s.initializeSubscriptions);
 
-  const sessionIdRef = useRef<string | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
-  const hostRef = useRef<HTMLDivElement>(null);
-  const xtermRef = useRef<XTerm | null>(null);
-  const fitAddonRef = useRef<FitAddon | null>(null);
-  const lastOutputLengthRef = useRef(0);
-  const sessionClosedPrintedRef = useRef(false);
+  /** Parent container that holds all per-tab host divs. */
+  const containerRef = useRef<HTMLDivElement>(null);
+  /** All tab instances, keyed by tab id for O(1) lookup. */
+  const tabsRef = useRef<Map<string, TabState>>(new Map());
+  /** Counter for generating unique tab labels. */
+  const tabCounterRef = useRef(0);
+
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+  const [tabIds, setTabIds] = useState<string[]>([]);
   const [menuState, setMenuState] = useState<{ open: boolean; x: number; y: number }>({
     open: false,
     x: 0,
     y: 0,
   });
-  const [activeTabId, setActiveTabId] = useState<string | null>(null);
-  const [tabList, setTabList] = useState<Array<{ id: string; label: string }>>(
-    []
-  );
 
-  const session = sessionIdRef.current ? sessions[sessionIdRef.current] : undefined;
-
-  const copySelection = useCallback(async () => {
-    const term = xtermRef.current;
-    const selected = term?.getSelection() ?? "";
-    if (!selected) {
-      return;
-    }
-    try {
-      await navigator.clipboard.writeText(selected);
-    } catch {
-      // Clipboard may be unavailable in some environments.
-    }
-  }, []);
-
-  const pasteClipboard = useCallback(async () => {
-    const sessionId = sessionIdRef.current;
-    if (!sessionId) {
-      return;
-    }
-    try {
-      const text = await navigator.clipboard.readText();
-      if (!text) {
-        return;
-      }
-      void write(sessionId, text);
-    } catch {
-      // Clipboard may be unavailable in some environments.
-    }
-  }, [write]);
-
-  const clearTerminal = useCallback(() => {
-    xtermRef.current?.clear();
-  }, []);
-
-  // Tab management
-  const createNewTab = useCallback(() => {
-    if (!enableTabs) return;
-    const tabId = `tab-${Date.now()}`;
-    setTabList((prev) => [...prev, { id: tabId, label: `Terminal ${prev.length + 1}` }]);
-    setActiveTabId(tabId);
-  }, [enableTabs]);
-
-  const switchTab = useCallback((tabId: string) => {
-    setActiveTabId(tabId);
-  }, []);
-
-  const closeTab = useCallback(
-    (tabId: string) => {
-      if (!enableTabs) return;
-      setTabList((prev) => prev.filter((t) => t.id !== tabId));
-      if (activeTabId === tabId) {
-        const remaining = tabList.filter((t) => t.id !== tabId);
-        setActiveTabId(remaining.length > 0 ? remaining[0].id : null);
-      }
-    },
-    [enableTabs, activeTabId, tabList]
-  );
-
-  // Initialize first tab on mount if tabs enabled
-  useEffect(() => {
-    if (enableTabs && tabList.length === 0) {
-      createNewTab();
-    }
-  }, [enableTabs, tabList.length, createNewTab]);
-
-  // Initialize subscriptions and spawn session on mount
+  // Ensure xterm styles + subscriptions once
   useEffect(() => {
     ensureXtermStyles();
     initSubs();
+  }, [initSubs]);
 
-    const term = new XTerm({
+  // ── Build a new tab (xterm + PTY) ─────────────────────────────
+
+  const buildTab = useCallback((): TabState => {
+    tabCounterRef.current += 1;
+    const id = `tab-${Date.now()}-${tabCounterRef.current}`;
+    const label = `Terminal ${tabCounterRef.current}`;
+
+    // Create a persistent DOM host for this tab's xterm
+    const hostEl = document.createElement("div");
+    hostEl.setAttribute("data-tab-id", id);
+    // Start hidden; the caller will show the active tab
+    hostEl.style.display = "none";
+
+    // Append to the shared container
+    containerRef.current?.appendChild(hostEl);
+
+    const xterm = new XTerm({
       convertEol: true,
       cursorBlink: true,
       fontFamily,
@@ -248,276 +248,405 @@ function MagentaTerminalInteractive({
       theme: THEME,
     });
     const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
-    xtermRef.current = term;
-    fitAddonRef.current = fitAddon;
+    xterm.loadAddon(fitAddon);
 
-    if (hostRef.current) {
-      term.open(hostRef.current);
-      fitAddon.fit();
-      term.focus();
-    }
+    // The tab object — declared here so the closures below can reference it.
+    const tab: TabState = {
+      id,
+      label,
+      sessionId: null,
+      xterm,
+      fitAddon,
+      hostEl,
+      dataDisposable: { dispose: () => {} }, // replaced below
+      lastOutputLength: 0,
+      sessionClosedPrinted: false,
+    };
 
-    term.attachCustomKeyEventHandler((event) => {
-      if (event.type !== "keydown") {
-        return true;
-      }
+    // Keyboard shortcut handler
+    xterm.attachCustomKeyEventHandler((event) => {
+      if (event.type !== "keydown") return true;
 
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const mod = isMac ? event.metaKey : event.ctrlKey;
 
-      // Cmd/Ctrl + K: clear terminal viewport
+      // Cmd/Ctrl + K: clear
       if (mod && !event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        clearTerminal();
+        xterm.clear();
         return false;
       }
 
-      // Cmd + C (macOS): copy only when a selection exists; otherwise allow SIGINT behavior
+      // Cmd + C (macOS): copy when selection exists
       if (isMac && event.metaKey && !event.shiftKey && event.key.toLowerCase() === "c") {
-        if (term.hasSelection()) {
+        if (xterm.hasSelection()) {
           event.preventDefault();
-          void copySelection();
+          void navigator.clipboard.writeText(xterm.getSelection());
           return false;
         }
         return true;
       }
 
-      // Cmd + V (macOS) OR Ctrl + Shift + V (Linux/Windows): paste
-      if ((isMac && event.metaKey && event.key.toLowerCase() === "v") || (!isMac && event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "v")) {
+      // Cmd + V / Ctrl+Shift+V: paste
+      if (
+        (isMac && event.metaKey && event.key.toLowerCase() === "v") ||
+        (!isMac && event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "v")
+      ) {
         event.preventDefault();
-        void pasteClipboard();
+        void navigator.clipboard.readText().then((text) => {
+          if (text && tab.sessionId) {
+            void writeSession(tab.sessionId, text);
+          }
+        });
         return false;
       }
 
       return true;
     });
 
-    term.write("Connecting...\r\n");
-
-    const dataDisposable = term.onData((data) => {
-      const sessionId = sessionIdRef.current;
-      if (!sessionId) {
-        return;
+    // Forward keyboard input to this tab's PTY
+    tab.dataDisposable = xterm.onData((data) => {
+      if (tab.sessionId) {
+        void writeSession(tab.sessionId, data);
       }
-      void write(sessionId, data);
     });
+
+    // Open xterm into its persistent host element
+    xterm.open(hostEl);
+    xterm.write("Connecting...\r\n");
+
+    // Spawn daemon PTY
+    const resolvedCwd = cwd ?? "~";
+    const cols = xterm.cols > 0 ? xterm.cols : 80;
+    const rows = xterm.rows > 0 ? xterm.rows : 24;
+    spawnSession(resolvedCwd, cols, rows).then((sessionId) => {
+      tab.sessionId = sessionId;
+    });
+
+    tabsRef.current.set(id, tab);
+    return tab;
+  }, [cwd, fontFamily, fontSize, spawnSession, writeSession]);
+
+  // ── Show / hide tabs via CSS display ─────────────────────────
+
+  const showTab = useCallback((tabId: string) => {
+    // Hide all tabs, show the target
+    for (const tab of tabsRef.current.values()) {
+      tab.hostEl.style.display = tab.id === tabId ? "block" : "none";
+    }
+    // Fit + focus the newly shown tab
+    const tab = tabsRef.current.get(tabId);
+    if (tab) {
+      tab.fitAddon.fit();
+      tab.xterm.focus();
+    }
+  }, []);
+
+  // ── Tab actions ──────────────────────────────────────────────────
+
+  const createNewTab = useCallback(() => {
+    const tab = buildTab();
+    showTab(tab.id);
+    setTabIds((prev) => [...prev, tab.id]);
+    setActiveTabId(tab.id);
+  }, [buildTab, showTab]);
+
+  const switchTab = useCallback(
+    (tabId: string) => {
+      if (tabId === activeTabId) return;
+      showTab(tabId);
+      setActiveTabId(tabId);
+    },
+    [activeTabId, showTab],
+  );
+
+  const closeTab = useCallback(
+    (tabId: string) => {
+      const tab = tabsRef.current.get(tabId);
+      if (!tab) return;
+
+      // Tear down PTY + xterm for this tab
+      if (tab.sessionId) {
+        void closeSession(tab.sessionId);
+      }
+      tab.dataDisposable.dispose();
+      tab.xterm.dispose();
+      // Remove the DOM element
+      tab.hostEl.parentNode?.removeChild(tab.hostEl);
+      tabsRef.current.delete(tabId);
+
+      setTabIds((prev) => {
+        const next = prev.filter((id) => id !== tabId);
+
+        if (next.length === 0) {
+          // All tabs closed — notify parent
+          setActiveTabId(null);
+          onAllTabsClosed?.();
+        } else if (activeTabId === tabId) {
+          // Activate a neighbour tab
+          const closedIdx = prev.indexOf(tabId);
+          const nextActive = next[Math.max(0, closedIdx - 1)];
+          showTab(nextActive);
+          setActiveTabId(nextActive);
+        }
+
+        return next;
+      });
+    },
+    [activeTabId, closeSession, showTab, onAllTabsClosed],
+  );
+
+  // ── Imperative handle for parent ────────────────────────────────
+
+  useImperativeHandle(ref, () => ({
+    createTab: createNewTab,
+  }), [createNewTab]);
+
+  // ── Auto-create first tab on mount ────────────────────────────
+
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (enableTabs && tabIds.length === 0 && !initializedRef.current) {
+      initializedRef.current = true;
+      createNewTab();
+    }
+  }, [enableTabs, tabIds.length, createNewTab]);
+
+  // ── Resize observer (resizes the active xterm when container changes) ──
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
 
     const observer = new ResizeObserver(() => {
-      const sessionId = sessionIdRef.current;
-      const fit = fitAddonRef.current;
-      if (!fit || !xtermRef.current) {
-        return;
-      }
-      fit.fit();
-      const cols = xtermRef.current.cols;
-      const rows = xtermRef.current.rows;
-      if (sessionId && cols > 0 && rows > 0) {
-        void resize(sessionId, cols, rows);
+      if (!activeTabId) return;
+      const tab = tabsRef.current.get(activeTabId);
+      if (!tab) return;
+      tab.fitAddon.fit();
+      const cols = tab.xterm.cols;
+      const rows = tab.xterm.rows;
+      if (tab.sessionId && cols > 0 && rows > 0) {
+        void resizeSession(tab.sessionId, cols, rows);
       }
     });
-    if (hostRef.current) {
-      observer.observe(hostRef.current);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [activeTabId, resizeSession]);
+
+  // ── Stream store output → each tab's xterm ────────────────────
+
+  useEffect(() => {
+    for (const tab of tabsRef.current.values()) {
+      if (!tab.sessionId) continue;
+      const session = sessions[tab.sessionId];
+      if (!session) continue;
+
+      // Incremental write
+      const next = session.output;
+      const prev = tab.lastOutputLength;
+      const chunk = next.length >= prev ? next.slice(prev) : next;
+      if (chunk) {
+        tab.xterm.write(chunk);
+      }
+      tab.lastOutputLength = next.length;
+
+      // Session closed message
+      if (session.status === "closed" && !tab.sessionClosedPrinted) {
+        tab.xterm.write("\r\n[Session closed]\r\n");
+        tab.sessionClosedPrinted = true;
+      }
     }
+  }, [sessions]);
 
-    const resolvedCwd = cwd ?? "~";
-    const initialCols = term.cols > 0 ? term.cols : 80;
-    const initialRows = term.rows > 0 ? term.rows : 24;
-    spawn(resolvedCwd, initialCols, initialRows).then((id) => {
-      sessionIdRef.current = id;
-    });
+  // ── Cleanup all tabs on unmount ───────────────────────────────
 
+  useEffect(() => {
     return () => {
-      observer.disconnect();
-      dataDisposable.dispose();
-      if (sessionIdRef.current) {
-        void close(sessionIdRef.current);
+      for (const tab of tabsRef.current.values()) {
+        if (tab.sessionId) {
+          void closeSession(tab.sessionId);
+        }
+        tab.dataDisposable.dispose();
+        tab.xterm.dispose();
+        tab.hostEl.parentNode?.removeChild(tab.hostEl);
       }
-      term.dispose();
-      xtermRef.current = null;
-      fitAddonRef.current = null;
+      tabsRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!menuState.open) {
-      return;
-    }
+  // ── Context menu close on outside click ───────────────────────
 
-    const close = () => setMenuState((prev) => ({ ...prev, open: false }));
-    document.addEventListener("mousedown", close);
-    window.addEventListener("blur", close);
+  useEffect(() => {
+    if (!menuState.open) return;
+    const handler = () => setMenuState((prev) => ({ ...prev, open: false }));
+    document.addEventListener("mousedown", handler);
+    window.addEventListener("blur", handler);
     return () => {
-      document.removeEventListener("mousedown", close);
-      window.removeEventListener("blur", close);
+      document.removeEventListener("mousedown", handler);
+      window.removeEventListener("blur", handler);
     };
   }, [menuState.open]);
 
-  // Write only incremental output chunks to xterm
-  useEffect(() => {
-    const term = xtermRef.current;
-    if (!term || !session) {
-      return;
-    }
+  // ── Render ────────────────────────────────────────────────────
 
-    const next = session.output;
-    const previousLength = lastOutputLengthRef.current;
-    const chunk =
-      next.length >= previousLength
-        ? next.slice(previousLength)
-        : next;
+  const activeTab = activeTabId ? tabsRef.current.get(activeTabId) : undefined;
 
-    if (chunk) {
-      term.write(chunk);
-    }
+  const copySelection = useCallback(async () => {
+    const selected = activeTab?.xterm.getSelection() ?? "";
+    if (!selected) return;
+    try { await navigator.clipboard.writeText(selected); } catch { /* noop */ }
+  }, [activeTab]);
 
-    lastOutputLengthRef.current = next.length;
-  }, [session?.output]);
+  const pasteClipboard = useCallback(async () => {
+    if (!activeTab?.sessionId) return;
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text) void writeSession(activeTab.sessionId, text);
+    } catch { /* noop */ }
+  }, [activeTab, writeSession]);
 
-  // Reset incremental cursor when a new session appears
-  useEffect(() => {
-    lastOutputLengthRef.current = 0;
-    sessionClosedPrintedRef.current = false;
-  }, [session?.sessionId]);
-
-  useEffect(() => {
-    if (session?.status !== "closed" || sessionClosedPrintedRef.current) {
-      return;
-    }
-    xtermRef.current?.write("\r\n[Session closed]\r\n");
-    sessionClosedPrintedRef.current = true;
-  }, [session?.status]);
+  const clearTerminal = useCallback(() => {
+    activeTab?.xterm.clear();
+  }, [activeTab]);
 
   return (
     <div ref={frameRef} style={{ position: "relative" }}>
-      {/* Tab bar (if enabled) */}
-      {enableTabs && (
+      {/* Tab bar (if enabled and tabs exist) */}
+      {enableTabs && tabIds.length > 0 && (
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 0,
-            marginBottom: 8,
-            borderBottom: `1px solid ${THEME.brightBlack}`,
+            marginBottom: 4,
+            borderBottom: "1px solid #e5e2da",
             overflowX: "auto",
             paddingBottom: 0,
           }}
         >
-          {tabList.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => switchTab(tab.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "6px 12px",
-                background: activeTabId === tab.id ? THEME.brightBlack : "transparent",
-                color: activeTabId === tab.id ? THEME.foreground : THEME.brightBlack,
-                border: "none",
-                borderBottom: activeTabId === tab.id ? `2px solid ${THEME.cyan}` : "none",
-                cursor: "pointer",
-                fontSize: 12,
-                fontFamily,
-                whiteSpace: "nowrap",
-                transition: "all 0.2s ease",
-              }}
-            >
-              <Terminal size={10} />
-              {tab.label}
-              {tabList.length > 1 && (
+          {tabIds.map((tabId, index) => {
+            const tab = tabsRef.current.get(tabId);
+            if (!tab) return null;
+            return (
+              <div
+                key={tabId}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  background:
+                    activeTabId === tabId
+                      ? "rgba(193, 95, 60, 0.08)"
+                      : "transparent",
+                  borderBottom: activeTabId === tabId ? "2px solid #c15f3c" : "none",
+                  borderRight: index < tabIds.length - 1 ? "1px solid #e5e2da" : "none",
+                }}
+              >
+                <button
+                  onClick={() => switchTab(tabId)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    padding: "3px 6px",
+                    background: "transparent",
+                    color: activeTabId === tabId ? "#383a42" : "#9a958c",
+                    border: "none",
+                    cursor: "pointer",
+                    fontSize: 9,
+                    fontFamily,
+                    fontWeight: activeTabId === tabId ? 500 : 400,
+                    whiteSpace: "nowrap",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <Terminal size={6} strokeWidth={2} />
+                  {tab.label}
+                </button>
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    closeTab(tab.id);
+                    closeTab(tabId);
                   }}
                   style={{
-                    marginLeft: 4,
+                    padding: "2px 4px",
                     background: "transparent",
                     border: "none",
-                    color: "inherit",
+                    color: "#9a958c",
                     cursor: "pointer",
-                    fontSize: 12,
-                    padding: 0,
+                    fontSize: 8,
+                    display: "flex",
+                    alignItems: "center",
+                    transition: "color 0.15s ease",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "#d1cec6")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "#9a958c")}
+                  title="Close tab"
                 >
                   ✕
                 </button>
-              )}
-            </button>
-          ))}
-          <button
-            onClick={createNewTab}
-            style={{
-              marginLeft: 8,
-              padding: "6px 12px",
-              background: "transparent",
-              border: "none",
-              color: THEME.green,
-              cursor: "pointer",
-              fontSize: 12,
-              fontFamily,
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-            }}
-            title="New terminal"
-          >
-            +
-          </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Header bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 8,
-        }}
-      >
-        <Terminal size={12} color="#9a958c" strokeWidth={2} />
-        <span style={{ fontSize: 11, fontWeight: 600, color: "#6b6560" }}>Terminal</span>
-        {session?.status === "active" && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: "#4ade80",
-            }}
-          />
-        )}
-      </div>
+      {/* Header bar (hidden when tabs enabled) */}
+      {!enableTabs && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            marginBottom: 8,
+          }}
+        >
+          <Terminal size={12} color="#9a958c" strokeWidth={2} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: "#6b6560" }}>
+            Terminal
+          </span>
+          {activeTab?.sessionId && sessions[activeTab.sessionId]?.status === "active" && (
+            <span
+              style={{
+                display: "inline-block",
+                width: 6,
+                height: 6,
+                borderRadius: "50%",
+                background: "#4ade80",
+              }}
+            />
+          )}
+        </div>
+      )}
 
-      {/* Unified terminal surface */}
+      {/*
+        Container that holds ALL per-tab xterm host divs.
+        Each tab's hostEl is appended here imperatively.
+        Only the active tab has display:block; the rest are display:none.
+        This keeps every xterm's DOM intact so sessions continue running.
+      */}
       <div
-        ref={hostRef}
-        onClick={() => xtermRef.current?.focus()}
+        ref={containerRef}
+        onClick={() => activeTab?.xterm.focus()}
         onContextMenu={(event) => {
           event.preventDefault();
           const frame = frameRef.current;
-          if (!frame) {
-            return;
-          }
+          if (!frame) return;
           const rect = frame.getBoundingClientRect();
           setMenuState({
             open: true,
             x: event.clientX - rect.left,
             y: event.clientY - rect.top,
           });
-          xtermRef.current?.focus();
+          activeTab?.xterm.focus();
         }}
         style={{
           background: "#1e1e1e",
           padding: 12,
           borderRadius: 8,
           maxHeight,
-          overflowY: "auto",
+          overflow: "hidden",
           minHeight: 120,
           margin: 0,
         }}
@@ -572,10 +701,10 @@ function MagentaTerminalInteractive({
         </div>
       )}
 
-      <style>{PULSE_STYLE}</style>
+      <style>{PULSE_STYLE}{XTERM_SCROLLBAR_STYLE}</style>
     </div>
   );
-}
+});
 
 const menuButtonStyle: React.CSSProperties = {
   width: "100%",
@@ -591,9 +720,11 @@ const menuButtonStyle: React.CSSProperties = {
 
 // ── Public dispatcher ────────────────────────────────────────────────────────
 
-export function MagentaTerminal(props: MagentaTerminalProps): React.ReactElement {
-  if (props.readonly) {
-    return <MagentaTerminalReadonly {...props} />;
-  }
-  return <MagentaTerminalInteractive {...props} />;
-}
+export const MagentaTerminal = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(
+  function MagentaTerminal(props, ref): React.ReactElement {
+    if (props.readonly) {
+      return <MagentaTerminalReadonly {...props} />;
+    }
+    return <MagentaTerminalInteractive {...props} ref={ref} />;
+  },
+);

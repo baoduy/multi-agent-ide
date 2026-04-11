@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { ipc } from "../utils/ipc";
+import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
 /* ── Types ── */
 
@@ -127,10 +128,7 @@ export const useOnboardStore = create<OnboardStoreState>((set, get) => ({
     });
   },
 
-  initializeSubscriptions: () => {
-    if (get().subscriptionsReady) return;
-    set({ subscriptionsReady: true });
-
+  initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
     // Onboard events
     ipc.on("repo:onboard:output", (msg) => {
       get().appendOutput(msg.repoPath, msg.data);
@@ -156,5 +154,5 @@ export const useOnboardStore = create<OnboardStoreState>((set, get) => ({
         msg.success ? undefined : msg.error,
       );
     });
-  },
+  }),
 }));

@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { SessionState } from "@magenta/shared/models";
 import { ipc } from "../utils/ipc";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 type SessionStoreState = SessionState & {
   isLoading: boolean;
@@ -51,7 +52,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
       console.warn("[session] loadSessionState error:", errorMsg);
       set({ error: errorMsg, isLoading: false, initialized: true });
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       console.error("[session] loadSessionState exception:", errorMessage);
       set({ error: errorMessage, isLoading: false, initialized: true });
     }
@@ -66,7 +67,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     } catch (error) {
       console.warn(
         "[session] patchSession failed:",
-        error instanceof Error ? error.message : String(error)
+        getErrorMessage(error)
       );
     }
   },

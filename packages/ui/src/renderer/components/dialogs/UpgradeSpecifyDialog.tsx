@@ -1,15 +1,20 @@
 import React, { useCallback, useEffect } from "react";
-import { ArrowUpCircle, X, Minimize2, Square } from "lucide-react";
+import { ArrowUpCircle, Minimize2, Square } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
 import { MagentaTerminal } from "../common/MagentaTerminal";
+import { BaseDialog } from "../common/BaseDialog";
+import { CancelButton, PrimaryButton, DangerButton, SecondaryButton } from "../common/DialogButtons";
 
 type UpgradeSpecifyDialogProps = {
   repoPath: string;
   repoName: string;
   onClose: () => void;
 };
+
+const PURPLE = "#6b5ebd";
 
 export function UpgradeSpecifyDialog({
   repoPath,
@@ -27,10 +32,7 @@ export function UpgradeSpecifyDialog({
   const success = process?.success ?? null;
   const error = process?.error ?? null;
 
-  // Initialize subscriptions on mount
-  useEffect(() => {
-    initSubs();
-  }, [initSubs]);
+  useEffect(() => { initSubs(); }, [initSubs]);
 
   const handleStart = useCallback(async () => {
     setRunning(repoPath);
@@ -64,278 +66,88 @@ export function UpgradeSpecifyDialog({
     onClose();
   }, [phase, repoPath, dismiss, onClose]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        if (phase === "running") {
-          handleMinimize();
-        } else {
-          handleClose();
-        }
-      }
-    },
-    [phase, handleMinimize, handleClose],
+  const footer = (
+    <>
+      {phase === "select" && (
+        <>
+          <CancelButton onClick={handleClose} />
+          <PrimaryButton onClick={handleStart} color={PURPLE}>
+            Upgrade
+          </PrimaryButton>
+        </>
+      )}
+      {phase === "running" && (
+        <>
+          <DangerButton onClick={handleCancel} icon={<Square size={10} strokeWidth={2.5} fill={colors.errorDark} />}>
+            Cancel
+          </DangerButton>
+          <SecondaryButton onClick={handleMinimize} icon={<Minimize2 size={12} strokeWidth={2} />}>
+            Run in Background
+          </SecondaryButton>
+        </>
+      )}
+      {phase === "done" && (
+        <PrimaryButton onClick={handleClose} color={success ? colors.success : PURPLE}>
+          {success ? "Done" : "Close"}
+        </PrimaryButton>
+      )}
+    </>
   );
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={phase === "running" ? handleMinimize : handleClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.35)",
-          zIndex: 9998,
-        }}
-      />
-
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-label="Upgrade Specify"
-        onKeyDown={handleKeyDown}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow:
-            "0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08)",
-          width: 520,
-          maxWidth: "90vw",
-          zIndex: 9999,
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div
+    <BaseDialog
+      title="Upgrade Specify"
+      icon={<ArrowUpCircle size={16} color={PURPLE} strokeWidth={2} />}
+      width={520}
+      onClose={handleClose}
+      onMinimize={phase === "running" ? handleMinimize : undefined}
+      showMinimize={phase === "running"}
+      footer={footer}
+    >
+      {phase === "select" && (
+        <p
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px 12px",
-            borderBottom: "1px solid #e5e2da",
+            fontSize: 13,
+            color: colors.textMuted,
+            margin: 0,
+            lineHeight: 1.5,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <ArrowUpCircle size={16} color="#6b5ebd" strokeWidth={2} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#2c2c2c" }}>
-              Upgrade Specify
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {phase === "running" && (
-              <button
-                type="button"
-                onClick={handleMinimize}
-                title="Minimize to background"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 24,
-                  height: 24,
-                  borderRadius: 4,
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  color: "#9a958c",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f0ede8"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <Minimize2 size={13} strokeWidth={2} />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={phase === "running" ? handleMinimize : handleClose}
-              title={phase === "running" ? "Minimize to background" : "Close"}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                borderRadius: 4,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                color: "#9a958c",
-              }}
-            >
-              <X size={14} strokeWidth={2} />
-            </button>
-          </div>
-        </div>
+          Upgrade Specify for <strong>{repoName}</strong> to the latest
+          version. This will install the latest <code>specify-cli</code> and
+          re-initialize the configuration using the existing AI agent setting.
+        </p>
+      )}
 
-        {/* Body */}
-        <div style={{ padding: "16px 20px" }}>
-          {phase === "select" && (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#4a4540",
-                margin: 0,
-                lineHeight: 1.5,
-              }}
-            >
-              Upgrade Specify for <strong>{repoName}</strong> to the latest
-              version. This will install the latest <code>specify-cli</code> and
-              re-initialize the configuration using the existing AI agent setting.
-            </p>
-          )}
-
-          {/* Terminal output */}
-          {(phase === "running" || phase === "done") && (
-            <MagentaTerminal
-              readonly={true}
-              output={output}
-              status={
-                phase === "running"
-                  ? "running"
-                  : phase === "done"
-                    ? success
-                      ? "done"
-                      : error === "canceled"
-                        ? "canceled"
-                        : "error"
-                    : "idle"
-              }
-              successMessage="Upgrade complete!"
-              errorMessage={error ?? undefined}
-              label={
-                phase === "running"
-                  ? "Upgrading..."
-                  : phase === "done"
-                    ? success
-                      ? "Completed"
-                      : "Failed"
-                    : ""
-              }
-            />
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "12px 20px 16px",
-            borderTop: "1px solid #f0ede8",
-          }}
-        >
-          {phase === "select" && (
-            <>
-              <button
-                type="button"
-                onClick={handleClose}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#6b6560",
-                  background: "#f5f4ed",
-                  border: "1px solid #e5e2da",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleStart}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#fff",
-                  background: "#6b5ebd",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Upgrade
-              </button>
-            </>
-          )}
-          {phase === "running" && (
-            <>
-              <button
-                type="button"
-                onClick={handleCancel}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#dc2626",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Square size={10} strokeWidth={2.5} fill="#dc2626" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleMinimize}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#6b6560",
-                  background: "#f5f4ed",
-                  border: "1px solid #e5e2da",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Minimize2 size={12} strokeWidth={2} />
-                Run in Background
-              </button>
-            </>
-          )}
-          {phase === "done" && (
-            <button
-              type="button"
-              onClick={handleClose}
-              style={{
-                padding: "7px 16px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#fff",
-                background: success ? "#16A34A" : "#6b5ebd",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              {success ? "Done" : "Close"}
-            </button>
-          )}
-        </div>
-      </div>
-    </>
+      {/* Terminal output */}
+      {(phase === "running" || phase === "done") && (
+        <MagentaTerminal
+          readonly={true}
+          output={output}
+          status={
+            phase === "running"
+              ? "running"
+              : phase === "done"
+                ? success
+                  ? "done"
+                  : error === "canceled"
+                    ? "canceled"
+                    : "error"
+                : "idle"
+          }
+          successMessage="Upgrade complete!"
+          errorMessage={error ?? undefined}
+          label={
+            phase === "running"
+              ? "Upgrading..."
+              : phase === "done"
+                ? success
+                  ? "Completed"
+                  : "Failed"
+                : ""
+          }
+        />
+      )}
+    </BaseDialog>
   );
 }

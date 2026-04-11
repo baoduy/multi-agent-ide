@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { sendOrThrow, onEvent } from "../services/ipcClient";
+import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
 /* ── Types ── */
 
@@ -96,10 +97,7 @@ export const useTerminalStore = create<TerminalStoreState>((set, get) => ({
     });
   },
 
-  initializeSubscriptions: () => {
-    if (get().subscriptionsReady) return;
-    set({ subscriptionsReady: true });
-
+  initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
     onEvent("terminal:data", (event) => {
       get().appendOutput(event.sessionId, event.data);
     });
@@ -107,5 +105,5 @@ export const useTerminalStore = create<TerminalStoreState>((set, get) => ({
     onEvent("terminal:exited", (event) => {
       get().setExited(event.sessionId);
     });
-  },
+  }),
 }));

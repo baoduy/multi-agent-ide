@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { ipc } from "../utils/ipc";
 import { sendOrThrow } from "../services/ipcClient";
+import { getErrorMessage } from "../utils/getErrorMessage";
 
 /** Represents a single git worktree discovered on disk. */
 export interface WorktreeInfo {
@@ -137,7 +138,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       });
     } catch (err) {
       set({
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
         isLoading: false,
       });
     }
@@ -161,7 +162,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       set({ worktrees: allEntries, isLoading: false });
     } catch (err) {
       set({
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
         isLoading: false,
       });
     }
@@ -204,7 +205,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       return status;
     } catch (err) {
       set({
-        error: err instanceof Error ? err.message : String(err),
+        error: getErrorMessage(err),
         isStatusLoading: false,
       });
       return null;
@@ -226,7 +227,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       set({ isMerging: false, mergeResult: result });
       return result;
     } catch (err) {
-      const result = { success: false, message: err instanceof Error ? err.message : String(err) };
+      const result = { success: false, message: getErrorMessage(err) };
       set({ isMerging: false, mergeResult: result });
       return result;
     }
@@ -262,7 +263,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       }));
       return result;
     } catch (err) {
-      const result = { success: false, message: err instanceof Error ? err.message : String(err) };
+      const result = { success: false, message: getErrorMessage(err) };
       set({ isDeleting: false, deleteResult: result });
       return result;
     }

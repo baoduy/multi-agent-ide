@@ -14,14 +14,11 @@ import {
   Loader2,
 } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import type { WorktreeInfo, WorktreeFileStatus } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { sendOrThrow } from "../../services/ipcClient";
-
-type WorktreeDetailDialogProps = {
-  worktree: WorktreeInfo;
-  onClose: () => void;
-};
+import { BaseDialog } from "../common/BaseDialog";
 
 /* ── Status badge for a single file ── */
 
@@ -63,6 +60,11 @@ function FileStatusBadge({ status }: { status: WorktreeFileStatus["status"] }): 
 
 /* ── Main dialog ── */
 
+type WorktreeDetailDialogProps = {
+  worktree: WorktreeInfo;
+  onClose: () => void;
+};
+
 export function WorktreeDetailDialog({
   worktree,
   onClose,
@@ -90,33 +92,19 @@ export function WorktreeDetailDialog({
     fetchWorktreeStatus(worktree.repoPath, worktree.worktreePath);
     clearMergeResult();
 
-    // Fetch local branches
     sendOrThrow({ type: "worktree:branches", repoPath: worktree.repoPath })
       .then((resp) => {
         setBranches(resp.branches);
         setCurrentBranch(resp.current);
-        // Default target: the current branch of the main repo
         setTargetBranch(resp.current);
       })
-      .catch(() => {
-        // ignore — branches will just be empty
-      });
+      .catch(() => {});
   }, [worktree.worktreePath, worktree.repoPath, fetchWorktreeStatus, clearMergeResult]);
 
   const handleMerge = useCallback(() => {
     if (!targetBranch || isMerging) return;
     mergeWorktree(worktree.repoPath, worktree.worktreePath, worktree.branch, targetBranch);
   }, [targetBranch, isMerging, mergeWorktree, worktree]);
-
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
-      }
-    },
-    [onClose],
-  );
 
   const createdDate = new Date(worktree.createdAt).toLocaleDateString(undefined, {
     year: "numeric",
@@ -127,374 +115,291 @@ export function WorktreeDetailDialog({
   });
 
   return (
-    <>
-      {/* Backdrop */}
+    <BaseDialog
+      title={worktree.name}
+      icon={<GitBranch size={16} color={colors.primary} strokeWidth={2} />}
+      width={540}
+      scrollable
+      onClose={onClose}
+    >
+      {/* Meta info */}
       <div
-        onClick={onClose}
         style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.35)",
-          zIndex: 9998,
-        }}
-      />
-
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-label="Worktree details"
-        onKeyDown={handleKeyDown}
-        tabIndex={-1}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow:
-            "0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08)",
-          width: 540,
-          maxWidth: "90vw",
-          maxHeight: "80vh",
+          marginTop: -4,
+          marginBottom: 12,
           display: "flex",
-          flexDirection: "column",
-          zIndex: 9999,
-          overflow: "hidden",
+          flexWrap: "wrap",
+          gap: 16,
+          fontSize: 12,
+          color: colors.textSecondary,
         }}
       >
-        {/* Header */}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <GitBranch size={12} strokeWidth={1.5} color={colors.primary} />
+          {worktree.branch}
+        </span>
+        <span style={{ color: colors.textTertiary }}>Created {createdDate}</span>
+        {status && (
+          <span style={{ color: colors.textTertiary }}>
+            {status.ahead > 0 && `${status.ahead} ahead`}
+            {status.ahead > 0 && status.behind > 0 && " · "}
+            {status.behind > 0 && `${status.behind} behind`}
+            {status.ahead === 0 && status.behind === 0 && "Up to date"}
+          </span>
+        )}
+      </div>
+
+      {/* Changed files list */}
+      <div>
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px 12px",
-            borderBottom: "1px solid #e5e2da",
-            flexShrink: 0,
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: colors.textTertiary,
+            marginBottom: 10,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <GitBranch size={16} color="#C15F3C" strokeWidth={2} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#2c2c2c" }}>
-              {worktree.name}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
+          Changed files
+          {status && ` (${status.files.length})`}
+        </div>
+
+        {isStatusLoading && (
+          <div
             style={{
               display: "flex",
               alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              borderRadius: 4,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              color: "#9a958c",
+              gap: 8,
+              color: colors.textTertiary,
+              fontSize: 12,
+              padding: "16px 0",
             }}
           >
-            <X size={14} strokeWidth={2} />
+            <Loader2 size={14} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
+            Loading file status…
+          </div>
+        )}
+
+        {!isStatusLoading && status && status.files.length === 0 && (
+          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "16px 0" }}>
+            No changed files in this worktree.
+          </div>
+        )}
+
+        {!isStatusLoading && status && status.files.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {status.files.map((file) => (
+              <div
+                key={file.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 10px",
+                  background: colors.bgSurface,
+                  borderRadius: 6,
+                  border: `1px solid ${colors.borderLight}`,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: colors.text,
+                    fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    flex: 1,
+                    minWidth: 0,
+                  }}
+                  title={file.path}
+                >
+                  {file.path}
+                </span>
+                <div style={{ flexShrink: 0, marginLeft: 12 }}>
+                  <FileStatusBadge status={file.status} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Merge section */}
+      <div
+        style={{
+          borderTop: `1px solid ${colors.border}`,
+          padding: "14px 0 0",
+          marginTop: 12,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: colors.textTertiary,
+            marginBottom: 10,
+          }}
+        >
+          <GitMerge size={11} strokeWidth={2} style={{ marginRight: 4, verticalAlign: "middle" }} />
+          Local merge (no push)
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              flex: 1,
+              fontSize: 12,
+              color: colors.textMuted,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            <span style={{ fontWeight: 500 }}>{worktree.branch}</span>
+            <ArrowRight size={12} strokeWidth={1.5} color={colors.textTertiary} />
+
+            {/* Target branch picker */}
+            <div style={{ position: "relative" }}>
+              <button
+                type="button"
+                onClick={() => setShowBranchPicker(!showBranchPicker)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "5px 10px",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: colors.text,
+                  background: colors.bgSurface,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {targetBranch || "Select branch"}
+                <ChevronDown size={12} strokeWidth={1.5} />
+              </button>
+
+              {showBranchPicker && branches.length > 0 && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "100%",
+                    left: 0,
+                    marginBottom: 4,
+                    background: colors.dialogBg,
+                    border: `1px solid ${colors.border}`,
+                    borderRadius: 8,
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                    maxHeight: 180,
+                    overflowY: "auto",
+                    zIndex: 10,
+                    minWidth: 160,
+                  }}
+                >
+                  {branches
+                    .filter((b) => b !== worktree.branch)
+                    .map((b) => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => {
+                          setTargetBranch(b);
+                          setShowBranchPicker(false);
+                        }}
+                        style={{
+                          display: "block",
+                          width: "100%",
+                          padding: "8px 12px",
+                          fontSize: 12,
+                          color: b === targetBranch ? colors.primary : colors.text,
+                          fontWeight: b === targetBranch ? 600 : 400,
+                          background: b === targetBranch ? "#faf5f2" : "transparent",
+                          border: "none",
+                          textAlign: "left",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (b !== targetBranch) e.currentTarget.style.background = colors.bgSurface;
+                        }}
+                        onMouseLeave={(e) => {
+                          if (b !== targetBranch) e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleMerge}
+            disabled={!targetBranch || isMerging}
+            style={{
+              padding: "7px 16px",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "#fff",
+              background: !targetBranch || isMerging ? "#c4c1ba" : colors.primary,
+              border: "none",
+              borderRadius: 6,
+              cursor: !targetBranch || isMerging ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "background 0.15s",
+            }}
+          >
+            {isMerging ? (
+              <>
+                <Loader2 size={12} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
+                Merging…
+              </>
+            ) : (
+              <>
+                <GitMerge size={12} strokeWidth={2} />
+                Merge
+              </>
+            )}
           </button>
         </div>
 
-        {/* Meta info */}
-        <div
-          style={{
-            padding: "12px 20px",
-            borderBottom: "1px solid #f0ede8",
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 16,
-            fontSize: 12,
-            color: "#6b6560",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-            <GitBranch size={12} strokeWidth={1.5} color="#C15F3C" />
-            {worktree.branch}
-          </span>
-          <span style={{ color: "#9a958c" }}>Created {createdDate}</span>
-          {status && (
-            <span style={{ color: "#9a958c" }}>
-              {status.ahead > 0 && `${status.ahead} ahead`}
-              {status.ahead > 0 && status.behind > 0 && " · "}
-              {status.behind > 0 && `${status.behind} behind`}
-              {status.ahead === 0 && status.behind === 0 && "Up to date"}
-            </span>
-          )}
-        </div>
-
-        {/* Changed files list */}
-        <div
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "12px 20px",
-            minHeight: 100,
-          }}
-        >
+        {/* Merge result */}
+        {mergeResult && (
           <div
             style={{
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "#9a958c",
-              marginBottom: 10,
+              marginTop: 10,
+              padding: "8px 12px",
+              fontSize: 12,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 6,
+              background: mergeResult.success ? "#f0fdf4" : "#fef2f2",
+              color: mergeResult.success ? colors.success : colors.errorDark,
+              border: `1px solid ${mergeResult.success ? "#bbf7d0" : "#fecaca"}`,
             }}
           >
-            Changed files
-            {status && ` (${status.files.length})`}
+            {mergeResult.success ? (
+              <Check size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+            ) : (
+              <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+            )}
+            <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
           </div>
-
-          {isStatusLoading && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "#9a958c",
-                fontSize: 12,
-                padding: "16px 0",
-              }}
-            >
-              <Loader2 size={14} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
-              Loading file status…
-            </div>
-          )}
-
-          {!isStatusLoading && status && status.files.length === 0 && (
-            <div style={{ color: "#9a958c", fontSize: 12, padding: "16px 0" }}>
-              No changed files in this worktree.
-            </div>
-          )}
-
-          {!isStatusLoading && status && status.files.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {status.files.map((file) => (
-                <div
-                  key={file.path}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 10px",
-                    background: "#faf9f5",
-                    borderRadius: 6,
-                    border: "1px solid #f0ede8",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "#2c2c2c",
-                      fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      flex: 1,
-                      minWidth: 0,
-                    }}
-                    title={file.path}
-                  >
-                    {file.path}
-                  </span>
-                  <div style={{ flexShrink: 0, marginLeft: 12 }}>
-                    <FileStatusBadge status={file.status} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Merge section */}
-        <div
-          style={{
-            borderTop: "1px solid #e5e2da",
-            padding: "14px 20px 16px",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 600,
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              color: "#9a958c",
-              marginBottom: 10,
-            }}
-          >
-            <GitMerge size={11} strokeWidth={2} style={{ marginRight: 4, verticalAlign: "middle" }} />
-            Local merge (no push)
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                flex: 1,
-                fontSize: 12,
-                color: "#4a4540",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <span style={{ fontWeight: 500 }}>{worktree.branch}</span>
-              <ArrowRight size={12} strokeWidth={1.5} color="#9a958c" />
-
-              {/* Target branch picker */}
-              <div style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => setShowBranchPicker(!showBranchPicker)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 4,
-                    padding: "5px 10px",
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "#2c2c2c",
-                    background: "#faf9f5",
-                    border: "1px solid #e5e2da",
-                    borderRadius: 6,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {targetBranch || "Select branch"}
-                  <ChevronDown size={12} strokeWidth={1.5} />
-                </button>
-
-                {showBranchPicker && branches.length > 0 && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      bottom: "100%",
-                      left: 0,
-                      marginBottom: 4,
-                      background: "#fff",
-                      border: "1px solid #e5e2da",
-                      borderRadius: 8,
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                      maxHeight: 180,
-                      overflowY: "auto",
-                      zIndex: 10,
-                      minWidth: 160,
-                    }}
-                  >
-                    {branches
-                      .filter((b) => b !== worktree.branch)
-                      .map((b) => (
-                        <button
-                          key={b}
-                          type="button"
-                          onClick={() => {
-                            setTargetBranch(b);
-                            setShowBranchPicker(false);
-                          }}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "8px 12px",
-                            fontSize: 12,
-                            color: b === targetBranch ? "#C15F3C" : "#2c2c2c",
-                            fontWeight: b === targetBranch ? 600 : 400,
-                            background: b === targetBranch ? "#faf5f2" : "transparent",
-                            border: "none",
-                            textAlign: "left",
-                            cursor: "pointer",
-                            fontFamily: "inherit",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (b !== targetBranch) e.currentTarget.style.background = "#faf9f5";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (b !== targetBranch) e.currentTarget.style.background = "transparent";
-                          }}
-                        >
-                          {b}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleMerge}
-              disabled={!targetBranch || isMerging}
-              style={{
-                padding: "7px 16px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#fff",
-                background: !targetBranch || isMerging ? "#c4c1ba" : "#C15F3C",
-                border: "none",
-                borderRadius: 6,
-                cursor: !targetBranch || isMerging ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "background 0.15s",
-              }}
-            >
-              {isMerging ? (
-                <>
-                  <Loader2 size={12} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
-                  Merging…
-                </>
-              ) : (
-                <>
-                  <GitMerge size={12} strokeWidth={2} />
-                  Merge
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Merge result */}
-          {mergeResult && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: "8px 12px",
-                fontSize: 12,
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 6,
-                background: mergeResult.success ? "#f0fdf4" : "#fef2f2",
-                color: mergeResult.success ? "#16A34A" : "#dc2626",
-                border: `1px solid ${mergeResult.success ? "#bbf7d0" : "#fecaca"}`,
-              }}
-            >
-              {mergeResult.success ? (
-                <Check size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
-              ) : (
-                <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
-              )}
-              <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-
-      {/* Spinner animation */}
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
-    </>
+    </BaseDialog>
   );
 }

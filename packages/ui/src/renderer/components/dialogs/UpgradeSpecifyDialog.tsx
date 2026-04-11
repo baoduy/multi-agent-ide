@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { ArrowUpCircle, X, Terminal, Minimize2, Square } from "lucide-react";
+import React, { useCallback, useEffect } from "react";
+import { ArrowUpCircle, X, Minimize2, Square } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
+import { MagentaTerminal } from "../common/MagentaTerminal";
 
 type UpgradeSpecifyDialogProps = {
   repoPath: string;
@@ -26,19 +27,10 @@ export function UpgradeSpecifyDialog({
   const success = process?.success ?? null;
   const error = process?.error ?? null;
 
-  const terminalRef = useRef<HTMLPreElement>(null);
-
   // Initialize subscriptions on mount
   useEffect(() => {
     initSubs();
   }, [initSubs]);
-
-  // Auto-scroll terminal
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [output]);
 
   const handleStart = useCallback(async () => {
     setRunning(repoPath);
@@ -200,69 +192,32 @@ export function UpgradeSpecifyDialog({
 
           {/* Terminal output */}
           {(phase === "running" || phase === "done") && (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginBottom: 8,
-                }}
-              >
-                <Terminal size={12} color="#9a958c" strokeWidth={2} />
-                <span
-                  style={{ fontSize: 11, fontWeight: 600, color: "#6b6560" }}
-                >
-                  {phase === "running"
-                    ? "Upgrading..."
-                    : success
+            <MagentaTerminal
+              readonly={true}
+              output={output}
+              status={
+                phase === "running"
+                  ? "running"
+                  : phase === "done"
+                    ? success
+                      ? "done"
+                      : error === "canceled"
+                        ? "canceled"
+                        : "error"
+                    : "idle"
+              }
+              successMessage="Upgrade complete!"
+              errorMessage={error ?? undefined}
+              label={
+                phase === "running"
+                  ? "Upgrading..."
+                  : phase === "done"
+                    ? success
                       ? "Completed"
-                      : "Failed"}
-                </span>
-                {phase === "running" && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "#6b5ebd",
-                      animation: "upgrade-pulse 1.2s infinite",
-                    }}
-                  />
-                )}
-              </div>
-              <pre
-                ref={terminalRef}
-                style={{
-                  background: "#1e1e1e",
-                  color: "#d4d4d4",
-                  padding: 12,
-                  borderRadius: 8,
-                  fontSize: 11,
-                  fontFamily:
-                    "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                  lineHeight: 1.6,
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  margin: 0,
-                }}
-              >
-                {output || (phase === "running" ? "Starting...\n" : "")}
-                {phase === "done" && success && (
-                  <span style={{ color: "#4ade80" }}>
-                    {"\n"}Upgrade complete!
-                  </span>
-                )}
-                {phase === "done" && !success && error && (
-                  <span style={{ color: "#f87171" }}>
-                    {"\n"}Error: {error}
-                  </span>
-                )}
-              </pre>
-            </>
+                      : "Failed"
+                    : ""
+              }
+            />
           )}
         </div>
 
@@ -381,13 +336,6 @@ export function UpgradeSpecifyDialog({
           )}
         </div>
       </div>
-
-      <style>
-        {`@keyframes upgrade-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }`}
-      </style>
     </>
   );
 }

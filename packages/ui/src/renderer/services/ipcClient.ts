@@ -42,6 +42,10 @@ type ResponseForRequest = {
   "repo:onboard:cancel": Extract<IpcResponse, { type: "repo:onboard:cancelled" }>;
   "repo:force-reload": Extract<IpcResponse, { type: "repo:force-reload:started" }>;
   "git:user": Extract<IpcResponse, { type: "git:user:result" }>;
+  "terminal:spawn": Extract<IpcResponse, { type: "terminal:spawned" }>;
+  "terminal:input": Extract<IpcResponse, { type: "terminal:input:ack" }>;
+  "terminal:resize": Extract<IpcResponse, { type: "terminal:resize:ack" }>;
+  "terminal:close": Extract<IpcResponse, { type: "terminal:close:ack" }>;
 };
 
 /**

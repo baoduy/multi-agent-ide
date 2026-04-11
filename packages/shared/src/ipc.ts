@@ -83,6 +83,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("worktree:merge"), repoPath: z.string(), worktreePath: z.string(), worktreeBranch: z.string(), targetBranch: z.string() }),
   z.object({ type: z.literal("worktree:branches"), repoPath: z.string() }),
   z.object({ type: z.literal("worktree:delete"), repoPath: z.string(), worktreePath: z.string() }),
+  z.object({ type: z.literal("terminal:spawn"), cwd: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({ type: z.literal("terminal:input"), sessionId: z.string(), data: z.string() }),
+  z.object({ type: z.literal("terminal:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({ type: z.literal("terminal:close"), sessionId: z.string() }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -167,6 +171,12 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     success: z.boolean(),
     message: z.string(),
   }),
+  z.object({ type: z.literal("terminal:spawned"), sessionId: z.string() }),
+  z.object({ type: z.literal("terminal:input:ack") }),
+  z.object({ type: z.literal("terminal:resize:ack") }),
+  z.object({ type: z.literal("terminal:close:ack") }),
+  z.object({ type: z.literal("terminal:data"), sessionId: z.string(), data: z.string() }),
+  z.object({ type: z.literal("terminal:exited"), sessionId: z.string(), exitCode: z.number().int() }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

@@ -3,6 +3,7 @@ import React from "react";
 import { useSpecStore } from "../../store/specStore";
 import { useRepoStore } from "../../store/repoStore";
 import { SpecFileList } from "./SpecFileList";
+import { MagentaTerminal } from "../common/MagentaTerminal";
 
 /* ── Section wrapper ── */
 
@@ -107,6 +108,18 @@ export function ActivityPanel({ onOpenFile }: ActivityPanelProps): React.ReactEl
           <LegendItem color="#3d7a2a" label="GitHub Copilot agent" />
           <LegendItem color="#d1cec6" label="Idle / queued" />
         </div>
+      </Section>
+
+      {/* Terminal */}
+      <Section title="Terminal" style={{ flexShrink: 0, borderBottom: "none" }}>
+        <MagentaTerminal
+          readonly={false}
+          cwd={activeRepoPath ?? undefined}
+          maxHeight={200}
+          fontSize={9}
+          fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
+          enableTabs={true}
+        />
       </Section>
     </div>
   );

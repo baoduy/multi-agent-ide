@@ -24,12 +24,14 @@ import { ScanQueue } from "./services/ScanQueue";
 import { SessionManager } from "./services/SessionManager";
 import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
+import { TerminalApplicationService } from "./application/TerminalApplicationService";
 
 // Track services for graceful shutdown
 let shutdownServices: {
   dirWatcher?: DirWatcher;
   specSyncService?: SpecSyncService;
   databaseService?: DatabaseService;
+  terminalService?: TerminalApplicationService;
 } = {};
 let isShuttingDown = false;
 
@@ -48,6 +50,12 @@ async function gracefulShutdown(reason: string): Promise<void> {
     if (shutdownServices.dirWatcher) {
       console.log("[daemon-worker] Closing file watchers...");
       shutdownServices.dirWatcher.unwatchAll();
+    }
+
+    // 2. Close active PTY sessions
+    if (shutdownServices.terminalService) {
+      console.log("[daemon-worker] Closing terminal sessions...");
+      shutdownServices.terminalService.closeAll();
     }
 
     // 2. Stop spec sync interval
@@ -112,8 +120,11 @@ async function main() {
     // Directory watcher for auto-detecting new/removed repos
     const dirWatcher = new DirWatcher(scanQueue, configManager);
 
+    // Terminal PTY service
+    const terminalService = new TerminalApplicationService(ipcBridge);
+
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, databaseService };
+    shutdownServices = { dirWatcher, specSyncService, databaseService, terminalService };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -123,6 +134,7 @@ async function main() {
       jobManager,
       repoRepository,
       scanQueue,
+      terminalService,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -139,6 +151,8 @@ async function main() {
       "repo:upgrade-specify:output",
       "repo:upgrade-specify:complete",
       "repo:onboard:cancelled",
+      "terminal:data",
+      "terminal:exited",
     ];
 
     for (const eventType of pushEventTypes) {

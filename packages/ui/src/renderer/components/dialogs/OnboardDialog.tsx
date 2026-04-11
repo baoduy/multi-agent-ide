@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Rocket, X, Check, ChevronDown, Terminal, Minimize2, GitBranch, GitFork, Square } from "lucide-react";
+import { Rocket, X, Check, ChevronDown, Minimize2, GitBranch, GitFork, Square } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
+import { MagentaTerminal } from "../common/MagentaTerminal";
 
 /**
  * Available AI agents for Specify onboarding.
@@ -52,20 +53,12 @@ export function OnboardDialog({
   const [selectedAgent, setSelectedAgent] = useState("claude");
   const [useWorktree, setUseWorktree] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const terminalRef = useRef<HTMLPreElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Initialize subscriptions on mount
   useEffect(() => {
     initSubs();
   }, [initSubs]);
-
-  // Auto-scroll terminal to bottom
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [output]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -450,69 +443,32 @@ export function OnboardDialog({
 
           {/* Terminal output (running / done) */}
           {(phase === "running" || phase === "done") && (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginBottom: 8,
-                }}
-              >
-                <Terminal size={12} color="#9a958c" strokeWidth={2} />
-                <span
-                  style={{ fontSize: 11, fontWeight: 600, color: "#6b6560" }}
-                >
-                  {phase === "running"
-                    ? "Running..."
-                    : success
+            <MagentaTerminal
+              readonly={true}
+              output={output}
+              status={
+                phase === "running"
+                  ? "running"
+                  : phase === "done"
+                    ? success
+                      ? "done"
+                      : error === "canceled"
+                        ? "canceled"
+                        : "error"
+                    : "idle"
+              }
+              successMessage="Setup complete!"
+              errorMessage={error ?? undefined}
+              label={
+                phase === "running"
+                  ? "Running..."
+                  : phase === "done"
+                    ? success
                       ? "Completed"
-                      : "Failed"}
-                </span>
-                {phase === "running" && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "#C15F3C",
-                      animation: "onboard-pulse 1.2s infinite",
-                    }}
-                  />
-                )}
-              </div>
-              <pre
-                ref={terminalRef}
-                style={{
-                  background: "#1e1e1e",
-                  color: "#d4d4d4",
-                  padding: 12,
-                  borderRadius: 8,
-                  fontSize: 11,
-                  fontFamily:
-                    "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                  lineHeight: 1.6,
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  margin: 0,
-                }}
-              >
-                {output || (phase === "running" ? "Starting specify init...\n" : "")}
-                {phase === "done" && success && (
-                  <span style={{ color: "#4ade80" }}>
-                    {"\n"}Onboarding complete!
-                  </span>
-                )}
-                {phase === "done" && !success && error && (
-                  <span style={{ color: "#f87171" }}>
-                    {"\n"}Error: {error}
-                  </span>
-                )}
-              </pre>
-            </>
+                      : "Failed"
+                    : ""
+              }
+            />
           )}
         </div>
 
@@ -632,12 +588,6 @@ export function OnboardDialog({
         </div>
       </div>
 
-      <style>
-        {`@keyframes onboard-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }`}
-      </style>
     </>
   );
 }

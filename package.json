@@ -18,7 +18,8 @@
     "dist:mac": "pnpm build && pnpm exec electron-builder --mac",
     "dist:win": "pnpm build && pnpm exec electron-builder --win",
     "dist:linux": "pnpm build && pnpm exec electron-builder --linux",
-    "release": "pnpm build && pnpm exec electron-builder --publish always"
+    "release": "pnpm build && pnpm exec electron-builder --publish always",
+    "postinstall": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
     "sql.js": "^1.14.1",
@@ -37,6 +38,7 @@
     "mermaid": "^11.14.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "*",
     "@types/sql.js": "^1.4.11",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",

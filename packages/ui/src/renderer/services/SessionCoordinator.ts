@@ -4,20 +4,19 @@ import { useSpecStore } from "../store/specStore";
 
 /**
  * SessionCoordinator handles cross-store coordination.
- * This replaces:
- * - Dynamic imports in repoStore.setActiveRepoPath()
- * - Dynamic imports in specStore.setSelectedSpecPath()
- * - Multi-store orchestration in useSessionRestoration hook
+ *
+ * All session state is now persisted to localStorage via sessionStore.patchSession().
+ * No IPC calls are needed — reads and writes go straight to the browser.
  */
 export const SessionCoordinator = {
   /**
    * Select a repo — updates repoStore, fetches specs, and persists to session.
    * The UI (Main.tsx) handles snapshotting / restoring per-repo state
-   * (selected spec, current screen, open files) via repoSnapshots.
+   * (selected spec, current screen, open files) via usePersistedSnapshots.
    */
   selectRepo(path: string | null): void {
     useRepoStore.getState().setActiveRepoPath(path);
-    void useSessionStore.getState().patchSession({ selectedRepoPath: path });
+    useSessionStore.getState().patchSession({ selectedRepoPath: path });
 
     // Fetch specs for the new repo so the sidebar and workflow are populated
     if (path) {
@@ -30,12 +29,12 @@ export const SessionCoordinator = {
    */
   selectSpec(path: string | null): void {
     useSpecStore.getState().setSelectedSpecPath(path);
-    void useSessionStore.getState().patchSession({ selectedSpecPath: path });
+    useSessionStore.getState().patchSession({ selectedSpecPath: path });
   },
 
   /**
    * Restore session state on app boot.
-   * Called after repos and session state have been loaded.
+   * Reads from localStorage (synchronous) and validates against live data.
    */
   async restoreSession(): Promise<void> {
     const session = useSessionStore.getState();
@@ -52,7 +51,7 @@ export const SessionCoordinator = {
       } else {
         // Repo no longer exists — clear selection
         useRepoStore.getState().setActiveRepoPath(null);
-        void useSessionStore.getState().patchSession({ selectedRepoPath: null });
+        useSessionStore.getState().patchSession({ selectedRepoPath: null });
       }
     }
   },
@@ -72,7 +71,7 @@ export const SessionCoordinator = {
       useSpecStore.getState().setSelectedSpecPath(session.selectedSpecPath);
     } else {
       useSpecStore.getState().setSelectedSpecPath(null);
-      void useSessionStore.getState().patchSession({ selectedSpecPath: null });
+      useSessionStore.getState().patchSession({ selectedSpecPath: null });
     }
   },
 };

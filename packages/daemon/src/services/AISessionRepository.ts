@@ -19,7 +19,7 @@ export class AISessionRepository {
     const rows = this.databaseService
       .getSqlite()
       .prepare(
-        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, title, created_at, last_active_at
+        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, permission_mode, title, created_at, last_active_at
          FROM ai_sessions
          ORDER BY last_active_at DESC`
       )
@@ -35,7 +35,7 @@ export class AISessionRepository {
     const row = this.databaseService
       .getSqlite()
       .prepare(
-        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, title, created_at, last_active_at
+        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, permission_mode, title, created_at, last_active_at
          FROM ai_sessions
          WHERE id = ?`
       )
@@ -56,9 +56,9 @@ export class AISessionRepository {
       .getSqlite()
       .prepare(
         `INSERT INTO ai_sessions (
-           id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, title, created_at, last_active_at
+           id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, permission_mode, title, created_at, last_active_at
          ) VALUES (
-           @id, @provider, @repoPath, @repoName, @branch, @worktreePath, @worktreeName, @cwd, @providerSessionId, @title, @createdAt, @lastActiveAt
+           @id, @provider, @repoPath, @repoName, @branch, @worktreePath, @worktreeName, @cwd, @providerSessionId, @permissionMode, @title, @createdAt, @lastActiveAt
          )`
       )
       .run({
@@ -71,6 +71,7 @@ export class AISessionRepository {
         worktreeName: record.worktreeName,
         cwd: record.cwd,
         providerSessionId: record.providerSessionId,
+        permissionMode: record.permissionMode,
         title: record.title,
         createdAt: record.createdAt,
         lastActiveAt: record.lastActiveAt,
@@ -87,6 +88,7 @@ export class AISessionRepository {
     worktreeName: "worktree_name",
     cwd: "cwd",
     providerSessionId: "provider_session_id",
+    permissionMode: "permission_mode",
     title: "title",
     createdAt: "created_at",
     lastActiveAt: "last_active_at",

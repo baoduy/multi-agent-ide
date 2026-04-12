@@ -1,13 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Loader2 } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useAISessionStore } from "../../store/aiSessionStore";
+import { useRepoStore } from "../../store/repoStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton, PrimaryButton } from "../common/DialogButtons";
 import { FormLabel, FormInput, FormError } from "../common/FormControls";
+import { SearchableRepoSelector } from "../common/SearchableRepoSelector";
 import { ProviderDot } from "../common/ProviderDot";
 import { getProviderName, getProviderColor } from "../common/providerConfig";
+import type { AIPermissionMode, AIProvider } from "@magenta/shared/aiTerminal";
+import { PERMISSION_MODE_LABELS, PROVIDER_PERMISSION_MODES } from "@magenta/shared/aiTerminal";
+import { colors } from "../../utils/colors";
 
 type NewAISessionDialogProps = {
   open: boolean;
@@ -16,45 +21,86 @@ type NewAISessionDialogProps = {
   repoName?: string | null;
 };
 
-type SelectedProvider = "claude" | "copilot" | null;
-type BranchMode = "current" | "new-worktree";
+type SelectedProvider = AIProvider | null;
+
+
+/* ── Main Dialog ── */
 
 /**
  * Dialog for creating a new AI session.
- * Allows user to select provider, repository context, and optional worktree creation.
+ *
+ * Layout:
+ *   Provider  (required)
+ *   Repo      (searchable dropdown — Workspace is first, always available)
+ *   Branch    (shown when repo is selected)
+ *   Worktree  (optional toggle — when enabled, name input auto-prefixed with provider)
+ *   Permission Mode
  */
 export function NewAISessionDialog({
   open,
   onClose,
-  repoPath,
-  repoName,
+  repoPath: initialRepoPath,
+  repoName: initialRepoName,
 }: NewAISessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
+  const repos = useRepoStore((s) => s.repos);
 
+  // Form state
   const [selectedProvider, setSelectedProvider] = useState<SelectedProvider>(null);
-  const [branchMode, setBranchMode] = useState<BranchMode>("current");
+  const [permissionMode, setPermissionMode] = useState<AIPermissionMode>("auto");
+  const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(initialRepoPath ?? null);
   const [branches, setBranches] = useState<string[]>([]);
   const [currentBranch, setCurrentBranch] = useState<string>("");
   const [selectedBranch, setSelectedBranch] = useState<string>("");
-  const [worktreeName, setWorktreeName] = useState("");
+  const [useWorktree, setUseWorktree] = useState(false);
+  const [worktreeCustomName, setWorktreeCustomName] = useState("");
   const [worktreeNameError, setWorktreeNameError] = useState<string | null>(null);
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const worktreeNameInputRef = useRef<HTMLInputElement>(null);
 
-  // Load branches when dialog opens and repoPath is available
+  // Derive the selected repo name
+  const selectedRepoName = useMemo(() => {
+    if (!selectedRepoPath) return null;
+    const repo = repos.find((r) => r.path === selectedRepoPath);
+    return repo?.name ?? selectedRepoPath.split("/").pop() ?? null;
+  }, [repos, selectedRepoPath]);
+
+  // Stable repo list reference for the dropdown (identity-stable when repos haven't changed)
+  const repoOptions = useMemo(() => repos, [repos]);
+
+  // Reset branch/worktree state when repo changes
+  const handleRepoSelect = useCallback((path: string | null) => {
+    setSelectedRepoPath(path);
+    setBranches([]);
+    setCurrentBranch("");
+    setSelectedBranch("");
+    setUseWorktree(false);
+    setWorktreeCustomName("");
+    setWorktreeNameError(null);
+    setCreateError(null);
+  }, []);
+
+  // Sync initial repo path on open
   useEffect(() => {
-    if (!open || !repoPath) {
+    if (open) {
+      setSelectedRepoPath(initialRepoPath ?? null);
+    }
+  }, [open, initialRepoPath]);
+
+  // Load branches when repo is selected
+  useEffect(() => {
+    if (!open || !selectedRepoPath) {
+      setBranches([]);
       return;
     }
 
     let cancelled = false;
-
     setIsLoadingBranches(true);
     setCreateError(null);
 
-    sendOrThrow({ type: "worktree:branches", repoPath })
+    sendOrThrow({ type: "worktree:branches", repoPath: selectedRepoPath })
       .then((res) => {
         if (cancelled) return;
         setBranches(res.branches);
@@ -63,57 +109,48 @@ export function NewAISessionDialog({
         setIsLoadingBranches(false);
       })
       .catch(() => {
-        if (!cancelled) {
-          setIsLoadingBranches(false);
-        }
+        if (!cancelled) setIsLoadingBranches(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [open, repoPath]);
+  }, [open, selectedRepoPath]);
 
-  // Focus worktree name input when mode switches to new-worktree
+  // Focus worktree name input when toggled on
   useEffect(() => {
-    if (branchMode === "new-worktree" && worktreeNameInputRef.current) {
+    if (useWorktree && worktreeNameInputRef.current) {
       worktreeNameInputRef.current.focus();
-      worktreeNameInputRef.current.select();
     }
-  }, [branchMode]);
+  }, [useWorktree]);
 
-  const handleBranchChange = useCallback((branch: string) => {
-    setSelectedBranch(branch);
-    setCreateError(null);
-  }, []);
+  // Compute the full worktree name (provider prefix + custom name)
+  const providerPrefix = selectedProvider ? `${selectedProvider}-` : "";
+  const fullWorktreeName = worktreeCustomName.trim()
+    ? `${providerPrefix}${worktreeCustomName.trim()}`
+    : "";
 
   const handleWorktreeNameChange = useCallback((name: string) => {
-    setWorktreeName(name);
+    setWorktreeCustomName(name);
     setWorktreeNameError(null);
     setCreateError(null);
   }, []);
 
   const handleConfirm = useCallback(async () => {
-    // Validate provider selection
     if (!selectedProvider) {
       setCreateError("Please select a provider.");
       return;
     }
 
-    // Validate branch/worktree selection
-    if (repoPath && !selectedBranch) {
+    if (selectedRepoPath && !selectedBranch) {
       setCreateError("Please select a branch.");
       return;
     }
 
-    // Validate worktree name if in new-worktree mode
-    if (repoPath && branchMode === "new-worktree") {
-      const trimmed = worktreeName.trim();
-      if (!trimmed) {
-        setWorktreeNameError("Worktree name cannot be empty.");
-        return;
-      }
-      if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
-        setWorktreeNameError("Only letters, numbers, dashes, and underscores are allowed.");
+    // Validate worktree name if worktree mode is on and name is provided
+    if (selectedRepoPath && useWorktree && worktreeCustomName.trim()) {
+      if (!/^[a-zA-Z0-9_-]+$/.test(worktreeCustomName.trim())) {
+        setWorktreeNameError("Only letters, numbers, dashes, and underscores.");
         return;
       }
     }
@@ -126,39 +163,52 @@ export function NewAISessionDialog({
       let worktreePathToUse: string | undefined;
       let branchToUse: string | undefined;
 
-      // If creating a new worktree, do that first
-      if (repoPath && branchMode === "new-worktree") {
+      if (selectedRepoPath && useWorktree) {
+        // Generate worktree name: provider-prefix + custom or auto-generated
+        const wtName = worktreeCustomName.trim()
+          ? `${providerPrefix}${worktreeCustomName.trim()}`
+          : `${selectedProvider}-${Date.now()}`;
+
         const result = await sendOrThrow({
           type: "worktree:create",
-          repoPath,
+          repoPath: selectedRepoPath,
           branch: selectedBranch,
-          name: worktreeName.trim(),
+          name: wtName,
         });
         worktreePathToUse = result.worktreePath;
         branchToUse = result.branch;
-      } else if (repoPath) {
+      } else if (selectedRepoPath) {
         branchToUse = selectedBranch;
       }
 
-      // Create the AI session
-      const session = await createSession(
+      await createSession(
         {
           provider: selectedProvider,
-          repoPath,
+          repoPath: selectedRepoPath ?? undefined,
           branch: branchToUse,
           worktreePath: worktreePathToUse,
+          permissionMode,
         },
         80,
         24,
       );
 
-      // Success: close the dialog
       onClose();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : String(err));
       setIsCreating(false);
     }
-  }, [selectedProvider, repoPath, selectedBranch, branchMode, worktreeName, createSession, onClose]);
+  }, [
+    selectedProvider,
+    permissionMode,
+    selectedRepoPath,
+    selectedBranch,
+    useWorktree,
+    worktreeCustomName,
+    providerPrefix,
+    createSession,
+    onClose,
+  ]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -172,13 +222,13 @@ export function NewAISessionDialog({
 
   if (!open) return null;
 
-  const showRepoSection = !!repoPath;
-  const showBranchSection = showRepoSection && !isLoadingBranches && branches.length > 0;
+  const hasRepo = !!selectedRepoPath;
+  const showBranchSection = hasRepo && !isLoadingBranches && branches.length > 0;
 
   return (
     <BaseDialog
       title="New AI Session"
-      width={440}
+      width={460}
       onClose={onClose}
       footer={
         <>
@@ -195,7 +245,7 @@ export function NewAISessionDialog({
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* Provider selector */}
+        {/* ─── Provider ─── */}
         <div>
           <FormLabel>Provider</FormLabel>
           <div style={{ display: "flex", gap: 8 }}>
@@ -215,13 +265,13 @@ export function NewAISessionDialog({
                     gap: 8,
                     padding: "10px 12px",
                     borderRadius: 6,
-                    border: isSelected ? `1px solid ${dotColor}` : "1px solid #e5e2da",
-                    background: isSelected ? "#e5e2da" : "#ffffff",
+                    border: isSelected ? `1px solid ${dotColor}` : `1px solid ${colors.border}`,
+                    background: isSelected ? colors.bgHover : "#ffffff",
                     cursor: "pointer",
                     transition: "all 0.12s",
                     fontSize: 12,
                     fontWeight: 500,
-                    color: "#2c2c2c",
+                    color: colors.text,
                   }}
                 >
                   <ProviderDot variant={provider} />
@@ -232,153 +282,250 @@ export function NewAISessionDialog({
           </div>
         </div>
 
-        {/* Repository info section */}
-        {showRepoSection && (
+        {/* ─── Repository (searchable) ─── */}
+        <div>
+          <FormLabel>Repository</FormLabel>
+          <SearchableRepoSelector
+            repos={repoOptions}
+            selectedPath={selectedRepoPath}
+            onSelect={handleRepoSelect}
+          />
+        </div>
+
+        {/* ─── Branch ─── */}
+        {hasRepo && isLoadingBranches && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
+            <Loader2 size={14} color={colors.textTertiary} style={{ animation: "spin 1s linear infinite" }} />
+            <span style={{ fontSize: 12, color: colors.textSecondary }}>Loading branches...</span>
+          </div>
+        )}
+
+        {showBranchSection && (
           <div>
-            <FormLabel>Repository</FormLabel>
-            <div
-              style={{
-                padding: "8px 12px",
-                borderRadius: 6,
-                background: "#f5f4ed",
-                border: "1px solid #e5e2da",
-                fontSize: 13,
-                color: "#2c2c2c",
-              }}
-            >
-              {repoName || "Selected Repository"}
+            <FormLabel>Branch</FormLabel>
+            <div style={{ position: "relative" }}>
+              <select
+                value={selectedBranch}
+                onChange={(e) => {
+                  setSelectedBranch(e.target.value);
+                  setCreateError(null);
+                }}
+                onKeyDown={handleKeyDown}
+                style={{
+                  width: "100%",
+                  padding: "8px 32px 8px 12px",
+                  fontSize: 13,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 6,
+                  outline: "none",
+                  background: "#ffffff",
+                  color: colors.text,
+                  fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                  boxSizing: "border-box",
+                  appearance: "none",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = colors.border;
+                }}
+              >
+                {branches.map((b) => (
+                  <option key={b} value={b}>
+                    {b}{b === currentBranch ? " (current)" : ""}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={14}
+                color={colors.textTertiary}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
             </div>
           </div>
         )}
 
-        {/* Branch / Worktree choice */}
+        {/* ─── Worktree (optional) ─── */}
         {showBranchSection && (
           <div>
-            <FormLabel>Branch or Worktree</FormLabel>
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              {(["current", "new-worktree"] as const).map((mode) => {
-                const isSelected = branchMode === mode;
-                const displayText = mode === "current" ? "Current Branch" : "New Worktree";
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: useWorktree ? 10 : 0 }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: colors.text,
+                  userSelect: "none",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={useWorktree}
+                  onChange={(e) => {
+                    setUseWorktree(e.target.checked);
+                    if (!e.target.checked) {
+                      setWorktreeCustomName("");
+                      setWorktreeNameError(null);
+                    }
+                  }}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    accentColor: colors.primary,
+                    cursor: "pointer",
+                  }}
+                />
+                Create in new worktree
+              </label>
+              <span style={{ fontSize: 11, color: colors.textTertiary }}>Optional</span>
+            </div>
 
-                return (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setBranchMode(mode)}
+            {useWorktree && (
+              <div>
+                <FormLabel style={{ marginBottom: 4 }}>Worktree Name</FormLabel>
+                <p style={{ fontSize: 11, color: colors.textTertiary, margin: "0 0 6px", lineHeight: 1.4 }}>
+                  Leave blank to auto-generate. Provider prefix is added automatically.
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
+                  {/* Provider prefix (read-only) */}
+                  <div
+                    style={{
+                      padding: "8px 8px 8px 12px",
+                      fontSize: 13,
+                      fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                      color: colors.textTertiary,
+                      background: colors.bgMuted,
+                      border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
+                      borderRight: "none",
+                      borderRadius: "6px 0 0 6px",
+                      whiteSpace: "nowrap",
+                      lineHeight: "1.35",
+                    }}
+                  >
+                    {providerPrefix || "provider-"}
+                  </div>
+                  {/* Custom name input */}
+                  <input
+                    ref={worktreeNameInputRef}
+                    type="text"
+                    value={worktreeCustomName}
+                    onChange={(e) => handleWorktreeNameChange(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="e.g. auth-review"
                     style={{
                       flex: 1,
                       padding: "8px 12px",
-                      borderRadius: 6,
-                      border: isSelected ? "1px solid #2c2c2c" : "1px solid #e5e2da",
-                      background: isSelected ? "#e5e2da" : "#ffffff",
-                      cursor: "pointer",
-                      transition: "all 0.12s",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "#2c2c2c",
+                      fontSize: 13,
+                      border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
+                      borderRadius: "0 6px 6px 0",
+                      outline: "none",
+                      background: colors.bgSurface,
+                      color: colors.text,
+                      fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                      boxSizing: "border-box",
+                      transition: "border-color 0.15s",
                     }}
-                  >
-                    {displayText}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Branch selector (if current branch mode) */}
-            {branchMode === "current" && (
-              <div style={{ position: "relative" }}>
-                <select
-                  value={selectedBranch}
-                  onChange={(e) => handleBranchChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  style={{
-                    width: "100%",
-                    padding: "8px 32px 8px 12px",
-                    fontSize: 13,
-                    border: `1px solid #e5e2da`,
-                    borderRadius: 6,
-                    outline: "none",
-                    background: "#ffffff",
-                    color: "#2c2c2c",
-                    fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                    boxSizing: "border-box",
-                    appearance: "none",
-                    cursor: "pointer",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = "#C15F3C";
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = "#e5e2da";
-                  }}
-                >
-                  {branches.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  color="#9a958c"
-                  style={{
-                    position: "absolute",
-                    right: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                  }}
-                />
-              </div>
-            )}
-
-            {/* Worktree name input (if new worktree mode) */}
-            {branchMode === "new-worktree" && (
-              <div>
-                <FormLabel htmlFor="new-ai-worktree-name" style={{ marginBottom: 8 }}>
-                  Worktree Name
-                </FormLabel>
-                <FormInput
-                  id="new-ai-worktree-name"
-                  inputRef={worktreeNameInputRef}
-                  value={worktreeName}
-                  onChange={handleWorktreeNameChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="e.g. feature-auth-review"
-                  error={!!worktreeNameError}
-                />
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = worktreeNameError
+                        ? colors.error
+                        : colors.primary;
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = worktreeNameError
+                        ? colors.error
+                        : colors.border;
+                    }}
+                  />
+                </div>
+                {fullWorktreeName && (
+                  <p style={{ fontSize: 11, color: colors.textSecondary, margin: "4px 0 0" }}>
+                    Full name: <code style={{ fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace" }}>{fullWorktreeName}</code>
+                  </p>
+                )}
                 <FormError message={worktreeNameError} />
               </div>
             )}
           </div>
         )}
 
-        {/* Loading branches message */}
-        {showRepoSection && isLoadingBranches && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0" }}>
-            <Loader2 size={16} color="#9a958c" style={{ animation: "spin 1s linear infinite" }} />
-            <span style={{ fontSize: 13, color: "#6b6560" }}>Loading branches...</span>
+        {/* ─── Permission Mode ─── */}
+        {selectedProvider && (
+          <div>
+            <FormLabel>Permission Mode</FormLabel>
+            <div style={{ position: "relative" }}>
+              <select
+                value={permissionMode}
+                onChange={(e) => setPermissionMode(e.target.value as AIPermissionMode)}
+                style={{
+                  width: "100%",
+                  padding: "8px 32px 8px 12px",
+                  fontSize: 13,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 6,
+                  outline: "none",
+                  background: "#ffffff",
+                  color: colors.text,
+                  fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                  boxSizing: "border-box",
+                  appearance: "none",
+                  cursor: "pointer",
+                  transition: "border-color 0.15s",
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = colors.primary;
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = colors.border;
+                }}
+              >
+                {PROVIDER_PERMISSION_MODES[selectedProvider].map((mode) => (
+                  <option key={mode} value={mode}>
+                    {PERMISSION_MODE_LABELS[mode]}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={14}
+                color={colors.textTertiary}
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  pointerEvents: "none",
+                }}
+              />
+            </div>
+            <p style={{ fontSize: 11, color: colors.textTertiary, margin: "6px 0 0", lineHeight: 1.4 }}>
+              {permissionMode === "auto"
+                ? "Auto mode lets the agent run without permission prompts, with safety checks."
+                : permissionMode === "acceptEdits"
+                  ? "Auto-approve file edits while still prompting for shell commands."
+                  : permissionMode === "plan"
+                    ? "Read-only analysis mode — explore before making changes."
+                    : permissionMode === "bypassPermissions"
+                      ? "Skip all permission checks. Use only in isolated environments."
+                      : permissionMode === "dontAsk"
+                        ? "Auto-deny all tools not in the allow list."
+                        : "Default mode — prompts before each action."}
+            </p>
           </div>
         )}
 
-        {/* No branches message */}
-        {showRepoSection && !isLoadingBranches && branches.length === 0 && (
-          <p style={{ fontSize: 13, color: "#6b6560", margin: "8px 0", lineHeight: 1.5 }}>
-            No other branches available. You are on <strong>{currentBranch}</strong> and there are
-            no additional branches to create a worktree from.
-          </p>
-        )}
-
-        {/* Error message */}
+        {/* ─── Error ─── */}
         <FormError message={createError} />
-
-        {/* Help text */}
-        <p style={{ fontSize: 12, color: "#9a958c", margin: 0, lineHeight: 1.5 }}>
-          {repoPath
-            ? "Create a session to start chatting with your selected AI provider about this codebase."
-            : "Create a session to start chatting with your selected AI provider in the workspace."}
-        </p>
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

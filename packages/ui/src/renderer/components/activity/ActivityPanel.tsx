@@ -93,7 +93,7 @@ function ProviderStatusItem({
             lineHeight: "14px",
           }}
         >
-          Running
+          Active
         </span>
       )}
     </div>
@@ -119,11 +119,11 @@ export function ActivityPanel({ onOpenFile }: ActivityPanelProps): React.ReactEl
 
   // Derive which providers have at least one actively running session
   const isClaudeRunning = useMemo(
-    () => sessions.some((s) => s.provider === "claude" && (s.status === "running" || s.status === "waiting-input")),
+    () => sessions.some((s) => s.provider === "claude" && (s.status === "active" || s.status === "waiting-input")),
     [sessions],
   );
   const isCopilotRunning = useMemo(
-    () => sessions.some((s) => s.provider === "copilot" && (s.status === "running" || s.status === "waiting-input")),
+    () => sessions.some((s) => s.provider === "copilot" && (s.status === "active" || s.status === "waiting-input")),
     [sessions],
   );
 

@@ -108,6 +108,7 @@ export class ScanQueue {
       console.log(`[scan-queue] Scan complete: found ${results.length} repos in ${scanned} directories`);
 
       const seenPaths = new Set<string>();
+      const newlyAddedPaths: string[] = [];
       let added = 0;
       let updated = 0;
 
@@ -118,6 +119,7 @@ export class ScanQueue {
           updated += 1;
         } else {
           added += 1;
+          newlyAddedPaths.push(candidate.path);
         }
 
         this.repoRepository.upsert({
@@ -148,6 +150,15 @@ export class ScanQueue {
         updated,
         missing,
       });
+
+      // Sync specs for newly added repos so their specs are immediately
+      // available in the UI without waiting for the next 5-minute cycle.
+      if (newlyAddedPaths.length > 0 && this.specSyncService) {
+        console.log(`[scan-queue] Syncing specs for ${newlyAddedPaths.length} newly added repos`);
+        for (const repoPath of newlyAddedPaths) {
+          await this.specSyncService.syncRepo(repoPath);
+        }
+      }
     } catch (error) {
       console.error("[scan-queue] Scan failed:", error);
       throw error;

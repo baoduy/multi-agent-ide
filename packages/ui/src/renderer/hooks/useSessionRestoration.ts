@@ -10,7 +10,7 @@ import { SessionCoordinator } from "../services/SessionCoordinator";
  * This should be called from the root component (MainPage) once on mount.
  *
  * Recovery strategy:
- * - Load session state from daemon (persisted in SQLite)
+ * - Load session state from localStorage (synchronous)
  * - If selectedRepoPath exists in the repos list, keep it
  * - Otherwise, clear selectedRepoPath
  * - If selectedSpecPath exists in the specs list for selectedRepoPath, keep it
@@ -23,9 +23,9 @@ export function useSessionRestoration(): void {
   const specs = useSpecStore((state) => state.specs);
   const selectedRepoPath = useSessionStore((state) => state.selectedRepoPath);
 
-  // Load session state on mount
+  // Load session state from localStorage on mount (synchronous)
   useEffect(() => {
-    void loadSessionState();
+    loadSessionState();
   }, [loadSessionState]);
 
   // Validate and restore repo selection

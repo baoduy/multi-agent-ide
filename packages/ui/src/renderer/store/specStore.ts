@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { ipc } from "../utils/ipc";
+import { sendOrThrow } from "../services/ipcClient";
 import { getErrorMessage } from "../utils/getErrorMessage";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
@@ -57,23 +58,16 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
     }
 
     try {
-      const response = await ipc.send({ type: "spec:list", repoPath });
+      const response = await sendOrThrow({ type: "spec:list", repoPath });
 
       // Guard: repo may have changed while we were waiting
       if (get().currentRepoPath !== repoPath) return;
 
-      if (response.type === "spec:list:result") {
-        set({
-          specs: response.specs,
-          error: null,
-          isLoading: false,
-        });
-        return;
-      }
-
-      if (response.type === "error") {
-        set({ error: response.message, isLoading: false, specs: [] });
-      }
+      set({
+        specs: response.specs,
+        error: null,
+        isLoading: false,
+      });
     } catch (error) {
       if (get().currentRepoPath !== repoPath) return;
       const errorMessage = getErrorMessage(error);

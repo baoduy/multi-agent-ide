@@ -10,6 +10,7 @@ export type DaemonBootstrapResult = {
   bridge: IPCBridge;
   specSyncService: SpecSyncService;
   dirWatcher: DirWatcher;
+  container: DaemonContainer;
 };
 
 /**
@@ -27,6 +28,7 @@ export async function bootstrapDaemon(): Promise<DaemonBootstrapResult> {
     bridge: container.bridge,
     specSyncService: container.specSyncService,
     dirWatcher: container.dirWatcher,
+    container,
   };
 }
 
@@ -44,6 +46,9 @@ if (require.main === module) {
         result.dirWatcher.watchDir(dir);
       }
       result.specSyncService.start();
+
+      // Trigger one-time session sync (scans ~/.claude + ~/.copilot)
+      result.container.sessionSyncService.triggerSync();
 
       console.log("Daemon listening...");
     })

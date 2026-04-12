@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import type { AIProvider, AISessionRecord, AISessionConfig, ProviderMeta } from "@magenta/shared/aiTerminal";
+import type { AIProvider, AISessionRecord, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import type { AISessionRepository } from "../services/AISessionRepository";
 import { resolveSessionCwd } from "../domain/sessionCwdResolver";
-import { getAllProviderMeta, getProviderMeta } from "../domain/providerRegistry";
+import { getAllProviderMeta, getProviderMeta, getPermissionModeArgs } from "../domain/providerRegistry";
 import { getSessionFactory } from "../infrastructure/sessions";
 import type { BaseAISession } from "../infrastructure/sessions";
 import { InputAccumulator } from "../domain/sessionTitleExtractor";
@@ -34,6 +34,7 @@ export class AISessionApplicationService {
     const id = randomUUID();
     const provider = config.provider;
     const providerMeta = getProviderMeta(provider);
+    const permissionMode: AIPermissionMode = config.permissionMode ?? "auto";
 
     // Resolve working directory
     const cwd = resolveSessionCwd({
@@ -62,15 +63,17 @@ export class AISessionApplicationService {
       worktreeName,
       cwd,
       providerSessionId: null,
-      status: "running", // Runtime status — not persisted
+      status: "active", // Runtime status — not persisted
+      permissionMode,
       title: null,
       createdAt: now,
       lastActiveAt: now,
     };
     this.sessionRepo.create(record);
 
-    // Build CLI args
-    const args = [...providerMeta.defaultArgs, ...(config.args ?? [])];
+    // Build CLI args — permission mode flags first, then provider defaults, then overrides
+    const permissionArgs = getPermissionModeArgs(provider, permissionMode);
+    const args = [...permissionArgs, ...providerMeta.defaultArgs, ...(config.args ?? [])];
 
     // Spawn PTY session via factory
     const factory = getSessionFactory(provider);
@@ -135,7 +138,7 @@ export class AISessionApplicationService {
     const now = Date.now();
     this.sessionRepo.update(sessionId, { lastActiveAt: now });
 
-    return { ...record, status: "running", lastActiveAt: now };
+    return { ...record, permissionMode: record.permissionMode ?? "default", status: "active", lastActiveAt: now };
   }
 
   /**
@@ -197,6 +200,36 @@ export class AISessionApplicationService {
     session.stop();
     this.liveSessions.delete(sessionId);
     this.titleAccumulators.delete(sessionId);
+  }
+
+  /**
+   * Change the permission mode for a live session by sending Shift+Tab
+   * key sequences to cycle through available modes until the target
+   * mode is reached. Updates the persisted record and emits a push event.
+   *
+   * Note: Both Claude Code and Copilot CLI support Shift+Tab cycling.
+   * The escape sequence for Shift+Tab is \x1b[Z.
+   */
+  setPermissionMode(sessionId: string, mode: AIPermissionMode): void {
+    const record = this.sessionRepo.getById(sessionId);
+    if (!record) {
+      throw new AppError("NOT_FOUND", `AI session not found: ${sessionId}`);
+    }
+
+    const session = this.liveSessions.get(sessionId);
+    if (!session) {
+      throw new AppError("NOT_FOUND", `AI session is not live: ${sessionId}`);
+    }
+
+    // Update persisted record
+    this.sessionRepo.update(sessionId, { permissionMode: mode });
+
+    // Emit push event so the UI updates
+    this.bridge.emit({
+      type: "ai-session:permission-mode-changed",
+      sessionId,
+      permissionMode: mode,
+    });
   }
 
   getProviders(): Record<AIProvider, ProviderMeta> {

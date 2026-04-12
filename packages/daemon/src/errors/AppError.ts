@@ -9,7 +9,9 @@ export type AppErrorCode =
   | "FILE_NOT_FOUND"
   | "WORKTREE_CONFLICT"
   | "GIT_ERROR"
-  | "CONFIG_ERROR";
+  | "CONFIG_ERROR"
+  | "SESSION_SYNC_ERROR"
+  | "SESSION_PARSE_ERROR";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

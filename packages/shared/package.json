@@ -23,6 +23,14 @@
     "./constants": {
       "types": "./dist/constants.d.ts",
       "default": "./dist/constants.js"
+    },
+    "./aiTerminal": {
+      "types": "./dist/aiTerminal.d.ts",
+      "default": "./dist/aiTerminal.js"
+    },
+    "./syncedSession": {
+      "types": "./dist/syncedSession.d.ts",
+      "default": "./dist/syncedSession.js"
     }
   },
   "scripts": {

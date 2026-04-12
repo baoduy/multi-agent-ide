@@ -1,19 +1,25 @@
 import { create } from "zustand";
 
 import type { SessionState } from "@magenta/shared/models";
-import { ipc } from "../utils/ipc";
-import { getErrorMessage } from "../utils/getErrorMessage";
+import type { MainTab } from "@magenta/shared/constants";
+import { MAIN_TABS } from "@magenta/shared/constants";
+import { localStore } from "../services/localStorage";
 
-type SessionStoreState = SessionState & {
-  isLoading: boolean;
-  error: string | null;
-  initialized: boolean;
-  loadSessionState: () => Promise<void>;
-  patchSession: (patch: Partial<SessionState>) => Promise<void>;
-};
+/* ── localStorage backing store ── */
 
-export const useSessionStore = create<SessionStoreState>((set, get) => ({
-  // SessionState fields
+const STORAGE_KEY = "magenta:session";
+
+function validateSession(raw: unknown): SessionState | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const obj = raw as Record<string, unknown>;
+  // Validate mainTab is a known value
+  if (obj.mainTab && !MAIN_TABS.includes(obj.mainTab as MainTab)) {
+    obj.mainTab = "specs";
+  }
+  return obj as unknown as SessionState;
+}
+
+const DEFAULT_SESSION: SessionState = {
   selectedRepoPath: null,
   selectedSpecPath: null,
   selectedFilePath: null,
@@ -25,50 +31,78 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
   specPanelHeight: null,
   mainTab: "specs",
   updatedAt: Date.now(),
+};
+
+const sessionStorage = localStore<SessionState>({
+  key: STORAGE_KEY,
+  fallback: DEFAULT_SESSION,
+  debounceMs: 300,
+  validate: validateSession,
+});
+
+/* ── Zustand store ── */
+
+type SessionStoreState = SessionState & {
+  isLoading: boolean;
+  error: string | null;
+  initialized: boolean;
+  loadSessionState: () => void;
+  patchSession: (patch: Partial<SessionState>) => void;
+};
+
+export const useSessionStore = create<SessionStoreState>((set, get) => ({
+  // SessionState fields — initialized from localStorage
+  ...DEFAULT_SESSION,
 
   // Store state
   isLoading: false,
   error: null,
   initialized: false,
 
-  async loadSessionState() {
+  loadSessionState() {
     set({ isLoading: true, error: null });
 
     try {
-      const response = await ipc.send({ type: "session:get" });
-      console.log("[session] loadSessionState response:", response.type);
-
-      if (response.type === "session:response") {
-        set({
-          ...response.state,
-          initialized: true,
-          isLoading: false,
-        });
-        return;
-      }
-
-      // Any non-success response (including "error") — mark as initialized anyway
-      const errorMsg = response.type === "error" ? response.message : `Unexpected response: ${response.type}`;
-      console.warn("[session] loadSessionState error:", errorMsg);
-      set({ error: errorMsg, isLoading: false, initialized: true });
+      const stored = sessionStorage.get();
+      set({
+        ...stored,
+        initialized: true,
+        isLoading: false,
+      });
     } catch (error) {
-      const errorMessage = getErrorMessage(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error("[session] loadSessionState exception:", errorMessage);
       set({ error: errorMessage, isLoading: false, initialized: true });
     }
   },
 
-  async patchSession(patch: Partial<SessionState>) {
-    // Optimistically update local state
+  patchSession(patch: Partial<SessionState>) {
+    // Optimistically update local Zustand state
     set(patch as Partial<SessionStoreState>);
-    // Fire and forget the persistence
-    try {
-      await ipc.send({ type: "session:update", state: patch });
-    } catch (error) {
-      console.warn(
-        "[session] patchSession failed:",
-        getErrorMessage(error)
-      );
-    }
+    // Persist to localStorage (debounced)
+    const full = extractSessionState(get());
+    sessionStorage.set({ ...full, ...patch, updatedAt: Date.now() });
   },
 }));
+
+/** Extract only the SessionState fields from the store (drop isLoading, etc.) */
+function extractSessionState(state: SessionStoreState): SessionState {
+  return {
+    selectedRepoPath: state.selectedRepoPath,
+    selectedSpecPath: state.selectedSpecPath,
+    selectedFilePath: state.selectedFilePath,
+    sidebarWidth: state.sidebarWidth,
+    activityPanelWidth: state.activityPanelWidth,
+    activityPanelOpen: state.activityPanelOpen,
+    sidebarCollapsed: state.sidebarCollapsed,
+    activityCollapsed: state.activityCollapsed,
+    specPanelHeight: state.specPanelHeight,
+    mainTab: state.mainTab,
+    updatedAt: state.updatedAt,
+  };
+}
+
+/** Flush any pending writes — call on app shutdown. */
+export function flushSessionStorage(): void {
+  sessionStorage.flush();
+}

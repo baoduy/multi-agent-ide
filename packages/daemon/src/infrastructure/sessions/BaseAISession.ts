@@ -42,7 +42,7 @@ export abstract class BaseAISession extends EventEmitter {
       } as Record<string, string>,
     });
 
-    this.setStatus("running");
+    this.setStatus("active");
 
     this.pty.onData((data: string) => {
       this.emit("data", data);

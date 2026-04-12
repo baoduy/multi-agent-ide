@@ -1,26 +1,36 @@
 import type { SpecSyncService } from "../services/SpecSyncService";
-import { SpecReader } from "../services/SpecReader";
-import { SpecGitGateway } from "../infrastructure/SpecGitGateway";
+import type { SpecReader } from "../services/SpecReader";
+import type { SpecGitGateway } from "../infrastructure/SpecGitGateway";
+import { AppError } from "../errors/AppError";
 
 /**
  * SpecApplicationService orchestrates spec operations.
  */
 export class SpecApplicationService {
-  private specReader: SpecReader;
-  private gitGateway: SpecGitGateway;
-
-  constructor(private specSyncService: SpecSyncService) {
-    this.specReader = new SpecReader();
-    this.gitGateway = new SpecGitGateway();
-  }
+  constructor(
+    private readonly specSyncService: SpecSyncService,
+    private readonly specReader: SpecReader,
+    private readonly gitGateway: SpecGitGateway,
+  ) {}
 
   listSpecs(repoPath: string) {
-    const specs = this.specSyncService.getSpecsFromDb(repoPath);
-    return specs;
+    return this.specSyncService.getSpecsFromDb(repoPath);
   }
 
   readGitFile(repoPath: string, ref: string, relativePath: string): string | null {
     return this.specReader.readGitFile(repoPath, ref, relativePath);
+  }
+
+  /**
+   * Reads a git file or throws FILE_NOT_FOUND if not found.
+   * Use this from handlers that need a guaranteed non-null result.
+   */
+  readGitFileOrThrow(repoPath: string, ref: string, relativePath: string): string {
+    const content = this.specReader.readGitFile(repoPath, ref, relativePath);
+    if (content === null) {
+      throw new AppError("FILE_NOT_FOUND", `File not found: ${ref}:${relativePath}`);
+    }
+    return content;
   }
 
   getGitUser(repoPath: string): { name: string; email: string } {

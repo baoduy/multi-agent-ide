@@ -1,27 +1,24 @@
-import { AppError } from "../errors/AppError";
-import { FileSystemGateway } from "../infrastructure/FileSystemGateway";
+import type { FileSystemGateway } from "../infrastructure/FileSystemGateway";
+import { requireNonEmpty } from "../errors/validation";
 
 /**
  * FileApplicationService orchestrates file operations.
  * Throws AppError for error conditions instead of returning error responses.
  */
 export class FileApplicationService {
-  private readonly fileSystemGateway = new FileSystemGateway();
+  constructor(private readonly fileSystemGateway: FileSystemGateway) {}
 
   readFile(filePath: string): string {
-    if (!filePath) {
-      throw new AppError("VALIDATION_ERROR", "Missing filePath");
-    }
-
+    requireNonEmpty(filePath, "filePath");
     const { content } = this.fileSystemGateway.readFile(filePath);
     return content;
   }
 
   writeFile(filePath: string, content: string): void {
-    if (!filePath || content === undefined) {
-      throw new AppError("VALIDATION_ERROR", "Missing filePath or content");
+    requireNonEmpty(filePath, "filePath");
+    if (content === undefined) {
+      throw new Error("Missing content");
     }
-
     this.fileSystemGateway.writeFile(filePath, content);
   }
 
@@ -30,10 +27,7 @@ export class FileApplicationService {
     path: string;
     isDirectory: boolean;
   }> {
-    if (!dirPath) {
-      throw new AppError("VALIDATION_ERROR", "Missing dirPath");
-    }
-
+    requireNonEmpty(dirPath, "dirPath");
     return this.fileSystemGateway.listDirectory(dirPath);
   }
 }

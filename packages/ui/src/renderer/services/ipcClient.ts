@@ -22,9 +22,7 @@ type ResponseForRequest = {
   "file:read": Extract<IpcResponse, { type: "file:read:result" }>;
   "file:write": Extract<IpcResponse, { type: "file:write:result" }>;
   "dir:list": Extract<IpcResponse, { type: "dir:list:result" }>;
-  "session:get": Extract<IpcResponse, { type: "session:response" }>;
-  "session:update": Extract<IpcResponse, { type: "session:updated" }>;
-  "config:get": Extract<IpcResponse, { type: "config:response" }>;
+"config:get": Extract<IpcResponse, { type: "config:response" }>;
   "config:add-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:remove-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:update": Extract<IpcResponse, { type: "config:response" }>;
@@ -54,6 +52,9 @@ type ResponseForRequest = {
   "ai-session:list": Extract<IpcResponse, { type: "ai-session:list:result" }>;
   "ai-session:delete": Extract<IpcResponse, { type: "ai-session:deleted" }>;
   "ai-session:providers": Extract<IpcResponse, { type: "ai-session:providers:result" }>;
+  "ai-session:set-permission-mode": Extract<IpcResponse, { type: "ai-session:permission-mode:ack" }>;
+  "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
+  "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
 };
 
 /**

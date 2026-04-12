@@ -15,6 +15,7 @@ export function mapAISessionRow(row: Record<string, unknown>): AISessionRecord {
     // The application service enriches this with real-time status
     // by checking whether a live PTY process exists.
     status: "idle",
+    permissionMode: (row.permission_mode as AISessionRecord["permissionMode"]) ?? "auto",
     title: (row.title as string) ?? null,
     createdAt: row.created_at as number,
     lastActiveAt: row.last_active_at as number,

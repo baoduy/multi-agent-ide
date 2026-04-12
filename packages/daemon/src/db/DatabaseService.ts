@@ -3,6 +3,7 @@ import path from "node:path";
 
 import { SqliteCompat } from "./SqliteCompat";
 import { runMigrations } from "./MigrationRunner";
+import { AppError } from "../errors/AppError";
 
 /**
  * DatabaseService wraps sql.js (pure WASM SQLite) with a better-sqlite3-compatible
@@ -60,7 +61,7 @@ export class DatabaseService {
    */
   static getInstance(): DatabaseService {
     if (DatabaseService.instance === null) {
-      throw new Error("DatabaseService not initialized. Call DatabaseService.create() first.");
+      throw new AppError("INTERNAL_ERROR", "DatabaseService not initialized. Call DatabaseService.create() first.");
     }
     return DatabaseService.instance;
   }

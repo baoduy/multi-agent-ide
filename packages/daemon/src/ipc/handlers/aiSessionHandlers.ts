@@ -15,6 +15,7 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
         repoPath: msg.repoPath,
         branch: msg.branch,
         worktreePath: msg.worktreePath,
+        permissionMode: msg.permissionMode,
         args: msg.args,
       },
       msg.cols,
@@ -55,5 +56,10 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
 
   safeHandle(bridge, "ai-session:providers", async () => {
     return { type: "ai-session:providers:result", providers: aiSessionService.getProviders() };
+  });
+
+  safeHandle(bridge, "ai-session:set-permission-mode", async (msg) => {
+    aiSessionService.setPermissionMode(msg.sessionId, msg.permissionMode);
+    return { type: "ai-session:permission-mode:ack", sessionId: msg.sessionId, permissionMode: msg.permissionMode };
   });
 }

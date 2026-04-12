@@ -19,7 +19,7 @@ export class AISessionRepository {
     const rows = this.databaseService
       .getSqlite()
       .prepare(
-        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, title, created_at, last_active_at
+        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, permission_mode, title, created_at, last_active_at
          FROM ai_sessions
          ORDER BY last_active_at DESC`
       )
@@ -35,7 +35,7 @@ export class AISessionRepository {
     const row = this.databaseService
       .getSqlite()
       .prepare(
-        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, title, created_at, last_active_at
+        `SELECT id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, permission_mode, title, created_at, last_active_at
          FROM ai_sessions
          WHERE id = ?`
       )
@@ -56,9 +56,9 @@ export class AISessionRepository {
       .getSqlite()
       .prepare(
         `INSERT INTO ai_sessions (
-           id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, title, created_at, last_active_at
+           id, provider, repo_path, repo_name, branch, worktree_path, worktree_name, cwd, provider_session_id, permission_mode, title, created_at, last_active_at
          ) VALUES (
-           @id, @provider, @repoPath, @repoName, @branch, @worktreePath, @worktreeName, @cwd, @providerSessionId, @title, @createdAt, @lastActiveAt
+           @id, @provider, @repoPath, @repoName, @branch, @worktreePath, @worktreeName, @cwd, @providerSessionId, @permissionMode, @title, @createdAt, @lastActiveAt
          )`
       )
       .run({
@@ -71,11 +71,28 @@ export class AISessionRepository {
         worktreeName: record.worktreeName,
         cwd: record.cwd,
         providerSessionId: record.providerSessionId,
+        permissionMode: record.permissionMode,
         title: record.title,
         createdAt: record.createdAt,
         lastActiveAt: record.lastActiveAt,
       });
   }
+
+  /** Maps camelCase AISessionRecord keys to snake_case column names. */
+  private static readonly COLUMN_MAP: Record<string, string> = {
+    provider: "provider",
+    repoPath: "repo_path",
+    repoName: "repo_name",
+    branch: "branch",
+    worktreePath: "worktree_path",
+    worktreeName: "worktree_name",
+    cwd: "cwd",
+    providerSessionId: "provider_session_id",
+    permissionMode: "permission_mode",
+    title: "title",
+    createdAt: "created_at",
+    lastActiveAt: "last_active_at",
+  };
 
   /**
    * Update specific fields of a session.
@@ -84,49 +101,12 @@ export class AISessionRepository {
     const setClauses: string[] = [];
     const params: Record<string, unknown> = { id };
 
-    if (patch.provider !== undefined) {
-      setClauses.push("provider = @provider");
-      params.provider = patch.provider;
-    }
-    if (patch.repoPath !== undefined) {
-      setClauses.push("repo_path = @repoPath");
-      params.repoPath = patch.repoPath;
-    }
-    if (patch.repoName !== undefined) {
-      setClauses.push("repo_name = @repoName");
-      params.repoName = patch.repoName;
-    }
-    if (patch.branch !== undefined) {
-      setClauses.push("branch = @branch");
-      params.branch = patch.branch;
-    }
-    if (patch.worktreePath !== undefined) {
-      setClauses.push("worktree_path = @worktreePath");
-      params.worktreePath = patch.worktreePath;
-    }
-    if (patch.worktreeName !== undefined) {
-      setClauses.push("worktree_name = @worktreeName");
-      params.worktreeName = patch.worktreeName;
-    }
-    if (patch.cwd !== undefined) {
-      setClauses.push("cwd = @cwd");
-      params.cwd = patch.cwd;
-    }
-    if (patch.providerSessionId !== undefined) {
-      setClauses.push("provider_session_id = @providerSessionId");
-      params.providerSessionId = patch.providerSessionId;
-    }
-    if (patch.title !== undefined) {
-      setClauses.push("title = @title");
-      params.title = patch.title;
-    }
-    if (patch.createdAt !== undefined) {
-      setClauses.push("created_at = @createdAt");
-      params.createdAt = patch.createdAt;
-    }
-    if (patch.lastActiveAt !== undefined) {
-      setClauses.push("last_active_at = @lastActiveAt");
-      params.lastActiveAt = patch.lastActiveAt;
+    for (const [key, column] of Object.entries(AISessionRepository.COLUMN_MAP)) {
+      const value = (patch as Record<string, unknown>)[key];
+      if (value !== undefined) {
+        setClauses.push(`${column} = @${key}`);
+        params[key] = value;
+      }
     }
 
     if (setClauses.length === 0) {

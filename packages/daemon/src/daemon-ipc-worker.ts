@@ -21,12 +21,16 @@ import { DirWatcher } from "./services/DirWatcher";
 import { RepoRepository } from "./services/RepoRepository";
 import { RepoScanner } from "./services/RepoScanner";
 import { ScanQueue } from "./services/ScanQueue";
-import { SessionManager } from "./services/SessionManager";
+
 import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
 import { AISessionApplicationService } from "./application/AISessionApplicationService";
 import { AISessionRepository } from "./services/AISessionRepository";
+import { SessionSyncApplicationService } from "./application/SessionSyncApplicationService";
+import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
+import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
+import { GitGateway } from "./infrastructure/GitGateway";
 
 // Track services for graceful shutdown
 let shutdownServices: {
@@ -108,8 +112,6 @@ async function main() {
 
     const ipcBridge = new IPCBridge();
     const jobManager = new BackgroundJobManager();
-    const sessionManager = new SessionManager(databaseService);
-
     // Data access layers
     const repoRepository = new RepoRepository(databaseService);
     const specRepository = new SpecRepository(databaseService);
@@ -126,6 +128,10 @@ async function main() {
       jobManager,
     );
 
+    // Wire spec sync into scan queue so repo scans trigger spec sync
+    // for newly added repos (avoids circular dependency at construction time)
+    scanQueue.setSpecSyncService(specSyncService);
+
     // Directory watcher for auto-detecting new/removed repos
     const dirWatcher = new DirWatcher(scanQueue, configManager);
 
@@ -136,19 +142,36 @@ async function main() {
     const aiSessionRepository = new AISessionRepository(databaseService);
     const aiSessionService = new AISessionApplicationService(ipcBridge, aiSessionRepository);
 
+    // Git gateway (shared across services)
+    const gitGateway = new GitGateway();
+
+    // Session sync service (scans Claude Code JSONL from disk, filtered by known paths)
+    const sessionSyncGateway = new SessionSyncGateway();
+    const syncedSessionRepository = new SyncedSessionRepository(databaseService);
+    const sessionSyncService = new SessionSyncApplicationService(
+      syncedSessionRepository,
+      sessionSyncGateway,
+      ipcBridge,
+      jobManager,
+      repoRepository,
+      configManager,
+      gitGateway,
+    );
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, databaseService, terminalService, aiSessionService };
 
     registerHandlers(ipcBridge, {
       databaseService,
       configManager,
-      sessionManager,
       specSyncService,
       jobManager,
       repoRepository,
       scanQueue,
       terminalService,
       aiSessionService,
+      sessionSyncService,
+      gitGateway,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -170,6 +193,7 @@ async function main() {
       "ai-session:data",
       "ai-session:status",
       "ai-session:exited",
+      "synced-session:sync:complete",
     ];
 
     for (const eventType of pushEventTypes) {
@@ -224,12 +248,26 @@ async function main() {
 
     // Start background services after IPC is ready
     // 1. Watch all configured working directories for new/removed repos
-    for (const dir of configManager.getConfig().workingDirs) {
+    const workingDirs = configManager.getConfig().workingDirs;
+    for (const dir of workingDirs) {
       dirWatcher.watchDir(dir);
     }
 
-    // 2. Start the 5-minute spec sync schedule (runs immediately on first call)
+    // 2. Run an initial full repo scan so that repos added while the app was
+    //    closed are discovered *before* spec sync runs. The BackgroundJobManager
+    //    is a sequential FIFO queue, so the "repo-scan" job will finish before
+    //    the "spec-sync-all" job that start() enqueues next.
+    if (workingDirs.length > 0) {
+      void scanQueue.requestScan(workingDirs);
+    }
+
+    // 3. Start the 5-minute spec sync schedule (runs immediately on first call).
+    //    Because the repo scan was enqueued first, the initial "spec-sync-all"
+    //    will see any newly discovered repos.
     specSyncService.start();
+
+    // 3. Trigger one-time session sync (scans ~/.claude + ~/.copilot)
+    sessionSyncService.triggerSync();
 
     // Tell parent we're ready
     if (process.send) {

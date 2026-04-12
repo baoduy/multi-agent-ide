@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { sendOrThrow, onEvent } from "../services/ipcClient";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
-import type { AISessionRecord, AIProvider, AISessionStatus, ProviderMeta } from "@magenta/shared/aiTerminal";
+import type { AISessionRecord, AIProvider, AISessionStatus, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
+
+/* ── Constants ── */
+
+/** Maximum output size per session (1MB). Older content is truncated. */
+const MAX_OUTPUT_SIZE = 1024 * 1024;
 
 /* ── Types ── */
 
@@ -24,11 +29,13 @@ type AISessionStoreState = {
     repoPath?: string;
     branch?: string;
     worktreePath?: string;
+    permissionMode?: AIPermissionMode;
     args?: string[];
   }, cols: number, rows: number) => Promise<AISessionRecord>;
   resumeSession: (sessionId: string, cols: number, rows: number) => Promise<AISessionRecord>;
   deleteSession: (sessionId: string) => Promise<void>;
   setActiveSession: (sessionId: string | null) => void;
+  setPermissionMode: (sessionId: string, mode: AIPermissionMode) => Promise<void>;
 
   // ── Live PTY operations ──
   sendInput: (sessionId: string, data: string) => Promise<void>;
@@ -42,6 +49,7 @@ type AISessionStoreState = {
   appendOutput: (sessionId: string, data: string) => void;
   updateStatus: (sessionId: string, status: AISessionStatus) => void;
   updateTitle: (sessionId: string, title: string) => void;
+  updatePermissionMode: (sessionId: string, permissionMode: AIPermissionMode) => void;
   setExited: (sessionId: string, exitCode: number) => void;
 
   // ── Subscription init ──
@@ -67,6 +75,7 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
       repoPath: config.repoPath,
       branch: config.branch,
       worktreePath: config.worktreePath,
+      permissionMode: config.permissionMode,
       args: config.args,
       cols,
       rows,
@@ -112,6 +121,20 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
     set({ activeSessionId: sessionId });
   },
 
+  setPermissionMode: async (sessionId, mode) => {
+    await sendOrThrow({
+      type: "ai-session:set-permission-mode",
+      sessionId,
+      permissionMode: mode,
+    });
+    // Optimistic update — the push event will also update
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, permissionMode: mode } : s
+      ),
+    }));
+  },
+
   sendInput: async (sessionId, data) => {
     await sendOrThrow({ type: "ai-session:input", sessionId, data });
   },
@@ -132,8 +155,13 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
   appendOutput: (sessionId, data) => {
     set((state) => {
       const existing = state.liveOutput[sessionId] ?? "";
+      let combined = existing + data;
+      // Truncate from the front if output exceeds max size
+      if (combined.length > MAX_OUTPUT_SIZE) {
+        combined = combined.slice(combined.length - MAX_OUTPUT_SIZE);
+      }
       return {
-        liveOutput: { ...state.liveOutput, [sessionId]: existing + data },
+        liveOutput: { ...state.liveOutput, [sessionId]: combined },
       };
     });
   },
@@ -150,6 +178,14 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
     set((state) => ({
       sessions: state.sessions.map((s) =>
         s.id === sessionId ? { ...s, title } : s
+      ),
+    }));
+  },
+
+  updatePermissionMode: (sessionId, permissionMode) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, permissionMode } : s
       ),
     }));
   },
@@ -173,6 +209,10 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
 
     onEvent("ai-session:title", (event) => {
       get().updateTitle(event.sessionId, event.title);
+    });
+
+    onEvent("ai-session:permission-mode-changed", (event) => {
+      get().updatePermissionMode(event.sessionId, event.permissionMode);
     });
 
     onEvent("ai-session:exited", (event) => {

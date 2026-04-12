@@ -1,19 +1,18 @@
 import path from "node:path";
-import { AppError } from "../errors/AppError";
 import { sanitizeName } from "../domain/sanitizeName";
-import { GitGateway, type WorktreeEntry } from "../infrastructure/GitGateway";
+import type { GitGateway, WorktreeEntry } from "../infrastructure/GitGateway";
+import { requireNonEmpty } from "../errors/validation";
+import { wrapError } from "../errors/wrapError";
+import { AppError } from "../errors/AppError";
 
 /**
  * WorktreeApplicationService orchestrates worktree operations.
  * Delegates to GitGateway for actual git operations.
  */
 export class WorktreeApplicationService {
-  private readonly gitGateway = new GitGateway();
+  constructor(private readonly gitGateway: GitGateway) {}
 
   listWorktrees(repoPath?: string): WorktreeEntry[] {
-    // If a specific repo is given, list only its worktrees.
-    // Otherwise we would need access to all repos — the caller
-    // should iterate repos on the UI side.
     if (!repoPath) {
       return [];
     }
@@ -26,18 +25,13 @@ export class WorktreeApplicationService {
     ahead: number;
     behind: number;
   } {
-    if (!worktreePath) {
-      throw new AppError("VALIDATION_ERROR", "Missing worktreePath");
-    }
+    requireNonEmpty(worktreePath, "worktreePath");
 
-    try {
-      return this.gitGateway.getWorktreeStatus(worktreePath);
-    } catch (error) {
-      throw new AppError(
-        "GIT_ERROR",
-        `Failed to get worktree status: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return wrapError(
+      () => this.gitGateway.getWorktreeStatus(worktreePath),
+      "GIT_ERROR",
+      "get worktree status",
+    );
   }
 
   mergeWorktree(
@@ -46,61 +40,50 @@ export class WorktreeApplicationService {
     worktreeBranch: string,
     targetBranch: string,
   ): { success: boolean; message: string } {
-    if (!repoPath || !worktreeBranch || !targetBranch) {
-      throw new AppError("VALIDATION_ERROR", "Missing repoPath, worktreeBranch, or targetBranch");
-    }
+    requireNonEmpty(repoPath, "repoPath");
+    requireNonEmpty(worktreeBranch, "worktreeBranch");
+    requireNonEmpty(targetBranch, "targetBranch");
 
     if (worktreeBranch === targetBranch) {
       throw new AppError("VALIDATION_ERROR", "Cannot merge a branch into itself");
     }
 
-    try {
-      return this.gitGateway.mergeWorktree(repoPath, worktreeBranch, targetBranch);
-    } catch (error) {
-      throw new AppError(
-        "GIT_ERROR",
-        `Failed to merge worktree: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return wrapError(
+      () => this.gitGateway.mergeWorktree(repoPath, worktreeBranch, targetBranch),
+      "GIT_ERROR",
+      "merge worktree",
+    );
   }
 
   listLocalBranches(repoPath: string): { branches: string[]; current: string } {
-    if (!repoPath) {
-      throw new AppError("VALIDATION_ERROR", "Missing repoPath");
-    }
+    requireNonEmpty(repoPath, "repoPath");
 
-    try {
-      return this.gitGateway.listLocalBranches(repoPath);
-    } catch (error) {
-      throw new AppError(
-        "GIT_ERROR",
-        `Failed to list branches: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return wrapError(
+      () => this.gitGateway.listLocalBranches(repoPath),
+      "GIT_ERROR",
+      "list branches",
+    );
   }
 
   deleteWorktree(repoPath: string, worktreePath: string): { success: boolean; message: string } {
-    if (!repoPath || !worktreePath) {
-      throw new AppError("VALIDATION_ERROR", "Missing repoPath or worktreePath");
-    }
+    requireNonEmpty(repoPath, "repoPath");
+    requireNonEmpty(worktreePath, "worktreePath");
 
-    try {
-      this.gitGateway.removeWorktree(repoPath, worktreePath);
-      return { success: true, message: "Worktree removed successfully." };
-    } catch (error) {
-      throw new AppError(
-        "GIT_ERROR",
-        `Failed to remove worktree: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return wrapError(
+      () => {
+        this.gitGateway.removeWorktree(repoPath, worktreePath);
+        return { success: true, message: "Worktree removed successfully." };
+      },
+      "GIT_ERROR",
+      "remove worktree",
+    );
   }
 
   createWorktree(repoPath: string, branch: string, name: string): { worktreePath: string; success: boolean } {
-    if (!repoPath || !branch || !name) {
-      throw new AppError("VALIDATION_ERROR", "Missing repoPath, branch, or name");
-    }
+    requireNonEmpty(repoPath, "repoPath");
+    requireNonEmpty(branch, "branch");
+    requireNonEmpty(name, "name");
 
-    // Sanitize name — allow only alphanumeric, dash, underscore
     const safeName = sanitizeName(name);
     if (!safeName) {
       throw new AppError("VALIDATION_ERROR", "Invalid worktree name after sanitization");
@@ -109,16 +92,14 @@ export class WorktreeApplicationService {
     const worktreeDir = path.join(repoPath, ".worktrees");
     const worktreePath = path.join(worktreeDir, safeName);
 
-    try {
-      this.gitGateway.createWorktree(repoPath, worktreePath, branch, safeName);
-      this.gitGateway.ensureGitignoreEntry(repoPath, ".worktrees");
-
-      return { worktreePath, success: true };
-    } catch (error) {
-      throw new AppError(
-        "GIT_ERROR",
-        `Failed to create worktree: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    return wrapError(
+      () => {
+        this.gitGateway.createWorktree(repoPath, worktreePath, branch, safeName);
+        this.gitGateway.ensureGitignoreEntry(repoPath, ".worktrees");
+        return { worktreePath, success: true };
+      },
+      "GIT_ERROR",
+      "create worktree",
+    );
   }
 }

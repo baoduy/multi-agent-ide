@@ -1,4 +1,7 @@
 import type { SqliteCompat } from "./SqliteCompat";
+import { createLogger } from "../infrastructure/Logger";
+
+const log = createLogger("migration-runner");
 import { runInitialMigration } from "./migrations/0001_initial";
 import { run as run0002 } from "./migrations/0002_add_spec_panel_height";
 import { run as run0003 } from "./migrations/0003_update_main_tab_values";
@@ -9,6 +12,8 @@ import { run as run0007 } from "./migrations/0007_add_ai_sessions";
 import { run as run0008 } from "./migrations/0008_recreate_ai_sessions";
 import { run as run0009 } from "./migrations/0009_drop_ai_session_status";
 import { run as run0010 } from "./migrations/0010_add_ai_session_title";
+import { run as run0011 } from "./migrations/0011_add_ai_session_permission_mode";
+import { run as run0012 } from "./migrations/0012_add_synced_sessions";
 
 /**
  * Migration definition: a version number and a function that applies the migration.
@@ -37,6 +42,8 @@ const MIGRATIONS: Migration[] = [
   { version: 8, name: "recreate_ai_sessions", run: run0008 },
   { version: 9, name: "drop_ai_session_status", run: run0009 },
   { version: 10, name: "add_ai_session_title", run: run0010 },
+  { version: 11, name: "add_ai_session_permission_mode", run: run0011 },
+  { version: 12, name: "add_synced_sessions", run: run0012 },
 ];
 
 /**
@@ -67,7 +74,7 @@ export function runMigrations(sqlite: SqliteCompat): void {
       continue;
     }
 
-    console.log(`[MigrationRunner] Applying migration ${migration.version}: ${migration.name}`);
+    log.info(`Applying migration ${migration.version}: ${migration.name}`);
     try {
       migration.run(sqlite);
 
@@ -76,9 +83,9 @@ export function runMigrations(sqlite: SqliteCompat): void {
         .prepare(`INSERT INTO schema_version (version, name, applied_at) VALUES (?, ?, ?)`)
         .run(migration.version, migration.name, Date.now());
 
-      console.log(`[MigrationRunner] Migration ${migration.version} applied successfully`);
+      log.info(`Migration ${migration.version} applied successfully`);
     } catch (err) {
-      console.error(`[MigrationRunner] Migration ${migration.version} failed:`, err);
+      log.error(`Migration ${migration.version} failed:`, err);
       throw err;
     }
   }

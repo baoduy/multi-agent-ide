@@ -21,6 +21,14 @@ interface AsyncActionOptions<TState, TResult> {
 }
 
 /**
+ * Helper to set a dynamic key on a partial state object.
+ * Uses a type-safe approach instead of `as any`.
+ */
+function setKey<T>(obj: Partial<T>, key: keyof T, value: unknown): void {
+  (obj as Record<keyof T, unknown>)[key] = value;
+}
+
+/**
  * Creates an async store action with standardized loading/error lifecycle.
  * Eliminates the repeated set-loading → try → set-result/catch → set-error pattern.
  */
@@ -40,10 +48,10 @@ export function createAsyncAction<TState, TResult>(
     // Set loading state
     const loadingState: Partial<TState> = {};
     if (loadingKey) {
-      (loadingState as any)[loadingKey] = true;
+      setKey(loadingState, loadingKey, true);
     }
     if (errorKey) {
-      (loadingState as any)[errorKey] = null;
+      setKey(loadingState, errorKey, null);
     }
     set(loadingState as TState);
 
@@ -51,7 +59,7 @@ export function createAsyncAction<TState, TResult>(
       const result = await action();
       const successState = onSuccess(result);
       if (loadingKey) {
-        (successState as any)[loadingKey] = false;
+        setKey(successState, loadingKey, false);
       }
       set(successState as TState);
     } catch (error) {
@@ -60,16 +68,16 @@ export function createAsyncAction<TState, TResult>(
       if (onError) {
         const errorState = onError(error instanceof Error ? error : new Error(errorMessage));
         if (loadingKey) {
-          (errorState as any)[loadingKey] = false;
+          setKey(errorState, loadingKey, false);
         }
         set(errorState as TState);
       } else {
         const defaultErrorState: Partial<TState> = {};
         if (loadingKey) {
-          (defaultErrorState as any)[loadingKey] = false;
+          setKey(defaultErrorState, loadingKey, false);
         }
         if (errorKey) {
-          (defaultErrorState as any)[errorKey] = errorMessage;
+          setKey(defaultErrorState, errorKey, errorMessage);
         }
         set(defaultErrorState as TState);
       }

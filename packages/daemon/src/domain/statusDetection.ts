@@ -15,9 +15,9 @@ export function detectClaudeStatus(data: string, currentStatus: AISessionStatus)
     return "error";
   }
 
-  // If we see substantial output and status is idle or waiting, transition to running
+  // If we see substantial output and status is idle or waiting, transition to active
   if (data.length > 10 && (currentStatus === "idle" || currentStatus === "waiting-input")) {
-    return "running";
+    return "active";
   }
 
   return null;
@@ -43,9 +43,9 @@ export function detectCopilotStatus(data: string, currentStatus: AISessionStatus
     return "error";
   }
 
-  // If we see substantial output and status is idle or waiting, transition to running
+  // If we see substantial output and status is idle or waiting, transition to active
   if (data.length > 10 && (currentStatus === "idle" || currentStatus === "waiting-input")) {
-    return "running";
+    return "active";
   }
 
   return null;

@@ -11,6 +11,7 @@ import { FileViewer } from "../components/main/FileViewer";
 import { ActivityPanel } from "../components/activity/ActivityPanel";
 import { useSpecStore } from "../store/specStore";
 import { useSessionRestoration } from "../hooks/useSessionRestoration";
+import { usePersistedSnapshots } from "../hooks/usePersistedSnapshots";
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
 import { useRepoStore } from "../store/repoStore";
 import { useSessionStore } from "../store/sessionStore";
@@ -21,34 +22,6 @@ import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager
 import { AISessionsView } from "../components/ai-terminal/AISessionsView";
 
 import type { ActiveTab, BuiltinTabId, OpenFileTab } from "../components/main/TabBar";
-
-/**
- * Snapshot of open file tabs and the active tab for a repo+spec combination.
- */
-type TabSnapshot = {
-  openFiles: OpenFileTab[];
-  activeTab: ActiveTab;
-};
-
-/**
- * Snapshot of per-repo UI state — selected spec, current screen, and tab snapshots.
- * Stored in a Map keyed by repo path so we can restore when the user switches back.
- */
-type RepoSnapshot = {
-  selectedSpecPath: string | null;
-  mainTab: ActiveTab;
-  /** Nested tab snapshots keyed by repo::spec composite key */
-  tabSnapshots: Map<string, TabSnapshot>;
-};
-
-/**
- * Build a composite key for the tab snapshot map.
- * Each unique repo + spec combination gets its own set of open file tabs.
- */
-function snapshotKey(repoPath: string | null, specPath: string | null): string | null {
-  if (!repoPath) return null;
-  return specPath ? `${repoPath}::${specPath}` : repoPath;
-}
 
 /**
  * Simple navigation history for back/forward tab navigation.
@@ -101,8 +74,11 @@ function isSameTab(a: ActiveTab, b: ActiveTab): boolean {
 }
 
 export function MainPage(): React.ReactElement {
-  // Initialize session on mount
+  // Initialize session on mount (reads from localStorage)
   useSessionRestoration();
+
+  // Persisted snapshots — localStorage-backed per-repo and per-spec tab state
+  const snapshots = usePersistedSnapshots();
 
   // ── Initialize all store subscriptions at the top level ──
   const initRepoSubscriptions = useRepoStore((state) => state.initializeSubscriptions);
@@ -125,10 +101,6 @@ export function MainPage(): React.ReactElement {
   const nav = useNavHistory();
   const isNavAction = useRef(false);
 
-  // Per-repo+spec tab snapshots — survives across repo/spec switches within the session
-  const tabSnapshots = useRef<Map<string, TabSnapshot>>(new Map());
-  // Per-repo snapshots — stores selected spec, screen, and nested tab snapshots per repo
-  const repoSnapshots = useRef<Map<string, RepoSnapshot>>(new Map());
   // Track the previous repo+spec so we can snapshot on switch
   const prevRepoPath = useRef<string | null>(null);
   const prevSpecPath = useRef<string | null>(null);
@@ -141,7 +113,6 @@ export function MainPage(): React.ReactElement {
   const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
   const setSelectedSpecPath = useSpecStore((state) => state.setSelectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
-  const fetchSpecs = useSpecStore((state) => state.fetchSpecs);
   const fetchWorktreesForAll = useWorktreeStore((state) => state.fetchWorktreesForAll);
   const fetchWorktrees = useWorktreeStore((state) => state.fetchWorktrees);
 
@@ -175,42 +146,37 @@ export function MainPage(): React.ReactElement {
 
     // Save snapshot for the repo we're leaving
     if (prevRepo) {
-      repoSnapshots.current.set(prevRepo, {
+      snapshots.saveRepoSnapshot(prevRepo, {
         selectedSpecPath: selectedSpecPath,
         mainTab: activeTab,
-        tabSnapshots: new Map(tabSnapshots.current),
+      });
+      // Also save the tab snapshot for the current spec context
+      snapshots.saveTabSnapshot(prevRepo, selectedSpecPath, {
+        openFiles,
+        activeTab,
       });
     }
 
     // Restore snapshot for the repo we're entering (or reset)
     if (activeRepoPath) {
-      const snapshot = repoSnapshots.current.get(activeRepoPath);
-      if (snapshot) {
-        // Restore tab snapshots for this repo
-        tabSnapshots.current = new Map(snapshot.tabSnapshots);
-
+      const repoSnap = snapshots.getRepoSnapshot(activeRepoPath);
+      if (repoSnap) {
         // Restore the selected spec
-        setSelectedSpecPath(snapshot.selectedSpecPath);
+        setSelectedSpecPath(repoSnap.selectedSpecPath);
 
         // Restore the active tab / screen
-        setActiveTab(snapshot.mainTab);
+        setActiveTab(repoSnap.mainTab);
 
         // Restore the open files for the current spec context
-        const key = snapshotKey(activeRepoPath, snapshot.selectedSpecPath);
-        if (key) {
-          const tabSnap = tabSnapshots.current.get(key);
-          if (tabSnap) {
-            setOpenFiles(tabSnap.openFiles);
-            setActiveTab(tabSnap.activeTab);
-          } else {
-            setOpenFiles([]);
-          }
+        const tabSnap = snapshots.getTabSnapshot(activeRepoPath, repoSnap.selectedSpecPath);
+        if (tabSnap) {
+          setOpenFiles(tabSnap.openFiles);
+          setActiveTab(tabSnap.activeTab);
         } else {
           setOpenFiles([]);
         }
       } else {
         // First visit to this repo — clear everything
-        tabSnapshots.current = new Map();
         setSelectedSpecPath(null);
         setOpenFiles([]);
         setActiveTab({ kind: "builtin", id: "specs" });
@@ -219,7 +185,7 @@ export function MainPage(): React.ReactElement {
 
     prevRepoPath.current = activeRepoPath;
     prevSpecPath.current = activeRepoPath
-      ? (repoSnapshots.current.get(activeRepoPath)?.selectedSpecPath ?? null)
+      ? (snapshots.getRepoSnapshot(activeRepoPath)?.selectedSpecPath ?? null)
       : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to activeRepoPath changes
   }, [activeRepoPath]);
@@ -235,28 +201,21 @@ export function MainPage(): React.ReactElement {
       return;
     }
 
-    const prevKey = snapshotKey(activeRepoPath, prevSpec);
-    const nextKey = snapshotKey(activeRepoPath, selectedSpecPath);
-
     // Save snapshot for the spec we're leaving
-    if (prevKey) {
-      tabSnapshots.current.set(prevKey, {
-        openFiles: openFiles,
-        activeTab: activeTab,
-      });
-    }
+    snapshots.saveTabSnapshot(activeRepoPath, prevSpec, {
+      openFiles,
+      activeTab,
+    });
 
     // Restore snapshot for the spec we're entering (or reset)
-    if (nextKey) {
-      const snapshot = tabSnapshots.current.get(nextKey);
-      if (snapshot) {
-        setOpenFiles(snapshot.openFiles);
-        setActiveTab(snapshot.activeTab);
-      } else {
-        // First visit — clear file tabs, go back to specs
-        setOpenFiles([]);
-        setActiveTab({ kind: "builtin", id: "specs" });
-      }
+    const tabSnap = snapshots.getTabSnapshot(activeRepoPath, selectedSpecPath);
+    if (tabSnap) {
+      setOpenFiles(tabSnap.openFiles);
+      setActiveTab(tabSnap.activeTab);
+    } else {
+      // First visit — clear file tabs, go back to specs
+      setOpenFiles([]);
+      setActiveTab({ kind: "builtin", id: "specs" });
     }
 
     prevSpecPath.current = selectedSpecPath;
@@ -271,6 +230,16 @@ export function MainPage(): React.ReactElement {
     isNavAction.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Flush pending localStorage writes on unmount / page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => snapshots.flush();
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      snapshots.flush();
+    };
+  }, [snapshots]);
 
   /* ── Refresh specs after approval ── */
   // NOTE: We intentionally do NOT call fetchSpecs() here.
@@ -353,11 +322,11 @@ export function MainPage(): React.ReactElement {
   /* ── Sidebar toggles ── */
 
   const handleToggleSidebar = () => {
-    void patchSession({ sidebarCollapsed: !sidebarCollapsed });
+    patchSession({ sidebarCollapsed: !sidebarCollapsed });
   };
 
   const handleToggleActivity = () => {
-    void patchSession({ activityCollapsed: !activityCollapsed });
+    patchSession({ activityCollapsed: !activityCollapsed });
   };
 
   /* ── Spec selection from SpecsListView ── */

@@ -6,6 +6,8 @@ import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { colors } from "../../utils/colors";
+import { formatRelativeTime } from "../../utils/formatters";
+import { getStatusColor, isActiveStatus } from "../../utils/sessionStatus";
 
 type AISessionListItemProps = {
   session: AISessionRecord;
@@ -14,57 +16,6 @@ type AISessionListItemProps = {
   onDelete: (sessionId: string) => void;
 };
 
-/**
- * Formats a timestamp to relative time (e.g. "just now", "5m ago", "2h ago", "3d ago")
- */
-function formatRelativeTime(timestamp: number): string {
-  const now = Date.now();
-  const diff = Math.max(0, now - timestamp);
-
-  // Within 1 minute: "just now"
-  if (diff < 60 * 1000) return "just now";
-
-  // Within 1 hour: minutes
-  if (diff < 60 * 60 * 1000) {
-    const mins = Math.floor(diff / (60 * 1000));
-    return `${mins}m ago`;
-  }
-
-  // Within 1 day: hours
-  if (diff < 24 * 60 * 60 * 1000) {
-    const hrs = Math.floor(diff / (60 * 60 * 1000));
-    return `${hrs}h ago`;
-  }
-
-  // Otherwise: days
-  const days = Math.floor(diff / (24 * 60 * 60 * 1000));
-  return `${days}d ago`;
-}
-
-
-/**
- * Returns whether the session is actively running (has a live PTY process).
- * Only these statuses warrant a visible badge.
- */
-function isActiveStatus(status: AISessionRecord["status"]): boolean {
-  return status === "running" || status === "waiting-input" || status === "error";
-}
-
-/**
- * Gets the status badge color (only used for active statuses).
- */
-function getStatusColor(status: AISessionRecord["status"]): string {
-  switch (status) {
-    case "running":
-      return "#3d7a2a";
-    case "waiting-input":
-      return "#b8860b";
-    case "error":
-      return "#c75050";
-    default:
-      return "#9a958c";
-  }
-}
 
 /**
  * Formats the status for display.
@@ -195,7 +146,7 @@ function AISessionListItemComponent({
           </span>
         </div>
 
-        {/* Status badge — only shown for running sessions */}
+        {/* Status badge — only shown for active sessions */}
         {showStatus && (
           <span
             style={{

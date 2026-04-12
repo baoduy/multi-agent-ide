@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { MAIN_TABS, PIPELINE_STAGES, REPO_STATUSES, STAGE_STATUSES } from "./constants";
 import { MagentaConfigSchema } from "./config";
-import { AI_PROVIDERS, AI_SESSION_STATUSES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
+import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
+import { SYNCED_SESSION_PROVIDERS, SyncedSessionRecordSchema } from "./syncedSession";
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -64,8 +65,7 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("file:read"), filePath: z.string() }),
   z.object({ type: z.literal("file:write"), filePath: z.string(), content: z.string() }),
   z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
-  z.object({ type: z.literal("session:get") }),
-  z.object({ type: z.literal("session:update"), state: SessionStateSchema.partial() }),
+  // NOTE: session:get / session:update removed — session state now persisted in localStorage
   z.object({ type: z.literal("config:get") }),
   z.object({ type: z.literal("config:add-working-dir"), path: z.string() }),
   z.object({ type: z.literal("config:remove-working-dir"), path: z.string() }),
@@ -88,7 +88,7 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("terminal:input"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("terminal:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("terminal:close"), sessionId: z.string() }),
-  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), args: z.array(z.string()).optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), permissionMode: z.enum(AI_PERMISSION_MODES).optional(), args: z.array(z.string()).optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:resume"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:input"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("ai-session:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
@@ -96,6 +96,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:list") }),
   z.object({ type: z.literal("ai-session:delete"), sessionId: z.string() }),
   z.object({ type: z.literal("ai-session:providers") }),
+  z.object({ type: z.literal("ai-session:set-permission-mode"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
+  // Synced session scanning
+  z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
+  z.object({ type: z.literal("synced-session:trigger-sync") }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -117,8 +121,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("spec:list:result"), repoPath: z.string(), specs: z.array(SpecFolderSchema) }),
   z.object({ type: z.literal("spec:sync:started"), repoPath: z.string() }),
   z.object({ type: z.literal("spec:sync:complete"), repoPath: z.string() }),
-  z.object({ type: z.literal("session:response"), state: SessionStateSchema }),
-  z.object({ type: z.literal("session:updated") }),
+  // NOTE: session:response / session:updated removed — session state now in localStorage
   z.object({ type: z.literal("config:response"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("config:updated"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("file:read:result"), filePath: z.string(), content: z.string() }),
@@ -198,6 +201,12 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:status"), sessionId: z.string(), status: z.enum(AI_SESSION_STATUSES) }),
   z.object({ type: z.literal("ai-session:exited"), sessionId: z.string(), exitCode: z.number().int() }),
   z.object({ type: z.literal("ai-session:title"), sessionId: z.string(), title: z.string() }),
+  z.object({ type: z.literal("ai-session:permission-mode:ack"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
+  z.object({ type: z.literal("ai-session:permission-mode-changed"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
+  // Synced session responses + push events
+  z.object({ type: z.literal("synced-session:list:result"), sessions: z.array(SyncedSessionRecordSchema) }),
+  z.object({ type: z.literal("synced-session:sync:triggered") }),
+  z.object({ type: z.literal("synced-session:sync:complete"), claudeCount: z.number().int().nonnegative(), copilotCount: z.number().int().nonnegative() }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

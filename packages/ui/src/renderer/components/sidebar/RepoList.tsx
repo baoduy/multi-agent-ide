@@ -5,14 +5,11 @@ import { useConfigStore } from "../../store/configStore";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoItem } from "./RepoItem";
 import { DirectoryTree } from "./DirectoryTree";
-import { ScanProgress } from "./ScanProgress";
 
 export function RepoList(): React.ReactElement {
   const repos = useRepoStore((state) => state.repos);
   const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
   const pinnedPaths = useRepoStore((state) => state.pinnedPaths);
-  const isScanning = useRepoStore((state) => state.isScanning);
-  const scanProgress = useRepoStore((state) => state.scanProgress);
   const error = useRepoStore((state) => state.error);
   const initializeSubscriptions = useRepoStore((state) => state.initializeSubscriptions);
   const togglePin = useRepoStore((state) => state.togglePin);
@@ -53,10 +50,6 @@ export function RepoList(): React.ReactElement {
 
   return (
     <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {isScanning && scanProgress ? (
-        <ScanProgress scanned={scanProgress.scanned} total={scanProgress.total} currentDir={scanProgress.currentDir} />
-      ) : null}
-
       {error ? (
         <div style={{ color: "#a14a2f", padding: "6px 16px", fontSize: 12, background: "#fae8e1" }}>
           {error}

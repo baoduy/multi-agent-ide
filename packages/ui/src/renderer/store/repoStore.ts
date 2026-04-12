@@ -2,7 +2,9 @@ import { create } from "zustand";
 
 import type { Repository } from "@magenta/shared/models";
 import { ipc } from "../utils/ipc";
+import { sendOrThrow } from "../services/ipcClient";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
+import { localStore } from "../services/localStorage";
 
 type ScanProgress = {
   scanned: number;
@@ -29,26 +31,19 @@ type RepoStoreState = {
   setSearchQuery: (query: string) => void;
 };
 
-// Persist pinned repos to a simple JSON file via the daemon config,
-// but for now use an in-memory set (survives within session).
+// Persist pinned repos using the shared localStorage utility
+const pinnedStore = localStore<string[]>({
+  key: "magenta:pinned-repos",
+  fallback: [],
+  debounceMs: 300,
+});
+
 function loadPinnedPaths(): Set<string> {
-  try {
-    const stored = globalThis.localStorage?.getItem("magenta:pinned-repos");
-    if (stored) {
-      return new Set(JSON.parse(stored) as string[]);
-    }
-  } catch {
-    // Ignore — localStorage may not exist in Electron
-  }
-  return new Set();
+  return new Set(pinnedStore.get());
 }
 
 function savePinnedPaths(paths: Set<string>): void {
-  try {
-    globalThis.localStorage?.setItem("magenta:pinned-repos", JSON.stringify([...paths]));
-  } catch {
-    // Ignore
-  }
+  pinnedStore.set([...paths]);
 }
 
 export const useRepoStore = create<RepoStoreState>((set, get) => ({
@@ -79,15 +74,11 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
     return get().pinnedPaths.has(repoPath);
   },
   async fetchRepos() {
-    const response = await ipc.send({ type: "repo:list" });
-
-    if (response.type === "repo:list:result") {
+    try {
+      const response = await sendOrThrow({ type: "repo:list" });
       set({ repos: response.repos, error: null });
-      return;
-    }
-
-    if (response.type === "error") {
-      set({ error: response.message });
+    } catch (error) {
+      set({ error: error instanceof Error ? error.message : String(error) });
     }
   },
   setSearchQuery(query: string) {
@@ -95,10 +86,10 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
   },
   async triggerScan() {
     set({ isScanning: true, scanProgress: null, error: null });
-    const response = await ipc.send({ type: "repo:scan" });
-
-    if (response.type === "error") {
-      set({ isScanning: false, error: response.message });
+    try {
+      await sendOrThrow({ type: "repo:scan" });
+    } catch (error) {
+      set({ isScanning: false, error: error instanceof Error ? error.message : String(error) });
     }
   },
   initializeSubscriptions: createSubscriptionInitializer(get, set, () => {

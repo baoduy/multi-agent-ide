@@ -2,6 +2,11 @@ import { create } from "zustand";
 import { sendOrThrow, onEvent } from "../services/ipcClient";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
+/* ── Constants ── */
+
+/** Maximum output size per session (1MB). Older content is truncated. */
+const MAX_OUTPUT_SIZE = 1024 * 1024;
+
 /* ── Types ── */
 
 export type TerminalSessionStatus = "connecting" | "active" | "closed";
@@ -75,10 +80,15 @@ export const useTerminalStore = create<TerminalStoreState>((set, get) => ({
     set((state) => {
       const session = state.sessions[sessionId];
       if (!session) return state;
+      let combined = session.output + data;
+      // Truncate from the front if output exceeds max size
+      if (combined.length > MAX_OUTPUT_SIZE) {
+        combined = combined.slice(combined.length - MAX_OUTPUT_SIZE);
+      }
       return {
         sessions: {
           ...state.sessions,
-          [sessionId]: { ...session, output: session.output + data },
+          [sessionId]: { ...session, output: combined },
         },
       };
     });

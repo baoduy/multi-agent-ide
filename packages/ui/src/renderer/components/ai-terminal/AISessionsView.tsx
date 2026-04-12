@@ -2,7 +2,9 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, ArrowLeft } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
-import { AISessionListItem } from "./AISessionListItem";
+import { useSyncedSessionStore } from "../../store/syncedSessionStore";
+import { useRepoStore } from "../../store/repoStore";
+import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { NewAISessionDialog } from "../dialogs/NewAISessionDialog";
 import { MagentaTerminal } from "../common/MagentaTerminal";
 import { AIStatusBar } from "./AIStatusBar";
@@ -11,6 +13,7 @@ import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { colors } from "../../utils/colors";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
+import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
 
 type AISessionsViewProps = {
   repoPath?: string;
@@ -35,15 +38,27 @@ export function AISessionsView({
   const initializeSubscriptions = useAISessionStore((s) => s.initializeSubscriptions);
   const setActiveSession = useAISessionStore((s) => s.setActiveSession);
   const resumeSession = useAISessionStore((s) => s.resumeSession);
+  const createSession = useAISessionStore((s) => s.createSession);
   const deleteSession = useAISessionStore((s) => s.deleteSession);
+
+  // Synced sessions (scanned from ~/.claude + ~/.copilot)
+  const syncedGroups = useSyncedSessionStore((s) => s.groups);
+  const syncedIsLoading = useSyncedSessionStore((s) => s.isLoading);
+  const fetchSyncedSessions = useSyncedSessionStore((s) => s.fetchSessions);
+  const initSyncedSubscriptions = useSyncedSessionStore((s) => s.initializeSubscriptions);
+
+  // Repos from the database (for matching session dirs to repos)
+  const repos = useRepoStore((s) => s.repos);
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
   // Initialize subscriptions and fetch sessions on mount
   useEffect(() => {
     initializeSubscriptions();
+    initSyncedSubscriptions();
     void fetchSessions();
-  }, [initializeSubscriptions, fetchSessions]);
+    void fetchSyncedSessions();
+  }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions]);
 
   // Handlers with useCallback
   const handleNewSession = useCallback(() => {
@@ -82,6 +97,25 @@ export function AISessionsView({
     [deleteSession],
   );
 
+  const handleResumeSyncedSession = useCallback(
+    (syncedSession: SyncedSessionRecord) => {
+      // Create a new live session that resumes the synced session via --resume flag
+      const provider = syncedSession.provider === "claude-code" ? "claude" as const : "copilot" as const;
+      const cwd = syncedSession.cwd || syncedSession.projectDir || undefined;
+      void createSession(
+        {
+          provider,
+          repoPath: cwd,
+          branch: syncedSession.gitBranch ?? undefined,
+          args: ["--resume", syncedSession.sessionId],
+        },
+        80,
+        24,
+      );
+    },
+    [createSession],
+  );
+
   const handleBackFromTerminal = useCallback(() => {
     setActiveSession(null);
   }, [setActiveSession]);
@@ -92,10 +126,10 @@ export function AISessionsView({
     [sessions, activeSessionId],
   );
 
-  // Sort sessions by lastActiveAt descending
-  const sortedSessions = useMemo(
-    () => [...sessions].sort((a, b) => b.lastActiveAt - a.lastActiveAt),
-    [sessions],
+  // Build unified groups: merge live sessions + synced history, grouped by repo/dir
+  const unifiedGroups = useMemo(
+    () => buildUnifiedGroups(sessions, syncedGroups, repos),
+    [sessions, syncedGroups, repos],
   );
 
   // ─────────────────────────────────────────────────────────
@@ -156,7 +190,7 @@ export function AISessionsView({
           </button>
         </div>
 
-        {/* Sessions list or empty state */}
+        {/* Unified session tree grouped by repo/directory */}
         <div
           style={{
             flex: 1,
@@ -165,48 +199,53 @@ export function AISessionsView({
             flexDirection: "column",
           }}
         >
-          {sessions.length === 0 ? (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                justifyContent: "center",
-                flex: 1,
-                padding: 24,
-                textAlign: "center",
-                color: colors.textTertiary,
-              }}
-            >
-              <div style={{ fontSize: 13, marginBottom: 8 }}>
-                No AI sessions yet.
-              </div>
-              <button
-                type="button"
-                onClick={handleNewSession}
-                style={{
-                  fontSize: 12,
-                  color: colors.primary,
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  fontWeight: 500,
-                  textDecoration: "underline",
-                }}
-              >
-                Create one to get started
-              </button>
-            </div>
-          ) : (
-            sortedSessions.map((session) => (
-              <AISessionListItem
-                key={session.id}
-                session={session}
-                onSelect={handleSelectSession}
-                onResume={handleResumeSession}
-                onDelete={handleDeleteSession}
+          {unifiedGroups.length > 0 ? (
+            unifiedGroups.map((node) => (
+              <SessionGroupNodeView
+                key={node.key}
+                node={node}
+                defaultExpanded={node.activeCount > 0 || unifiedGroups.length <= 3}
+                onSelectSession={handleSelectSession}
+                onResumeSession={handleResumeSession}
+                onDeleteSession={handleDeleteSession}
+                onResumeSyncedSession={handleResumeSyncedSession}
               />
             ))
+          ) : (
+            /* Empty state — no live sessions AND no synced sessions */
+            !syncedIsLoading && (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flex: 1,
+                  padding: 24,
+                  textAlign: "center",
+                  color: colors.textTertiary,
+                }}
+              >
+                <div style={{ fontSize: 13, marginBottom: 8 }}>
+                  No AI sessions yet.
+                </div>
+                <button
+                  type="button"
+                  onClick={handleNewSession}
+                  style={{
+                    fontSize: 12,
+                    color: colors.primary,
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    fontWeight: 500,
+                    textDecoration: "underline",
+                  }}
+                >
+                  Create one to get started
+                </button>
+              </div>
+            )
           )}
         </div>
 

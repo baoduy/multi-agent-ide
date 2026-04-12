@@ -10,7 +10,7 @@ import { FormLabel, FormInput, FormError } from "../common/FormControls";
 import { SearchableRepoSelector } from "../common/SearchableRepoSelector";
 import { ProviderDot } from "../common/ProviderDot";
 import { getProviderName, getProviderColor } from "../common/providerConfig";
-import type { AIPermissionMode, AIProvider } from "@magenta/shared/aiTerminal";
+import type { AIPermissionMode, AIProvider, AISessionRecord } from "@magenta/shared/aiTerminal";
 import { PERMISSION_MODE_LABELS, PROVIDER_PERMISSION_MODES } from "@magenta/shared/aiTerminal";
 import { colors } from "../../utils/colors";
 
@@ -19,6 +19,8 @@ type NewAISessionDialogProps = {
   onClose: () => void;
   repoPath?: string;
   repoName?: string | null;
+  /** Called with the newly created session when creation succeeds. */
+  onSessionCreated?: (session: AISessionRecord) => void;
 };
 
 type SelectedProvider = AIProvider | null;
@@ -41,6 +43,7 @@ export function NewAISessionDialog({
   onClose,
   repoPath: initialRepoPath,
   repoName: initialRepoName,
+  onSessionCreated,
 }: NewAISessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
   const repos = useRepoStore((s) => s.repos);
@@ -181,7 +184,7 @@ export function NewAISessionDialog({
         branchToUse = selectedBranch;
       }
 
-      await createSession(
+      const session = await createSession(
         {
           provider: selectedProvider,
           repoPath: selectedRepoPath ?? undefined,
@@ -193,6 +196,7 @@ export function NewAISessionDialog({
         24,
       );
 
+      onSessionCreated?.(session);
       onClose();
     } catch (err) {
       setCreateError(err instanceof Error ? err.message : String(err));
@@ -207,6 +211,7 @@ export function NewAISessionDialog({
     worktreeCustomName,
     providerPrefix,
     createSession,
+    onSessionCreated,
     onClose,
   ]);
 

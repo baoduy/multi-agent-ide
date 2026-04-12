@@ -3,6 +3,8 @@ import { ChevronDown } from "lucide-react";
 import type { AISessionRecord, AIPermissionMode } from "@magenta/shared/aiTerminal";
 import { PERMISSION_MODE_LABELS, PROVIDER_PERMISSION_MODES } from "@magenta/shared/aiTerminal";
 import { ProviderBadge } from "../common/ProviderBadge";
+import { RepoLabel, BranchLabel } from "../common/RepoLabel";
+import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { getStatusColor } from "../../utils/sessionStatus";
 
@@ -94,6 +96,21 @@ export function AIStatusBar({ session }: AIStatusBarProps): React.ReactElement {
     >
       {/* Provider badge (icon + name) */}
       <ProviderBadge provider={session.provider} iconSize={12} fontSize={12} color="#6b6560" />
+
+      {/* Separator */}
+      <span style={{ color: "#d1cec6" }}>·</span>
+
+      {/* Repo / branch info */}
+      {session.repoName ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }}>
+          <RepoLabel name={session.repoName} size="xs" />
+          {(session.worktreeName || session.branch) && (
+            <BranchLabel name={session.worktreeName || session.branch || ""} size="xs" />
+          )}
+        </span>
+      ) : (
+        <WorkspaceLabel size="xs" />
+      )}
 
       {/* Separator */}
       <span style={{ color: "#d1cec6" }}>·</span>

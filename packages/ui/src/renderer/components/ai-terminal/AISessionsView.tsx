@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
@@ -8,8 +8,6 @@ import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { NewAISessionDialog } from "../dialogs/NewAISessionDialog";
 import { MagentaTerminal } from "../common/MagentaTerminal";
 import { AIStatusBar } from "./AIStatusBar";
-import { RepoLabel, BranchLabel } from "../common/RepoLabel";
-import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { colors } from "../../utils/colors";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
@@ -24,19 +22,17 @@ type AISessionsViewProps = {
  * Main view for AI terminal sessions.
  *
  * Has two states:
- * 1. Session list (activeSessionId === null) — shows list of sessions with "New Session" button
- * 2. Active terminal (activeSessionId !== null) — shows interactive terminal for the active session
+ * 1. Session list (openTabIds is empty) — shows list of sessions with "New Session" button
+ * 2. Multi-tab terminal (openTabIds is non-empty) — shows tab bar + interactive terminals,
+ *    one per open session; all terminals stay mounted, only the active one is visible.
  */
 export function AISessionsView({
   repoPath,
   repoName,
 }: AISessionsViewProps): React.ReactElement {
   const sessions = useAISessionStore((s) => s.sessions);
-  const activeSessionId = useAISessionStore((s) => s.activeSessionId);
-  const liveOutput = useAISessionStore((s) => s.liveOutput);
   const fetchSessions = useAISessionStore((s) => s.fetchSessions);
   const initializeSubscriptions = useAISessionStore((s) => s.initializeSubscriptions);
-  const setActiveSession = useAISessionStore((s) => s.setActiveSession);
   const resumeSession = useAISessionStore((s) => s.resumeSession);
   const createSession = useAISessionStore((s) => s.createSession);
   const deleteSession = useAISessionStore((s) => s.deleteSession);
@@ -52,6 +48,10 @@ export function AISessionsView({
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
+  // Multi-tab state — session IDs currently open as tabs
+  const [openTabIds, setOpenTabIds] = useState<string[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+
   // Initialize subscriptions and fetch sessions on mount
   useEffect(() => {
     initializeSubscriptions();
@@ -60,7 +60,28 @@ export function AISessionsView({
     void fetchSyncedSessions();
   }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions]);
 
-  // Handlers with useCallback
+  // ── Tab helpers ──────────────────────────────────────────────
+
+  const openSessionAsTab = useCallback((sessionId: string) => {
+    setOpenTabIds((prev) => (prev.includes(sessionId) ? prev : [...prev, sessionId]));
+    setActiveTabId(sessionId);
+  }, []);
+
+  const handleCloseTab = useCallback((sessionId: string) => {
+    setOpenTabIds((prev) => {
+      const next = prev.filter((id) => id !== sessionId);
+      setActiveTabId((current) => {
+        if (current !== sessionId) return current;
+        // Prefer the tab at the same position (next sibling), fall back to previous
+        const idx = prev.indexOf(sessionId);
+        return next[idx] ?? next[idx - 1] ?? null;
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Handlers ────────────────────────────────────────────────
+
   const handleNewSession = useCallback(() => {
     setNewSessionDialogOpen(true);
   }, []);
@@ -69,25 +90,34 @@ export function AISessionsView({
     setNewSessionDialogOpen(false);
   }, []);
 
+  const handleSessionCreated = useCallback(
+    (session: AISessionRecord) => {
+      openSessionAsTab(session.id);
+    },
+    [openSessionAsTab],
+  );
+
   const handleSelectSession = useCallback(
     (sessionId: string) => {
       const session = sessions.find((s) => s.id === sessionId);
       if (session && session.status === "idle") {
-        // Session has no live PTY — auto-resume it so the terminal isn't blank
-        void resumeSession(sessionId, 80, 24);
+        void resumeSession(sessionId, 80, 24)
+          .then((s) => openSessionAsTab(s.id))
+          .catch(console.error);
       } else {
-        setActiveSession(sessionId);
+        openSessionAsTab(sessionId);
       }
     },
-    [sessions, setActiveSession, resumeSession],
+    [sessions, resumeSession, openSessionAsTab],
   );
 
   const handleResumeSession = useCallback(
     (sessionId: string) => {
-      // Resume the session process via IPC (reconnects PTY), using default terminal dimensions
-      void resumeSession(sessionId, 80, 24);
+      void resumeSession(sessionId, 80, 24)
+        .then((s) => openSessionAsTab(s.id))
+        .catch(console.error);
     },
-    [resumeSession],
+    [resumeSession, openSessionAsTab],
   );
 
   const handleDeleteSession = useCallback(
@@ -99,7 +129,6 @@ export function AISessionsView({
 
   const handleResumeSyncedSession = useCallback(
     (syncedSession: SyncedSessionRecord) => {
-      // Create a new live session that resumes the synced session via --resume flag
       const provider = syncedSession.provider === "claude-code" ? "claude" as const : "copilot" as const;
       const cwd = syncedSession.cwd || syncedSession.projectDir || undefined;
       void createSession(
@@ -111,19 +140,9 @@ export function AISessionsView({
         },
         80,
         24,
-      );
+      ).then((s) => openSessionAsTab(s.id)).catch(console.error);
     },
-    [createSession],
-  );
-
-  const handleBackFromTerminal = useCallback(() => {
-    setActiveSession(null);
-  }, [setActiveSession]);
-
-  // Find active session
-  const activeSession = useMemo(
-    () => sessions.find((s) => s.id === activeSessionId),
-    [sessions, activeSessionId],
+    [createSession, openSessionAsTab],
   );
 
   // Build unified groups: merge live sessions + synced history, grouped by repo/dir
@@ -132,10 +151,16 @@ export function AISessionsView({
     [sessions, syncedGroups, repos],
   );
 
+  // Find active session for status bar
+  const activeSession = useMemo(
+    () => sessions.find((s) => s.id === activeTabId),
+    [sessions, activeTabId],
+  );
+
   // ─────────────────────────────────────────────────────────
-  // State A: Session list (activeSessionId === null)
+  // State A: Session list (no tabs open)
   // ─────────────────────────────────────────────────────────
-  if (!activeSession) {
+  if (openTabIds.length === 0) {
     return (
       <div
         style={{
@@ -253,6 +278,7 @@ export function AISessionsView({
         <NewAISessionDialog
           open={newSessionDialogOpen}
           onClose={handleCloseDialog}
+          onSessionCreated={handleSessionCreated}
           repoPath={repoPath}
           repoName={repoName}
         />
@@ -261,7 +287,7 @@ export function AISessionsView({
   }
 
   // ─────────────────────────────────────────────────────────
-  // State B: Active terminal (activeSessionId !== null)
+  // State B: Multi-tab terminal (openTabIds is non-empty)
   // ─────────────────────────────────────────────────────────
   return (
     <div
@@ -272,63 +298,101 @@ export function AISessionsView({
         background: "#1e1e1e",
       }}
     >
-      {/* Header with back button */}
+      {/* Tab bar */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 16px",
-          borderBottom: "1px solid #3c3c3c",
+          alignItems: "stretch",
           background: "#252526",
+          borderBottom: "1px solid #3c3c3c",
           flexShrink: 0,
+          overflowX: "auto",
+          minHeight: 36,
         }}
       >
-        <button
-          type="button"
-          onClick={handleBackFromTerminal}
-          title="Back to session list"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 24,
-            height: 24,
-            borderRadius: 4,
-            border: "none",
-            background: "transparent",
-            cursor: "pointer",
-            color: "#d4d4d4",
-            transition: "color 0.12s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#ffffff"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
-        >
-          <ArrowLeft size={16} strokeWidth={2} />
-        </button>
+        {openTabIds.map((tabId, index) => {
+          const session = sessions.find((s) => s.id === tabId);
+          const isActive = tabId === activeTabId;
+          const tabLabel = session?.title ?? session?.repoName ?? "Session";
 
-        {/* Provider badge */}
-        <ProviderBadge provider={activeSession.provider} iconSize={16} fontSize={12} color="#d4d4d4" />
+          return (
+            <div
+              key={tabId}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: isActive ? "#1e1e1e" : "transparent",
+                borderBottom: isActive ? "2px solid #c15f3c" : "2px solid transparent",
+                borderRight: index < openTabIds.length - 1 ? "1px solid #3c3c3c" : "none",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveTabId(tabId)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 10px 6px 12px",
+                  background: "transparent",
+                  border: "none",
+                  color: isActive ? "#d4d4d4" : "#9a958c",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  whiteSpace: "nowrap",
+                  transition: "color 0.12s",
+                }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "#c0bdb7"; }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "#9a958c"; }}
+              >
+                {session && (
+                  <ProviderBadge
+                    provider={session.provider}
+                    iconSize={12}
+                    fontSize={11}
+                    color={isActive ? "#d4d4d4" : "#9a958c"}
+                  />
+                )}
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: 140,
+                  }}
+                >
+                  {tabLabel}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseTab(tabId);
+                }}
+                style={{
+                  padding: "4px 8px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#9a958c",
+                  cursor: "pointer",
+                  fontSize: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  transition: "color 0.12s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#9a958c"; }}
+                title="Close tab"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
 
-        {/* Repo / branch info */}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-          {activeSession.repoName ? (
-            <>
-              <RepoLabel name={activeSession.repoName} size="sm" variant="dark" />
-              {(activeSession.worktreeName || activeSession.branch) && (
-                <BranchLabel
-                  name={activeSession.worktreeName || activeSession.branch || ""}
-                  size="sm"
-                  variant="dark"
-                />
-              )}
-            </>
-          ) : (
-            <WorkspaceLabel size="sm" variant="dark" />
-          )}
-        </span>
-
-        {/* New Session button — always accessible */}
+        {/* "+" button to create a new session */}
         <button
           type="button"
           onClick={handleNewSession}
@@ -336,64 +400,62 @@ export function AISessionsView({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 5,
-            padding: "4px 10px",
-            borderRadius: 5,
-            border: "1px solid #555",
+            justifyContent: "center",
+            width: 36,
             background: "transparent",
-            color: "#d4d4d4",
+            border: "none",
+            borderRight: "1px solid #3c3c3c",
+            color: "#9a958c",
             cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 500,
             flexShrink: 0,
-            transition: "background 0.12s, color 0.12s, border-color 0.12s",
+            transition: "color 0.12s",
           }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#3c3c3c";
-            e.currentTarget.style.color = "#ffffff";
-            e.currentTarget.style.borderColor = "#777";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#d4d4d4";
-            e.currentTarget.style.borderColor = "#555";
-          }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#9a958c"; }}
         >
-          <Plus size={12} strokeWidth={2} />
-          New Session
+          <Plus size={14} strokeWidth={2} />
         </button>
       </div>
 
-      {/* Terminal area (fills remaining space) */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          padding: 12,
-        }}
-      >
-        <MagentaTerminal
-          readonly={false}
-          cwd={activeSession.cwd}
-          mode="ai-agent"
-          aiSessionId={activeSession.id}
-          aiProvider={activeSession.provider}
-          maxHeight={undefined}
-          fontSize={12}
-          fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
-          enableTabs={false}
-        />
+      {/* Terminal panels — all mounted, only the active one is visible */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+        {openTabIds.map((tabId) => {
+          const session = sessions.find((s) => s.id === tabId);
+          if (!session) return null;
+          return (
+            <div
+              key={tabId}
+              style={{
+                display: tabId === activeTabId ? "flex" : "none",
+                flexDirection: "column",
+                height: "100%",
+                padding: 12,
+              }}
+            >
+              <MagentaTerminal
+                readonly={false}
+                cwd={session.cwd}
+                mode="ai-agent"
+                aiSessionId={session.id}
+                aiProvider={session.provider}
+                maxHeight={undefined}
+                fontSize={12}
+                fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
+                enableTabs={false}
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Status bar */}
-      <AIStatusBar session={activeSession} />
+      {/* Status bar — shows active session info */}
+      {activeSession && <AIStatusBar session={activeSession} />}
 
-      {/* New session dialog (accessible from terminal view too) */}
+      {/* New session dialog */}
       <NewAISessionDialog
         open={newSessionDialogOpen}
         onClose={handleCloseDialog}
+        onSessionCreated={handleSessionCreated}
         repoPath={repoPath}
         repoName={repoName}
       />

@@ -60,3 +60,5 @@ export interface WorkingDir {
   id: string;
   path: string;
 }
+
+export type { AISessionRecord, AISessionConfig, AIProvider, AISessionStatus, ProviderMeta, SlashCommand, CliFlag } from "./aiTerminal";

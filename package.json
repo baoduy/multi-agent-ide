@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Multi-repo multi-agent IDE for spec-driven development",
-  "author": "Steven Hoang <steven.hoang@transwap.com>",
+  "author": "Steven Hoang <drunkcoding@outlook.com>",
   "main": "packages/main/dist/index.js",
   "packageManager": "pnpm@9.0.0",
   "scripts": {

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import type { SpecFolder, PipelineStage } from "@magenta/shared/models";
+import { ScrollableText } from "../common/ScrollableText";
 
 /* ═══════════════════════════════════════════════════════
    Spec high-level state derivation
@@ -248,18 +249,15 @@ function SpecCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span
+            <ScrollableText
               style={{
                 fontSize: 14,
                 fontWeight: 600,
                 color: "#2c2c2c",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
               }}
             >
               {spec.name}
-            </span>
+            </ScrollableText>
             {spec.branch && (
               <span
                 style={{

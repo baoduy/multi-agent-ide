@@ -25,6 +25,8 @@ import { SessionManager } from "./services/SessionManager";
 import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
+import { AISessionApplicationService } from "./application/AISessionApplicationService";
+import { AISessionRepository } from "./services/AISessionRepository";
 
 // Track services for graceful shutdown
 let shutdownServices: {
@@ -32,6 +34,7 @@ let shutdownServices: {
   specSyncService?: SpecSyncService;
   databaseService?: DatabaseService;
   terminalService?: TerminalApplicationService;
+  aiSessionService?: AISessionApplicationService;
 } = {};
 let isShuttingDown = false;
 
@@ -52,7 +55,13 @@ async function gracefulShutdown(reason: string): Promise<void> {
       shutdownServices.dirWatcher.unwatchAll();
     }
 
-    // 2. Close active PTY sessions
+    // 2. Close active AI sessions
+    if (shutdownServices.aiSessionService) {
+      console.log("[daemon-worker] Closing AI terminal sessions...");
+      shutdownServices.aiSessionService.destroyAll();
+    }
+
+    // 3. Close active PTY sessions
     if (shutdownServices.terminalService) {
       console.log("[daemon-worker] Closing terminal sessions...");
       shutdownServices.terminalService.closeAll();
@@ -123,8 +132,12 @@ async function main() {
     // Terminal PTY service
     const terminalService = new TerminalApplicationService(ipcBridge);
 
+    // AI Terminal session service
+    const aiSessionRepository = new AISessionRepository(databaseService);
+    const aiSessionService = new AISessionApplicationService(ipcBridge, aiSessionRepository);
+
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, databaseService, terminalService };
+    shutdownServices = { dirWatcher, specSyncService, databaseService, terminalService, aiSessionService };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -135,6 +148,7 @@ async function main() {
       repoRepository,
       scanQueue,
       terminalService,
+      aiSessionService,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -153,6 +167,9 @@ async function main() {
       "repo:onboard:cancelled",
       "terminal:data",
       "terminal:exited",
+      "ai-session:data",
+      "ai-session:status",
+      "ai-session:exited",
     ];
 
     for (const eventType of pushEventTypes) {

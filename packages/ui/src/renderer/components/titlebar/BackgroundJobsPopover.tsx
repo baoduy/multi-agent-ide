@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { ipc } from "../../utils/ipc";
+import { ScrollableText } from "../common/ScrollableText";
 import { useOnboardStore } from "../../store/onboardStore";
 import type { OnboardProcess } from "../../store/onboardStore";
 
@@ -241,31 +242,25 @@ function OnboardJobRow({
 
       {/* Job info */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div
+        <ScrollableText
           style={{
             fontSize: 12,
             color: "#2c2c2c",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
           }}
         >
           {label}
-        </div>
+        </ScrollableText>
         {process.phase === "done" && !process.success && process.error && (
-          <div
+          <ScrollableText
             style={{
               fontSize: 11,
               color: "#c44",
               marginTop: 2,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
             title={process.error}
           >
             {process.error}
-          </div>
+          </ScrollableText>
         )}
       </div>
 
@@ -463,31 +458,25 @@ export function BackgroundJobsPopover({
 
                 {/* Job info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
+                  <ScrollableText
                     style={{
                       fontSize: 12,
                       color: "#2c2c2c",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
                     }}
                   >
                     {job.name}
-                  </div>
+                  </ScrollableText>
                   {job.error && (
-                    <div
+                    <ScrollableText
                       style={{
                         fontSize: 11,
                         color: "#c44",
                         marginTop: 2,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
                       }}
                       title={job.error}
                     >
                       {job.error}
-                    </div>
+                    </ScrollableText>
                   )}
                 </div>
 

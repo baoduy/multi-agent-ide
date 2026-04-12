@@ -5,6 +5,7 @@ import { markedHighlight } from "marked-highlight";
 import hljs from "highlight.js";
 
 import { ipc } from "../../utils/ipc";
+import { ScrollableText } from "../common/ScrollableText";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 import { useWorktreeStore } from "../../store/worktreeStore";
 
@@ -347,8 +348,6 @@ function TableOfContents({
               fontFamily: "inherit",
               transition: "color 0.12s",
               overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
             title={h.text}
             onMouseEnter={(e) => {
@@ -358,7 +357,7 @@ function TableOfContents({
               if (!isActive) e.currentTarget.style.color = "#6b6560";
             }}
           >
-            {h.text}
+            <ScrollableText>{h.text}</ScrollableText>
           </button>
         );
       })}

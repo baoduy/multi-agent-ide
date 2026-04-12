@@ -1,6 +1,8 @@
 import React from "react";
 
 import type { SpecFolder } from "@magenta/shared/models";
+import { ProviderDot } from "../common/ProviderDot";
+import { getProviderColor, IDLE_COLOR } from "../common/providerConfig";
 
 /* ── Shared sub-components ── */
 
@@ -23,24 +25,6 @@ function Badge({ label, bg, color }: { label: string; bg: string; color: string 
   );
 }
 
-function AgentDot({ variant }: { variant: "claude" | "copilot" | "idle" }): React.ReactElement {
-  const colors: Record<string, string> = {
-    claude: "#C15F3C",
-    copilot: "#3d7a2a",
-    idle: "#d1cec6",
-  };
-  return (
-    <span
-      style={{
-        width: 8,
-        height: 8,
-        borderRadius: "50%",
-        display: "inline-block",
-        background: colors[variant] ?? colors.idle,
-      }}
-    />
-  );
-}
 
 function ProgressBar({ percent, color }: { percent: number; color: string }): React.ReactElement {
   return (
@@ -90,7 +74,7 @@ function Card({ card }: { card: TaskCard }): React.ReactElement {
       </div>
       <div style={{ fontSize: 12, color: "#6b6560", lineHeight: 1.5 }}>{card.subtitle}</div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-        <AgentDot variant={card.agent ?? "idle"} />
+        <ProviderDot variant={card.agent ?? "idle"} />
         {card.badge ? (
           <Badge label={card.badge.label} bg={card.badge.bg} color={card.badge.color} />
         ) : (
@@ -98,7 +82,10 @@ function Card({ card }: { card: TaskCard }): React.ReactElement {
         )}
       </div>
       {card.progress != null && (
-        <ProgressBar percent={card.progress} color={card.agent === "copilot" ? "#3d7a2a" : "#C15F3C"} />
+        <ProgressBar
+          percent={card.progress}
+          color={card.agent && card.agent !== "idle" ? getProviderColor(card.agent) : IDLE_COLOR}
+        />
       )}
     </div>
   );

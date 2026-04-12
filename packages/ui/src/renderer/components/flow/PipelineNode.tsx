@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import { Handle, Position } from "reactflow";
 import { CheckCircle, FileText } from "lucide-react";
 
+import { ScrollableText } from "../common/ScrollableText";
 import { calculateCompletionPercent, getStageColor } from "./diagramUtils";
 
 export interface PipelineNodeData {
@@ -128,9 +129,9 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
           }}
         >
           <FileText size={10} strokeWidth={1.8} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <ScrollableText>
             {data.filePath?.split("/").pop() ?? ""}
-          </span>
+          </ScrollableText>
         </div>
       )}
 

@@ -6,6 +6,32 @@ const DEFAULT_SHELL =
   process.platform === "win32" ? "cmd.exe" : (process.env.SHELL ?? "/bin/bash");
 
 /**
+ * Build a clean environment for user-facing PTY sessions.
+ * Electron and npm inject variables (npm_config_prefix, npm_lifecycle_*,
+ * npm_package_*, ELECTRON_*) that conflict with tools like nvm and pollute
+ * the user's shell. Strip them out so the terminal behaves like a native one.
+ */
+function buildPtyEnv(): Record<string, string> {
+  const clean: Record<string, string> = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value === undefined) continue;
+    // Strip npm/Electron-injected vars that don't belong in a user shell
+    if (
+      key.startsWith("npm_") ||
+      key.startsWith("ELECTRON_") ||
+      key === "NODE_ENV"
+    ) {
+      continue;
+    }
+    clean[key] = value;
+  }
+  // Ensure terminal capabilities are set correctly
+  clean.COLORTERM = "truecolor";
+  clean.TERM = "xterm-256color";
+  return clean;
+}
+
+/**
  * TerminalApplicationService manages live PTY sessions spawned via node-pty.
  * Each session is identified by a ULID sessionId generated at spawn time.
  * Raw PTY output (with ANSI codes intact) is forwarded to the UI via bridge events.
@@ -24,11 +50,7 @@ export class TerminalApplicationService {
       cwd,
       cols,
       rows,
-      env: {
-        ...process.env,
-        COLORTERM: "truecolor", // Enable 24-bit true color support
-        TERM: "xterm-256color",
-      } as Record<string, string>,
+      env: buildPtyEnv(),
     });
 
     pty.onData((raw) => {

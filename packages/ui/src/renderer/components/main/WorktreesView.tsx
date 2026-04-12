@@ -3,6 +3,8 @@ import { GitBranch, FolderOpen, Clock, ChevronRight, ChevronDown } from "lucide-
 
 import { useWorktreeStore, type WorktreeInfo } from "../../store/worktreeStore";
 import { useRepoStore } from "../../store/repoStore";
+import { ScrollableText } from "../common/ScrollableText";
+import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
 
 type WorktreesViewProps = {
@@ -76,18 +78,15 @@ const WorktreeCard = React.memo(function WorktreeCard({
 
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
+          <ScrollableText
             style={{
               fontSize: 13,
               fontWeight: 600,
               color: "#2c2c2c",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
             {wt.name}
-          </div>
+          </ScrollableText>
           <div
             style={{
               display: "flex",
@@ -98,16 +97,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
               color: "#9a958c",
             }}
           >
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3,
-              }}
-            >
-              <GitBranch size={10} strokeWidth={1.5} />
-              {wt.branch}
-            </span>
+            <BranchLabel name={wt.branch} size="xs" style={{ color: "#9a958c" }} />
             <span
               style={{
                 display: "inline-flex",
@@ -131,15 +121,14 @@ const WorktreeCard = React.memo(function WorktreeCard({
             color: "#9a958c",
             fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
             maxWidth: 200,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
             flexShrink: 0,
+            minWidth: 0,
           }}
-          title={wt.worktreePath}
         >
-          <FolderOpen size={10} strokeWidth={1.5} />
-          {wt.worktreePath.split("/").slice(-2).join("/")}
+          <FolderOpen size={10} strokeWidth={1.5} style={{ flexShrink: 0 }} />
+          <ScrollableText title={wt.worktreePath}>
+            {wt.worktreePath.split("/").slice(-2).join("/")}
+          </ScrollableText>
         </div>
 
         {/* Expand/collapse indicator */}
@@ -234,15 +223,11 @@ const RepoGroup = React.memo(function RepoGroup({
             transition: "transform 0.15s",
           }}
         />
-        <span
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: isActive ? "#C15F3C" : "#6b6560",
-          }}
-        >
-          {repoName}
-        </span>
+        <RepoLabel
+          name={repoName}
+          size="sm"
+          style={{ color: isActive ? "#C15F3C" : "#6b6560" }}
+        />
         {isActive && (
           <span
             style={{

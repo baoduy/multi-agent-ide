@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAIN_TABS, PIPELINE_STAGES, REPO_STATUSES, STAGE_STATUSES } from "./constants";
 import { MagentaConfigSchema } from "./config";
+import { AI_PROVIDERS, AI_SESSION_STATUSES, AISessionRecordSchema } from "./aiTerminal";
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -87,6 +88,14 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("terminal:input"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("terminal:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("terminal:close"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), args: z.array(z.string()).optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({ type: z.literal("ai-session:resume"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({ type: z.literal("ai-session:input"), sessionId: z.string(), data: z.string() }),
+  z.object({ type: z.literal("ai-session:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({ type: z.literal("ai-session:stop"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai-session:list") }),
+  z.object({ type: z.literal("ai-session:delete"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai-session:providers") }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -177,6 +186,18 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("terminal:close:ack") }),
   z.object({ type: z.literal("terminal:data"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("terminal:exited"), sessionId: z.string(), exitCode: z.number().int() }),
+  z.object({ type: z.literal("ai-session:created"), session: AISessionRecordSchema }),
+  z.object({ type: z.literal("ai-session:resumed"), session: AISessionRecordSchema }),
+  z.object({ type: z.literal("ai-session:input:ack") }),
+  z.object({ type: z.literal("ai-session:resize:ack") }),
+  z.object({ type: z.literal("ai-session:stop:ack") }),
+  z.object({ type: z.literal("ai-session:list:result"), sessions: z.array(AISessionRecordSchema) }),
+  z.object({ type: z.literal("ai-session:deleted"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai-session:providers:result"), providers: z.record(z.enum(AI_PROVIDERS), z.any()) }),
+  z.object({ type: z.literal("ai-session:data"), sessionId: z.string(), data: z.string() }),
+  z.object({ type: z.literal("ai-session:status"), sessionId: z.string(), status: z.enum(AI_SESSION_STATUSES) }),
+  z.object({ type: z.literal("ai-session:exited"), sessionId: z.string(), exitCode: z.number().int() }),
+  z.object({ type: z.literal("ai-session:title"), sessionId: z.string(), title: z.string() }),
   z.object({ type: z.literal("error"), message: z.string() }),
 ]);
 

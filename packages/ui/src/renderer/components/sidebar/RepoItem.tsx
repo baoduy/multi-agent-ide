@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { Star, FolderOpen, Clipboard, GitBranch, Rocket, ArrowUpCircle, RefreshCw, GitFork } from "lucide-react";
+import { Star, FolderOpen, FolderGit2, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
+import { ScrollableText } from "../common/ScrollableText";
+import { BranchLabel } from "../common/RepoLabel";
 import { openInFileManager } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
@@ -155,24 +157,21 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             flexShrink: 0,
           }}
         >
-          <GitBranch size={14} color="#C15F3C" strokeWidth={1.8} />
+          <FolderGit2 size={14} color="#C15F3C" strokeWidth={1.8} />
         </span>
 
         {/* Name + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div
+          <ScrollableText
             style={{
               fontWeight: 600,
               fontSize: 12,
               color: "#2c2c2c",
               lineHeight: 1.4,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
             {repo.name}
-          </div>
+          </ScrollableText>
           <div
             style={{
               fontSize: 10,
@@ -199,23 +198,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             </span>
 
             {/* Current branch — read-only tag */}
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3,
-                padding: "1px 6px",
-                borderRadius: 8,
-                fontSize: 9,
-                fontWeight: 600,
-                background: "#dcfce7",
-                color: "#166534",
-                border: "1px solid #bbf7d0",
-              }}
-            >
-              <GitBranch size={9} strokeWidth={2} />
-              {repo.branch}
-            </span>
+            <BranchLabel name={repo.branch} size="xs" badge />
           </div>
         </div>
       </button>

@@ -46,6 +46,14 @@ type ResponseForRequest = {
   "terminal:input": Extract<IpcResponse, { type: "terminal:input:ack" }>;
   "terminal:resize": Extract<IpcResponse, { type: "terminal:resize:ack" }>;
   "terminal:close": Extract<IpcResponse, { type: "terminal:close:ack" }>;
+  "ai-session:create": Extract<IpcResponse, { type: "ai-session:created" }>;
+  "ai-session:resume": Extract<IpcResponse, { type: "ai-session:resumed" }>;
+  "ai-session:input": Extract<IpcResponse, { type: "ai-session:input:ack" }>;
+  "ai-session:resize": Extract<IpcResponse, { type: "ai-session:resize:ack" }>;
+  "ai-session:stop": Extract<IpcResponse, { type: "ai-session:stop:ack" }>;
+  "ai-session:list": Extract<IpcResponse, { type: "ai-session:list:result" }>;
+  "ai-session:delete": Extract<IpcResponse, { type: "ai-session:deleted" }>;
+  "ai-session:providers": Extract<IpcResponse, { type: "ai-session:providers:result" }>;
 };
 
 /**

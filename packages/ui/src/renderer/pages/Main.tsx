@@ -18,6 +18,7 @@ import { useConfigStore } from "../store/configStore";
 import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
+import { AISessionsView } from "../components/ai-terminal/AISessionsView";
 
 import type { ActiveTab, BuiltinTabId, OpenFileTab } from "../components/main/TabBar";
 
@@ -396,6 +397,13 @@ export function MainPage(): React.ReactElement {
             repoPath={activeRepoPath ?? undefined}
             onOpenFile={handleOpenFile}
             onSpecChanged={handleSpecChanged}
+          />
+        );
+      case "ai":
+        return (
+          <AISessionsView
+            repoPath={activeRepoPath ?? undefined}
+            repoName={repoName}
           />
         );
       default:

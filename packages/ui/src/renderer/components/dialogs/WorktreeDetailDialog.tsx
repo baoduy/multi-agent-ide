@@ -17,8 +17,10 @@ import {
 import { colors } from "../../utils/colors";
 import type { WorktreeInfo, WorktreeFileStatus } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { BranchLabel } from "../common/RepoLabel";
 import { sendOrThrow } from "../../services/ipcClient";
 import { BaseDialog } from "../common/BaseDialog";
+import { ScrollableText } from "../common/ScrollableText";
 
 /* ── Status badge for a single file ── */
 
@@ -134,10 +136,7 @@ export function WorktreeDetailDialog({
           color: colors.textSecondary,
         }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <GitBranch size={12} strokeWidth={1.5} color={colors.primary} />
-          {worktree.branch}
-        </span>
+        <BranchLabel name={worktree.branch} size="sm" />
         <span style={{ color: colors.textTertiary }}>Created {createdDate}</span>
         {status && (
           <span style={{ color: colors.textTertiary }}>
@@ -202,21 +201,18 @@ export function WorktreeDetailDialog({
                   border: `1px solid ${colors.borderLight}`,
                 }}
               >
-                <span
+                <ScrollableText
                   style={{
                     fontSize: 12,
                     color: colors.text,
                     fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     flex: 1,
                     minWidth: 0,
                   }}
                   title={file.path}
                 >
                   {file.path}
-                </span>
+                </ScrollableText>
                 <div style={{ flexShrink: 0, marginLeft: 12 }}>
                   <FileStatusBadge status={file.status} />
                 </div>

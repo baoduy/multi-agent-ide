@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { FileIconBadge, FolderIconBadge, ExtensionBadge } from "./fileIcons";
+import { ScrollableText } from "./ScrollableText";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import type { ContextMenuAction, ContextMenuPosition } from "./ContextMenu";
 
@@ -223,20 +224,17 @@ function FolderNode({
         {renderItemContent ? (
           renderItemContent(entry, depth)
         ) : (
-          <span
+          <ScrollableText
             style={{
               fontSize: 11,
               fontWeight: expanded ? 600 : 500,
               color: folderColor,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
               flex: 1,
               transition: "font-weight 0.1s",
             }}
           >
             {entry.name}
-          </span>
+          </ScrollableText>
         )}
 
         {/* Count badge */}
@@ -351,19 +349,16 @@ function FileNode({
         {renderItemContent ? (
           renderItemContent(entry, depth)
         ) : (
-          <span
+          <ScrollableText
             style={{
               fontSize: 11,
               fontWeight: 500,
               color: "#2c2c2c",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
               flex: 1,
             }}
           >
             {entry.name}
-          </span>
+          </ScrollableText>
         )}
 
         {/* Extension badge */}

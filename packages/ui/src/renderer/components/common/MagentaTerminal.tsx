@@ -6,6 +6,7 @@ import xtermCss from "@xterm/xterm/css/xterm.css";
 import stripAnsi from "strip-ansi";
 import { TERMINAL_THEMES } from "../../utils/terminalThemes";
 import { useTerminalStore } from "../../store/terminalStore";
+import { useAISessionStore } from "../../store/aiSessionStore";
 
 export type MagentaTerminalStatus = "idle" | "running" | "done" | "canceled" | "error";
 
@@ -30,6 +31,12 @@ export interface MagentaTerminalProps {
   onAllTabsClosed?: () => void;
   /** Ref for imperative handle */
   ref?: React.Ref<MagentaTerminalHandle>;
+  /** Terminal mode: "shell" (default) or "ai-agent" */
+  mode?: "shell" | "ai-agent";
+  /** Session ID for ai-agent mode (required when mode="ai-agent") */
+  aiSessionId?: string;
+  /** Provider for ai-agent mode (required when mode="ai-agent") */
+  aiProvider?: "claude" | "copilot";
 }
 
 // ── Dark theme (always) ──────────────────────────────────────────────────────
@@ -188,7 +195,7 @@ interface TabState {
 
 const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(function MagentaTerminalInteractive({
   cwd,
-  maxHeight = 300,
+  maxHeight,
   fontSize = 9,
   fontFamily = "'SF Mono', 'Fira Code', ui-monospace, monospace",
   enableTabs = true,
@@ -511,7 +518,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
   }, [activeTab]);
 
   return (
-    <div ref={frameRef} style={{ position: "relative" }}>
+    <div ref={frameRef} style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, height: "100%", minHeight: 0 }}>
       {/* Tab bar (if enabled and tabs exist) */}
       {enableTabs && tabIds.length > 0 && (
         <div
@@ -645,9 +652,10 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
           background: "#1e1e1e",
           padding: 12,
           borderRadius: 8,
-          maxHeight,
+          ...(maxHeight != null ? { maxHeight } : {}),
           overflow: "hidden",
           minHeight: 120,
+          flex: 1,
           margin: 0,
         }}
       />
@@ -718,12 +726,186 @@ const menuButtonStyle: React.CSSProperties = {
   cursor: "pointer",
 };
 
+// ── AI Agent Terminal ────────────────────────────────────────────────────────
+
+function MagentaTerminalAIAgent({
+  aiSessionId,
+  aiProvider,
+  maxHeight,
+  fontSize = 9,
+  fontFamily = "'SF Mono', 'Fira Code', ui-monospace, monospace",
+}: {
+  aiSessionId: string;
+  aiProvider: string;
+  maxHeight?: number;
+  fontSize?: number;
+  fontFamily?: string;
+}): React.ReactElement {
+  const sendInput = useAISessionStore((s) => s.sendInput);
+  const resizeSession = useAISessionStore((s) => s.resize);
+  const liveOutput = useAISessionStore((s) => s.liveOutput);
+  const sessions = useAISessionStore((s) => s.sessions);
+  const initSubs = useAISessionStore((s) => s.initializeSubscriptions);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const xtermRef = useRef<XTerm | null>(null);
+  const fitAddonRef = useRef<FitAddon | null>(null);
+  const lastOutputLengthRef = useRef(0);
+  const sessionClosedRef = useRef(false);
+
+  // Initialize subscriptions
+  useEffect(() => {
+    initSubs();
+  }, [initSubs]);
+
+  // Mount xterm
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    ensureXtermStyles();
+
+    const xterm = new XTerm({
+      convertEol: true,
+      cursorBlink: true,
+      fontFamily,
+      fontSize,
+      lineHeight: 1.45,
+      theme: THEME,
+    });
+    const fitAddon = new FitAddon();
+    xterm.loadAddon(fitAddon);
+    xterm.open(containerRef.current);
+    fitAddon.fit();
+
+    xtermRef.current = xterm;
+    fitAddonRef.current = fitAddon;
+
+    // Keyboard shortcut handler
+    xterm.attachCustomKeyEventHandler((event) => {
+      if (event.type !== "keydown") return true;
+
+      const isMac = navigator.platform.toUpperCase().includes("MAC");
+      const mod = isMac ? event.metaKey : event.ctrlKey;
+
+      // Cmd/Ctrl + K: clear
+      if (mod && !event.shiftKey && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        xterm.clear();
+        return false;
+      }
+
+      // Cmd + C (macOS): copy when selection exists
+      if (isMac && event.metaKey && !event.shiftKey && event.key.toLowerCase() === "c") {
+        if (xterm.hasSelection()) {
+          event.preventDefault();
+          void navigator.clipboard.writeText(xterm.getSelection());
+          return false;
+        }
+        return true;
+      }
+
+      // Cmd + V / Ctrl+Shift+V: paste
+      if (
+        (isMac && event.metaKey && event.key.toLowerCase() === "v") ||
+        (!isMac && event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "v")
+      ) {
+        event.preventDefault();
+        void navigator.clipboard.readText().then((text) => {
+          if (text) void sendInput(aiSessionId, text);
+        });
+        return false;
+      }
+
+      return true;
+    });
+
+    // Forward keyboard input
+    const dataDisposable = xterm.onData((data) => {
+      void sendInput(aiSessionId, data);
+    });
+
+    return () => {
+      dataDisposable.dispose();
+      xterm.dispose();
+      xtermRef.current = null;
+      fitAddonRef.current = null;
+      lastOutputLengthRef.current = 0;
+      sessionClosedRef.current = false;
+    };
+  }, [aiSessionId, fontSize, fontFamily, sendInput]);
+
+  // Resize observer
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      fitAddonRef.current?.fit();
+      const xterm = xtermRef.current;
+      if (xterm && xterm.cols > 0 && xterm.rows > 0) {
+        void resizeSession(aiSessionId, xterm.cols, xterm.rows);
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [aiSessionId, resizeSession]);
+
+  // Stream output → xterm
+  useEffect(() => {
+    const xterm = xtermRef.current;
+    if (!xterm) return;
+
+    const output = liveOutput[aiSessionId] ?? "";
+    const prev = lastOutputLengthRef.current;
+    const chunk = output.length >= prev ? output.slice(prev) : output;
+    if (chunk) {
+      xterm.write(chunk);
+    }
+    lastOutputLengthRef.current = output.length;
+
+    // Check if session is exited
+    const sessionRecord = sessions.find((s) => s.id === aiSessionId);
+    if (sessionRecord?.status === "exited" && !sessionClosedRef.current) {
+      xterm.write("\r\n[Session ended]\r\n");
+      sessionClosedRef.current = true;
+    }
+  }, [liveOutput, sessions, aiSessionId]);
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        width: "100%",
+        height: "100%",
+        ...(maxHeight != null ? { maxHeight } : {}),
+        overflow: "hidden",
+        background: THEME.background,
+        borderRadius: 8,
+        padding: 12,
+        flex: 1,
+        minHeight: 0,
+      }}
+    />
+  );
+}
+
 // ── Public dispatcher ────────────────────────────────────────────────────────
 
 export const MagentaTerminal = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(
   function MagentaTerminal(props, ref): React.ReactElement {
     if (props.readonly) {
       return <MagentaTerminalReadonly {...props} />;
+    }
+    if (props.mode === "ai-agent" && props.aiSessionId && props.aiProvider) {
+      return (
+        <MagentaTerminalAIAgent
+          aiSessionId={props.aiSessionId}
+          aiProvider={props.aiProvider}
+          maxHeight={props.maxHeight}
+          fontSize={props.fontSize}
+          fontFamily={props.fontFamily}
+        />
+      );
     }
     return <MagentaTerminalInteractive {...props} ref={ref} />;
   },

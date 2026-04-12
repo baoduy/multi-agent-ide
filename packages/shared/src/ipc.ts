@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MAIN_TABS, PIPELINE_STAGES, REPO_STATUSES, STAGE_STATUSES } from "./constants";
 import { MagentaConfigSchema } from "./config";
-import { AI_PROVIDERS, AI_SESSION_STATUSES, AISessionRecordSchema } from "./aiTerminal";
+import { AI_PROVIDERS, AI_SESSION_STATUSES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -193,7 +193,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:stop:ack") }),
   z.object({ type: z.literal("ai-session:list:result"), sessions: z.array(AISessionRecordSchema) }),
   z.object({ type: z.literal("ai-session:deleted"), sessionId: z.string() }),
-  z.object({ type: z.literal("ai-session:providers:result"), providers: z.record(z.enum(AI_PROVIDERS), z.any()) }),
+  z.object({ type: z.literal("ai-session:providers:result"), providers: z.record(z.enum(AI_PROVIDERS), ProviderMetaSchema) }),
   z.object({ type: z.literal("ai-session:data"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("ai-session:status"), sessionId: z.string(), status: z.enum(AI_SESSION_STATUSES) }),
   z.object({ type: z.literal("ai-session:exited"), sessionId: z.string(), exitCode: z.number().int() }),

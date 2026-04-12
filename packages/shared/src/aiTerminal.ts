@@ -39,9 +39,7 @@ export interface AISessionConfig {
   env?: Record<string, string>;
 }
 
-export type SlashCommandCategory =
-  | "session" | "context" | "model" | "permissions"
-  | "mcp" | "agents" | "output" | "git" | "navigation" | "info";
+export type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];
 
 export const SlashCommandSchema = z.object({
   command: z.string(),

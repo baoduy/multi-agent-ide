@@ -72,8 +72,9 @@ export function AISessionsView({
       const next = prev.filter((id) => id !== sessionId);
       setActiveTabId((current) => {
         if (current !== sessionId) return current;
+        // Prefer the tab at the same position (next sibling), fall back to previous
         const idx = prev.indexOf(sessionId);
-        return next[Math.max(0, idx - 1)] ?? null;
+        return next[idx] ?? next[idx - 1] ?? null;
       });
       return next;
     });
@@ -100,7 +101,9 @@ export function AISessionsView({
     (sessionId: string) => {
       const session = sessions.find((s) => s.id === sessionId);
       if (session && session.status === "idle") {
-        void resumeSession(sessionId, 80, 24).then((s) => openSessionAsTab(s.id));
+        void resumeSession(sessionId, 80, 24)
+          .then((s) => openSessionAsTab(s.id))
+          .catch(console.error);
       } else {
         openSessionAsTab(sessionId);
       }
@@ -110,7 +113,9 @@ export function AISessionsView({
 
   const handleResumeSession = useCallback(
     (sessionId: string) => {
-      void resumeSession(sessionId, 80, 24).then((s) => openSessionAsTab(s.id));
+      void resumeSession(sessionId, 80, 24)
+        .then((s) => openSessionAsTab(s.id))
+        .catch(console.error);
     },
     [resumeSession, openSessionAsTab],
   );
@@ -135,7 +140,7 @@ export function AISessionsView({
         },
         80,
         24,
-      ).then((s) => openSessionAsTab(s.id));
+      ).then((s) => openSessionAsTab(s.id)).catch(console.error);
     },
     [createSession, openSessionAsTab],
   );
@@ -336,7 +341,6 @@ export function AISessionsView({
                   cursor: "pointer",
                   fontSize: 12,
                   whiteSpace: "nowrap",
-                  maxWidth: 200,
                   transition: "color 0.12s",
                 }}
                 onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "#c0bdb7"; }}
@@ -354,7 +358,7 @@ export function AISessionsView({
                   style={{
                     overflow: "hidden",
                     textOverflow: "ellipsis",
-                    maxWidth: 120,
+                    maxWidth: 140,
                   }}
                 >
                   {tabLabel}

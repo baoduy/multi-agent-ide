@@ -1,5 +1,7 @@
 import { execSync } from "child_process";
 
+import { safeExecSync, parseGitLines } from "./utils/safeExecSync";
+
 /**
  * SpecGitGateway wraps git commands for spec access.
  * Provides methods to read specs from non-current branches without checking them out.
@@ -10,108 +12,55 @@ export class SpecGitGateway {
    * Falls back to global config, then to empty strings.
    */
   getGitUser(repoPath: string): { name: string; email: string } {
-    let name = "";
-    let email = "";
-    try {
-      name = execSync("git config user.name", {
-        cwd: repoPath,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
-    } catch {
-      // no user.name configured
-    }
-    try {
-      email = execSync("git config user.email", {
-        cwd: repoPath,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
-    } catch {
-      // no user.email configured
-    }
-    return { name, email };
+    return {
+      name: safeExecSync("git config user.name", repoPath, ""),
+      email: safeExecSync("git config user.email", repoPath, ""),
+    };
   }
 
   /**
    * Get the current branch name.
    */
   getCurrentBranch(repoPath: string): string {
-    try {
-      return execSync("git rev-parse --abbrev-ref HEAD", {
-        cwd: repoPath,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
-    } catch {
-      return "unknown";
-    }
+    return safeExecSync("git rev-parse --abbrev-ref HEAD", repoPath, "unknown");
   }
 
   /**
    * List all local branches.
    */
   listLocalBranches(repoPath: string): string[] {
-    try {
-      const output = execSync("git branch --format='%(refname:short)'", {
-        cwd: repoPath,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      return output
-        .split("\n")
-        .map((b) => b.trim().replace(/^'|'$/g, ""))
-        .filter(Boolean);
-    } catch {
-      return [];
-    }
+    return safeExecSync(
+      "git branch --format='%(refname:short)'",
+      repoPath,
+      [] as string[],
+      parseGitLines,
+    );
   }
 
   /**
    * Lists spec directory names under `specs/` on the given branch via `git ls-tree`.
    */
   gitListSpecDirs(repoPath: string, branch: string): string[] {
-    try {
-      const output = execSync(
-        `git ls-tree --name-only "${branch}" -- specs/`,
-        {
-          cwd: repoPath,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      // git ls-tree returns "specs/001-foo", "specs/002-bar" etc.
-      return output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.replace(/^specs\//, ""));
-    } catch {
-      return [];
-    }
+    return safeExecSync(
+      `git ls-tree --name-only "${branch}" -- specs/`,
+      repoPath,
+      [] as string[],
+      (output) =>
+        parseGitLines(output).map((line) => line.replace(/^specs\//, "")),
+    );
   }
 
   /**
    * Lists files inside a spec directory on the given branch via `git ls-tree`.
    */
   gitListSpecFiles(repoPath: string, branch: string, specName: string): string[] {
-    try {
-      const output = execSync(
-        `git ls-tree --name-only "${branch}" -- "specs/${specName}/"`,
-        {
-          cwd: repoPath,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      return output
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.replace(`specs/${specName}/`, ""));
-    } catch {
-      return [];
-    }
+    return safeExecSync(
+      `git ls-tree --name-only "${branch}" -- "specs/${specName}/"`,
+      repoPath,
+      [] as string[],
+      (output) =>
+        parseGitLines(output).map((line) => line.replace(`specs/${specName}/`, "")),
+    );
   }
 
   /**
@@ -134,20 +83,15 @@ export class SpecGitGateway {
    * Returns 0 if the path has no commits or an error occurs.
    */
   getLatestCommitTimestamp(repoPath: string, branch: string, relativePath: string): number {
-    try {
-      const output = execSync(
-        `git log -1 --format=%ct "${branch}" -- "${relativePath}"`,
-        {
-          cwd: repoPath,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        },
-      );
-      const ts = parseInt(output.trim(), 10);
-      return Number.isFinite(ts) ? ts : 0;
-    } catch {
-      return 0;
-    }
+    return safeExecSync(
+      `git log -1 --format=%ct "${branch}" -- "${relativePath}"`,
+      repoPath,
+      0,
+      (output) => {
+        const ts = parseInt(output, 10);
+        return Number.isFinite(ts) ? ts : 0;
+      },
+    );
   }
 
   /**

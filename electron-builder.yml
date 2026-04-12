@@ -55,6 +55,7 @@ asarUnpack:
   # Native modules and binaries that need to run outside the archive
   - "**/*.node"
   - "**/sql.js/**"
+  - "**/node_modules/node-pty/**"
 
 # ── Compression ──────────────────────────────────────────────────────────────
 compression: normal

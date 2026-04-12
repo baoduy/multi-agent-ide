@@ -1,8 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Rocket, X, Check, ChevronDown, Terminal, Minimize2, GitBranch, GitFork, Square } from "lucide-react";
+import { Rocket, Check, ChevronDown, Minimize2, GitBranch, GitFork, Square } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
+import { MagentaTerminal } from "../common/MagentaTerminal";
+import { BaseDialog } from "../common/BaseDialog";
+import { CancelButton, PrimaryButton, DangerButton, SecondaryButton } from "../common/DialogButtons";
+import { FormLabel } from "../common/FormControls";
 
 /**
  * Available AI agents for Specify onboarding.
@@ -52,20 +57,9 @@ export function OnboardDialog({
   const [selectedAgent, setSelectedAgent] = useState("claude");
   const [useWorktree, setUseWorktree] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const terminalRef = useRef<HTMLPreElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Initialize subscriptions on mount
-  useEffect(() => {
-    initSubs();
-  }, [initSubs]);
-
-  // Auto-scroll terminal to bottom
-  useEffect(() => {
-    if (terminalRef.current) {
-      terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
-    }
-  }, [output]);
+  useEffect(() => { initSubs(); }, [initSubs]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -113,531 +107,268 @@ export function OnboardDialog({
     onClose();
   }, [phase, repoPath, dismiss, onClose]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        if (phase === "running") {
-          handleMinimize();
-        } else {
-          handleClose();
-        }
-      }
-    },
-    [phase, handleMinimize, handleClose],
-  );
-
   const selectedLabel = AI_AGENTS.find((a) => a.id === selectedAgent)?.label ?? selectedAgent;
 
-  return (
+  const footer = (
     <>
-      {/* Backdrop */}
-      <div
-        onClick={phase === "running" ? handleMinimize : handleClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.35)",
-          zIndex: 9998,
-        }}
-      />
+      {phase === "select" && (
+        <>
+          <CancelButton onClick={handleClose} />
+          <PrimaryButton onClick={handleStart}>Start Onboarding</PrimaryButton>
+        </>
+      )}
+      {phase === "running" && (
+        <>
+          <DangerButton onClick={handleCancel} icon={<Square size={10} strokeWidth={2.5} fill={colors.errorDark} />}>
+            Cancel
+          </DangerButton>
+          <SecondaryButton onClick={handleMinimize} icon={<Minimize2 size={12} strokeWidth={2} />}>
+            Run in Background
+          </SecondaryButton>
+        </>
+      )}
+      {phase === "done" && (
+        <PrimaryButton onClick={handleClose} color={success ? colors.success : colors.primary}>
+          {success ? "Done" : "Close"}
+        </PrimaryButton>
+      )}
+    </>
+  );
 
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-label="Onboard to Specify"
-        onKeyDown={handleKeyDown}
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow:
-            "0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08)",
-          width: 520,
-          maxWidth: "90vw",
-          zIndex: 9999,
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px 12px",
-            borderBottom: "1px solid #e5e2da",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <Rocket size={16} color="#C15F3C" strokeWidth={2} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#2c2c2c" }}>
-              Onboard to Specify
-            </span>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {/* Minimize button (only when running) */}
-            {phase === "running" && (
-              <button
-                type="button"
-                onClick={handleMinimize}
-                title="Minimize to background"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 24,
-                  height: 24,
-                  borderRadius: 4,
-                  border: "none",
-                  background: "transparent",
-                  cursor: "pointer",
-                  color: "#9a958c",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = "#f0ede8"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <Minimize2 size={13} strokeWidth={2} />
-              </button>
-            )}
-            {/* Close button */}
+  return (
+    <BaseDialog
+      title="Onboard to Specify"
+      icon={<Rocket size={16} color={colors.primary} strokeWidth={2} />}
+      width={520}
+      onClose={handleClose}
+      onMinimize={phase === "running" ? handleMinimize : undefined}
+      showMinimize={phase === "running"}
+      footer={footer}
+    >
+      {phase === "select" && (
+        <>
+          <p
+            style={{
+              fontSize: 13,
+              color: colors.textMuted,
+              margin: "0 0 16px",
+              lineHeight: 1.5,
+            }}
+          >
+            Initialize <strong>{repoName}</strong> with Specify to enable
+            spec-driven development. Choose the AI agent to configure:
+          </p>
+
+          {/* AI Agent Selector */}
+          <FormLabel>AI Agent</FormLabel>
+
+          <div ref={dropdownRef} style={{ position: "relative" }}>
             <button
               type="button"
-              onClick={phase === "running" ? handleMinimize : handleClose}
-              title={phase === "running" ? "Minimize to background" : "Close"}
+              onClick={() => setDropdownOpen((v) => !v)}
               style={{
+                width: "100%",
+                padding: "8px 12px",
+                fontSize: 13,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 6,
+                background: colors.bgSurface,
+                color: colors.text,
+                cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                borderRadius: 4,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                color: "#9a958c",
-              }}
-            >
-              <X size={14} strokeWidth={2} />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: "16px 20px" }}>
-          {phase === "select" && (
-            <>
-              <p
-                style={{
-                  fontSize: 13,
-                  color: "#4a4540",
-                  margin: "0 0 16px",
-                  lineHeight: 1.5,
-                }}
-              >
-                Initialize <strong>{repoName}</strong> with Specify to enable
-                spec-driven development. Choose the AI agent to configure:
-              </p>
-
-              {/* AI Agent Selector */}
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#6b6560",
-                  marginBottom: 6,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                AI Agent
-              </label>
-
-              <div ref={dropdownRef} style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => setDropdownOpen((v) => !v)}
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px",
-                    fontSize: 13,
-                    border: "1px solid #e5e2da",
-                    borderRadius: 6,
-                    background: "#faf9f5",
-                    color: "#2c2c2c",
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  <span>{selectedLabel}</span>
-                  <ChevronDown
-                    size={14}
-                    color="#9a958c"
-                    style={{
-                      transform: dropdownOpen ? "rotate(180deg)" : "none",
-                      transition: "transform 0.15s",
-                    }}
-                  />
-                </button>
-
-                {dropdownOpen && (
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: "100%",
-                      left: 0,
-                      right: 0,
-                      marginTop: 4,
-                      background: "#fff",
-                      border: "1px solid #e5e2da",
-                      borderRadius: 8,
-                      boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
-                      maxHeight: 240,
-                      overflowY: "auto",
-                      zIndex: 10000,
-                    }}
-                  >
-                    {AI_AGENTS.map((agent) => (
-                      <button
-                        key={agent.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedAgent(agent.id);
-                          setDropdownOpen(false);
-                        }}
-                        style={{
-                          width: "100%",
-                          padding: "8px 12px",
-                          fontSize: 13,
-                          border: "none",
-                          background:
-                            agent.id === selectedAgent
-                              ? "#f0ebe4"
-                              : "transparent",
-                          color: "#2c2c2c",
-                          cursor: "pointer",
-                          textAlign: "left",
-                          fontFamily: "inherit",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                        onMouseEnter={(e) => {
-                          if (agent.id !== selectedAgent)
-                            e.currentTarget.style.background = "#faf9f5";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background =
-                            agent.id === selectedAgent
-                              ? "#f0ebe4"
-                              : "transparent";
-                        }}
-                      >
-                        {agent.id === selectedAgent && (
-                          <Check size={12} color="#C15F3C" strokeWidth={2.5} />
-                        )}
-                        <span
-                          style={{
-                            marginLeft: agent.id === selectedAgent ? 0 : 20,
-                          }}
-                        >
-                          {agent.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Install target toggle */}
-              <label
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#6b6560",
-                  marginBottom: 6,
-                  marginTop: 16,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Install Target
-              </label>
-
-              <div style={{ display: "flex", gap: 8 }}>
-                {/* Current branch option */}
-                <button
-                  type="button"
-                  onClick={() => setUseWorktree(false)}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    fontSize: 12,
-                    border: `1.5px solid ${!useWorktree ? "#C15F3C" : "#e5e2da"}`,
-                    borderRadius: 8,
-                    background: !useWorktree ? "#C15F3C08" : "#faf9f5",
-                    color: "#2c2c2c",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    textAlign: "left",
-                    transition: "border-color 0.15s, background 0.15s",
-                  }}
-                >
-                  <GitBranch
-                    size={14}
-                    color={!useWorktree ? "#C15F3C" : "#9a958c"}
-                    strokeWidth={2}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 600, lineHeight: 1.3 }}>
-                      Current branch
-                    </div>
-                    <div style={{ fontSize: 11, color: "#9a958c", marginTop: 2 }}>
-                      Install directly in the working tree
-                    </div>
-                  </div>
-                </button>
-
-                {/* New worktree option */}
-                <button
-                  type="button"
-                  onClick={() => setUseWorktree(true)}
-                  style={{
-                    flex: 1,
-                    padding: "10px 12px",
-                    fontSize: 12,
-                    border: `1.5px solid ${useWorktree ? "#C15F3C" : "#e5e2da"}`,
-                    borderRadius: 8,
-                    background: useWorktree ? "#C15F3C08" : "#faf9f5",
-                    color: "#2c2c2c",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    textAlign: "left",
-                    transition: "border-color 0.15s, background 0.15s",
-                  }}
-                >
-                  <GitFork
-                    size={14}
-                    color={useWorktree ? "#C15F3C" : "#9a958c"}
-                    strokeWidth={2}
-                  />
-                  <div>
-                    <div style={{ fontWeight: 600, lineHeight: 1.3 }}>
-                      New worktree
-                    </div>
-                    <div style={{ fontSize: 11, color: "#9a958c", marginTop: 2 }}>
-                      Create an isolated branch first
-                    </div>
-                  </div>
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* Terminal output (running / done) */}
-          {(phase === "running" || phase === "done") && (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  marginBottom: 8,
-                }}
-              >
-                <Terminal size={12} color="#9a958c" strokeWidth={2} />
-                <span
-                  style={{ fontSize: 11, fontWeight: 600, color: "#6b6560" }}
-                >
-                  {phase === "running"
-                    ? "Running..."
-                    : success
-                      ? "Completed"
-                      : "Failed"}
-                </span>
-                {phase === "running" && (
-                  <span
-                    style={{
-                      display: "inline-block",
-                      width: 6,
-                      height: 6,
-                      borderRadius: "50%",
-                      background: "#C15F3C",
-                      animation: "onboard-pulse 1.2s infinite",
-                    }}
-                  />
-                )}
-              </div>
-              <pre
-                ref={terminalRef}
-                style={{
-                  background: "#1e1e1e",
-                  color: "#d4d4d4",
-                  padding: 12,
-                  borderRadius: 8,
-                  fontSize: 11,
-                  fontFamily:
-                    "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                  lineHeight: 1.6,
-                  maxHeight: 300,
-                  overflowY: "auto",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  margin: 0,
-                }}
-              >
-                {output || (phase === "running" ? "Starting specify init...\n" : "")}
-                {phase === "done" && success && (
-                  <span style={{ color: "#4ade80" }}>
-                    {"\n"}Onboarding complete!
-                  </span>
-                )}
-                {phase === "done" && !success && error && (
-                  <span style={{ color: "#f87171" }}>
-                    {"\n"}Error: {error}
-                  </span>
-                )}
-              </pre>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "12px 20px 16px",
-            borderTop: "1px solid #f0ede8",
-          }}
-        >
-          {phase === "select" && (
-            <>
-              <button
-                type="button"
-                onClick={handleClose}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#6b6560",
-                  background: "#f5f4ed",
-                  border: "1px solid #e5e2da",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleStart}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: "#fff",
-                  background: "#C15F3C",
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                }}
-              >
-                Start Onboarding
-              </button>
-            </>
-          )}
-          {phase === "running" && (
-            <>
-              <button
-                type="button"
-                onClick={handleCancel}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#dc2626",
-                  background: "#fef2f2",
-                  border: "1px solid #fecaca",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Square size={10} strokeWidth={2.5} fill="#dc2626" />
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleMinimize}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: "#6b6560",
-                  background: "#f5f4ed",
-                  border: "1px solid #e5e2da",
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <Minimize2 size={12} strokeWidth={2} />
-                Run in Background
-              </button>
-            </>
-          )}
-          {phase === "done" && (
-            <button
-              type="button"
-              onClick={handleClose}
-              style={{
-                padding: "7px 16px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#fff",
-                background: success ? "#16A34A" : "#C15F3C",
-                border: "none",
-                borderRadius: 6,
-                cursor: "pointer",
+                justifyContent: "space-between",
                 fontFamily: "inherit",
               }}
             >
-              {success ? "Done" : "Close"}
+              <span>{selectedLabel}</span>
+              <ChevronDown
+                size={14}
+                color={colors.textTertiary}
+                style={{
+                  transform: dropdownOpen ? "rotate(180deg)" : "none",
+                  transition: "transform 0.15s",
+                }}
+              />
             </button>
-          )}
-        </div>
-      </div>
 
-      <style>
-        {`@keyframes onboard-pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
-        }`}
-      </style>
-    </>
+            {dropdownOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  right: 0,
+                  marginTop: 4,
+                  background: colors.dialogBg,
+                  border: `1px solid ${colors.border}`,
+                  borderRadius: 8,
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  maxHeight: 240,
+                  overflowY: "auto",
+                  zIndex: 10000,
+                }}
+              >
+                {AI_AGENTS.map((agent) => (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedAgent(agent.id);
+                      setDropdownOpen(false);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      fontSize: 13,
+                      border: "none",
+                      background:
+                        agent.id === selectedAgent
+                          ? "#f0ebe4"
+                          : "transparent",
+                      color: colors.text,
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: "inherit",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (agent.id !== selectedAgent)
+                        e.currentTarget.style.background = colors.bgSurface;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background =
+                        agent.id === selectedAgent
+                          ? "#f0ebe4"
+                          : "transparent";
+                    }}
+                  >
+                    {agent.id === selectedAgent && (
+                      <Check size={12} color={colors.primary} strokeWidth={2.5} />
+                    )}
+                    <span
+                      style={{
+                        marginLeft: agent.id === selectedAgent ? 0 : 20,
+                      }}
+                    >
+                      {agent.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Install target toggle */}
+          <FormLabel style={{ marginTop: 16 }}>Install Target</FormLabel>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            {/* Current branch option */}
+            <button
+              type="button"
+              onClick={() => setUseWorktree(false)}
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                fontSize: 12,
+                border: `1.5px solid ${!useWorktree ? colors.primary : colors.border}`,
+                borderRadius: 8,
+                background: !useWorktree ? colors.primaryAlpha : colors.bgSurface,
+                color: colors.text,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                textAlign: "left",
+                transition: "border-color 0.15s, background 0.15s",
+              }}
+            >
+              <GitBranch
+                size={14}
+                color={!useWorktree ? colors.primary : colors.textTertiary}
+                strokeWidth={2}
+              />
+              <div>
+                <div style={{ fontWeight: 600, lineHeight: 1.3 }}>
+                  Current branch
+                </div>
+                <div style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
+                  Install directly in the working tree
+                </div>
+              </div>
+            </button>
+
+            {/* New worktree option */}
+            <button
+              type="button"
+              onClick={() => setUseWorktree(true)}
+              style={{
+                flex: 1,
+                padding: "10px 12px",
+                fontSize: 12,
+                border: `1.5px solid ${useWorktree ? colors.primary : colors.border}`,
+                borderRadius: 8,
+                background: useWorktree ? colors.primaryAlpha : colors.bgSurface,
+                color: colors.text,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                textAlign: "left",
+                transition: "border-color 0.15s, background 0.15s",
+              }}
+            >
+              <GitFork
+                size={14}
+                color={useWorktree ? colors.primary : colors.textTertiary}
+                strokeWidth={2}
+              />
+              <div>
+                <div style={{ fontWeight: 600, lineHeight: 1.3 }}>
+                  New worktree
+                </div>
+                <div style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
+                  Create an isolated branch first
+                </div>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Terminal output (running / done) */}
+      {(phase === "running" || phase === "done") && (
+        <MagentaTerminal
+          readonly={true}
+          output={output}
+          status={
+            phase === "running"
+              ? "running"
+              : phase === "done"
+                ? success
+                  ? "done"
+                  : error === "canceled"
+                    ? "canceled"
+                    : "error"
+                : "idle"
+          }
+          successMessage="Setup complete!"
+          errorMessage={error ?? undefined}
+          label={
+            phase === "running"
+              ? "Running..."
+              : phase === "done"
+                ? success
+                  ? "Completed"
+                  : "Failed"
+                : ""
+          }
+        />
+      )}
+    </BaseDialog>
   );
 }

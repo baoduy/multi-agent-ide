@@ -5,6 +5,8 @@ import type { SpecSyncService } from "../services/SpecSyncService";
 import type { BackgroundJobManager } from "../services/BackgroundJobManager";
 import type { RepoRepository } from "../services/RepoRepository";
 import type { ScanQueue } from "../services/ScanQueue";
+import type { TerminalApplicationService } from "../application/TerminalApplicationService";
+import type { AISessionApplicationService } from "../application/AISessionApplicationService";
 import { registerRepoHandlers } from "./handlers/repoHandlers";
 import { registerSpecHandlers } from "./handlers/specHandlers";
 
@@ -14,6 +16,8 @@ import { registerFileHandlers } from "./handlers/fileHandlers";
 import { registerWorktreeHandlers } from "./handlers/worktreeHandlers";
 import { registerSessionHandlers } from "./handlers/sessionHandlers";
 import { registerOnboardHandlers } from "./handlers/onboardHandlers";
+import { registerTerminalHandlers } from "./handlers/terminalHandlers";
+import { registerAISessionHandlers } from "./handlers/aiSessionHandlers";
 
 import { RepoApplicationService } from "../application/RepoApplicationService";
 import { SpecApplicationService } from "../application/SpecApplicationService";
@@ -31,6 +35,8 @@ export type HandlerContext = {
   jobManager: BackgroundJobManager;
   repoRepository: RepoRepository;
   scanQueue: ScanQueue;
+  terminalService: TerminalApplicationService;
+  aiSessionService: AISessionApplicationService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -56,4 +62,8 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
 
   const onboardService = new OnboardApplicationService(bridge, context.configManager);
   registerOnboardHandlers({ bridge, onboardService });
+
+  registerTerminalHandlers({ bridge, terminalService: context.terminalService });
+
+  registerAISessionHandlers({ bridge, aiSessionService: context.aiSessionService });
 }

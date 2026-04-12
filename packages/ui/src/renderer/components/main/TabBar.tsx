@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 
 import { getFileIconInfo } from "../common/fileIcons";
+import { ScrollableText } from "../common/ScrollableText";
 
 /* ── Types ── */
 
-export type BuiltinTabId = "specs" | "worktrees" | "workflow";
+export type BuiltinTabId = "specs" | "worktrees" | "workflow" | "ai";
 
 export type OpenFileTab = {
   filePath: string;
@@ -119,14 +120,13 @@ export function TabBar({
             <IconComponent size={12} color={iconInfo.color} strokeWidth={1.8} />
 
             {/* File name */}
-            <span
+            <ScrollableText
               style={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
+                maxWidth: 150,
               }}
             >
               {file.fileName}
-            </span>
+            </ScrollableText>
 
             {/* Close button */}
             <CloseButton

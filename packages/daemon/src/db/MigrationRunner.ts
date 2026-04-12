@@ -5,6 +5,10 @@ import { run as run0003 } from "./migrations/0003_update_main_tab_values";
 import { run as run0004 } from "./migrations/0004_add_sidebar_collapse_columns";
 import { run as run0005 } from "./migrations/0005_add_spec_cache";
 import { run as run0006 } from "./migrations/0006_add_specs_tables";
+import { run as run0007 } from "./migrations/0007_add_ai_sessions";
+import { run as run0008 } from "./migrations/0008_recreate_ai_sessions";
+import { run as run0009 } from "./migrations/0009_drop_ai_session_status";
+import { run as run0010 } from "./migrations/0010_add_ai_session_title";
 
 /**
  * Migration definition: a version number and a function that applies the migration.
@@ -29,6 +33,10 @@ const MIGRATIONS: Migration[] = [
   { version: 4, name: "add_sidebar_collapse_columns", run: run0004 },
   { version: 5, name: "add_spec_cache", run: run0005 },
   { version: 6, name: "add_specs_tables", run: run0006 },
+  { version: 7, name: "add_ai_sessions", run: run0007 },
+  { version: 8, name: "recreate_ai_sessions", run: run0008 },
+  { version: 9, name: "drop_ai_session_status", run: run0009 },
+  { version: 10, name: "add_ai_session_title", run: run0010 },
 ];
 
 /**

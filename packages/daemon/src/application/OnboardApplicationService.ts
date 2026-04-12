@@ -6,6 +6,7 @@ import type { IPCBridge } from "../ipc/IPCBridge";
 import type { ConfigManager } from "../config/ConfigManager";
 import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
 import { AppError } from "../errors/AppError";
+import { sanitizeName } from "../domain/sanitizeName";
 
 /**
  * Supported AI agents for Specify onboarding.
@@ -205,7 +206,7 @@ export class OnboardApplicationService {
     }
 
     // Sanitize branch name for use in directory/branch name
-    const safeBranch = currentBranch.replace(/[^a-zA-Z0-9_-]/g, "-");
+    const safeBranch = sanitizeName(currentBranch);
     const timestamp = Math.floor(Date.now() / 1000);
     const worktreeName = `specify-init-${safeBranch}-${timestamp}`;
     const newBranch = `specify-init/${safeBranch}`;
@@ -286,9 +287,14 @@ export class OnboardApplicationService {
   }
 
   /**
-   * Runs a command and streams output, emitting completion when done.
+   * Spawns a command, streams its output via IPC, and optionally emits a
+   * completion event. Consolidates the formerly separate runCommand / runCommandSync
+   * methods — the only difference was whether a completeEvent was emitted.
+   *
    * @param repoPath - The original repo path (used as key for IPC events)
    * @param cwd - The actual working directory to run the command in
+   * @param completeEvent - If provided, emits this event on close/error. When
+   *   omitted the caller is responsible for signalling completion.
    */
   private runCommand(
     repoPath: string,
@@ -296,9 +302,9 @@ export class OnboardApplicationService {
     command: string,
     args: string[],
     outputEvent: "repo:onboard:output" | "repo:upgrade-specify:output",
-    completeEvent: "repo:onboard:complete" | "repo:upgrade-specify:complete",
-  ): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
+    completeEvent?: "repo:onboard:complete" | "repo:upgrade-specify:complete",
+  ): Promise<boolean> {
+    return new Promise<boolean>((resolve, reject) => {
       const child = spawn(command, args, {
         cwd,
         shell: true,
@@ -321,70 +327,33 @@ export class OnboardApplicationService {
         const success = code === 0;
         console.log(`[onboard-service] Command finished for ${repoPath} (exit ${code})`);
 
-        this.bridge.emit({
-          type: completeEvent,
-          repoPath,
-          success,
-          error: success ? undefined : `Process exited with code ${code}`,
-        });
+        if (completeEvent) {
+          this.bridge.emit({
+            type: completeEvent,
+            repoPath,
+            success,
+            error: success ? undefined : `Process exited with code ${code}`,
+          });
+        }
 
-        resolve();
+        resolve(success);
       });
 
       child.on("error", (err) => {
         this.activeProcesses.delete(repoPath);
         console.error(`[onboard-service] Spawn error for ${repoPath}:`, err.message);
 
-        this.bridge.emit({
-          type: completeEvent,
-          repoPath,
-          success: false,
-          error: err.message,
-        });
-
-        reject(new AppError("INTERNAL_ERROR", `Failed to start ${command}: ${err.message}`));
-      });
-    });
-  }
-
-  /**
-   * Runs a command synchronously (waits for completion) and streams output.
-   * Returns true if the command succeeded.
-   */
-  private runCommandSync(
-    repoPath: string,
-    cwd: string,
-    command: string,
-    args: string[],
-    outputEvent: "repo:onboard:output" | "repo:upgrade-specify:output",
-  ): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-      const child = spawn(command, args, {
-        cwd,
-        shell: true,
-        env: { ...process.env },
-        stdio: ["ignore", "pipe", "pipe"],
-      });
-
-      this.activeProcesses.set(repoPath, child);
-
-      const emitOutput = (data: Buffer) => {
-        const text = data.toString("utf-8");
-        this.bridge.emit({ type: outputEvent, repoPath, data: text });
-      };
-
-      child.stdout?.on("data", emitOutput);
-      child.stderr?.on("data", emitOutput);
-
-      child.on("close", (code) => {
-        this.activeProcesses.delete(repoPath);
-        resolve(code === 0);
-      });
-
-      child.on("error", (err) => {
-        this.activeProcesses.delete(repoPath);
-        console.error(`[onboard-service] Spawn error: ${err.message}`);
-        resolve(false);
+        if (completeEvent) {
+          this.bridge.emit({
+            type: completeEvent,
+            repoPath,
+            success: false,
+            error: err.message,
+          });
+          resolve(false);
+        } else {
+          reject(new AppError("INTERNAL_ERROR", `Failed to start ${command}: ${err.message}`));
+        }
       });
     });
   }

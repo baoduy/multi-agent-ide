@@ -2,6 +2,8 @@ import { create } from "zustand";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { ipc } from "../utils/ipc";
+import { getErrorMessage } from "../utils/getErrorMessage";
+import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
 type SpecStoreState = {
   specs: SpecFolder[];
@@ -74,7 +76,7 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
       }
     } catch (error) {
       if (get().currentRepoPath !== repoPath) return;
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage = getErrorMessage(error);
       set({ error: errorMessage, isLoading: false, specs: [] });
     }
   },
@@ -103,11 +105,7 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
     });
   },
 
-  initializeSubscriptions() {
-    if (get().subscriptionsReady) {
-      return;
-    }
-
+  initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
     // Subscribe to spec:sync:complete events.
     // Fires when the background sync finishes for a repo.
     // Re-fetch specs from DB silently (no loading indicator).
@@ -119,7 +117,5 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
         void get().fetchSpecs(currentRepoPath);
       }
     });
-
-    set({ subscriptionsReady: true });
-  },
+  }),
 }));

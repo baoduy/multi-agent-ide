@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { Repository } from "@magenta/shared/models";
 import { ipc } from "../utils/ipc";
+import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
 type ScanProgress = {
   scanned: number;
@@ -100,11 +101,7 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
       set({ isScanning: false, error: response.message });
     }
   },
-  initializeSubscriptions() {
-    if (get().subscriptionsReady) {
-      return;
-    }
-
+  initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
     ipc.on("repo:scan:started", () => {
       set({ isScanning: true, scanProgress: { scanned: 0, total: 0, currentDir: "Starting scan" } });
     });
@@ -127,7 +124,5 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
         scanProgress: null,
       });
     });
-
-    set({ subscriptionsReady: true });
-  },
+  }),
 }));

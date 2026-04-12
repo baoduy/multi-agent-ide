@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
-  GitBranch,
   GitMerge,
   FilePlus,
   FileEdit,
@@ -17,6 +16,8 @@ import {
 
 import type { WorktreeInfo, WorktreeFileStatus } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { ScrollableText } from "../common/ScrollableText";
+import { BranchLabel } from "../common/RepoLabel";
 import { sendOrThrow } from "../../services/ipcClient";
 
 type WorktreeInlinePanelProps = {
@@ -178,10 +179,7 @@ export function WorktreeInlinePanel({
           color: "#6b6560",
         }}
       >
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <GitBranch size={11} strokeWidth={1.5} color="#C15F3C" />
-          {worktree.branch}
-        </span>
+        <BranchLabel name={worktree.branch} size="sm" />
         <span style={{ color: "#9a958c" }}>Created {createdDate}</span>
         {status && (
           <span style={{ color: "#9a958c" }}>
@@ -271,21 +269,18 @@ export function WorktreeInlinePanel({
                 }}
                 title={isClickable ? `Click to open ${file.path}` : `${file.path} (deleted)`}
               >
-                <span
+                <ScrollableText
                   style={{
                     fontSize: 12,
                     color: isClickable && hoveredFile === file.path ? "#C15F3C" : "#2c2c2c",
                     fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     flex: 1,
                     minWidth: 0,
                     transition: "color 0.1s",
                   }}
                 >
                   {file.path}
-                </span>
+                </ScrollableText>
                 <div style={{ flexShrink: 0, marginLeft: 12 }}>
                   <FileStatusBadge status={file.status} />
                 </div>

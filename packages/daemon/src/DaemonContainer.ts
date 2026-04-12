@@ -11,6 +11,9 @@ import { ScanQueue } from "./services/ScanQueue";
 import { SessionManager } from "./services/SessionManager";
 import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
+import { TerminalApplicationService } from "./application/TerminalApplicationService";
+import { AISessionApplicationService } from "./application/AISessionApplicationService";
+import { AISessionRepository } from "./services/AISessionRepository";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -36,6 +39,9 @@ export class DaemonContainer {
   readonly scanQueue: ScanQueue;
   readonly specSyncService: SpecSyncService;
   readonly dirWatcher: DirWatcher;
+  readonly terminalService: TerminalApplicationService;
+  readonly aiSessionRepository: AISessionRepository;
+  readonly aiSessionService: AISessionApplicationService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -70,6 +76,13 @@ export class DaemonContainer {
 
     // Directory watcher
     this.dirWatcher = new DirWatcher(this.scanQueue, this.configManager);
+
+    // Terminal PTY service
+    this.terminalService = new TerminalApplicationService(this.bridge);
+
+    // AI Session service
+    this.aiSessionRepository = new AISessionRepository(databaseService);
+    this.aiSessionService = new AISessionApplicationService(this.bridge, this.aiSessionRepository);
   }
 
   /**
@@ -92,7 +105,19 @@ export class DaemonContainer {
       jobManager: this.jobManager,
       repoRepository: this.repoRepository,
       scanQueue: this.scanQueue,
+      terminalService: this.terminalService,
+      aiSessionService: this.aiSessionService,
     });
+  }
+
+  /**
+   * Closes all active PTY sessions and cleans up daemon resources.
+   * Called during daemon shutdown before the process exits.
+   */
+  shutdown(): void {
+    this.aiSessionService.destroyAll();
+    this.terminalService.closeAll();
+    this.dirWatcher.unwatchAll();
   }
 
   /**
@@ -107,6 +132,8 @@ export class DaemonContainer {
       "SessionManager",
       "SpecSyncService",
       "DirWatcher",
+      "TerminalApplicationService",
+      "AISessionApplicationService",
     ];
   }
 }

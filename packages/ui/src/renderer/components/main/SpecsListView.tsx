@@ -12,8 +12,7 @@ import {
 } from "lucide-react";
 
 import type { SpecFolder, PipelineStage } from "@magenta/shared/models";
-import type { StageStatus } from "@magenta/shared/constants";
-import { stageStatusColor } from "../../utils/stageColors";
+import { ScrollableText } from "../common/ScrollableText";
 
 /* ═══════════════════════════════════════════════════════
    Spec high-level state derivation
@@ -116,15 +115,6 @@ const STATE_CONFIG: Record<
 };
 
 /* ═══════════════════════════════════════════════════════
-   Stage status badge
-   ═══════════════════════════════════════════════════════ */
-
-function statusColor(status: StageStatus): { bg: string; color: string } {
-  const c = stageStatusColor(status);
-  return { bg: c.bg, color: c.fg };
-}
-
-/* ═══════════════════════════════════════════════════════
    Progress stepper (Spec → Planned → Implemented)
    ═══════════════════════════════════════════════════════ */
 
@@ -217,7 +207,7 @@ function SpecCard({
   const progressPercent = taskCount > 0 ? Math.min(100, Math.round((completedCount / taskCount) * 100)) : 0;
 
   // Count approved stages
-  const approvedCount = spec.stages.filter((s) => s.status === "approved").length;
+
 
   return (
     <button
@@ -259,18 +249,15 @@ function SpecCard({
 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span
+            <ScrollableText
               style={{
                 fontSize: 14,
                 fontWeight: 600,
                 color: "#2c2c2c",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
               }}
             >
               {spec.name}
-            </span>
+            </ScrollableText>
             {spec.branch && (
               <span
                 style={{
@@ -291,10 +278,6 @@ function SpecCard({
                 {spec.branch}
               </span>
             )}
-          </div>
-          <div style={{ fontSize: 11, color: "#9a958c", marginTop: 2 }}>
-            {spec.stages.length} stages &middot; {spec.files.length} files
-            {approvedCount > 0 && <> &middot; {approvedCount} approved</>}
           </div>
         </div>
 
@@ -323,32 +306,6 @@ function SpecCard({
 
       {/* Progress stepper */}
       <ProgressStepper current={specState} />
-
-      {/* Stage pills row */}
-      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-        {spec.stages.map((stage) => {
-          const sc = statusColor(stage.status as StageStatus);
-          return (
-            <span
-              key={stage.name}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "2px 8px",
-                borderRadius: 4,
-                background: sc.bg,
-                color: sc.color,
-                fontSize: 10,
-                fontWeight: 500,
-              }}
-            >
-              {stage.status === "approved" && <CheckCircle size={9} strokeWidth={2} />}
-              {stage.name}
-            </span>
-          );
-        })}
-      </div>
 
       {/* Task progress bar (if tasks exist) */}
       {taskCount > 0 && (

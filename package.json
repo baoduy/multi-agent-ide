@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "description": "Multi-repo multi-agent IDE for spec-driven development",
-  "author": "Steven Hoang <steven.hoang@transwap.com>",
+  "author": "Steven Hoang <drunkcoding@outlook.com>",
   "main": "packages/main/dist/index.js",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "pnpm build && pnpm -C packages/main dev",
     "dev:watch": "pnpm -r --parallel dev",
@@ -13,12 +13,14 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
+    "update": "npx npm-check-updates -u && pnpm install",
     "pack": "pnpm build && pnpm exec electron-builder --dir",
     "dist": "pnpm build && pnpm exec electron-builder",
     "dist:mac": "pnpm build && pnpm exec electron-builder --mac",
     "dist:win": "pnpm build && pnpm exec electron-builder --win",
     "dist:linux": "pnpm build && pnpm exec electron-builder --linux",
-    "release": "pnpm build && pnpm exec electron-builder --publish always"
+    "release": "pnpm build && pnpm exec electron-builder --publish always",
+    "postinstall": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
     "sql.js": "^1.14.1",
@@ -26,7 +28,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "reactflow": "^11.11.4",
-    "simple-git": "^3.35.2",
+    "simple-git": "^3.36.0",
     "ulid": "^3.0.2",
     "lucide-react": "1.8.0",
     "zustand": "^5.0.12",
@@ -37,6 +39,7 @@
     "mermaid": "^11.14.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "*",
     "@types/sql.js": "^1.4.11",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",

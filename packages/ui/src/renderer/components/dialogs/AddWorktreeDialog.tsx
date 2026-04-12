@@ -1,9 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { GitBranch, X, ChevronDown, Loader2 } from "lucide-react";
+import { GitBranch, ChevronDown, Loader2 } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { useSessionStore } from "../../store/sessionStore";
+import { BaseDialog } from "../common/BaseDialog";
+import { CancelButton, PrimaryButton } from "../common/DialogButtons";
+import { FormLabel, FormInput, FormError } from "../common/FormControls";
 
 type AddWorktreeDialogProps = {
   /** The repository path to create the worktree in */
@@ -50,7 +54,6 @@ export function AddWorktreeDialog({
         setBranches(res.branches);
         setCurrentBranch(res.current);
         if (res.branches.length > 0) {
-          // Default to the first non-current branch if available, otherwise the current
           const defaultBranch = res.branches.find((b: string) => b !== res.current) ?? res.branches[0];
           setSelectedBranch(defaultBranch);
           setName(defaultBranch.replace(/[^a-zA-Z0-9_-]/g, "-"));
@@ -113,10 +116,7 @@ export function AddWorktreeDialog({
         createdAt: Date.now(),
       });
 
-      // Refresh worktree list from daemon
       void fetchWorktrees(repoPath);
-
-      // Navigate to worktrees tab, expand the repo group, and select the new worktree
       void patchSession({ mainTab: "worktrees" });
       if (!expandedRepos[repoPath]) {
         toggleRepoExpanded(repoPath);
@@ -136,280 +136,110 @@ export function AddWorktreeDialog({
         e.preventDefault();
         void handleConfirm();
       }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        onCancel();
-      }
     },
-    [handleConfirm, onCancel],
+    [handleConfirm],
   );
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        onClick={onCancel}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(0, 0, 0, 0.35)",
-          zIndex: 9998,
-        }}
-      />
-
-      {/* Dialog */}
-      <div
-        role="dialog"
-        aria-label="Add worktree"
-        style={{
-          position: "fixed",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          background: "#fff",
-          borderRadius: 12,
-          boxShadow: "0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08)",
-          width: 440,
-          maxWidth: "90vw",
-          zIndex: 9999,
-          overflow: "hidden",
-        }}
-      >
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "16px 20px 12px",
-            borderBottom: "1px solid #e5e2da",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <GitBranch size={16} color="#C15F3C" strokeWidth={2} />
-            <span style={{ fontSize: 14, fontWeight: 600, color: "#2c2c2c" }}>
-              Add Worktree
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              borderRadius: 4,
-              border: "none",
-              background: "transparent",
-              cursor: "pointer",
-              color: "#9a958c",
-            }}
-          >
-            <X size={14} strokeWidth={2} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div style={{ padding: "16px 20px" }}>
-          {isLoadingBranches ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0" }}>
-              <Loader2 size={16} color="#9a958c" style={{ animation: "spin 1s linear infinite" }} />
-              <span style={{ fontSize: 13, color: "#6b6560" }}>Loading branches...</span>
-            </div>
-          ) : branches.length === 0 ? (
-            <p style={{ fontSize: 13, color: "#6b6560", margin: "8px 0", lineHeight: 1.5 }}>
-              No other branches available. You are on <strong>{currentBranch}</strong> and there are
-              no additional branches to create a worktree from.
-            </p>
-          ) : (
-            <>
-              <p style={{ fontSize: 13, color: "#4a4540", margin: "0 0 14px", lineHeight: 1.5 }}>
-                Create a worktree to work on a branch in a separate directory without switching
-                your main checkout.
-              </p>
-
-              {/* Branch selector */}
-              <label
-                htmlFor="worktree-branch"
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#6b6560",
-                  marginBottom: 6,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Branch
-              </label>
-
-              <div style={{ position: "relative", marginBottom: 14 }}>
-                <select
-                  id="worktree-branch"
-                  value={selectedBranch}
-                  onChange={(e) => handleBranchChange(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  style={{
-                    width: "100%",
-                    padding: "8px 32px 8px 12px",
-                    fontSize: 13,
-                    border: "1px solid #e5e2da",
-                    borderRadius: 6,
-                    outline: "none",
-                    background: "#faf9f5",
-                    color: "#2c2c2c",
-                    fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                    boxSizing: "border-box",
-                    appearance: "none",
-                    cursor: "pointer",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = "#C15F3C"; }}
-                  onBlur={(e) => { e.currentTarget.style.borderColor = "#e5e2da"; }}
-                >
-                  {branches.map((b) => (
-                    <option key={b} value={b}>{b}</option>
-                  ))}
-                </select>
-                <ChevronDown
-                  size={14}
-                  color="#9a958c"
-                  style={{
-                    position: "absolute",
-                    right: 10,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    pointerEvents: "none",
-                  }}
-                />
-              </div>
-
-              {/* Worktree name */}
-              <label
-                htmlFor="worktree-name-add"
-                style={{
-                  display: "block",
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: "#6b6560",
-                  marginBottom: 6,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                }}
-              >
-                Worktree name
-              </label>
-
-              <input
-                ref={nameInputRef}
-                id="worktree-name-add"
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  setNameError(null);
-                  setCreateError(null);
-                }}
-                onKeyDown={handleKeyDown}
-                placeholder="e.g. feature-auth-review"
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  fontSize: 13,
-                  border: `1px solid ${nameError ? "#ef4444" : "#e5e2da"}`,
-                  borderRadius: 6,
-                  outline: "none",
-                  background: "#faf9f5",
-                  color: "#2c2c2c",
-                  fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-                  boxSizing: "border-box",
-                  transition: "border-color 0.15s",
-                }}
-                onFocus={(e) => {
-                  e.currentTarget.style.borderColor = nameError ? "#ef4444" : "#C15F3C";
-                }}
-                onBlur={(e) => {
-                  e.currentTarget.style.borderColor = nameError ? "#ef4444" : "#e5e2da";
-                }}
-              />
-
-              {nameError && (
-                <p style={{ fontSize: 11, color: "#ef4444", margin: "6px 0 0", fontWeight: 500 }}>
-                  {nameError}
-                </p>
-              )}
-
-              {createError && (
-                <p style={{ fontSize: 11, color: "#ef4444", margin: "6px 0 0", fontWeight: 500 }}>
-                  {createError}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-            padding: "12px 20px 16px",
-            borderTop: "1px solid #f0ede8",
-          }}
-        >
-          <button
-            type="button"
-            onClick={onCancel}
-            style={{
-              padding: "7px 16px",
-              fontSize: 12,
-              fontWeight: 500,
-              color: "#6b6560",
-              background: "#f5f4ed",
-              border: "1px solid #e5e2da",
-              borderRadius: 6,
-              cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            Cancel
-          </button>
+    <BaseDialog
+      title="Add Worktree"
+      icon={<GitBranch size={16} color={colors.primary} strokeWidth={2} />}
+      width={440}
+      onClose={onCancel}
+      footer={
+        <>
+          <CancelButton onClick={onCancel} />
           {branches.length > 0 && (
-            <button
-              type="button"
+            <PrimaryButton
               onClick={() => void handleConfirm()}
-              disabled={isCreating || !selectedBranch}
-              style={{
-                padding: "7px 16px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#fff",
-                background: isCreating ? "#9a958c" : "#C15F3C",
-                border: "none",
-                borderRadius: 6,
-                cursor: isCreating ? "default" : "pointer",
-                fontFamily: "inherit",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                opacity: isCreating ? 0.7 : 1,
-              }}
+              disabled={!selectedBranch}
+              loading={isCreating}
+              loadingText="Creating..."
             >
-              {isCreating && (
-                <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
-              )}
-              {isCreating ? "Creating..." : "Create Worktree"}
-            </button>
+              Create Worktree
+            </PrimaryButton>
           )}
+        </>
+      }
+    >
+      {isLoadingBranches ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0" }}>
+          <Loader2 size={16} color={colors.textTertiary} style={{ animation: "spin 1s linear infinite" }} />
+          <span style={{ fontSize: 13, color: colors.textSecondary }}>Loading branches...</span>
         </div>
-      </div>
+      ) : branches.length === 0 ? (
+        <p style={{ fontSize: 13, color: colors.textSecondary, margin: "8px 0", lineHeight: 1.5 }}>
+          No other branches available. You are on <strong>{currentBranch}</strong> and there are
+          no additional branches to create a worktree from.
+        </p>
+      ) : (
+        <>
+          <p style={{ fontSize: 13, color: colors.textMuted, margin: "0 0 14px", lineHeight: 1.5 }}>
+            Create a worktree to work on a branch in a separate directory without switching
+            your main checkout.
+          </p>
 
-      {/* Spinner keyframe (injected inline for isolation) */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </>
+          {/* Branch selector */}
+          <FormLabel htmlFor="worktree-branch">Branch</FormLabel>
+
+          <div style={{ position: "relative", marginBottom: 14 }}>
+            <select
+              id="worktree-branch"
+              value={selectedBranch}
+              onChange={(e) => handleBranchChange(e.target.value)}
+              onKeyDown={handleKeyDown}
+              style={{
+                width: "100%",
+                padding: "8px 32px 8px 12px",
+                fontSize: 13,
+                border: `1px solid ${colors.border}`,
+                borderRadius: 6,
+                outline: "none",
+                background: colors.bgSurface,
+                color: colors.text,
+                fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                boxSizing: "border-box",
+                appearance: "none",
+                cursor: "pointer",
+                transition: "border-color 0.15s",
+              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = colors.primary; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = colors.border; }}
+            >
+              {branches.map((b) => (
+                <option key={b} value={b}>{b}</option>
+              ))}
+            </select>
+            <ChevronDown
+              size={14}
+              color={colors.textTertiary}
+              style={{
+                position: "absolute",
+                right: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none",
+              }}
+            />
+          </div>
+
+          {/* Worktree name */}
+          <FormLabel htmlFor="worktree-name-add">Worktree name</FormLabel>
+
+          <FormInput
+            id="worktree-name-add"
+            inputRef={nameInputRef}
+            value={name}
+            onChange={(v) => { setName(v); setNameError(null); setCreateError(null); }}
+            onKeyDown={handleKeyDown}
+            placeholder="e.g. feature-auth-review"
+            error={!!nameError}
+          />
+
+          <FormError message={nameError} />
+          <FormError message={createError} />
+        </>
+      )}
+    </BaseDialog>
   );
 }

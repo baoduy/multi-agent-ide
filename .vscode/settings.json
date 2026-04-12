@@ -13,4 +13,8 @@
     "chat.agent.maxRequests": 1000,
     "terminal.integrated.shellIntegration.enabled": true,
     "terminal.integrated.defaultProfile.linux": "bash",
+    "chat.useClaudeMdFile": false,
+    "claudeCode.hideOnboarding": true,
+    "claudeCode.initialPermissionMode": "bypassPermissions",
+    "claudeCode.preferredLocation": "sidebar",
 }

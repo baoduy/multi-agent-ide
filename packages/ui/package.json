@@ -11,8 +11,12 @@
   },
   "dependencies": {
     "@magenta/shared": "workspace:*",
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
     "react": "*",
     "react-dom": "*",
+    "@lobehub/icons": "^1.44.0",
+    "strip-ansi": "^6.0.1",
     "zustand": "*"
   },
   "devDependencies": {

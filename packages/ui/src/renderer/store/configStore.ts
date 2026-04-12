@@ -4,6 +4,8 @@ import type { MagentaConfig } from "@magenta/shared/config";
 import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
 import { ipc } from "../utils/ipc";
 import { sendOrThrow } from "../services/ipcClient";
+import { createAsyncAction } from "../services/createStoreAction";
+import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
 type ConfigStoreState = {
   workingDirs: string[];
@@ -32,62 +34,37 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
   error: null,
   subscriptionsReady: false,
 
-  async fetchConfig() {
-    set({ isLoading: true, error: null });
+  fetchConfig: createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+    set,
+    action: () => sendOrThrow({ type: "config:get" }),
+    onSuccess: (response) => applyConfig(response.config),
+  }),
 
-    try {
-      const response = await sendOrThrow({ type: "config:get" });
-      set({ ...applyConfig(response.config), isLoading: false, error: null });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      set({ error: errorMessage, isLoading: false });
-    }
+  addWorkingDir(path: string) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () => sendOrThrow({ type: "config:add-working-dir", path }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
   },
 
-  async addWorkingDir(path: string) {
-    set({ isLoading: true, error: null });
-
-    try {
-      const response = await sendOrThrow({ type: "config:add-working-dir", path });
-      set({ ...applyConfig(response.config), isLoading: false, error: null });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      set({ error: errorMessage, isLoading: false });
-    }
+  removeWorkingDir(path: string) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () => sendOrThrow({ type: "config:remove-working-dir", path }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
   },
 
-  async removeWorkingDir(path: string) {
-    set({ isLoading: true, error: null });
-
-    try {
-      const response = await sendOrThrow({ type: "config:remove-working-dir", path });
-      set({ ...applyConfig(response.config), isLoading: false, error: null });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      set({ error: errorMessage, isLoading: false });
-    }
+  updateSpecifyCommand(command: string) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () => sendOrThrow({ type: "config:update", config: { specifyCommand: command } }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
   },
 
-  async updateSpecifyCommand(command: string) {
-    set({ isLoading: true, error: null });
-
-    try {
-      const response = await sendOrThrow({
-        type: "config:update",
-        config: { specifyCommand: command },
-      });
-      set({ ...applyConfig(response.config), isLoading: false, error: null });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      set({ error: errorMessage, isLoading: false });
-    }
-  },
-
-  initializeSubscriptions() {
-    if (get().subscriptionsReady) {
-      return;
-    }
-
+  initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
     // Listen for config updates from daemon
     ipc.on("config:updated", (payload) => {
       const config = (payload as Record<string, unknown>).config as MagentaConfig | undefined;
@@ -95,7 +72,5 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
         set(applyConfig(config));
       }
     });
-
-    set({ subscriptionsReady: true });
-  },
+  }),
 }));

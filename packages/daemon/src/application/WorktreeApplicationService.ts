@@ -1,5 +1,6 @@
 import path from "node:path";
 import { AppError } from "../errors/AppError";
+import { sanitizeName } from "../domain/sanitizeName";
 import { GitGateway, type WorktreeEntry } from "../infrastructure/GitGateway";
 
 /**
@@ -100,7 +101,7 @@ export class WorktreeApplicationService {
     }
 
     // Sanitize name — allow only alphanumeric, dash, underscore
-    const safeName = name.replace(/[^a-zA-Z0-9_-]/g, "-").replace(/-{2,}/g, "-");
+    const safeName = sanitizeName(name);
     if (!safeName) {
       throw new AppError("VALIDATION_ERROR", "Invalid worktree name after sanitization");
     }

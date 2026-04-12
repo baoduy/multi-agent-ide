@@ -12,7 +12,9 @@
   "dependencies": {
     "@magenta/shared": "workspace:*",
     "chokidar": "*",
+    "node-pty": "*",
     "simple-git": "*",
+    "strip-ansi": "^6.0.1",
     "ulid": "*",
     "zod": "*"
   },

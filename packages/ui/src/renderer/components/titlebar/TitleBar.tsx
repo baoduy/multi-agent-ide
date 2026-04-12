@@ -29,6 +29,7 @@ const builtinTabs: { id: BuiltinTabId; label: string }[] = [
   { id: "specs", label: "Specs" },
   { id: "workflow", label: "Workflow" },
   { id: "worktrees", label: "Worktrees" },
+  { id: "ai", label: "AI" },
 ];
 
 /* ── Toolbar icon button ── */

@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { SpecFolder } from "@magenta/shared/models";
+import { ScrollableText } from "../common/ScrollableText";
 import { StageDots } from "./StageDots";
 
 type SpecItemProps = {
@@ -34,7 +35,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
         }
       }}
     >
-      <span
+      <ScrollableText
         style={{
           fontSize: 11,
           fontWeight: isSelected ? 500 : 400,
@@ -45,7 +46,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
         }}
       >
         {spec.name}
-      </span>
+      </ScrollableText>
       <StageDots stages={spec.stages} />
     </div>
   );

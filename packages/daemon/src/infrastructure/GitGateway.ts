@@ -1,8 +1,6 @@
 import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { AppError } from "../errors/AppError";
-
 /**
  * Info about a single git worktree discovered on disk.
  */

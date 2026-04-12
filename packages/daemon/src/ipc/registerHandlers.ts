@@ -27,6 +27,12 @@ import { SessionApplicationService } from "../application/SessionApplicationServ
 import { ConfigApplicationService } from "../application/ConfigApplicationService";
 import { OnboardApplicationService } from "../application/OnboardApplicationService";
 
+import { GitGateway } from "../infrastructure/GitGateway";
+import { SpecGitGateway } from "../infrastructure/SpecGitGateway";
+import { FileSystemGateway } from "../infrastructure/FileSystemGateway";
+import { SpecReader } from "../services/SpecReader";
+import { RepoScanner } from "../services/RepoScanner";
+
 export type HandlerContext = {
   databaseService: DatabaseService;
   configManager: ConfigManager;
@@ -40,16 +46,24 @@ export type HandlerContext = {
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
-  // Create application services
+  // Instantiate infrastructure gateways
+  const gitGateway = new GitGateway();
+  const specGitGateway = new SpecGitGateway();
+  const fileSystemGateway = new FileSystemGateway();
+  const specReader = new SpecReader();
+  const repoScanner = new RepoScanner(3);
+
+  // Create application services with injected dependencies
   const repoService = new RepoApplicationService(
     context.repoRepository,
     context.configManager,
     context.scanQueue,
     context.specSyncService,
+    repoScanner,
   );
-  const specService = new SpecApplicationService(context.specSyncService);
-  const fileService = new FileApplicationService();
-  const worktreeService = new WorktreeApplicationService();
+  const specService = new SpecApplicationService(context.specSyncService, specReader, specGitGateway);
+  const fileService = new FileApplicationService(fileSystemGateway);
+  const worktreeService = new WorktreeApplicationService(gitGateway);
   const sessionService = new SessionApplicationService(context.sessionManager);
   const configService = new ConfigApplicationService(context.configManager);
 

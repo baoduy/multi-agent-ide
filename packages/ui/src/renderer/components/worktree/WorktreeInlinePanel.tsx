@@ -1,10 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   GitMerge,
-  FilePlus,
-  FileEdit,
-  FileX,
-  FileQuestion,
   ArrowRight,
   ChevronDown,
   Check,
@@ -14,10 +10,13 @@ import {
   FolderOpen,
 } from "lucide-react";
 
-import type { WorktreeInfo, WorktreeFileStatus } from "../../store/worktreeStore";
+import { colors } from "../../utils/colors";
+import type { WorktreeInfo } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { ScrollableText } from "../common/ScrollableText";
 import { BranchLabel } from "../common/RepoLabel";
+import { FileStatusBadge } from "../common/FileStatusBadge";
+import { SectionHeader } from "../common/FormControls";
 import { sendOrThrow } from "../../services/ipcClient";
 
 type WorktreeInlinePanelProps = {
@@ -27,44 +26,6 @@ type WorktreeInlinePanelProps = {
   /** Called after the worktree is deleted so the parent can clean up selection state. */
   onDeleted?: () => void;
 };
-
-/* ── Status badge for a single file ── */
-
-const STATUS_CONFIG: Record<
-  WorktreeFileStatus["status"],
-  { label: string; color: string; bg: string; Icon: React.ElementType }
-> = {
-  added: { label: "Added", color: "#16A34A", bg: "#f0fdf4", Icon: FilePlus },
-  modified: { label: "Modified", color: "#ca8a04", bg: "#fefce8", Icon: FileEdit },
-  deleted: { label: "Deleted", color: "#dc2626", bg: "#fef2f2", Icon: FileX },
-  renamed: { label: "Renamed", color: "#7c3aed", bg: "#f5f3ff", Icon: ArrowRight },
-  copied: { label: "Copied", color: "#0284c7", bg: "#f0f9ff", Icon: FilePlus },
-  untracked: { label: "Untracked", color: "#6b7280", bg: "#f9fafb", Icon: FileQuestion },
-};
-
-function FileStatusBadge({ status }: { status: WorktreeFileStatus["status"] }): React.ReactElement {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 10,
-        fontWeight: 600,
-        color: cfg.color,
-        background: cfg.bg,
-        padding: "2px 8px",
-        borderRadius: 4,
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-      }}
-    >
-      <cfg.Icon size={10} strokeWidth={2} />
-      {cfg.label}
-    </span>
-  );
-}
 
 /* ── Inline collapsible panel ── */
 
@@ -113,7 +74,7 @@ export function WorktreeInlinePanel({
         setCurrentBranch(resp.current);
         setTargetBranch(resp.current);
       })
-      .catch(() => {});
+      .catch((err) => console.warn("[WorktreeInlinePanel] Failed to load branches:", err));
   }, [worktree.worktreePath, worktree.repoPath, fetchWorktreeStatus, clearMergeResult, clearDeleteResult]);
 
   const handleMerge = useCallback(async () => {
@@ -161,8 +122,8 @@ export function WorktreeInlinePanel({
   return (
     <div
       style={{
-        background: "#fff",
-        border: "1px solid #e5e2da",
+        background: colors.dialogBg,
+        border: `1px solid ${colors.border}`,
         borderRadius: 8,
         overflow: "hidden",
       }}
@@ -171,18 +132,18 @@ export function WorktreeInlinePanel({
       <div
         style={{
           padding: "10px 16px",
-          borderBottom: "1px solid #f0ede8",
+          borderBottom: `1px solid ${colors.borderLight}`,
           display: "flex",
           flexWrap: "wrap",
           gap: 12,
           fontSize: 11,
-          color: "#6b6560",
+          color: colors.textSecondary,
         }}
       >
         <BranchLabel name={worktree.branch} size="sm" />
-        <span style={{ color: "#9a958c" }}>Created {createdDate}</span>
+        <span style={{ color: colors.textTertiary }}>Created {createdDate}</span>
         {status && (
-          <span style={{ color: "#9a958c" }}>
+          <span style={{ color: colors.textTertiary }}>
             {status.ahead > 0 && `${status.ahead} ahead`}
             {status.ahead > 0 && status.behind > 0 && " · "}
             {status.behind > 0 && `${status.behind} behind`}
@@ -194,7 +155,7 @@ export function WorktreeInlinePanel({
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
-            color: "#9a958c",
+            color: colors.textTertiary,
             fontSize: 10,
             fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
           }}
@@ -207,19 +168,10 @@ export function WorktreeInlinePanel({
 
       {/* Changed files list */}
       <div style={{ padding: "10px 16px" }}>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: "#9a958c",
-            marginBottom: 8,
-          }}
-        >
+        <SectionHeader style={{ marginBottom: 8 }}>
           Changed files
           {status && ` (${status.files.length})`}
-        </div>
+        </SectionHeader>
 
         {isStatusLoading && (
           <div
@@ -227,7 +179,7 @@ export function WorktreeInlinePanel({
               display: "flex",
               alignItems: "center",
               gap: 8,
-              color: "#9a958c",
+              color: colors.textTertiary,
               fontSize: 12,
               padding: "12px 0",
             }}
@@ -238,7 +190,7 @@ export function WorktreeInlinePanel({
         )}
 
         {!isStatusLoading && status && status.files.length === 0 && (
-          <div style={{ color: "#9a958c", fontSize: 12, padding: "12px 0" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 0" }}>
             No changed files in this worktree.
           </div>
         )}
@@ -260,9 +212,9 @@ export function WorktreeInlinePanel({
                   alignItems: "center",
                   justifyContent: "space-between",
                   padding: "7px 10px",
-                  background: isClickable && hoveredFile === file.path ? "#f5f3f0" : "#faf9f5",
+                  background: isClickable && hoveredFile === file.path ? colors.bgHover : colors.bgSurface,
                   borderRadius: 6,
-                  border: `1px solid ${isClickable && hoveredFile === file.path ? "#e0ddd5" : "#f0ede8"}`,
+                  border: `1px solid ${isClickable && hoveredFile === file.path ? colors.border : colors.borderLight}`,
                   cursor: isClickable ? "pointer" : "default",
                   opacity: isClickable ? 1 : 0.6,
                   transition: "background 0.1s, border-color 0.1s",
@@ -272,7 +224,7 @@ export function WorktreeInlinePanel({
                 <ScrollableText
                   style={{
                     fontSize: 12,
-                    color: isClickable && hoveredFile === file.path ? "#C15F3C" : "#2c2c2c",
+                    color: isClickable && hoveredFile === file.path ? colors.primary : colors.text,
                     fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
                     flex: 1,
                     minWidth: 0,
@@ -295,7 +247,7 @@ export function WorktreeInlinePanel({
       {showPostMerge && mergeResult?.success ? (
         <div
           style={{
-            borderTop: "1px solid #e5e2da",
+            borderTop: `1px solid ${colors.border}`,
             padding: "14px 16px",
           }}
         >
@@ -308,7 +260,7 @@ export function WorktreeInlinePanel({
               alignItems: "center",
               gap: 6,
               background: "#f0fdf4",
-              color: "#16A34A",
+              color: colors.success,
               border: "1px solid #bbf7d0",
               marginBottom: 12,
             }}
@@ -317,7 +269,7 @@ export function WorktreeInlinePanel({
             <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
           </div>
 
-          <div style={{ fontSize: 12, color: "#4a4540", marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: colors.textMuted, marginBottom: 10 }}>
             What would you like to do with this worktree?
           </div>
 
@@ -331,7 +283,7 @@ export function WorktreeInlinePanel({
                 fontSize: 12,
                 fontWeight: 600,
                 color: "#fff",
-                background: isDeleting ? "#c4c1ba" : "#dc2626",
+                background: isDeleting ? "#c4c1ba" : colors.errorDark,
                 border: "none",
                 borderRadius: 6,
                 cursor: isDeleting ? "not-allowed" : "pointer",
@@ -363,9 +315,9 @@ export function WorktreeInlinePanel({
                 padding: "8px 14px",
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#4a4540",
-                background: "#faf9f5",
-                border: "1px solid #e5e2da",
+                color: colors.textMuted,
+                background: colors.bgSurface,
+                border: `1px solid ${colors.border}`,
                 borderRadius: 6,
                 cursor: "pointer",
                 fontFamily: "inherit",
@@ -415,7 +367,7 @@ export function WorktreeInlinePanel({
               justifyContent: "space-between",
             }}
           >
-            <span style={{ fontSize: 12, color: "#9a958c" }}>
+            <span style={{ fontSize: 12, color: colors.textTertiary }}>
               No changes — this worktree can be safely removed.
             </span>
 
@@ -428,7 +380,7 @@ export function WorktreeInlinePanel({
                 fontSize: 12,
                 fontWeight: 600,
                 color: "#fff",
-                background: isDeleting ? "#c4c1ba" : "#dc2626",
+                background: isDeleting ? "#c4c1ba" : colors.errorDark,
                 border: "none",
                 borderRadius: 6,
                 cursor: isDeleting ? "not-allowed" : "pointer",
@@ -456,37 +408,28 @@ export function WorktreeInlinePanel({
           /* Merge section — worktree has changes */
           <div
             style={{
-              borderTop: "1px solid #e5e2da",
+              borderTop: `1px solid ${colors.border}`,
               padding: "12px 16px 14px",
             }}
           >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                color: "#9a958c",
-                marginBottom: 8,
-              }}
-            >
+            <SectionHeader style={{ marginBottom: 8 }}>
               <GitMerge size={11} strokeWidth={2} style={{ marginRight: 4, verticalAlign: "middle" }} />
               Local merge (no push)
-            </div>
+            </SectionHeader>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <div
                 style={{
                   flex: 1,
                   fontSize: 12,
-                  color: "#4a4540",
+                  color: colors.textMuted,
                   display: "flex",
                   alignItems: "center",
                   gap: 6,
                 }}
               >
                 <span style={{ fontWeight: 500 }}>{worktree.branch}</span>
-                <ArrowRight size={12} strokeWidth={1.5} color="#9a958c" />
+                <ArrowRight size={12} strokeWidth={1.5} color={colors.textTertiary} />
 
                 {/* Target branch picker */}
                 <div style={{ position: "relative" }}>
@@ -500,9 +443,9 @@ export function WorktreeInlinePanel({
                       padding: "5px 10px",
                       fontSize: 12,
                       fontWeight: 500,
-                      color: "#2c2c2c",
-                      background: "#faf9f5",
-                      border: "1px solid #e5e2da",
+                      color: colors.text,
+                      background: colors.bgSurface,
+                      border: `1px solid ${colors.border}`,
                       borderRadius: 6,
                       cursor: "pointer",
                       fontFamily: "inherit",
@@ -519,8 +462,8 @@ export function WorktreeInlinePanel({
                         bottom: "100%",
                         left: 0,
                         marginBottom: 4,
-                        background: "#fff",
-                        border: "1px solid #e5e2da",
+                        background: colors.dialogBg,
+                        border: `1px solid ${colors.border}`,
                         borderRadius: 8,
                         boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
                         maxHeight: 180,
@@ -544,7 +487,7 @@ export function WorktreeInlinePanel({
                               width: "100%",
                               padding: "8px 12px",
                               fontSize: 12,
-                              color: b === targetBranch ? "#C15F3C" : "#2c2c2c",
+                              color: b === targetBranch ? colors.primary : colors.text,
                               fontWeight: b === targetBranch ? 600 : 400,
                               background: b === targetBranch ? "#faf5f2" : "transparent",
                               border: "none",
@@ -553,7 +496,7 @@ export function WorktreeInlinePanel({
                               fontFamily: "inherit",
                             }}
                             onMouseEnter={(e) => {
-                              if (b !== targetBranch) e.currentTarget.style.background = "#faf9f5";
+                              if (b !== targetBranch) e.currentTarget.style.background = colors.bgSurface;
                             }}
                             onMouseLeave={(e) => {
                               if (b !== targetBranch) e.currentTarget.style.background = "transparent";
@@ -576,7 +519,7 @@ export function WorktreeInlinePanel({
                   fontSize: 12,
                   fontWeight: 600,
                   color: "#fff",
-                  background: !targetBranch || isMerging ? "#c4c1ba" : "#C15F3C",
+                  background: !targetBranch || isMerging ? "#c4c1ba" : colors.primary,
                   border: "none",
                   borderRadius: 6,
                   cursor: !targetBranch || isMerging ? "not-allowed" : "pointer",
@@ -613,7 +556,7 @@ export function WorktreeInlinePanel({
                   alignItems: "flex-start",
                   gap: 6,
                   background: "#fef2f2",
-                  color: "#dc2626",
+                  color: colors.errorDark,
                   border: "1px solid #fecaca",
                 }}
               >

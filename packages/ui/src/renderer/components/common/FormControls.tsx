@@ -81,6 +81,30 @@ export function FormInput({
   );
 }
 
+type SectionHeaderProps = {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+};
+
+/** Uppercase section header used for grouping content (e.g. "Changed files", "Local merge"). */
+export function SectionHeader({ children, style }: SectionHeaderProps): React.ReactElement {
+  return (
+    <div
+      style={{
+        fontSize: 11,
+        fontWeight: 600,
+        textTransform: "uppercase",
+        letterSpacing: "0.08em",
+        color: colors.textTertiary,
+        marginBottom: 10,
+        ...style,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 type FormErrorProps = {
   message: string | null | undefined;
 };

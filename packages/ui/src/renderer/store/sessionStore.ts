@@ -48,7 +48,7 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
       }
 
       // Any non-success response (including "error") — mark as initialized anyway
-      const errorMsg = response.type === "error" ? (response as any).message : `Unexpected response: ${response.type}`;
+      const errorMsg = response.type === "error" ? response.message : `Unexpected response: ${response.type}`;
       console.warn("[session] loadSessionState error:", errorMsg);
       set({ error: errorMsg, isLoading: false, initialized: true });
     } catch (error) {

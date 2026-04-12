@@ -2,33 +2,27 @@ import type { ConfigManager } from "../config/ConfigManager";
 import type { RepoRepository } from "../services/RepoRepository";
 import type { ScanQueue } from "../services/ScanQueue";
 import type { SpecSyncService } from "../services/SpecSyncService";
-import { RepoScanner } from "../services/RepoScanner";
+import type { RepoScanner } from "../services/RepoScanner";
 
 /**
  * RepoApplicationService orchestrates repository operations.
  * Receives injected dependencies and provides business logic for repo management.
  */
 export class RepoApplicationService {
-  private scanner: RepoScanner;
-
   constructor(
-    private repoRepository: RepoRepository,
-    private configManager: ConfigManager,
-    private scanQueue: ScanQueue,
-    private specSyncService: SpecSyncService,
-  ) {
-    this.scanner = new RepoScanner(3);
-  }
+    private readonly repoRepository: RepoRepository,
+    private readonly configManager: ConfigManager,
+    private readonly scanQueue: ScanQueue,
+    private readonly specSyncService: SpecSyncService,
+    private readonly scanner: RepoScanner,
+  ) {}
 
   listRepos() {
-    const repos = this.repoRepository.listAll();
-    console.log(`[repo-service] repo:list → returning ${repos.length} repos`);
-    return repos;
+    return this.repoRepository.listAll();
   }
 
   async triggerScan(): Promise<void> {
     const config = this.configManager.getConfig();
-    console.log(`[repo-service] repo:scan → scanning ${config.workingDirs.length} dirs:`, config.workingDirs);
     void this.scanQueue.requestScan(config.workingDirs).catch((err) => {
       console.error("[repo-service] Scan failed:", err);
     });
@@ -37,19 +31,16 @@ export class RepoApplicationService {
   /**
    * Force-reload a single repo: re-scan it, refresh its spec info.
    * Runs as a background job so the UI is notified via the notification bell.
-   * Spec sync happens inside the job after the scan completes.
    */
   forceReload(repoPath: string): void {
     this.scanQueue.requestSingleRepoReload(repoPath);
   }
 
   async listBranches(repoPath: string) {
-    console.log(`[repo-service] branch:list → ${repoPath}`);
     return await this.scanner.listBranches(repoPath);
   }
 
   async checkoutBranch(repoPath: string, branch: string): Promise<boolean> {
-    console.log(`[repo-service] branch:checkout → ${repoPath} → ${branch}`);
     const success = await this.scanner.checkoutBranch(repoPath, branch);
 
     if (success) {

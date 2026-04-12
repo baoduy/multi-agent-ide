@@ -3,10 +3,6 @@ import {
   GitBranch,
   GitMerge,
   X,
-  FilePlus,
-  FileEdit,
-  FileX,
-  FileQuestion,
   ArrowRight,
   ChevronDown,
   Check,
@@ -15,50 +11,14 @@ import {
 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
-import type { WorktreeInfo, WorktreeFileStatus } from "../../store/worktreeStore";
+import type { WorktreeInfo } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { BranchLabel } from "../common/RepoLabel";
 import { sendOrThrow } from "../../services/ipcClient";
 import { BaseDialog } from "../common/BaseDialog";
 import { ScrollableText } from "../common/ScrollableText";
-
-/* ── Status badge for a single file ── */
-
-const STATUS_CONFIG: Record<
-  WorktreeFileStatus["status"],
-  { label: string; color: string; bg: string; Icon: React.ElementType }
-> = {
-  added: { label: "Added", color: "#16A34A", bg: "#f0fdf4", Icon: FilePlus },
-  modified: { label: "Modified", color: "#ca8a04", bg: "#fefce8", Icon: FileEdit },
-  deleted: { label: "Deleted", color: "#dc2626", bg: "#fef2f2", Icon: FileX },
-  renamed: { label: "Renamed", color: "#7c3aed", bg: "#f5f3ff", Icon: ArrowRight },
-  copied: { label: "Copied", color: "#0284c7", bg: "#f0f9ff", Icon: FilePlus },
-  untracked: { label: "Untracked", color: "#6b7280", bg: "#f9fafb", Icon: FileQuestion },
-};
-
-function FileStatusBadge({ status }: { status: WorktreeFileStatus["status"] }): React.ReactElement {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 10,
-        fontWeight: 600,
-        color: cfg.color,
-        background: cfg.bg,
-        padding: "2px 8px",
-        borderRadius: 4,
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-      }}
-    >
-      <cfg.Icon size={10} strokeWidth={2} />
-      {cfg.label}
-    </span>
-  );
-}
+import { FileStatusBadge } from "../common/FileStatusBadge";
+import { SectionHeader } from "../common/FormControls";
 
 /* ── Main dialog ── */
 
@@ -100,7 +60,7 @@ export function WorktreeDetailDialog({
         setCurrentBranch(resp.current);
         setTargetBranch(resp.current);
       })
-      .catch(() => {});
+      .catch((err) => console.warn("[WorktreeDetailDialog] Failed to load branches:", err));
   }, [worktree.worktreePath, worktree.repoPath, fetchWorktreeStatus, clearMergeResult]);
 
   const handleMerge = useCallback(() => {
@@ -150,19 +110,10 @@ export function WorktreeDetailDialog({
 
       {/* Changed files list */}
       <div>
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: colors.textTertiary,
-            marginBottom: 10,
-          }}
-        >
+        <SectionHeader>
           Changed files
           {status && ` (${status.files.length})`}
-        </div>
+        </SectionHeader>
 
         {isStatusLoading && (
           <div
@@ -230,19 +181,10 @@ export function WorktreeDetailDialog({
           marginTop: 12,
         }}
       >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 600,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: colors.textTertiary,
-            marginBottom: 10,
-          }}
-        >
+        <SectionHeader>
           <GitMerge size={11} strokeWidth={2} style={{ marginRight: 4, verticalAlign: "middle" }} />
           Local merge (no push)
-        </div>
+        </SectionHeader>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div

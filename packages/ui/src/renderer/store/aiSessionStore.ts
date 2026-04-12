@@ -3,6 +3,11 @@ import { sendOrThrow, onEvent } from "../services/ipcClient";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 import type { AISessionRecord, AIProvider, AISessionStatus, ProviderMeta } from "@magenta/shared/aiTerminal";
 
+/* ── Constants ── */
+
+/** Maximum output size per session (1MB). Older content is truncated. */
+const MAX_OUTPUT_SIZE = 1024 * 1024;
+
 /* ── Types ── */
 
 type AISessionStoreState = {
@@ -132,8 +137,13 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
   appendOutput: (sessionId, data) => {
     set((state) => {
       const existing = state.liveOutput[sessionId] ?? "";
+      let combined = existing + data;
+      // Truncate from the front if output exceeds max size
+      if (combined.length > MAX_OUTPUT_SIZE) {
+        combined = combined.slice(combined.length - MAX_OUTPUT_SIZE);
+      }
       return {
-        liveOutput: { ...state.liveOutput, [sessionId]: existing + data },
+        liveOutput: { ...state.liveOutput, [sessionId]: combined },
       };
     });
   },

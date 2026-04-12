@@ -6,6 +6,11 @@ export type AIProvider = (typeof AI_PROVIDERS)[number];
 export const AI_SESSION_STATUSES = ["idle", "running", "waiting-input", "error", "exited"] as const;
 export type AISessionStatus = (typeof AI_SESSION_STATUSES)[number];
 
+export const SLASH_COMMAND_CATEGORIES = [
+  "session", "context", "model", "permissions",
+  "mcp", "agents", "output", "git", "navigation", "info",
+] as const;
+
 export const AISessionRecordSchema = z.object({
   id: z.string(),
   provider: z.enum(AI_PROVIDERS),
@@ -38,30 +43,36 @@ export type SlashCommandCategory =
   | "session" | "context" | "model" | "permissions"
   | "mcp" | "agents" | "output" | "git" | "navigation" | "info";
 
-export interface SlashCommand {
-  command: string;
-  aliases?: string[];
-  description: string;
-  category: SlashCommandCategory;
-  args?: string;
-  providers: AIProvider[];
-}
+export const SlashCommandSchema = z.object({
+  command: z.string(),
+  aliases: z.array(z.string()).optional(),
+  description: z.string(),
+  category: z.enum(SLASH_COMMAND_CATEGORIES),
+  args: z.string().optional(),
+  providers: z.array(z.enum(AI_PROVIDERS)),
+});
 
-export interface CliFlag {
-  flag: string;
-  short?: string;
-  aliases?: string[];
-  description: string;
-  valueHint?: string;
-  category: SlashCommandCategory;
-  providers: AIProvider[];
-}
+export type SlashCommand = z.infer<typeof SlashCommandSchema>;
 
-export interface ProviderMeta {
-  name: string;
-  icon: string;
-  binaryName: string;
-  defaultArgs: string[];
-  slashCommands: SlashCommand[];
-  cliFlags: CliFlag[];
-}
+export const CliFlagSchema = z.object({
+  flag: z.string(),
+  short: z.string().optional(),
+  aliases: z.array(z.string()).optional(),
+  description: z.string(),
+  valueHint: z.string().optional(),
+  category: z.enum(SLASH_COMMAND_CATEGORIES),
+  providers: z.array(z.enum(AI_PROVIDERS)),
+});
+
+export type CliFlag = z.infer<typeof CliFlagSchema>;
+
+export const ProviderMetaSchema = z.object({
+  name: z.string(),
+  icon: z.string(),
+  binaryName: z.string(),
+  defaultArgs: z.array(z.string()),
+  slashCommands: z.array(SlashCommandSchema),
+  cliFlags: z.array(CliFlagSchema),
+});
+
+export type ProviderMeta = z.infer<typeof ProviderMetaSchema>;

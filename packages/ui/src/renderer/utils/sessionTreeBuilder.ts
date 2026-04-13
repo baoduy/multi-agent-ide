@@ -134,10 +134,20 @@ export function buildUnifiedGroups(
 
   // 3) Compute aggregate stats for each group
   for (const group of groupMap.values()) {
-    // Sort live sessions by lastActiveAt DESC
-    group.liveSessions.sort((a, b) => b.lastActiveAt - a.lastActiveAt);
-    // Sort synced sessions by startedAt DESC
-    group.syncedSessions.sort((a, b) => b.startedAt - a.startedAt);
+    // Sort live sessions: active first, then by lastActiveAt DESC
+    group.liveSessions.sort((a, b) => {
+      const aActive = a.status === "active" || a.status === "waiting-input" ? 1 : 0;
+      const bActive = b.status === "active" || b.status === "waiting-input" ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      return b.lastActiveAt - a.lastActiveAt;
+    });
+    // Sort synced sessions: active first, then by startedAt DESC
+    group.syncedSessions.sort((a, b) => {
+      const aActive = a.status === "active" ? 1 : 0;
+      const bActive = b.status === "active" ? 1 : 0;
+      if (aActive !== bActive) return bActive - aActive;
+      return b.startedAt - a.startedAt;
+    });
 
     group.totalCount = group.liveSessions.length + group.syncedSessions.length;
     group.activeCount = group.liveSessions.filter(

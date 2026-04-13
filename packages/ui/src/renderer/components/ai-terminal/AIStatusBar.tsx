@@ -1,30 +1,32 @@
 import React, { useCallback, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { AISessionRecord, AIPermissionMode } from "@magenta/shared/aiTerminal";
-import { PERMISSION_MODE_LABELS, PROVIDER_PERMISSION_MODES } from "@magenta/shared/aiTerminal";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { getStatusColor } from "../../utils/sessionStatus";
 
+/** Simplified permission modes — matches NewSessionDialog. */
+type SimplifiedPermission = "default" | "auto" | "bypassPermissions";
+
+const SIMPLIFIED_MODES: readonly { key: SimplifiedPermission; label: string }[] = [
+  { key: "default", label: "Default" },
+  { key: "auto", label: "Auto" },
+  { key: "bypassPermissions", label: "Bypass" },
+];
+
 type AIStatusBarProps = {
   session: AISessionRecord;
 };
 
-/** Color for each permission mode chip. */
-function getModeColor(mode: AIPermissionMode): string {
+/** Color for each simplified permission mode. */
+function getModeColor(mode: SimplifiedPermission): string {
   switch (mode) {
     case "auto":
       return "#3d7a2a";
-    case "acceptEdits":
-      return "#b8860b";
-    case "plan":
-      return "#4a7fb5";
     case "bypassPermissions":
       return "#c75050";
-    case "dontAsk":
-      return "#8b5e3c";
     default:
       return "#6b6560";
   }
@@ -55,15 +57,19 @@ export function AIStatusBar({ session }: AIStatusBarProps): React.ReactElement {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const currentMode = session.permissionMode ?? "default";
+  // Map the full permission mode to one of our 3 simplified modes
+  const rawMode = session.permissionMode ?? "default";
+  const currentMode: SimplifiedPermission =
+    rawMode === "auto" ? "auto"
+    : rawMode === "bypassPermissions" || rawMode === "dontAsk" ? "bypassPermissions"
+    : "default";
   const modeColor = getModeColor(currentMode);
-  const supportedModes = PROVIDER_PERMISSION_MODES[session.provider];
 
   const handleModeSelect = useCallback(
-    (mode: AIPermissionMode) => {
+    (mode: SimplifiedPermission) => {
       setDropdownOpen(false);
       if (mode !== currentMode) {
-        void setPermissionMode(session.id, mode);
+        void setPermissionMode(session.id, mode as AIPermissionMode);
       }
     },
     [currentMode, session.id, setPermissionMode],
@@ -155,7 +161,7 @@ export function AIStatusBar({ session }: AIStatusBarProps): React.ReactElement {
           onMouseLeave={(e) => { if (!dropdownOpen) e.currentTarget.style.background = "transparent"; }}
           title="Change permission mode"
         >
-          {PERMISSION_MODE_LABELS[currentMode]}
+          {SIMPLIFIED_MODES.find((m) => m.key === currentMode)?.label ?? "Default"}
           <ChevronDown size={10} strokeWidth={2.5} />
         </button>
 
@@ -176,13 +182,13 @@ export function AIStatusBar({ session }: AIStatusBarProps): React.ReactElement {
               overflow: "hidden",
             }}
           >
-            {supportedModes.map((mode) => {
-              const isActive = mode === currentMode;
+            {SIMPLIFIED_MODES.map(({ key, label }) => {
+              const isActive = key === currentMode;
               return (
                 <button
-                  key={mode}
+                  key={key}
                   type="button"
-                  onClick={() => handleModeSelect(mode)}
+                  onClick={() => handleModeSelect(key)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -194,7 +200,7 @@ export function AIStatusBar({ session }: AIStatusBarProps): React.ReactElement {
                     cursor: "pointer",
                     fontSize: 12,
                     fontWeight: isActive ? 600 : 400,
-                    color: isActive ? getModeColor(mode) : "#2c2c2c",
+                    color: isActive ? getModeColor(key) : "#2c2c2c",
                     textAlign: "left",
                     transition: "background 0.1s",
                   }}
@@ -207,11 +213,11 @@ export function AIStatusBar({ session }: AIStatusBarProps): React.ReactElement {
                       width: 6,
                       height: 6,
                       borderRadius: "50%",
-                      background: isActive ? getModeColor(mode) : "transparent",
+                      background: isActive ? getModeColor(key) : "transparent",
                       flexShrink: 0,
                     }}
                   />
-                  {PERMISSION_MODE_LABELS[mode]}
+                  {label}
                 </button>
               );
             })}

@@ -387,8 +387,6 @@ export function MainPage(): React.ReactElement {
     }
   }
 
-  const hasActivity = selectedSpec != null && selectedSpec.files.length > 0;
-
   return (
     <>
     <OnboardDialogManager />
@@ -397,7 +395,7 @@ export function MainPage(): React.ReactElement {
         <TitleBar
           sidebarCollapsed={sidebarCollapsed}
           activityCollapsed={activityCollapsed}
-          hasActivity={hasActivity}
+          hasActivity={true}
           onToggleSidebar={handleToggleSidebar}
           onToggleActivity={handleToggleActivity}
           canGoBack={nav.canGoBack}
@@ -425,9 +423,10 @@ export function MainPage(): React.ReactElement {
         </div>
       }
       activity={
-        hasActivity
-          ? <ActivityPanel onOpenFile={handleOpenFile} />
-          : null
+        <ActivityPanel
+          onOpenFile={handleOpenFile}
+          activeBuiltinTab={activeTab.kind === "builtin" ? activeTab.id : null}
+        />
       }
     />
     </>

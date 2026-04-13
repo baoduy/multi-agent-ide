@@ -1,14 +1,15 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import React, { useCallback, useMemo, useState } from "react";
 
 import { useSpecStore } from "../../store/specStore";
-import { useRepoStore } from "../../store/repoStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
+import { useRepoStore } from "../../store/repoStore";
 import { SpecFileList } from "./SpecFileList";
+import { RepoFileChanges } from "./RepoFileChanges";
 import { ScrollableText } from "../common/ScrollableText";
-import { MagentaTerminal, MagentaTerminalHandle } from "../common/MagentaTerminal";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { getProviderName, type ProviderVariant } from "../common/providerConfig";
+
+import type { BuiltinTabId } from "../main/TabBar";
 
 /* ── Section wrapper ── */
 
@@ -26,8 +27,11 @@ function Section({
   return (
     <div
       style={{
+        display: "flex",
+        flexDirection: "column",
         padding: "14px 16px",
         borderBottom: "1px solid #e5e2da",
+        minHeight: 0,
         ...style,
       }}
     >
@@ -37,6 +41,7 @@ function Section({
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: children ? 10 : 0,
+          flexShrink: 0,
         }}
       >
         <ScrollableText
@@ -53,7 +58,9 @@ function Section({
         </ScrollableText>
         {action}
       </div>
-      {children}
+      <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -104,18 +111,27 @@ function ProviderStatusItem({
 
 type ActivityPanelProps = {
   onOpenFile?: (filePath: string) => void;
+  /** The currently active builtin tab id (e.g. "specs", "ai", "worktrees", "workflow"). */
+  activeBuiltinTab?: BuiltinTabId | null;
 };
 
-export function ActivityPanel({ onOpenFile }: ActivityPanelProps): React.ReactElement {
+export function ActivityPanel({ onOpenFile, activeBuiltinTab }: ActivityPanelProps): React.ReactElement {
   const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  const terminalRef = useRef<MagentaTerminalHandle>(null);
-  const [terminalOpen, setTerminalOpen] = useState(false);
 
   const sessions = useAISessionStore((state) => state.sessions);
+  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
 
   const selectedSpec = specs.find((s) => s.path === selectedSpecPath) ?? null;
+
+  const isAITab = activeBuiltinTab === "ai";
+
+  const [fileChangeCount, setFileChangeCount] = useState<number | null>(null);
+  const handleFileCountChange = useCallback((count: number) => {
+    setFileChangeCount(count);
+  }, []);
+
+  const changesSectionTitle = fileChangeCount != null ? `Changes (${fileChangeCount})` : "Changes";
 
   // Derive which providers have at least one actively running session
   const isClaudeRunning = useMemo(
@@ -127,85 +143,37 @@ export function ActivityPanel({ onOpenFile }: ActivityPanelProps): React.ReactEl
     [sessions],
   );
 
-  const handleAddTerminal = useCallback(() => {
-    if (!terminalOpen) {
-      // First click — mount the component (it auto-creates tab 1)
-      setTerminalOpen(true);
-    } else {
-      // Already mounted — ask the terminal to add a new tab
-      terminalRef.current?.createTab();
-    }
-  }, [terminalOpen]);
-
-  const handleAllTabsClosed = useCallback(() => {
-    setTerminalOpen(false);
-  }, []);
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Spec Files */}
-      {selectedSpec ? (
-        <Section title={selectedSpec.name} style={{ flex: 1, overflowY: "auto", borderBottom: "none" }}>
-          <SpecFileList files={selectedSpec.files} onOpenFile={onOpenFile} />
-        </Section>
-      ) : activeRepoPath ? (
-        <Section title="Files">
-          <div style={{ fontSize: 11, color: "#9a958c" }}>Select a spec to view its files.</div>
-        </Section>
-      ) : (
-        <Section title="Files">
-          <div style={{ fontSize: 11, color: "#9a958c" }}>Select a repository and spec.</div>
+      {/* AI Tab → show git file changes for the active repo */}
+      {isAITab && activeRepoPath && (
+        <Section title={changesSectionTitle} style={{ flex: 1, borderBottom: "none" }}>
+          <RepoFileChanges
+            repoPath={activeRepoPath}
+            onOpenFile={onOpenFile}
+            onFileCountChange={handleFileCountChange}
+          />
         </Section>
       )}
 
-      {/* Agent Status */}
-      <Section title="Agents" style={{ flexShrink: 0, borderBottom: "none" }}>
+      {/* Non-AI tabs → Spec Files (only shown when a spec is selected) */}
+      {!isAITab && selectedSpec && selectedSpec.files.length > 0 && (
+        <Section title={selectedSpec.name} style={{ flex: 1, borderBottom: "none" }}>
+          <SpecFileList files={selectedSpec.files} onOpenFile={onOpenFile} />
+        </Section>
+      )}
+
+      {/* Spacer — pushes Agents to the bottom when no file section is shown */}
+      {!(isAITab && activeRepoPath) && !(!isAITab && selectedSpec && selectedSpec.files.length > 0) && (
+        <div style={{ flex: 1 }} />
+      )}
+
+      {/* Agent Status — always pinned at the bottom */}
+      <Section title="Agents" style={{ flexShrink: 0, borderBottom: "none", borderTop: "1px solid #e5e2da" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <ProviderStatusItem provider="claude" active={isClaudeRunning} />
           <ProviderStatusItem provider="copilot" active={isCopilotRunning} />
         </div>
-      </Section>
-
-      {/* Terminal — "+" button lives in the section title bar */}
-      <Section
-        title="Terminal"
-        style={{ flexShrink: 0, borderBottom: "none" }}
-        action={
-          <button
-            type="button"
-            onClick={handleAddTerminal}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "2px",
-              background: "transparent",
-              border: "none",
-              color: "#3d7a2a",
-              cursor: "pointer",
-              borderRadius: 4,
-              transition: "color 0.15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = "#50a14f")}
-            onMouseLeave={(e) => (e.currentTarget.style.color = "#3d7a2a")}
-            title="New terminal"
-          >
-            <Plus size={14} strokeWidth={2} />
-          </button>
-        }
-      >
-        {terminalOpen ? (
-          <MagentaTerminal
-            ref={terminalRef}
-            readonly={false}
-            cwd={activeRepoPath ?? undefined}
-            maxHeight={200}
-            fontSize={9}
-            fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
-            enableTabs={true}
-            onAllTabsClosed={handleAllTabsClosed}
-          />
-        ) : undefined}
       </Section>
 
       <style>{`@keyframes provider-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>

@@ -61,7 +61,7 @@ function AISessionListItemComponent({
   const branchDisplayName = session.worktreeName || session.branch || null;
   const timeDisplay = formatRelativeTime(session.lastActiveAt);
   const statusText = showStatus ? formatStatus(session.status) : "";
-  const sessionTitle = session.title;
+  const sessionTitle = session.title || `Session ${session.id.slice(0, 8)}`;
 
   return (
     <>

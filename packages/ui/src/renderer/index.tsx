@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { MainPage } from "./pages/Main";
+import { ThemeProvider } from "./theme/ThemeProvider";
 
 function enforceLightTheme(): void {
   if (typeof document === "undefined") {
@@ -26,9 +27,11 @@ function initializeApp(): void {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
     <React.StrictMode>
-      <ErrorBoundary>
-        <MainPage />
-      </ErrorBoundary>
+      <ThemeProvider>
+        <ErrorBoundary>
+          <MainPage />
+        </ErrorBoundary>
+      </ThemeProvider>
     </React.StrictMode>
   );
 }

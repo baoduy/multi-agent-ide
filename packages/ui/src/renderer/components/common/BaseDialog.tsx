@@ -12,6 +12,8 @@ type BaseDialogProps = {
   width?: number;
   /** Whether to constrain max height and allow scrolling */
   scrollable?: boolean;
+  /** Optional max-height when scrollable (default: 80vh) */
+  maxHeight?: number | string;
   /** Dialog body content */
   children: React.ReactNode;
   /** Footer content (buttons etc.) */
@@ -35,6 +37,7 @@ export function BaseDialog({
   icon,
   width = 440,
   scrollable = false,
+  maxHeight = "80vh",
   children,
   footer,
   onClose,
@@ -97,7 +100,7 @@ export function BaseDialog({
           width,
           maxWidth: "90vw",
           ...(scrollable
-            ? { maxHeight: "80vh", display: "flex", flexDirection: "column" as const }
+            ? { maxHeight, display: "flex", flexDirection: "column" as const }
             : {}),
           zIndex: 9999,
           overflow: "hidden",

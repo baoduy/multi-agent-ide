@@ -5,32 +5,34 @@
 
 export const colors = {
   /** Primary brand / action color */
-  primary: "#C15F3C",
+  primary: "var(--primary)",
+  /** Primary text color for contrast on primary backgrounds */
+  primaryForeground: "var(--primary-foreground)",
   /** Primary with transparency for subtle backgrounds */
   primaryAlpha: "#C15F3C08",
 
   /** Text colors */
-  text: "#2c2c2c",
-  textMuted: "#4a4540",
-  textSecondary: "#6b6560",
-  textTertiary: "#9a958c",
+  text: "var(--foreground)",
+  textMuted: "var(--secondary-foreground)",
+  textSecondary: "color-mix(in srgb, var(--foreground) 75%, white)",
+  textTertiary: "var(--muted-foreground)",
 
   /** Border colors */
-  border: "#e5e2da",
-  borderLight: "#f0ede8",
+  border: "var(--border)",
+  borderLight: "color-mix(in srgb, var(--border) 70%, white)",
 
   /** Background colors */
-  bgSurface: "#faf9f5",
-  bgMuted: "#f5f4ed",
-  bgHover: "#f0ede8",
+  bgSurface: "var(--background)",
+  bgMuted: "var(--muted)",
+  bgHover: "var(--accent)",
 
   /** Status colors */
   success: "#16A34A",
-  error: "#ef4444",
-  errorDark: "#dc2626",
+  error: "var(--destructive)",
+  errorDark: "color-mix(in srgb, var(--destructive) 80%, black)",
 
   /** Dialog specific */
-  dialogBg: "#fff",
+  dialogBg: "var(--card)",
   dialogShadow: "0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08)",
   backdropBg: "rgba(0, 0, 0, 0.35)",
 } as const;

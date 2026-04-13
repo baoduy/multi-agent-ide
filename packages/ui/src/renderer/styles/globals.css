@@ -19,6 +19,10 @@
  *   success   #16A34A
  */
 
+/*
+ * Light-only runtime policy.
+ * Keep dark variant reserved for future feature work, but do not activate it.
+ */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -91,5 +95,10 @@
 @layer base {
   * {
     @apply border-border;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
   }
 }

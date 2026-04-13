@@ -5,12 +5,12 @@ import { type LabelSize, type LabelVariant, sizeMap } from "./labelConstants";
 
 const repoColors: Record<LabelVariant, { icon: string; text: string }> = {
   light: { icon: colors.primary, text: colors.text },
-  dark:  { icon: "#d4d4d4", text: "#d4d4d4" },
+  dark: { icon: colors.primary, text: colors.text },
 };
 
 const branchColors: Record<LabelVariant, { icon: string; text: string; bg: string; border: string }> = {
-  light: { icon: "#166534", text: "#166534", bg: "#dcfce7", border: "#bbf7d0" },
-  dark:  { icon: "#4ade80", text: "#4ade80", bg: "#16653418", border: "#4ade8040" },
+  light: { icon: colors.success, text: colors.success, bg: "#dcfce7", border: "#bbf7d0" },
+  dark: { icon: colors.success, text: colors.success, bg: "#dcfce7", border: "#bbf7d0" },
 };
 
 /* ══════════════════════════════════════════

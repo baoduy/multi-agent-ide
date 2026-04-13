@@ -8,6 +8,7 @@ import { ipc } from "../../utils/ipc";
 import { ScrollableText } from "../common/ScrollableText";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { colors } from "../../utils/colors";
 
 /* ═══════════════════════════════════════════════════════
    Marked instance — configured once with highlight.js
@@ -665,8 +666,8 @@ function ToggleBtn({
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: active ? 600 : 400,
-        color: active ? "#C15F3C" : hovered ? "#4a4540" : "#9a958c",
-        background: active ? "#fff" : "transparent",
+        color: active ? colors.primary : hovered ? colors.textMuted : colors.textTertiary,
+        background: active ? colors.dialogBg : "transparent",
         border: "none",
         cursor: "pointer",
         transition: "all 0.12s",
@@ -707,10 +708,10 @@ function CopyContentButton({ content }: { content: string }): React.ReactElement
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 500,
-        color: copied ? "#16a34a" : hovered ? "#4a4540" : "#9a958c",
-        background: copied ? "#dcfce7" : hovered ? "#f0ede8" : "transparent",
+        color: copied ? colors.success : hovered ? colors.textMuted : colors.textTertiary,
+        background: copied ? "#dcfce7" : hovered ? colors.bgHover : "transparent",
         border: "1px solid",
-        borderColor: copied ? "#bbf7d0" : "#e5e2da",
+        borderColor: copied ? "#bbf7d0" : colors.border,
         borderRadius: 6,
         cursor: "pointer",
         transition: "all 0.15s",
@@ -776,7 +777,7 @@ function ApproveButton({
           padding: "4px 10px",
           fontSize: 11,
           fontWeight: 600,
-          color: "#166534",
+          color: colors.success,
           background: "#dcfce7",
           border: "1px solid #bbf7d0",
           borderRadius: 6,
@@ -972,7 +973,7 @@ function ApproveButton({
           padding: "4px 10px",
           fontSize: 11,
           fontWeight: 600,
-          color: "#fff",
+          color: colors.primaryForeground ?? "#fff",
           background: approving ? "#86efac" : hovered ? "#15803d" : "#16A34A",
           border: "none",
           borderRadius: 6,
@@ -1010,7 +1011,7 @@ function ApproveButton({
             borderRadius: 8,
             padding: "10px 16px",
             fontSize: 12,
-            color: "#a14a2f",
+            color: colors.errorDark,
             maxWidth: 360,
             zIndex: 10000,
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",

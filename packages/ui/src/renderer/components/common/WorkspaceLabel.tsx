@@ -1,10 +1,11 @@
 import React from "react";
 import { Folder } from "lucide-react";
+import { colors } from "../../utils/colors";
 import { type LabelSize, type LabelVariant, sizeMap } from "./labelConstants";
 
 const variantColors: Record<LabelVariant, { icon: string; text: string }> = {
-  light: { icon: "#9a958c", text: "#9a958c" },
-  dark: { icon: "#a0a0a0", text: "#d4d4d4" },
+  light: { icon: colors.textTertiary, text: colors.textTertiary },
+  dark: { icon: colors.textTertiary, text: colors.textTertiary },
 };
 
 /* ══════════════════════════════════════════

@@ -41,9 +41,9 @@ export interface MagentaTerminalProps {
   isVisible?: boolean;
 }
 
-// ── Dark theme (always) ──────────────────────────────────────────────────────
-const THEME = TERMINAL_THEMES.dark;
-const THEME_BG = THEME.background; // #282a36 for Dracula
+// ── Runtime theme policy: light-only for now ─────────────────────────────────
+const THEME = TERMINAL_THEMES.light;
+const THEME_BG = THEME.background;
 
 // ── Pulse keyframe (shared by both branches) ────────────────────────────────
 
@@ -87,15 +87,15 @@ const XTERM_SCROLLBAR_STYLE = `
     background: transparent !important;
   }
   .xterm .xterm-viewport::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.12) !important;
+    background: rgba(56, 58, 66, 0.2) !important;
     border-radius: 2px !important;
   }
   .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.25) !important;
+    background: rgba(56, 58, 66, 0.35) !important;
   }
   .xterm .xterm-viewport {
     scrollbar-width: thin !important;
-    scrollbar-color: rgba(255, 255, 255, 0.12) transparent !important;
+    scrollbar-color: rgba(56, 58, 66, 0.2) transparent !important;
   }
 `;
 

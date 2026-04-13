@@ -1,8 +1,7 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  FolderGit2,
   Folder,
   Clock,
 } from "lucide-react";
@@ -11,7 +10,7 @@ import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
 import type { Repository } from "@magenta/shared/models";
 import { AISessionListItem } from "./AISessionListItem";
 import { ProviderBadge } from "../common/ProviderBadge";
-import { BranchLabel } from "../common/RepoLabel";
+import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime, formatTokens } from "../../utils/formatters";
 import { getRepoBadge } from "../../utils/repoBadge";
@@ -67,64 +66,23 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
         <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
       )}
 
-      {/* Git icon in a rounded box — matching RepoItem style */}
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 26,
-          height: 26,
-          borderRadius: 5,
-          background: colors.primaryAlpha,
-          flexShrink: 0,
-        }}
-      >
-        <FolderGit2 size={14} color={colors.primary} strokeWidth={1.8} />
-      </span>
-
-      {/* Repo name + meta (badge + branch) */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
         <span
           style={{
-            fontWeight: 600,
-            fontSize: 12,
-            color: colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            display: "block",
+            display: "inline-block",
+            padding: "1px 6px",
+            borderRadius: 3,
+            fontSize: 9,
+            fontWeight: 500,
+            background: badge.bg,
+            color: badge.color,
+            lineHeight: "16px",
           }}
         >
-          {repo.name}
+          {badge.label}
         </span>
-        <div
-          style={{
-            fontSize: 10,
-            color: colors.textTertiary,
-            marginTop: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              padding: "1px 6px",
-              borderRadius: 3,
-              fontSize: 9,
-              fontWeight: 500,
-              background: badge.bg,
-              color: badge.color,
-              lineHeight: "16px",
-            }}
-          >
-            {badge.label}
-          </span>
-          <BranchLabel name={repo.branch} size="xs" badge />
-        </div>
-      </div>
+        <BranchLabel name={repo.branch} size="xs" />
+      </RepoLabel>
 
       {/* Active indicator */}
       {activeCount > 0 && (
@@ -427,6 +385,8 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
 type SessionGroupNodeViewProps = {
   node: SessionGroupNode;
   defaultExpanded?: boolean;
+  /** When this matches the group's repo path, force-expand and scroll into view. */
+  activeRepoPath?: string | null;
   onSelectSession: (sessionId: string) => void;
   onResumeSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
@@ -437,12 +397,28 @@ type SessionGroupNodeViewProps = {
 function SessionGroupNodeComponent({
   node,
   defaultExpanded = false,
+  activeRepoPath,
   onSelectSession,
   onResumeSession,
   onDeleteSession,
   onResumeSyncedSession,
 }: SessionGroupNodeViewProps): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const isActive =
+    !!activeRepoPath &&
+    (node.repo?.path === activeRepoPath || node.path === activeRepoPath);
+
+  // Auto-expand and scroll into view when this group becomes the active repo.
+  useEffect(() => {
+    if (!isActive) return;
+    setExpanded(true);
+    const id = requestAnimationFrame(() => {
+      rootRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isActive]);
 
   const toggleExpanded = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -452,7 +428,7 @@ function SessionGroupNodeComponent({
   const hasSynced = node.syncedSessions.length > 0;
 
   return (
-    <div>
+    <div ref={rootRef}>
       {/* Group header — different style for repos vs workspace folders */}
       {node.repo ? (
         <RepoGroupHeader

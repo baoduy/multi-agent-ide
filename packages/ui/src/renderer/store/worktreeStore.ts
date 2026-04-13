@@ -110,6 +110,9 @@ type WorktreeStoreState = {
   /** Toggle a repo group expanded/collapsed. */
   toggleRepoExpanded: (repoPath: string) => void;
 
+  /** Explicitly set a repo group's expanded state. */
+  setRepoExpanded: (repoPath: string, expanded: boolean) => void;
+
   /** Set which worktree is expanded (null to collapse all). */
   setExpandedWorktreePath: (worktreePath: string | null) => void;
 };
@@ -294,6 +297,18 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
         [repoPath]: !state.expandedRepos[repoPath],
       },
     }));
+  },
+
+  setRepoExpanded(repoPath: string, expanded: boolean) {
+    set((state) => {
+      if (!!state.expandedRepos[repoPath] === expanded) return state;
+      return {
+        expandedRepos: {
+          ...state.expandedRepos,
+          [repoPath]: expanded,
+        },
+      };
+    });
   },
 
   setExpandedWorktreePath(worktreePath: string | null) {

@@ -69,6 +69,7 @@ export function AISessionsView({
 
   // Repos from the database (for matching session dirs to repos)
   const repos = useRepoStore((s) => s.repos);
+  const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
@@ -195,11 +196,18 @@ export function AISessionsView({
     [createSession, openTab],
   );
 
-  // Build unified groups: merge live sessions + synced history, grouped by repo/dir
-  const unifiedGroups = useMemo(
-    () => buildUnifiedGroups(sessions, syncedGroups, repos),
-    [sessions, syncedGroups, repos],
-  );
+  // Build unified groups: merge live sessions + synced history, grouped by repo/dir.
+  // When a repo is selected globally, hoist its group to the top so the user lands on it.
+  const unifiedGroups = useMemo(() => {
+    const groups = buildUnifiedGroups(sessions, syncedGroups, repos);
+    if (!activeRepoPath) return groups;
+    const idx = groups.findIndex((g) => g.repo?.path === activeRepoPath || g.path === activeRepoPath);
+    if (idx <= 0) return groups;
+    const reordered = [...groups];
+    const [active] = reordered.splice(idx, 1);
+    reordered.unshift(active);
+    return reordered;
+  }, [sessions, syncedGroups, repos, activeRepoPath]);
 
   // Derive status bar info for the active tab (agent or terminal)
   const activeStatusBarTab = useMemo((): StatusBarTab | null => {
@@ -288,6 +296,7 @@ export function AISessionsView({
                 key={node.key}
                 node={node}
                 defaultExpanded={node.activeCount > 0 || unifiedGroups.length <= 3}
+                activeRepoPath={activeRepoPath}
                 onSelectSession={handleSelectSession}
                 onResumeSession={handleResumeSession}
                 onDeleteSession={handleDeleteSession}

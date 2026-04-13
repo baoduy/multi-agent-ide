@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { GitBranch, FolderOpen, Clock, ChevronRight, ChevronDown } from "lucide-react";
 
 import { useWorktreeStore, type WorktreeInfo } from "../../store/worktreeStore";
@@ -98,7 +98,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
               color: colors.textTertiary,
             }}
           >
-            <BranchLabel name={wt.branch} size="xs" style={{ color: colors.textTertiary }} />
+            <BranchLabel name={wt.branch} size="xs" badge={false} style={{ color: colors.textTertiary }} />
             <span
               style={{
                 display: "inline-flex",
@@ -286,7 +286,25 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
   const expandedRepos = useWorktreeStore((state) => state.expandedRepos);
   const expandedWorktreePath = useWorktreeStore((state) => state.expandedWorktreePath);
   const toggleRepoExpanded = useWorktreeStore((state) => state.toggleRepoExpanded);
+  const setRepoExpanded = useWorktreeStore((state) => state.setRepoExpanded);
   const setExpandedWorktreePath = useWorktreeStore((state) => state.setExpandedWorktreePath);
+
+  // Ref to the active repo group so we can scroll it into view when selection changes.
+  const activeGroupRef = useRef<HTMLDivElement | null>(null);
+
+  // When the selected repo changes (or worktrees first load for the active repo),
+  // auto-expand its group and scroll it into view at the top.
+  useEffect(() => {
+    if (!activeRepoPath) return;
+    const hasAny = allWorktrees.some((w) => w.repoPath === activeRepoPath);
+    if (!hasAny) return;
+    setRepoExpanded(activeRepoPath, true);
+    // Defer scroll until after the expand re-render has committed.
+    const id = requestAnimationFrame(() => {
+      activeGroupRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [activeRepoPath, allWorktrees, setRepoExpanded]);
 
   // Stable callbacks — read expandedWorktreePath from store at call time
   // to avoid closing over a reactive value that changes identity.
@@ -372,19 +390,20 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
           const isActive = repoPath === activeRepoPath;
 
           return (
-            <RepoGroup
-              key={repoPath}
-              repoPath={repoPath}
-              repoName={name}
-              worktrees={wts}
-              isActive={isActive}
-              isExpanded={!!expandedRepos[repoPath]}
-              onToggleRepo={toggleRepoExpanded}
-              expandedWorktree={expandedWorktreePath}
-              onToggleWorktree={handleToggleWorktree}
-              onOpenFile={onOpenFile}
-              onWorktreeDeleted={handleWorktreeDeleted}
-            />
+            <div key={repoPath} ref={isActive ? activeGroupRef : undefined}>
+              <RepoGroup
+                repoPath={repoPath}
+                repoName={name}
+                worktrees={wts}
+                isActive={isActive}
+                isExpanded={!!expandedRepos[repoPath]}
+                onToggleRepo={toggleRepoExpanded}
+                expandedWorktree={expandedWorktreePath}
+                onToggleWorktree={handleToggleWorktree}
+                onOpenFile={onOpenFile}
+                onWorktreeDeleted={handleWorktreeDeleted}
+              />
+            </div>
           );
         })
       )}

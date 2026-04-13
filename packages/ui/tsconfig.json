@@ -7,7 +7,11 @@
     "jsx": "react-jsx",
     "lib": ["ES2020", "DOM"],
     "skipLibCheck": true,
-    "noEmitOnError": false
+    "noEmitOnError": false,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/renderer/*"]
+    }
   },
   "include": ["src"],
   "exclude": ["node_modules", "dist"]

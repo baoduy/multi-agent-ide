@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * Magenta IDE — shadcn/ui theme
+ *
+ * Warm neutral palette derived from the existing Magenta design system.
+ * Maps inline-style color constants (colors.ts) to shadcn CSS variables
+ * so new shadcn components blend with existing hand-styled UI.
+ *
+ * Reference palette (from utils/colors.ts):
+ *   primary   #C15F3C   (warm terracotta)
+ *   text      #2c2c2c
+ *   border    #e5e2da
+ *   bgSurface #faf9f5
+ *   bgMuted   #f5f4ed
+ *   bgHover   #f0ede8
+ *   error     #ef4444
+ *   success   #16A34A
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.5);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  /* ── Backgrounds ── */
+  --background: #faf9f5;
+  --foreground: #2c2c2c;
+  --card: #ffffff;
+  --card-foreground: #2c2c2c;
+  --popover: #faf9f5;
+  --popover-foreground: #2c2c2c;
+
+  /* ── Brand ── */
+  --primary: #C15F3C;
+  --primary-foreground: #ffffff;
+
+  /* ── Secondary / Muted ── */
+  --secondary: #f5f4ed;
+  --secondary-foreground: #4a4540;
+  --muted: #f5f4ed;
+  --muted-foreground: #9a958c;
+
+  /* ── Accent (hover) ── */
+  --accent: #f0ede8;
+  --accent-foreground: #2c2c2c;
+
+  /* ── Destructive ── */
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+
+  /* ── Borders & Rings ── */
+  --border: #e5e2da;
+  --input: #e5e2da;
+  --ring: #C15F3C;
+}
+
+/*
+ * Base layer — only applies to elements rendered by shadcn components.
+ * The existing inline-styled UI is untouched because it never uses
+ * Tailwind utility classes.
+ */
+@layer base {
+  * {
+    @apply border-border;
+  }
+}

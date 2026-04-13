@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitBranch, GitFork, FolderPlus, Loader2, Bot, Terminal, Shield, Zap, ShieldOff } from "lucide-react";
+import { GitBranch, GitFork, FolderPlus, Loader2, Bot, Terminal } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -8,13 +8,15 @@ import { useWorktreeStore } from "../../store/worktreeStore";
 import type { WorktreeInfo } from "../../store/worktreeStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton, PrimaryButton } from "../common/DialogButtons";
-import { FormLabel, FormInput, FormError, SectionHeader } from "../common/FormControls";
+import { FormLabel, FormError, SectionHeader } from "../common/FormControls";
 import { SearchableRepoSelector } from "../common/SearchableRepoSelector";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { ButtonGroup, type ButtonGroupOption } from "../common/ButtonGroup";
+import { PermissionDropdown } from "../common/PermissionDropdown";
+import { SelectDropdown, type SelectOption } from "../common/SelectDropdown";
 import { BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
-import { getProviderName, getProviderColor } from "../common/providerConfig";
+import { getProviderName } from "../common/providerConfig";
 import type { AIPermissionMode, AIProvider, AISessionRecord } from "@magenta/shared/aiTerminal";
 
 /* ── Types ── */
@@ -41,12 +43,6 @@ type NewSessionDialogProps = {
 };
 
 /* ── Static option configs ── */
-
-const PERMISSION_OPTIONS: readonly ButtonGroupOption<SimplifiedPermission>[] = [
-  { key: "default", label: "Default", icon: <Shield size={13} /> },
-  { key: "auto", label: "Auto", icon: <Zap size={13} /> },
-  { key: "bypassPermissions", label: "Bypass", activeColor: colors.error, icon: <ShieldOff size={13} /> },
-] as const;
 
 /* ── Card-style picker button ── */
 
@@ -148,6 +144,35 @@ export function NewSessionDialog({
   const fullWorktreeName = worktreeCustomName.trim()
     ? `${providerPrefix}${worktreeCustomName.trim()}`
     : "";
+
+  /** Provider dropdown options with brand icons. */
+  const providerOptions = useMemo(
+    (): readonly SelectOption<AIProvider>[] => [
+      {
+        value: "claude",
+        label: getProviderName("claude"),
+        icon: <ProviderIcon provider="claude" size={16} />,
+      },
+      {
+        value: "copilot",
+        label: getProviderName("copilot"),
+        icon: <ProviderIcon provider="copilot" size={16} />,
+      },
+    ],
+    [],
+  );
+
+  /** Branch dropdown options with "(current)" suffix. */
+  const branchOptions = useMemo(
+    (): readonly SelectOption[] =>
+      branches.map((b) => ({
+        value: b,
+        label: b,
+        suffix: b === currentBranch ? "(current)" : undefined,
+        icon: <GitBranch size={13} color={colors.textTertiary} />,
+      })),
+    [branches, currentBranch],
+  );
 
   /** Dynamic "Run in" options — disable "Existing Worktree" when none available. */
   const workspaceTargetOptions = useMemo(
@@ -407,38 +432,26 @@ export function NewSessionDialog({
           </div>
         </div>
 
-        {/* ─── Provider + Permission (Agent only) ─── */}
+        {/* ─── Provider + Permission (Agent only) — single row ─── */}
         {sessionType === "agent" && (
-          <>
-            <div>
+          <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <FormLabel>Provider</FormLabel>
-              <div style={{ display: "flex", gap: 8 }}>
-                <PickerButton
-                  selected={provider === "claude"}
-                  onClick={() => setProvider("claude")}
-                  icon={<ProviderIcon provider="claude" size={16} />}
-                  label={getProviderName("claude")}
-                  selectedColor={getProviderColor("claude")}
-                />
-                <PickerButton
-                  selected={provider === "copilot"}
-                  onClick={() => setProvider("copilot")}
-                  icon={<ProviderIcon provider="copilot" size={16} />}
-                  label={getProviderName("copilot")}
-                  selectedColor={getProviderColor("copilot")}
-                />
-              </div>
-            </div>
-
-            <div>
-              <FormLabel>Permission Mode</FormLabel>
-              <ButtonGroup
-                options={PERMISSION_OPTIONS}
-                value={permissionMode}
-                onChange={setPermissionMode}
+              <SelectDropdown
+                options={providerOptions}
+                value={provider}
+                onChange={setProvider}
+                placeholder="Select provider"
               />
             </div>
-          </>
+            <div style={{ flexShrink: 0 }}>
+              <FormLabel>Permission</FormLabel>
+              <PermissionDropdown
+                value={permissionMode}
+                onChange={(v) => setPermissionMode(v as SimplifiedPermission)}
+              />
+            </div>
+          </div>
         )}
 
         {/* ─── Workspace divider ─── */}
@@ -482,12 +495,13 @@ export function NewSessionDialog({
             {workspaceTarget === "branch" && (
               <div>
                 <FormLabel>Branch</FormLabel>
-                <BranchSelect
-                  branches={branches}
-                  currentBranch={currentBranch}
+                <SelectDropdown
+                  options={branchOptions}
                   value={selectedBranch}
                   onChange={setSelectedBranch}
-                  onKeyDown={handleKeyDown}
+                  placeholder="Select branch"
+                  searchable={branches.length > 5}
+                  searchPlaceholder="Search branches..."
                 />
               </div>
             )}
@@ -509,12 +523,13 @@ export function NewSessionDialog({
               <>
                 <div>
                   <FormLabel>Base Branch</FormLabel>
-                  <BranchSelect
-                    branches={branches}
-                    currentBranch={currentBranch}
+                  <SelectDropdown
+                    options={branchOptions}
                     value={baseBranch}
                     onChange={setBaseBranch}
-                    onKeyDown={handleKeyDown}
+                    placeholder="Select base branch"
+                    searchable={branches.length > 5}
+                    searchPlaceholder="Search branches..."
                   />
                 </div>
 
@@ -614,70 +629,6 @@ export function NewSessionDialog({
 }
 
 /* ── Sub-components ── */
-
-/** Styled branch <select> matching existing Magenta dialogs. */
-function BranchSelect({
-  branches,
-  currentBranch,
-  value,
-  onChange,
-  onKeyDown,
-}: {
-  branches: string[];
-  currentBranch: string;
-  value: string;
-  onChange: (branch: string) => void;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
-}): React.ReactElement {
-  return (
-    <div style={{ position: "relative" }}>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={onKeyDown}
-        style={{
-          width: "100%",
-          padding: "8px 32px 8px 12px",
-          fontSize: 13,
-          border: `1px solid ${colors.border}`,
-          borderRadius: 6,
-          outline: "none",
-          background: "#ffffff",
-          color: colors.text,
-          fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-          boxSizing: "border-box",
-          appearance: "none",
-          cursor: "pointer",
-          transition: "border-color 0.15s",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = colors.primary;
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = colors.border;
-        }}
-      >
-        {branches.map((b) => (
-          <option key={b} value={b}>
-            {b}
-            {b === currentBranch ? " (current)" : ""}
-          </option>
-        ))}
-      </select>
-      <GitBranch
-        size={13}
-        color={colors.textTertiary}
-        style={{
-          position: "absolute",
-          right: 10,
-          top: "50%",
-          transform: "translateY(-50%)",
-          pointerEvents: "none",
-        }}
-      />
-    </div>
-  );
-}
 
 /** Scrollable list of worktrees for the "Existing Worktree" mode. */
 function WorktreeList({

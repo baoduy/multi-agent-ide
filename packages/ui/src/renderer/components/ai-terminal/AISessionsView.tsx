@@ -11,6 +11,8 @@ import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
 import { MagentaTerminal } from "../common/MagentaTerminal";
 import { ProviderBadge } from "../common/ProviderBadge";
+import { AIStatusBar } from "./AIStatusBar";
+import type { StatusBarTab } from "./AIStatusBar";
 import { colors } from "../../utils/colors";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
@@ -199,6 +201,18 @@ export function AISessionsView({
     [sessions, syncedGroups, repos],
   );
 
+  // Derive status bar info for the active tab (agent or terminal)
+  const activeStatusBarTab = useMemo((): StatusBarTab | null => {
+    const activeTab = openTabs.find((t) => t.id === activeTabId);
+    if (!activeTab) return null;
+    if (activeTab.kind === "agent") {
+      const session = sessions.find((s) => s.id === activeTab.id);
+      if (!session) return null;
+      return { kind: "agent", session };
+    }
+    return { kind: "terminal", label: activeTab.label, cwd: activeTab.cwd };
+  }, [openTabs, activeTabId, sessions]);
+
   // ─────────────────────────────────────────────────────────
   // State A: Session list (no tabs open)
   // ─────────────────────────────────────────────────────────
@@ -340,7 +354,7 @@ export function AISessionsView({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: "#1e1e1e",
+        background: "#282a36",
       }}
     >
       {/* Tab bar */}
@@ -390,7 +404,7 @@ export function AISessionsView({
               style={{
                 display: "flex",
                 alignItems: "center",
-                background: isActive ? "#1e1e1e" : "transparent",
+                background: isActive ? "#282a36" : "transparent",
                 borderBottom: isActive ? "2px solid #c15f3c" : "2px solid transparent",
                 borderRight: index < openTabs.length - 1 ? "1px solid #3c3c3c" : "none",
                 flexShrink: 0,
@@ -534,6 +548,9 @@ export function AISessionsView({
           );
         })}
       </div>
+
+      {/* Status bar — shared across all tabs, shows info for the active tab */}
+      {activeStatusBarTab && <AIStatusBar tab={activeStatusBarTab} />}
 
       {/* New session dialog */}
       <NewSessionDialog

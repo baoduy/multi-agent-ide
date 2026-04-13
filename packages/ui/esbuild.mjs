@@ -39,6 +39,8 @@ const config = {
     "react-dom": singleCopy("react-dom"),
     "react/jsx-runtime": path.join(singleCopy("react"), "jsx-runtime"),
     "react/jsx-dev-runtime": path.join(singleCopy("react"), "jsx-dev-runtime"),
+    // Path alias for shadcn/ui components (@/components, @/lib, etc.)
+    "@": path.join(__dirname, "src/renderer"),
   },
 };
 

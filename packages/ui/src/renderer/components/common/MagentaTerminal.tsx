@@ -43,6 +43,7 @@ export interface MagentaTerminalProps {
 
 // ── Dark theme (always) ──────────────────────────────────────────────────────
 const THEME = TERMINAL_THEMES.dark;
+const THEME_BG = THEME.background; // #282a36 for Dracula
 
 // ── Pulse keyframe (shared by both branches) ────────────────────────────────
 
@@ -53,14 +54,31 @@ const PULSE_STYLE = `
   }
 `;
 
-/** Makes the xterm internal scrollbar as thin as possible + fill gaps */
+/** Zero-gap xterm styles: fill 100% of parent, no padding/margin anywhere */
 const XTERM_SCROLLBAR_STYLE = `
   .xterm {
     width: 100% !important;
     height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: ${THEME_BG} !important;
+  }
+  .xterm-viewport {
+    width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: ${THEME_BG} !important;
   }
   .xterm-screen {
     width: 100% !important;
+    height: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .xterm-helpers {
+    padding: 0 !important;
+    margin: 0 !important;
   }
   .xterm .xterm-viewport::-webkit-scrollbar {
     width: 4px !important;
@@ -284,6 +302,9 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     hostEl.style.display = "none";
     hostEl.style.flex = "1";
     hostEl.style.minHeight = "0";
+    hostEl.style.padding = "0";
+    hostEl.style.margin = "0";
+    hostEl.style.overflow = "hidden";
 
     // Append to the shared container
     containerRef.current?.appendChild(hostEl);
@@ -368,7 +389,6 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     if (isAIMode && aiSessionIdProp) {
       tab.sessionId = aiSessionIdProp;
     } else {
-      xterm.write("Connecting...\r\n");
       const resolvedCwd = cwd ?? "~";
       const cols = xterm.cols > 0 ? xterm.cols : 80;
       const rows = xterm.rows > 0 ? xterm.rows : 24;
@@ -723,7 +743,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
         style={{
           display: "flex",
           flexDirection: "column",
-          background: "#1e1e1e",
+          background: THEME_BG,
           padding: 0,
           borderRadius: enableTabs ? 8 : 0,
           ...(maxHeight != null ? { maxHeight } : {}),

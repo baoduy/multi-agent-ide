@@ -1,7 +1,7 @@
 import React, { createContext, useEffect } from "react";
 import themeConfig from "../theme/theme-config.json";
 
-interface ThemeConfig {
+export interface ThemeConfig {
   colors: Record<string, string>;
   typography: Record<string, Record<string, string>>;
   spacing: Record<string, string>;

@@ -9,17 +9,10 @@ import { resolveSessionCwd } from "../domain/sessionCwdResolver";
 import { getAllProviderMeta, getProviderMeta, getPermissionModeArgs } from "../domain/providerRegistry";
 import { getSessionFactory } from "../infrastructure/sessions";
 import type { BaseAISession } from "../infrastructure/sessions";
-import { InputAccumulator } from "../domain/sessionTitleExtractor";
 import { AppError } from "../errors/AppError";
 
 export class AISessionApplicationService {
   private readonly liveSessions = new Map<string, BaseAISession>();
-
-  /**
-   * Per-session input accumulators for extracting the session title
-   * from the user's first message. Removed once the title is captured.
-   */
-  private readonly titleAccumulators = new Map<string, InputAccumulator>();
 
   constructor(
     private readonly bridge: IPCBridge,
@@ -85,9 +78,6 @@ export class AISessionApplicationService {
     session.start(cwd, args, cols, rows);
     this.liveSessions.set(id, session);
 
-    // Start accumulating input for title extraction
-    this.titleAccumulators.set(id, new InputAccumulator());
-
     return record;
   }
 
@@ -129,11 +119,6 @@ export class AISessionApplicationService {
     session.start(record.cwd, args, cols, rows);
     this.liveSessions.set(sessionId, session);
 
-    // If session has no title yet, start accumulating for one
-    if (!record.title) {
-      this.titleAccumulators.set(sessionId, new InputAccumulator());
-    }
-
     // Update lastActiveAt
     const now = Date.now();
     this.sessionRepo.update(sessionId, { lastActiveAt: now });
@@ -159,14 +144,13 @@ export class AISessionApplicationService {
   /**
    * Check if a session currently has a live PTY process.
    */
-  isSessionLive(sessionId: string): boolean {
+  private isSessionLive(sessionId: string): boolean {
     return this.liveSessions.has(sessionId);
   }
 
   deleteSession(sessionId: string): void {
     // Kill live session if active
     this.stop(sessionId);
-    this.titleAccumulators.delete(sessionId);
     this.sessionRepo.delete(sessionId);
   }
 
@@ -174,18 +158,6 @@ export class AISessionApplicationService {
     const session = this.liveSessions.get(sessionId);
     if (!session) return;
     session.sendInput(data);
-
-    // Try to extract title from first user input
-    const accumulator = this.titleAccumulators.get(sessionId);
-    if (accumulator) {
-      const title = accumulator.feed(data);
-      if (title !== null) {
-        // Title captured — persist and notify UI
-        this.titleAccumulators.delete(sessionId);
-        this.sessionRepo.update(sessionId, { title });
-        this.bridge.emit({ type: "ai-session:title", sessionId, title });
-      }
-    }
   }
 
   resize(sessionId: string, cols: number, rows: number): void {
@@ -199,7 +171,6 @@ export class AISessionApplicationService {
     if (!session) return;
     session.stop();
     this.liveSessions.delete(sessionId);
-    this.titleAccumulators.delete(sessionId);
   }
 
   /**
@@ -245,7 +216,6 @@ export class AISessionApplicationService {
       }
       this.liveSessions.delete(id);
     }
-    this.titleAccumulators.clear();
   }
 
   /**
@@ -268,7 +238,6 @@ export class AISessionApplicationService {
     });
     session.on("exit", (exitCode: number) => {
       this.liveSessions.delete(sessionId);
-      this.titleAccumulators.delete(sessionId);
       this.bridge.emit({ type: "ai-session:exited", sessionId, exitCode });
       this.sessionRepo.update(sessionId, { lastActiveAt: Date.now() });
     });

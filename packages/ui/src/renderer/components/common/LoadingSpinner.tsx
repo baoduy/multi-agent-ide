@@ -1,4 +1,5 @@
 import React from "react";
+import { colors } from "../../utils/colors";
 
 type LoadingSpinnerProps = {
   message?: string;
@@ -16,7 +17,7 @@ export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps):
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        backgroundColor: "#f9fafb",
+        backgroundColor: colors.bgSurface,
         gap: 16,
       }}
     >
@@ -24,18 +25,13 @@ export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps):
         style={{
           width: 40,
           height: 40,
-          border: "3px solid #e5e7eb",
-          borderTopColor: "#3b82f6",
+          border: `3px solid ${colors.border}`,
+          borderTopColor: colors.primary,
           borderRadius: "50%",
           animation: "spin 1s linear infinite",
         }}
       />
-      <p style={{ fontSize: 14, color: "#6b7280", margin: 0 }}>{message}</p>
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      <p style={{ fontSize: 14, color: colors.textSecondary, margin: 0 }}>{message}</p>
     </div>
   );
 }

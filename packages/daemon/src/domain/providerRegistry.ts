@@ -53,17 +53,28 @@ export function getPermissionModeArgs(
   }
 
   if (provider === "copilot") {
+    // --allow-all (alias --yolo) was introduced in Copilot CLI v0.0.381.
+    // --autopilot was introduced in v1.0.23.
+    // For older versions that support neither, fall back to the granular
+    // flags (--allow-all-tools + --allow-all-paths + --allow-all-urls)
+    // which were available since ~v0.0.340. If even those aren't available
+    // we return nothing and let the user grant permissions interactively.
+    const hasAllowAll = isCopilotVersionAtLeast("0.0.381");
+    const hasAutopilot = isCopilotVersionAtLeast("1.0.23");
+
+    const allowAllArgs = hasAllowAll
+      ? ["--allow-all"]
+      : ["--allow-all-tools", "--allow-all-paths", "--allow-all-urls"];
+
     switch (mode) {
       case "auto":
-        // Full autopilot: --mode autopilot --yolo (requires Copilot CLI v1.0.23+).
-        // On older versions, fall back to --yolo alone which grants all permissions
-        // but doesn't activate autopilot (user can still Shift+Tab into it).
-        if (isCopilotVersionAtLeast("1.0.23")) {
-          return ["--mode", "autopilot", "--yolo"];
+        if (hasAutopilot) {
+          return ["--autopilot", ...allowAllArgs];
         }
-        return ["--yolo"];
+        // No --autopilot flag — grant permissions only, user can Shift+Tab into autopilot
+        return [...allowAllArgs];
       case "bypassPermissions":
-        return ["--yolo"];
+        return [...allowAllArgs];
       default:
         return [];
     }

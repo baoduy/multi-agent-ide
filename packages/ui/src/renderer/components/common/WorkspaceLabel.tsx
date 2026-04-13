@@ -1,23 +1,11 @@
 import React from "react";
 import { Folder } from "lucide-react";
-
-/* ── Size presets (matches RepoLabel / BranchLabel) ── */
-
-type LabelSize = "xs" | "sm" | "md";
-
-const sizeMap: Record<LabelSize, { icon: number; font: number; gap: number }> = {
-  xs: { icon: 10, font: 10, gap: 3 },
-  sm: { icon: 12, font: 11, gap: 4 },
-  md: { icon: 13, font: 12, gap: 5 },
-};
-
-/* ── Theme presets ── */
-
-type LabelVariant = "light" | "dark";
+import { colors } from "../../utils/colors";
+import { type LabelSize, type LabelVariant, sizeMap } from "./labelConstants";
 
 const variantColors: Record<LabelVariant, { icon: string; text: string }> = {
-  light: { icon: "#9a958c", text: "#9a958c" },
-  dark: { icon: "#a0a0a0", text: "#d4d4d4" },
+  light: { icon: colors.textTertiary, text: colors.textTertiary },
+  dark: { icon: colors.textTertiary, text: colors.textTertiary },
 };
 
 /* ══════════════════════════════════════════

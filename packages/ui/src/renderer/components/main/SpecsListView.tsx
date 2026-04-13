@@ -13,6 +13,7 @@ import {
 
 import type { SpecFolder, PipelineStage } from "@magenta/shared/models";
 import { ScrollableText } from "../common/ScrollableText";
+import { colors } from "../../utils/colors";
 
 /* ═══════════════════════════════════════════════════════
    Spec high-level state derivation
@@ -79,37 +80,37 @@ const STATE_CONFIG: Record<
 > = {
   spec: {
     label: "Spec",
-    bg: "#dbeafe",
-    color: "#1e40af",
-    border: "#bfdbfe",
+    bg: colors.infoSoft,
+    color: colors.infoText,
+    border: colors.infoBorder,
     Icon: FileText,
   },
   planned: {
     label: "Planned",
-    bg: "#fef3c7",
-    color: "#92400e",
-    border: "#fde68a",
+    bg: colors.warningSoft,
+    color: colors.warningTextStrong,
+    border: colors.warningBorder,
     Icon: ClipboardList,
   },
   tasks: {
     label: "Tasks",
-    bg: "#fef3c7",
-    color: "#9a3412",
-    border: "#fed7aa",
+    bg: colors.warningSoft,
+    color: colors.warningTextDeep,
+    border: colors.warningBorderSoft,
     Icon: ListChecks,
   },
   implementing: {
     label: "In Progress",
-    bg: "#fce4ec",
-    color: "#9f1239",
-    border: "#fda4af",
+    bg: colors.progressSoft,
+    color: colors.progressText,
+    border: colors.progressBorder,
     Icon: Circle,
   },
   done: {
     label: "Done",
-    bg: "#dcfce7",
-    color: "#166534",
-    border: "#bbf7d0",
+    bg: colors.successSoft,
+    color: colors.successText,
+    border: colors.successSoftBorder,
     Icon: CheckCircle,
   },
 };
@@ -140,7 +141,7 @@ function ProgressStepper({ current }: { current: SpecState }): React.ReactElemen
                   width: 12,
                   height: 2,
                   borderRadius: 1,
-                  background: isActive ? prevCfg.color : "#e5e2da",
+                  background: isActive ? prevCfg.color : colors.border,
                   transition: "background 0.2s",
                 }}
               />
@@ -162,13 +163,13 @@ function ProgressStepper({ current }: { current: SpecState }): React.ReactElemen
               ) : isCurrent ? (
                 <cfg.Icon size={10} color={cfg.color} strokeWidth={2.5} />
               ) : (
-                <Circle size={10} color="#d1cec6" strokeWidth={2} />
+                <Circle size={10} color={colors.borderMuted} strokeWidth={2} />
               )}
               <span
                 style={{
                   fontSize: 10,
                   fontWeight: isCurrent ? 600 : 400,
-                  color: isActive ? cfg.color : "#b5b1a8",
+                  color: isActive ? cfg.color : colors.borderStrong,
                 }}
               >
                 {cfg.label}
@@ -219,10 +220,10 @@ function SpecCard({
       style={{
         width: "100%",
         textAlign: "left",
-        border: isSelected ? "1px solid #C15F3C" : "1px solid #e5e2da",
+        border: isSelected ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
         borderRadius: 10,
         padding: "14px 16px",
-        background: isSelected ? "#faf5f2" : hovered ? "#f5f4ed" : "#faf9f5",
+        background: isSelected ? colors.bgPanelSoft : hovered ? colors.bgPanel : colors.bgSurface,
         cursor: "pointer",
         transition: "all 0.12s",
         display: "flex",
@@ -253,7 +254,7 @@ function SpecCard({
               style={{
                 fontSize: 14,
                 fontWeight: 600,
-                color: "#2c2c2c",
+                color: colors.textStrong,
               }}
             >
               {spec.name}
@@ -269,9 +270,9 @@ function SpecCard({
                   fontSize: 10,
                   fontWeight: 600,
                   flexShrink: 0,
-                  background: spec.isCurrentBranch ? "#dcfce7" : "#f0ede8",
-                  color: spec.isCurrentBranch ? "#166534" : "#6b6560",
-                  border: spec.isCurrentBranch ? "1px solid #bbf7d0" : "1px solid #e5e2da",
+                  background: spec.isCurrentBranch ? colors.successSoft : colors.bgHover,
+                  color: spec.isCurrentBranch ? colors.successText : colors.textMuted,
+                  border: spec.isCurrentBranch ? `1px solid ${colors.successSoftBorder}` : `1px solid ${colors.border}`,
                 }}
               >
                 <GitBranch size={9} strokeWidth={2} />
@@ -301,7 +302,7 @@ function SpecCard({
           {stateConfig.label}
         </span>
 
-        <ChevronRight size={14} color="#b5b1a8" strokeWidth={2} style={{ flexShrink: 0 }} />
+        <ChevronRight size={14} color={colors.borderStrong} strokeWidth={2} style={{ flexShrink: 0 }} />
       </div>
 
       {/* Progress stepper */}
@@ -315,7 +316,7 @@ function SpecCard({
               display: "flex",
               justifyContent: "space-between",
               fontSize: 10,
-              color: "#9a958c",
+              color: colors.textTertiary,
               marginBottom: 4,
             }}
           >
@@ -328,7 +329,7 @@ function SpecCard({
             style={{
               height: 4,
               borderRadius: 2,
-              background: "#e5e2da",
+              background: colors.border,
               overflow: "hidden",
             }}
           >
@@ -337,7 +338,7 @@ function SpecCard({
                 height: "100%",
                 width: `${progressPercent}%`,
                 borderRadius: 2,
-                background: progressPercent === 100 ? "#16A34A" : "#C15F3C",
+                background: progressPercent === 100 ? colors.success : colors.primary,
                 transition: "width 0.3s",
               }}
             />
@@ -369,11 +370,11 @@ export function SpecsListView({
 
   if (specs.length === 0) {
     return (
-      <div style={{ padding: 24, color: "#9a958c", fontSize: 13, textAlign: "center" }}>
-        <Layers size={32} color="#d1cec6" strokeWidth={1.5} style={{ marginBottom: 12 }} />
+      <div style={{ padding: 24, color: colors.textTertiary, fontSize: 13, textAlign: "center" }}>
+        <Layers size={32} color={colors.borderMuted} strokeWidth={1.5} style={{ marginBottom: 12 }} />
         <div>No specs found for this repository.</div>
         <div style={{ fontSize: 12, marginTop: 4 }}>
-          Create a spec folder under <code style={{ background: "#eeece6", padding: "1px 4px", borderRadius: 3 }}>specs/</code> to get started.
+          Create a spec folder under <code style={{ background: colors.bgCodeInline, padding: "1px 4px", borderRadius: 3 }}>specs/</code> to get started.
         </div>
       </div>
     );
@@ -397,9 +398,9 @@ export function SpecsListView({
           gap: 4,
           marginBottom: 20,
           padding: "6px 8px",
-          background: "#f5f4ed",
+          background: colors.bgPanel,
           borderRadius: 8,
-          border: "1px solid #e5e2da",
+          border: `1px solid ${colors.border}`,
         }}
       >
         {(STEPS as SpecState[]).map((state) => {
@@ -425,11 +426,11 @@ export function SpecsListView({
                 transition: "all 0.15s",
               }}
             >
-              <cfg.Icon size={13} color={isActive ? cfg.color : "#9a958c"} strokeWidth={1.8} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? cfg.color : "#6b6560" }}>
+              <cfg.Icon size={13} color={isActive ? cfg.color : colors.textTertiary} strokeWidth={1.8} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? cfg.color : colors.textMuted }}>
                 {count}
               </span>
-              <span style={{ fontSize: 11, color: isActive ? cfg.color : "#9a958c" }}>
+              <span style={{ fontSize: 11, color: isActive ? cfg.color : colors.textTertiary }}>
                 {cfg.label}
               </span>
             </button>

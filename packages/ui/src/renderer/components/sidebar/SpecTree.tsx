@@ -2,6 +2,7 @@ import React from "react";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { SpecItem } from "./SpecItem";
+import { colors } from "../../utils/colors";
 
 type SpecTreeProps = {
   specs: SpecFolder[];
@@ -11,23 +12,14 @@ type SpecTreeProps = {
   onSelectSpec: (specPath: string) => void;
 };
 
-/* ── Inline loading bar animation via CSS keyframes ── */
-const loadingBarKeyframes = `
-@keyframes specLoadingBar {
-  0%   { transform: translateX(-100%); }
-  100% { transform: translateX(200%); }
-}
-`;
-
 function LoadingBar(): React.ReactElement {
   return (
     <>
-      <style>{loadingBarKeyframes}</style>
       <div
         style={{
           height: 2,
           width: "100%",
-          background: "#e5e2da",
+          background: colors.border,
           overflow: "hidden",
           borderRadius: 1,
           flexShrink: 0,
@@ -37,7 +29,7 @@ function LoadingBar(): React.ReactElement {
           style={{
             width: "50%",
             height: "100%",
-            background: "#C15F3C",
+            background: colors.primary,
             borderRadius: 1,
             animation: "specLoadingBar 1.2s ease-in-out infinite",
           }}
@@ -63,7 +55,7 @@ export function SpecTree({
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            color: "#9a958c",
+            color: colors.textTertiary,
             marginBottom: 10,
           }}
         >
@@ -76,7 +68,7 @@ export function SpecTree({
 
   if (specs.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", fontSize: 11, color: "#9a958c" }}>
+      <div style={{ padding: "12px 16px", fontSize: 11, color: colors.textTertiary }}>
         No specs found
       </div>
     );
@@ -91,7 +83,7 @@ export function SpecTree({
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#9a958c",
+          color: colors.textTertiary,
         }}
       >
         Specs

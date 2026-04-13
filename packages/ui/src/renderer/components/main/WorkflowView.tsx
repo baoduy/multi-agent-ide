@@ -7,6 +7,7 @@ import { ipc } from "../../utils/ipc";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { useSpecStore } from "../../store/specStore";
+import { colors } from "../../utils/colors";
 
 type WorkflowViewProps = {
   spec: SpecFolder | null;
@@ -256,12 +257,12 @@ export function WorkflowView({
       <div
         style={{
           padding: 24,
-          color: "#9a958c",
+          color: colors.textTertiary,
           fontSize: 13,
           textAlign: "center",
         }}
       >
-        <Layers size={32} color="#d1cec6" strokeWidth={1.5} style={{ marginBottom: 12 }} />
+        <Layers size={32} color={colors.borderMuted} strokeWidth={1.5} style={{ marginBottom: 12 }} />
         <div>Select a spec from the Specs tab to view its workflow.</div>
       </div>
     );
@@ -275,21 +276,21 @@ export function WorkflowView({
       <div
         style={{
           padding: "12px 20px",
-          borderBottom: "1px solid #e5e2da",
+          borderBottom: `1px solid ${colors.border}`,
           display: "flex",
           alignItems: "center",
           gap: 12,
           flexShrink: 0,
-          background: "#faf9f5",
+          background: colors.bgSurface,
         }}
       >
-        <Layers size={16} color="#C15F3C" strokeWidth={1.8} />
+        <Layers size={16} color={colors.primary} strokeWidth={1.8} />
         <div style={{ flex: 1 }}>
           <span
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#2c2c2c",
+              color: colors.textStrong,
             }}
           >
             {spec.name}
@@ -298,11 +299,11 @@ export function WorkflowView({
             <>
               <GitBranch
                 size={12}
-                color="#9a958c"
+                color={colors.textTertiary}
                 strokeWidth={1.8}
                 style={{ marginLeft: 8, verticalAlign: "middle", display: "inline" }}
               />
-              <span style={{ fontSize: 12, color: "#9a958c", marginLeft: 4 }}>
+              <span style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>
                 {repoName}
               </span>
             </>
@@ -318,8 +319,8 @@ export function WorkflowView({
               gap: 4,
               padding: "3px 10px",
               borderRadius: 12,
-              background: "#dcfce7",
-              color: "#166534",
+              background: colors.successSoft,
+              color: colors.successText,
               fontSize: 11,
               fontWeight: 600,
             }}
@@ -338,8 +339,8 @@ export function WorkflowView({
               gap: 4,
               padding: "3px 10px",
               borderRadius: 12,
-              background: "#16A34A",
-              color: "#ffffff",
+              background: colors.success,
+              color: colors.textWhite,
               fontSize: 11,
               fontWeight: 600,
               animation: "fadeIn 0.2s",
@@ -352,7 +353,7 @@ export function WorkflowView({
 
         {/* Approving spinner */}
         {approving && (
-          <span style={{ fontSize: 11, color: "#9a958c" }}>
+          <span style={{ fontSize: 11, color: colors.textTertiary }}>
             Approving {approving}...
           </span>
         )}
@@ -380,12 +381,12 @@ export function WorkflowView({
             position: "fixed",
             bottom: 20,
             right: 20,
-            background: "#fae8e1",
-            border: "1px solid #e5b8a5",
+            background: colors.errorSoft,
+            border: `1px solid ${colors.errorSoftBorder}`,
             borderRadius: 8,
             padding: "10px 16px",
             fontSize: 12,
-            color: "#a14a2f",
+            color: colors.errorDark,
             maxWidth: 360,
             zIndex: 10000,
             boxShadow: "0 4px 12px rgba(0,0,0,0.1)",

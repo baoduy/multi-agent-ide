@@ -1,29 +1,16 @@
 import React from "react";
 import { FolderGit2, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
-
-/* ── Shared size presets ── */
-
-type LabelSize = "xs" | "sm" | "md";
-
-const sizeMap: Record<LabelSize, { icon: number; font: number; gap: number }> = {
-  xs: { icon: 10, font: 10, gap: 3 },
-  sm: { icon: 12, font: 11, gap: 4 },
-  md: { icon: 13, font: 12, gap: 5 },
-};
-
-/* ── Theme presets ── */
-
-type LabelVariant = "light" | "dark";
+import { type LabelSize, type LabelVariant, sizeMap } from "./labelConstants";
 
 const repoColors: Record<LabelVariant, { icon: string; text: string }> = {
   light: { icon: colors.primary, text: colors.text },
-  dark:  { icon: "#d4d4d4", text: "#d4d4d4" },
+  dark: { icon: colors.primary, text: colors.text },
 };
 
 const branchColors: Record<LabelVariant, { icon: string; text: string; bg: string; border: string }> = {
-  light: { icon: "#166534", text: "#166534", bg: "#dcfce7", border: "#bbf7d0" },
-  dark:  { icon: "#4ade80", text: "#4ade80", bg: "#16653418", border: "#4ade8040" },
+  light: { icon: colors.success, text: colors.success, bg: "#dcfce7", border: "#bbf7d0" },
+  dark: { icon: colors.success, text: colors.success, bg: "#dcfce7", border: "#bbf7d0" },
 };
 
 /* ══════════════════════════════════════════

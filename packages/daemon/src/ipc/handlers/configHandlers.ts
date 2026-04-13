@@ -1,20 +1,20 @@
 import type { IPCBridge } from "../IPCBridge";
-import type { ConfigApplicationService } from "../../application/ConfigApplicationService";
+import type { ConfigManager } from "../../config/ConfigManager";
 import { safeHandle } from "../createHandler";
 
 type ConfigHandlerContext = {
   bridge: IPCBridge;
-  configService: ConfigApplicationService;
+  configManager: ConfigManager;
 };
 
-export function registerConfigHandlers({ bridge, configService }: ConfigHandlerContext): void {
+export function registerConfigHandlers({ bridge, configManager }: ConfigHandlerContext): void {
   safeHandle(bridge, "config:get", async () => {
-    const config = configService.getConfig();
+    const config = configManager.getConfig();
     return { type: "config:response", config };
   });
 
   safeHandle(bridge, "config:add-working-dir", async (msg) => {
-    const config = configService.addWorkingDir(msg.path);
+    const config = configManager.addWorkingDir(msg.path);
 
     bridge.emit({ type: "config:updated", config });
 
@@ -22,7 +22,7 @@ export function registerConfigHandlers({ bridge, configService }: ConfigHandlerC
   });
 
   safeHandle(bridge, "config:remove-working-dir", async (msg) => {
-    const config = configService.removeWorkingDir(msg.path);
+    const config = configManager.removeWorkingDir(msg.path);
 
     bridge.emit({ type: "config:updated", config });
 
@@ -30,7 +30,7 @@ export function registerConfigHandlers({ bridge, configService }: ConfigHandlerC
   });
 
   safeHandle(bridge, "config:update", async (msg) => {
-    const config = configService.updateConfig(msg.config as Record<string, unknown>);
+    const config = configManager.updateConfig(msg.config as Record<string, unknown>);
 
     bridge.emit({ type: "config:updated", config });
 

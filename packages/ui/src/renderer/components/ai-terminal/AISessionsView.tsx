@@ -1,19 +1,40 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, ArrowLeft } from "lucide-react";
+import { Plus, Terminal } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
+import { useTerminalStore } from "../../store/terminalStore";
+
+let terminalTabCounter = 0;
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
 import { useRepoStore } from "../../store/repoStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
-import { NewAISessionDialog } from "../dialogs/NewAISessionDialog";
+import { NewSessionDialog } from "../dialogs/NewSessionDialog";
 import { MagentaTerminal } from "../common/MagentaTerminal";
-import { AIStatusBar } from "./AIStatusBar";
-import { RepoLabel, BranchLabel } from "../common/RepoLabel";
-import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { ProviderBadge } from "../common/ProviderBadge";
+import { AIStatusBar } from "./AIStatusBar";
+import type { StatusBarTab } from "./AIStatusBar";
 import { colors } from "../../utils/colors";
+import { SessionCoordinator } from "../../services/SessionCoordinator";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
+
+/* ── Tab descriptor ── */
+
+type AgentTab = {
+  kind: "agent";
+  id: string; // AISessionRecord.id
+};
+
+type TerminalTab = {
+  kind: "terminal";
+  id: string; // terminalStore sessionId
+  cwd: string;
+  label: string; // tab display name (derived from cwd)
+};
+
+type SessionTab = AgentTab | TerminalTab;
+
+/* ── Props ── */
 
 type AISessionsViewProps = {
   repoPath?: string;
@@ -21,25 +42,24 @@ type AISessionsViewProps = {
 };
 
 /**
- * Main view for AI terminal sessions.
+ * Unified session view — AI agents and terminals share the same tab bar.
  *
  * Has two states:
- * 1. Session list (activeSessionId === null) — shows list of sessions with "New Session" button
- * 2. Active terminal (activeSessionId !== null) — shows interactive terminal for the active session
+ * 1. Session list (no tabs open) — shows session tree with "New Session" button
+ * 2. Multi-tab view (tabs open) — tab bar + terminal panels, one per open session
  */
 export function AISessionsView({
   repoPath,
   repoName,
 }: AISessionsViewProps): React.ReactElement {
   const sessions = useAISessionStore((s) => s.sessions);
-  const activeSessionId = useAISessionStore((s) => s.activeSessionId);
-  const liveOutput = useAISessionStore((s) => s.liveOutput);
   const fetchSessions = useAISessionStore((s) => s.fetchSessions);
   const initializeSubscriptions = useAISessionStore((s) => s.initializeSubscriptions);
-  const setActiveSession = useAISessionStore((s) => s.setActiveSession);
   const resumeSession = useAISessionStore((s) => s.resumeSession);
   const createSession = useAISessionStore((s) => s.createSession);
   const deleteSession = useAISessionStore((s) => s.deleteSession);
+
+  const initTerminalSubscriptions = useTerminalStore((s) => s.initializeSubscriptions);
 
   // Synced sessions (scanned from ~/.claude + ~/.copilot)
   const syncedGroups = useSyncedSessionStore((s) => s.groups);
@@ -52,15 +72,43 @@ export function AISessionsView({
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
+  // Unified tab state — supports both agent and terminal tabs
+  const [openTabs, setOpenTabs] = useState<SessionTab[]>([]);
+  const [activeTabId, setActiveTabId] = useState<string | null>(null);
+
   // Initialize subscriptions and fetch sessions on mount
   useEffect(() => {
     initializeSubscriptions();
+    initTerminalSubscriptions();
     initSyncedSubscriptions();
     void fetchSessions();
     void fetchSyncedSessions();
-  }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions]);
+  }, [initializeSubscriptions, initTerminalSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions]);
 
-  // Handlers with useCallback
+  // ── Tab helpers ──────────────────────────────────────────────
+
+  const openTab = useCallback((tab: SessionTab) => {
+    setOpenTabs((prev) => {
+      if (prev.some((t) => t.id === tab.id)) return prev;
+      return [...prev, tab];
+    });
+    setActiveTabId(tab.id);
+  }, []);
+
+  const handleCloseTab = useCallback((tabId: string) => {
+    setOpenTabs((prev) => {
+      const next = prev.filter((t) => t.id !== tabId);
+      setActiveTabId((current) => {
+        if (current !== tabId) return current;
+        const idx = prev.findIndex((t) => t.id === tabId);
+        return next[idx]?.id ?? next[idx - 1]?.id ?? null;
+      });
+      return next;
+    });
+  }, []);
+
+  // ── Handlers ────────────────────────────────────────────────
+
   const handleNewSession = useCallback(() => {
     setNewSessionDialogOpen(true);
   }, []);
@@ -69,25 +117,53 @@ export function AISessionsView({
     setNewSessionDialogOpen(false);
   }, []);
 
+  const handleSessionCreated = useCallback(
+    (session: AISessionRecord) => {
+      openTab({ kind: "agent", id: session.id });
+    },
+    [openTab],
+  );
+
+  const handleTerminalCreated = useCallback(
+    (cwd: string) => {
+      terminalTabCounter += 1;
+      const id = `terminal-${terminalTabCounter}`;
+      const label = cwd.split("/").pop() ?? "Terminal";
+      openTab({ kind: "terminal", id, cwd, label });
+    },
+    [openTab],
+  );
+
   const handleSelectSession = useCallback(
     (sessionId: string) => {
       const session = sessions.find((s) => s.id === sessionId);
+      // Mark this session's repo as globally selected
+      if (session?.repoPath) {
+        SessionCoordinator.selectRepo(session.repoPath);
+      }
       if (session && session.status === "idle") {
-        // Session has no live PTY — auto-resume it so the terminal isn't blank
-        void resumeSession(sessionId, 80, 24);
+        void resumeSession(sessionId, 80, 24)
+          .then((s) => openTab({ kind: "agent", id: s.id }))
+          .catch(console.error);
       } else {
-        setActiveSession(sessionId);
+        openTab({ kind: "agent", id: sessionId });
       }
     },
-    [sessions, setActiveSession, resumeSession],
+    [sessions, resumeSession, openTab],
   );
 
   const handleResumeSession = useCallback(
     (sessionId: string) => {
-      // Resume the session process via IPC (reconnects PTY), using default terminal dimensions
-      void resumeSession(sessionId, 80, 24);
+      // Mark this session's repo as globally selected
+      const session = sessions.find((s) => s.id === sessionId);
+      if (session?.repoPath) {
+        SessionCoordinator.selectRepo(session.repoPath);
+      }
+      void resumeSession(sessionId, 80, 24)
+        .then((s) => openTab({ kind: "agent", id: s.id }))
+        .catch(console.error);
     },
-    [resumeSession],
+    [sessions, resumeSession, openTab],
   );
 
   const handleDeleteSession = useCallback(
@@ -99,9 +175,12 @@ export function AISessionsView({
 
   const handleResumeSyncedSession = useCallback(
     (syncedSession: SyncedSessionRecord) => {
-      // Create a new live session that resumes the synced session via --resume flag
       const provider = syncedSession.provider === "claude-code" ? "claude" as const : "copilot" as const;
       const cwd = syncedSession.cwd || syncedSession.projectDir || undefined;
+      // Mark this session's repo as globally selected
+      if (cwd) {
+        SessionCoordinator.selectRepo(cwd);
+      }
       void createSession(
         {
           provider,
@@ -111,19 +190,9 @@ export function AISessionsView({
         },
         80,
         24,
-      );
+      ).then((s) => openTab({ kind: "agent", id: s.id })).catch(console.error);
     },
-    [createSession],
-  );
-
-  const handleBackFromTerminal = useCallback(() => {
-    setActiveSession(null);
-  }, [setActiveSession]);
-
-  // Find active session
-  const activeSession = useMemo(
-    () => sessions.find((s) => s.id === activeSessionId),
-    [sessions, activeSessionId],
+    [createSession, openTab],
   );
 
   // Build unified groups: merge live sessions + synced history, grouped by repo/dir
@@ -132,10 +201,22 @@ export function AISessionsView({
     [sessions, syncedGroups, repos],
   );
 
+  // Derive status bar info for the active tab (agent or terminal)
+  const activeStatusBarTab = useMemo((): StatusBarTab | null => {
+    const activeTab = openTabs.find((t) => t.id === activeTabId);
+    if (!activeTab) return null;
+    if (activeTab.kind === "agent") {
+      const session = sessions.find((s) => s.id === activeTab.id);
+      if (!session) return null;
+      return { kind: "agent", session };
+    }
+    return { kind: "terminal", label: activeTab.label, cwd: activeTab.cwd };
+  }, [openTabs, activeTabId, sessions]);
+
   // ─────────────────────────────────────────────────────────
-  // State A: Session list (activeSessionId === null)
+  // State A: Session list (no tabs open)
   // ─────────────────────────────────────────────────────────
-  if (!activeSession) {
+  if (openTabs.length === 0) {
     return (
       <div
         style={{
@@ -163,7 +244,7 @@ export function AISessionsView({
               color: colors.text,
             }}
           >
-            AI Sessions
+            Sessions
           </span>
           <button
             type="button"
@@ -175,6 +256,8 @@ export function AISessionsView({
               padding: "6px 12px",
               borderRadius: 6,
               border: "none",
+              outline: "none",
+              boxShadow: "none",
               background: colors.primary,
               color: "#ffffff",
               cursor: "pointer",
@@ -227,7 +310,7 @@ export function AISessionsView({
                 }}
               >
                 <div style={{ fontSize: 13, marginBottom: 8 }}>
-                  No AI sessions yet.
+                  No sessions yet.
                 </div>
                 <button
                   type="button"
@@ -250,9 +333,11 @@ export function AISessionsView({
         </div>
 
         {/* New session dialog */}
-        <NewAISessionDialog
+        <NewSessionDialog
           open={newSessionDialogOpen}
           onClose={handleCloseDialog}
+          onSessionCreated={handleSessionCreated}
+          onTerminalCreated={handleTerminalCreated}
           repoPath={repoPath}
           repoName={repoName}
         />
@@ -261,7 +346,7 @@ export function AISessionsView({
   }
 
   // ─────────────────────────────────────────────────────────
-  // State B: Active terminal (activeSessionId !== null)
+  // State B: Multi-tab view (openTabs is non-empty)
   // ─────────────────────────────────────────────────────────
   return (
     <div
@@ -269,131 +354,210 @@ export function AISessionsView({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: "#1e1e1e",
+        background: "#282a36",
       }}
     >
-      {/* Header with back button */}
+      {/* Tab bar */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 16px",
-          borderBottom: "1px solid #3c3c3c",
+          alignItems: "stretch",
           background: "#252526",
+          borderBottom: "1px solid #3c3c3c",
           flexShrink: 0,
+          overflowX: "auto",
+          minHeight: 36,
         }}
       >
+        {openTabs.map((tab, index) => {
+          const isActive = tab.id === activeTabId;
+
+          // Resolve label and icon based on tab kind
+          let tabLabel: string;
+          let tabIcon: React.ReactNode;
+
+          if (tab.kind === "agent") {
+            const session = sessions.find((s) => s.id === tab.id);
+            tabLabel = session?.title ?? session?.repoName ?? "Agent";
+            tabIcon = session ? (
+              <ProviderBadge
+                provider={session.provider}
+                iconSize={12}
+                fontSize={11}
+                color={isActive ? "#d4d4d4" : "#9a958c"}
+              />
+            ) : null;
+          } else {
+            tabLabel = tab.label;
+            tabIcon = (
+              <Terminal
+                size={12}
+                color={isActive ? "#d4d4d4" : "#9a958c"}
+                strokeWidth={1.8}
+              />
+            );
+          }
+
+          return (
+            <div
+              key={tab.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: isActive ? "#282a36" : "transparent",
+                borderBottom: isActive ? "2px solid #c15f3c" : "2px solid transparent",
+                borderRight: index < openTabs.length - 1 ? "1px solid #3c3c3c" : "none",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setActiveTabId(tab.id)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 10px 6px 12px",
+                  background: "transparent",
+                  border: "none",
+                  color: isActive ? "#d4d4d4" : "#9a958c",
+                  cursor: "pointer",
+                  fontSize: 12,
+                  whiteSpace: "nowrap",
+                  transition: "color 0.12s",
+                }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "#c0bdb7"; }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "#9a958c"; }}
+              >
+                {tabIcon}
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    maxWidth: 140,
+                  }}
+                >
+                  {tabLabel}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleCloseTab(tab.id);
+                }}
+                style={{
+                  padding: "4px 8px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#9a958c",
+                  cursor: "pointer",
+                  fontSize: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  transition: "color 0.12s",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "#9a958c"; }}
+                title="Close tab"
+              >
+                ✕
+              </button>
+            </div>
+          );
+        })}
+
+        {/* "+" button pinned to the right side of the tab bar */}
         <button
           type="button"
-          onClick={handleBackFromTerminal}
-          title="Back to session list"
+          onClick={handleNewSession}
+          title="New Session"
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            width: 24,
-            height: 24,
-            borderRadius: 4,
-            border: "none",
+            width: 36,
             background: "transparent",
+            border: "none",
+            borderLeft: "1px solid #3c3c3c",
+            color: "#9a958c",
             cursor: "pointer",
-            color: "#d4d4d4",
+            flexShrink: 0,
+            marginLeft: "auto",
             transition: "color 0.12s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#ffffff"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "#9a958c"; }}
         >
-          <ArrowLeft size={16} strokeWidth={2} />
+          <Plus size={14} strokeWidth={2} />
         </button>
+      </div>
 
-        {/* Provider badge */}
-        <ProviderBadge provider={activeSession.provider} iconSize={16} fontSize={12} color="#d4d4d4" />
-
-        {/* Repo / branch info */}
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
-          {activeSession.repoName ? (
-            <>
-              <RepoLabel name={activeSession.repoName} size="sm" variant="dark" />
-              {(activeSession.worktreeName || activeSession.branch) && (
-                <BranchLabel
-                  name={activeSession.worktreeName || activeSession.branch || ""}
-                  size="sm"
-                  variant="dark"
-                />
-              )}
-            </>
-          ) : (
-            <WorkspaceLabel size="sm" variant="dark" />
-          )}
-        </span>
-
-        {/* New Session button — always accessible */}
-        <button
-          type="button"
-          onClick={handleNewSession}
-          title="New AI Session"
-          style={{
+      {/* Terminal panels — all mounted, only the active one is visible.
+           Uses absolute positioning so hidden tabs still have measurable dimensions. */}
+      <div style={{ flex: 1, position: "relative", overflow: "hidden", minHeight: 0 }}>
+        {openTabs.map((tab) => {
+          const isActive = tab.id === activeTabId;
+          // Use visibility + absolute positioning instead of display:none
+          // so xterm can measure its container even when the tab isn't active.
+          const panelStyle: React.CSSProperties = {
+            position: "absolute",
+            inset: 0,
             display: "flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "4px 10px",
-            borderRadius: 5,
-            border: "1px solid #555",
-            background: "transparent",
-            color: "#d4d4d4",
-            cursor: "pointer",
-            fontSize: 11,
-            fontWeight: 500,
-            flexShrink: 0,
-            transition: "background 0.12s, color 0.12s, border-color 0.12s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#3c3c3c";
-            e.currentTarget.style.color = "#ffffff";
-            e.currentTarget.style.borderColor = "#777";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.color = "#d4d4d4";
-            e.currentTarget.style.borderColor = "#555";
-          }}
-        >
-          <Plus size={12} strokeWidth={2} />
-          New Session
-        </button>
+            flexDirection: "column",
+            visibility: isActive ? "visible" : "hidden",
+            zIndex: isActive ? 1 : 0,
+          };
+
+          if (tab.kind === "agent") {
+            const session = sessions.find((s) => s.id === tab.id);
+            if (!session) return null;
+            return (
+              <div key={tab.id} style={panelStyle}>
+                <MagentaTerminal
+                  readonly={false}
+                  cwd={session.cwd}
+                  mode="ai-agent"
+                  aiSessionId={session.id}
+                  aiProvider={session.provider}
+                  maxHeight={undefined}
+                  fontSize={12}
+                  fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
+                  enableTabs={false}
+                  isVisible={isActive}
+                />
+              </div>
+            );
+          }
+
+          // Terminal tab
+          return (
+            <div key={tab.id} style={panelStyle}>
+              <MagentaTerminal
+                readonly={false}
+                cwd={tab.cwd}
+                mode="shell"
+                maxHeight={undefined}
+                fontSize={12}
+                fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
+                enableTabs={false}
+                isVisible={isActive}
+              />
+            </div>
+          );
+        })}
       </div>
 
-      {/* Terminal area (fills remaining space) */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          padding: 12,
-        }}
-      >
-        <MagentaTerminal
-          readonly={false}
-          cwd={activeSession.cwd}
-          mode="ai-agent"
-          aiSessionId={activeSession.id}
-          aiProvider={activeSession.provider}
-          maxHeight={undefined}
-          fontSize={12}
-          fontFamily="'SF Mono', 'Fira Code', ui-monospace, monospace"
-          enableTabs={false}
-        />
-      </div>
+      {/* Status bar — shared across all tabs, shows info for the active tab */}
+      {activeStatusBarTab && <AIStatusBar tab={activeStatusBarTab} />}
 
-      {/* Status bar */}
-      <AIStatusBar session={activeSession} />
-
-      {/* New session dialog (accessible from terminal view too) */}
-      <NewAISessionDialog
+      {/* New session dialog */}
+      <NewSessionDialog
         open={newSessionDialogOpen}
         onClose={handleCloseDialog}
+        onSessionCreated={handleSessionCreated}
+        onTerminalCreated={handleTerminalCreated}
         repoPath={repoPath}
         repoName={repoName}
       />

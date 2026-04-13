@@ -10,7 +10,7 @@ export type SystemTheme = "light" | "dark";
  */
 export function getSystemTheme(): SystemTheme {
   if (typeof window === "undefined") {
-    return "dark";
+    return "light";
   }
 
   // Check system preference via CSS Media Query
@@ -21,7 +21,7 @@ export function getSystemTheme(): SystemTheme {
     return "light";
   }
 
-  return "dark"; // Fallback default
+  return "light"; // Fallback default
 }
 
 /**

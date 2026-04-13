@@ -21,9 +21,7 @@ import { registerSyncedSessionHandlers } from "./handlers/syncedSessionHandlers"
 
 import { RepoApplicationService } from "../application/RepoApplicationService";
 import { SpecApplicationService } from "../application/SpecApplicationService";
-import { FileApplicationService } from "../application/FileApplicationService";
 import { WorktreeApplicationService } from "../application/WorktreeApplicationService";
-import { ConfigApplicationService } from "../application/ConfigApplicationService";
 import { OnboardApplicationService } from "../application/OnboardApplicationService";
 
 import type { GitGateway } from "../infrastructure/GitGateway";
@@ -62,14 +60,12 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
     repoScanner,
   );
   const specService = new SpecApplicationService(context.specSyncService, specReader, specGitGateway);
-  const fileService = new FileApplicationService(fileSystemGateway);
   const worktreeService = new WorktreeApplicationService(gitGateway);
-  const configService = new ConfigApplicationService(context.configManager);
 
   registerRepoHandlers({ bridge, repoService });
   registerSpecHandlers({ bridge, specService });
-  registerConfigHandlers({ bridge, configService });
-  registerFileHandlers({ bridge, fileService });
+  registerConfigHandlers({ bridge, configManager: context.configManager });
+  registerFileHandlers({ bridge, fileSystemGateway });
   registerWorktreeHandlers({ bridge, worktreeService });
 
   const onboardService = new OnboardApplicationService(bridge, context.configManager);

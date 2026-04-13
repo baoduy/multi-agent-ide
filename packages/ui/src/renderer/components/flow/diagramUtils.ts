@@ -5,6 +5,7 @@ import type { SpecFolder } from "@magenta/shared/models";
 import { PIPELINE_STAGES } from "@magenta/shared/constants";
 import type { PipelineStageName } from "@magenta/shared/constants";
 import type { PipelineNodeData } from "./PipelineNode";
+import { colors } from "../../utils/colors";
 
 /** All five pipeline stages are visible in the workflow diagram. */
 const VISIBLE_STAGES: PipelineStageName[] = [
@@ -99,10 +100,10 @@ export function specToFlowDiagram(
   // ── Helpers ─────────────────────────────────────────────
   const edgeColor = (name: PipelineStageName): string => {
     const s = stageMap.get(name);
-    if (!s) return "#86efac";
-    if (s.status === "approved" || s.status === "done") return "#16A34A";
-    if (s.status === "in-progress") return "#3b82f6";
-    return "#86efac";
+    if (!s) return colors.successMuted;
+    if (s.status === "approved" || s.status === "done") return colors.success;
+    if (s.status === "in-progress") return colors.info;
+    return colors.successMuted;
   };
   const isAnimated = (name: PipelineStageName): boolean => {
     const s = stageMap.get(name);
@@ -161,17 +162,17 @@ export function getStageColor(status: string): {
     case "missing":
     case "pending":
     case "idle":
-      return { bg: "#dbeafe", border: "#3b82f6", text: "#1e40af" };
+      return { bg: colors.infoSoft, border: colors.info, text: colors.infoText };
     case "draft":
     case "review":
     case "running":
     case "in-progress":
-      return { bg: "#fef3c7", border: "#f59e0b", text: "#92400e" };
+      return { bg: colors.warningSoft, border: colors.warningBorder, text: colors.warningTextStrong };
     case "approved":
     case "done":
-      return { bg: "#dcfce7", border: "#16A34A", text: "#166534" };
+      return { bg: colors.successSoft, border: colors.success, text: colors.successText };
     default:
-      return { bg: "#ffffff", border: "#e5e7eb", text: "#000000" };
+      return { bg: colors.bgWhite, border: colors.border, text: colors.textStrong };
   }
 }
 

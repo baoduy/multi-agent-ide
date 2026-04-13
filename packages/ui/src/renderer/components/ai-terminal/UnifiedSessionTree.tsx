@@ -76,11 +76,11 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
           width: 26,
           height: 26,
           borderRadius: 5,
-          background: "#C15F3C14",
+          background: colors.primaryAlpha,
           flexShrink: 0,
         }}
       >
-        <FolderGit2 size={14} color="#C15F3C" strokeWidth={1.8} />
+        <FolderGit2 size={14} color={colors.primary} strokeWidth={1.8} />
       </span>
 
       {/* Repo name + meta (badge + branch) */}
@@ -101,7 +101,7 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
         <div
           style={{
             fontSize: 10,
-            color: "#9a958c",
+            color: colors.textTertiary,
             marginTop: 2,
             display: "flex",
             alignItems: "center",
@@ -132,11 +132,11 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
           style={{
             fontSize: 9,
             fontWeight: 700,
-            color: "#3d7a2a",
+            color: colors.success,
             padding: "1px 5px",
             borderRadius: 4,
-            background: "#3d7a2a14",
-            border: "1px solid #3d7a2a40",
+            background: colors.successSoft,
+            border: `1px solid ${colors.successSoftBorder}`,
             flexShrink: 0,
           }}
         >
@@ -234,11 +234,11 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
           style={{
             fontSize: 9,
             fontWeight: 700,
-            color: "#3d7a2a",
+            color: colors.success,
             padding: "1px 5px",
             borderRadius: 4,
-            background: "#3d7a2a14",
-            border: "1px solid #3d7a2a40",
+            background: colors.successSoft,
+            border: `1px solid ${colors.successSoftBorder}`,
             flexShrink: 0,
           }}
         >
@@ -390,11 +390,11 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
           style={{
             fontSize: 9,
             fontWeight: 600,
-            color: "#3d7a2a",
+            color: colors.success,
             padding: "1px 6px",
             borderRadius: 3,
-            background: "#3d7a2a12",
-            border: "1px solid #3d7a2a40",
+            background: colors.successSoft,
+            border: `1px solid ${colors.successSoftBorder}`,
             flexShrink: 0,
           }}
         >

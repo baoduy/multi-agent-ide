@@ -6,6 +6,7 @@ import { useSessionStore } from "../store/sessionStore";
 import { useRepoStore } from "../store/repoStore";
 import { useConfigStore } from "../store/configStore";
 import { selectFolder } from "../utils/ipc";
+import { colors } from "../utils/colors";
 
 /**
  * Welcome page shown on first launch or when there's no config.
@@ -126,7 +127,7 @@ export function WelcomePage(): React.ReactElement {
         alignItems: "center",
         justifyContent: "center",
         minHeight: "100vh",
-        backgroundColor: "#faf9f5",
+        backgroundColor: colors.bgSurface,
         padding: 20,
       }}
     >
@@ -134,26 +135,26 @@ export function WelcomePage(): React.ReactElement {
         <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
           <MagentaLogo size={80} />
         </div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12, color: "#2c2c2c" }}>
+        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12, color: colors.textStrong }}>
           Welcome to Magenta IDE
         </h1>
 
         {repos.length === 0 ? (
           <>
-            <p style={{ fontSize: 16, color: "#6b6560", marginBottom: 24, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 16, color: colors.textMuted, marginBottom: 24, lineHeight: 1.6 }}>
               Get started by adding a working directory to scan for git repositories.
             </p>
 
             <div
               style={{
-                backgroundColor: "#f5f4ed",
-                border: "1px solid #e5e2da",
+                backgroundColor: colors.bgPanel,
+                border: `1px solid ${colors.border}`,
                 borderRadius: 8,
                 padding: 16,
                 marginBottom: 24,
               }}
             >
-              <p style={{ fontSize: 14, color: "#6b6560", margin: 0 }}>
+              <p style={{ fontSize: 14, color: colors.textMuted, margin: 0 }}>
                 Tip: A working directory can contain multiple git repositories. Magenta IDE will
                 scan up to 3 levels deep.
               </p>
@@ -162,13 +163,13 @@ export function WelcomePage(): React.ReactElement {
             {displayError && (
               <div
                 style={{
-                  backgroundColor: "#fae8e1",
-                  border: "1px solid #e5b8a5",
+                  backgroundColor: colors.errorSoft,
+                  border: `1px solid ${colors.errorSoftBorder}`,
                   borderRadius: 8,
                   padding: 12,
                   marginBottom: 16,
                   fontSize: 13,
-                  color: "#a14a2f",
+                  color: colors.errorDark,
                   textAlign: "left",
                 }}
               >
@@ -180,7 +181,7 @@ export function WelcomePage(): React.ReactElement {
               <div
                 style={{
                   fontSize: 13,
-                  color: "#6b6560",
+                  color: colors.textMuted,
                   marginBottom: 16,
                   display: "flex",
                   alignItems: "center",
@@ -193,7 +194,7 @@ export function WelcomePage(): React.ReactElement {
                     display: "inline-block",
                     width: 12,
                     height: 12,
-                    border: "2px solid #C15F3C",
+                    border: `2px solid ${colors.primary}`,
                     borderTopColor: "transparent",
                     borderRadius: "50%",
                     animation: "spin 0.8s linear infinite",
@@ -211,8 +212,8 @@ export function WelcomePage(): React.ReactElement {
                 padding: "12px 24px",
                 fontSize: 14,
                 fontWeight: 600,
-                backgroundColor: isAdding ? "#d4a090" : "#C15F3C",
-                color: "#ffffff",
+                backgroundColor: isAdding ? colors.primaryAlpha : colors.primary,
+                color: colors.textWhite,
                 border: "none",
                 borderRadius: 6,
                 cursor: isAdding ? "default" : "pointer",
@@ -221,15 +222,9 @@ export function WelcomePage(): React.ReactElement {
             >
               {isAdding ? "Scanning..." : "Add Working Directory"}
             </button>
-
-            <style>{`
-              @keyframes spin {
-                to { transform: rotate(360deg); }
-              }
-            `}</style>
           </>
         ) : (
-          <p style={{ fontSize: 16, color: "#6b6560", marginBottom: 24, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 16, color: colors.textMuted, marginBottom: 24, lineHeight: 1.6 }}>
             Found {repos.length} repositor{repos.length === 1 ? "y" : "ies"}! Select one from the sidebar to get
             started.
           </p>

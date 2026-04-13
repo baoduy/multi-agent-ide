@@ -2,6 +2,7 @@ import React from "react";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { FlowDiagram } from "../flow/FlowDiagram";
+import { colors } from "../../utils/colors";
 
 type SpecEditorViewProps = {
   spec: SpecFolder | null;
@@ -11,7 +12,7 @@ type SpecEditorViewProps = {
 export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.ReactElement {
   if (!spec) {
     return (
-      <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
+      <div style={{ padding: 20, color: colors.textTertiary, fontSize: 13 }}>
         Select a spec from the sidebar to view the pipeline.
       </div>
     );
@@ -20,14 +21,14 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Spec metadata header */}
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid #e5e2da" }}>
+      <div style={{ padding: "16px 20px", borderBottom: `1px solid ${colors.border}` }}>
         <div
           style={{
             fontSize: 11,
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            color: "#9a958c",
+            color: colors.textTertiary,
             marginBottom: 8,
           }}
         >
@@ -35,17 +36,17 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
         </div>
         <div
           style={{
-            border: "1px solid #e5e2da",
+            border: `1px solid ${colors.border}`,
             borderRadius: 8,
             padding: "14px 16px",
-            background: "#f5f4ed",
+            background: colors.bgPanel,
             fontSize: 13,
             lineHeight: 1.6,
-            color: "#2c2c2c",
+            color: colors.textStrong,
           }}
         >
           <div style={{ fontWeight: 500, marginBottom: 6 }}>{spec.name}</div>
-          <div style={{ color: "#9a958c", fontSize: 12 }}>
+          <div style={{ color: colors.textTertiary, fontSize: 12 }}>
             Stages: {spec.stages.length > 0 ? spec.stages.map((s) => s.name).join(" \u2192 ") : "No stages detected"}
           </div>
         </div>
@@ -59,17 +60,17 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
               fontSize: 13,
               border: "none",
               borderRadius: 6,
-              background: "#C15F3C",
-              color: "#ffffff",
+              background: colors.primary,
+              color: colors.textWhite,
               cursor: "pointer",
               fontWeight: 500,
               transition: "background 0.12s",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#a84e30";
+              e.currentTarget.style.background = colors.errorDark;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#C15F3C";
+              e.currentTarget.style.background = colors.primary;
             }}
           >
             Approve & generate tasks
@@ -79,16 +80,16 @@ export function SpecEditorView({ spec, repoName }: SpecEditorViewProps): React.R
             style={{
               padding: "8px 16px",
               fontSize: 13,
-              border: "1px solid #d1cec6",
+              border: `1px solid ${colors.borderMuted}`,
               borderRadius: 6,
               background: "transparent",
-              color: "#2c2c2c",
+              color: colors.textStrong,
               cursor: "pointer",
               fontWeight: 400,
               transition: "background 0.12s",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#eeece6";
+              e.currentTarget.style.background = colors.bgCodeInline;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = "transparent";

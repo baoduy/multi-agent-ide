@@ -6,6 +6,7 @@ import { useRepoStore } from "../../store/repoStore";
 import { ScrollableText } from "../common/ScrollableText";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
+import { colors } from "../../utils/colors";
 
 type WorktreesViewProps = {
   repoName: string | null;
@@ -52,9 +53,9 @@ const WorktreeCard = React.memo(function WorktreeCard({
           alignItems: "center",
           gap: 12,
           padding: "12px 16px",
-          background: isExpanded ? "#faf5f2" : hovered ? "#faf9f5" : "#fff",
+          background: isExpanded ? colors.bgPanelSoft : hovered ? colors.bgSurface : colors.bgWhite,
           border: "1px solid",
-          borderColor: isExpanded ? "#e5b8a5" : "#e5e2da",
+          borderColor: isExpanded ? colors.errorSoftBorder : colors.border,
           borderRadius: isExpanded ? "8px 8px 0 0" : 8,
           transition: "background 0.12s, border-color 0.12s",
           cursor: "pointer",
@@ -69,11 +70,11 @@ const WorktreeCard = React.memo(function WorktreeCard({
             width: 32,
             height: 32,
             borderRadius: 6,
-            background: isExpanded ? "#fae8e1" : "#f0ede8",
+            background: isExpanded ? colors.errorSoft : colors.bgHover,
             flexShrink: 0,
           }}
         >
-          <GitBranch size={16} color="#C15F3C" strokeWidth={1.8} />
+          <GitBranch size={16} color={colors.primary} strokeWidth={1.8} />
         </div>
 
         {/* Info */}
@@ -82,7 +83,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
             style={{
               fontSize: 13,
               fontWeight: 600,
-              color: "#2c2c2c",
+              color: colors.textStrong,
             }}
           >
             {wt.name}
@@ -94,10 +95,10 @@ const WorktreeCard = React.memo(function WorktreeCard({
               gap: 10,
               marginTop: 3,
               fontSize: 11,
-              color: "#9a958c",
+              color: colors.textTertiary,
             }}
           >
-            <BranchLabel name={wt.branch} size="xs" style={{ color: "#9a958c" }} />
+            <BranchLabel name={wt.branch} size="xs" style={{ color: colors.textTertiary }} />
             <span
               style={{
                 display: "inline-flex",
@@ -118,7 +119,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
             alignItems: "center",
             gap: 4,
             fontSize: 10,
-            color: "#9a958c",
+            color: colors.textTertiary,
             fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
             maxWidth: 200,
             flexShrink: 0,
@@ -136,14 +137,14 @@ const WorktreeCard = React.memo(function WorktreeCard({
           <ChevronDown
             size={14}
             strokeWidth={1.5}
-            color="#C15F3C"
+            color={colors.primary}
             style={{ flexShrink: 0 }}
           />
         ) : (
           <ChevronRight
             size={14}
             strokeWidth={1.5}
-            color={hovered ? "#C15F3C" : "#c4c1ba"}
+            color={hovered ? colors.primary : colors.borderMuted}
             style={{ flexShrink: 0, transition: "color 0.12s" }}
           />
         )}
@@ -153,9 +154,9 @@ const WorktreeCard = React.memo(function WorktreeCard({
       {isExpanded && (
         <div
           style={{
-            borderLeft: "1px solid #e5b8a5",
-            borderRight: "1px solid #e5b8a5",
-            borderBottom: "1px solid #e5b8a5",
+            borderLeft: `1px solid ${colors.errorSoftBorder}`,
+            borderRight: `1px solid ${colors.errorSoftBorder}`,
+            borderBottom: `1px solid ${colors.errorSoftBorder}`,
             borderRadius: "0 0 8px 8px",
             overflow: "hidden",
           }}
@@ -217,7 +218,7 @@ const RepoGroup = React.memo(function RepoGroup({
         <ChevronRight
           size={12}
           strokeWidth={2}
-          color="#9a958c"
+          color={colors.textTertiary}
           style={{
             transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
             transition: "transform 0.15s",
@@ -226,15 +227,15 @@ const RepoGroup = React.memo(function RepoGroup({
         <RepoLabel
           name={repoName}
           size="sm"
-          style={{ color: isActive ? "#C15F3C" : "#6b6560" }}
+          style={{ color: isActive ? colors.primary : colors.textMuted }}
         />
         {isActive && (
           <span
             style={{
               fontSize: 9,
               fontWeight: 600,
-              color: "#C15F3C",
-              background: "#faf5f2",
+              color: colors.primary,
+              background: colors.bgPanelSoft,
               padding: "2px 6px",
               borderRadius: 4,
               textTransform: "uppercase",
@@ -247,7 +248,7 @@ const RepoGroup = React.memo(function RepoGroup({
         <span
           style={{
             fontSize: 11,
-            color: "#9a958c",
+            color: colors.textTertiary,
             marginLeft: "auto",
           }}
         >
@@ -333,7 +334,7 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
 
   if (!repoName) {
     return (
-      <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
+      <div style={{ padding: 20, color: colors.textTertiary, fontSize: 13 }}>
         Select a repository to view worktrees.
       </div>
     );
@@ -348,7 +349,7 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#9a958c",
+          color: colors.textTertiary,
           marginBottom: 16,
         }}
       >
@@ -358,7 +359,7 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
       {allWorktrees.length === 0 ? (
         <div
           style={{
-            color: "#9a958c",
+            color: colors.textTertiary,
             fontSize: 13,
             padding: "16px 0",
           }}
@@ -394,9 +395,9 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
           style={{
             marginTop: 8,
             paddingTop: 12,
-            borderTop: "1px solid #f0ede8",
+            borderTop: `1px solid ${colors.bgHover}`,
             fontSize: 11,
-            color: "#9a958c",
+            color: colors.textTertiary,
             display: "flex",
             alignItems: "center",
             gap: 4,

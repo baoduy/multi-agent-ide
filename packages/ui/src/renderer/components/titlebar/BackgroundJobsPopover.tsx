@@ -169,7 +169,6 @@ function Spinner(): React.ReactElement {
       xmlns="http://www.w3.org/2000/svg"
       style={{ animation: "spin 1s linear infinite", flexShrink: 0 }}
     >
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       <circle
         cx="6"
         cy="6"

@@ -5,32 +5,67 @@
 
 export const colors = {
   /** Primary brand / action color */
-  primary: "#C15F3C",
+  primary: "var(--primary)",
+  /** Primary text color for contrast on primary backgrounds */
+  primaryForeground: "var(--primary-foreground)",
   /** Primary with transparency for subtle backgrounds */
-  primaryAlpha: "#C15F3C08",
+  primaryAlpha: "var(--color-primary-soft)",
 
   /** Text colors */
-  text: "#2c2c2c",
-  textMuted: "#4a4540",
-  textSecondary: "#6b6560",
-  textTertiary: "#9a958c",
+  text: "var(--foreground)",
+  textMuted: "var(--secondary-foreground)",
+  textSecondary: "color-mix(in srgb, var(--foreground) 75%, white)",
+  textTertiary: "var(--muted-foreground)",
 
   /** Border colors */
-  border: "#e5e2da",
-  borderLight: "#f0ede8",
+  border: "var(--border)",
+  borderLight: "color-mix(in srgb, var(--border) 70%, white)",
 
   /** Background colors */
-  bgSurface: "#faf9f5",
-  bgMuted: "#f5f4ed",
-  bgHover: "#f0ede8",
+  bgSurface: "var(--background)",
+  bgMuted: "var(--muted)",
+  bgHover: "var(--accent)",
+  bgPanel: "#f5f4ed",
+  bgPanelSoft: "#faf5f2",
+  bgCodeInline: "#eeece6",
+  bgWhite: "#ffffff",
+
+  /** Border/neutral helpers */
+  borderMuted: "#d1cec6",
+  borderStrong: "#b5b1a8",
+
+  /** Text helpers */
+  textStrong: "#2c2c2c",
+  textWhite: "#ffffff",
 
   /** Status colors */
   success: "#16A34A",
-  error: "#ef4444",
-  errorDark: "#dc2626",
+  successHover: "#15803d",
+  successSoft: "#dcfce7",
+  successSoftBorder: "#bbf7d0",
+  successMuted: "#86efac",
+  successText: "#166534",
+  warningSoft: "#fef3c7",
+  warningText: "#7c6a3e",
+  warningBorder: "#fde68a",
+  warningTextStrong: "#92400e",
+  warningTextDeep: "#9a3412",
+  warningBorderSoft: "#fed7aa",
+  infoSoft: "#dbeafe",
+  infoText: "#1e40af",
+  infoBorder: "#bfdbfe",
+  info: "#3b82f6",
+  progressSoft: "#fce4ec",
+  progressText: "#9f1239",
+  progressBorder: "#fda4af",
+  error: "var(--destructive)",
+  errorSoft: "#fae8e1",
+  errorSoftBorder: "#e5b8a5",
+  errorDark: "color-mix(in srgb, var(--destructive) 80%, black)",
 
   /** Dialog specific */
-  dialogBg: "#fff",
+  dialogBg: "var(--card)",
   dialogShadow: "0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08)",
-  backdropBg: "rgba(0, 0, 0, 0.35)",
+  shadowSoft: "0 4px 12px rgba(0, 0, 0, 0.1)",
+  backdropBg: "rgba(0, 0, 0, 0.55)",
 } as const;

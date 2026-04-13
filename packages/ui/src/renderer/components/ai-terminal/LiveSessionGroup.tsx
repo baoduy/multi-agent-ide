@@ -260,11 +260,11 @@ function DirectoryTreeNodeComponent({
             style={{
               fontSize: 9,
               fontWeight: 700,
-              color: "#3d7a2a",
+              color: colors.success,
               padding: "1px 5px",
               borderRadius: 4,
-              background: "#3d7a2a14",
-              border: "1px solid #3d7a2a40",
+              background: colors.successSoft,
+              border: `1px solid ${colors.successSoftBorder}`,
               flexShrink: 0,
             }}
           >

@@ -3,6 +3,7 @@ import React from "react";
 import type { SpecFolder } from "@magenta/shared/models";
 import { ScrollableText } from "../common/ScrollableText";
 import { StageDots } from "./StageDots";
+import { colors } from "../../utils/colors";
 
 type SpecItemProps = {
   spec: SpecFolder;
@@ -15,8 +16,8 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
     <div
       style={{
         padding: "7px 16px",
-        backgroundColor: isSelected ? "#f0ebe4" : "transparent",
-        borderLeft: isSelected ? "2px solid #C15F3C" : "2px solid transparent",
+        backgroundColor: isSelected ? colors.bgHover : "transparent",
+        borderLeft: isSelected ? `2px solid ${colors.primary}` : "2px solid transparent",
         cursor: "pointer",
         display: "flex",
         justifyContent: "space-between",
@@ -26,7 +27,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
       onClick={() => onSelect(spec.path)}
       onMouseEnter={(e) => {
         if (!isSelected) {
-          e.currentTarget.style.backgroundColor = "#eeece6";
+          e.currentTarget.style.backgroundColor = colors.bgCodeInline;
         }
       }}
       onMouseLeave={(e) => {
@@ -39,7 +40,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
         style={{
           fontSize: 11,
           fontWeight: isSelected ? 500 : 400,
-          color: "#2c2c2c",
+          color: colors.textStrong,
           flex: 1,
           marginRight: 12,
           lineHeight: 1.4,

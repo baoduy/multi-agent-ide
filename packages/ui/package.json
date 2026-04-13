@@ -30,7 +30,7 @@
     "@types/node": "*",
     "@types/react": "*",
     "@types/react-dom": "*",
-    "esbuild": "^0.24.2",
+    "esbuild": "^0.25.0",
     "shadcn": "^2.5.0",
     "tailwindcss": "^4.1.7",
     "typescript": "*"

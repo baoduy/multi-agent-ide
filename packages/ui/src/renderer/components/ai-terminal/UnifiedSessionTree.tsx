@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -385,6 +385,8 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
 type SessionGroupNodeViewProps = {
   node: SessionGroupNode;
   defaultExpanded?: boolean;
+  /** When this matches the group's repo path, force-expand and scroll into view. */
+  activeRepoPath?: string | null;
   onSelectSession: (sessionId: string) => void;
   onResumeSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
@@ -395,12 +397,28 @@ type SessionGroupNodeViewProps = {
 function SessionGroupNodeComponent({
   node,
   defaultExpanded = false,
+  activeRepoPath,
   onSelectSession,
   onResumeSession,
   onDeleteSession,
   onResumeSyncedSession,
 }: SessionGroupNodeViewProps): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  const isActive =
+    !!activeRepoPath &&
+    (node.repo?.path === activeRepoPath || node.path === activeRepoPath);
+
+  // Auto-expand and scroll into view when this group becomes the active repo.
+  useEffect(() => {
+    if (!isActive) return;
+    setExpanded(true);
+    const id = requestAnimationFrame(() => {
+      rootRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [isActive]);
 
   const toggleExpanded = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -410,7 +428,7 @@ function SessionGroupNodeComponent({
   const hasSynced = node.syncedSessions.length > 0;
 
   return (
-    <div>
+    <div ref={rootRef}>
       {/* Group header — different style for repos vs workspace folders */}
       {node.repo ? (
         <RepoGroupHeader

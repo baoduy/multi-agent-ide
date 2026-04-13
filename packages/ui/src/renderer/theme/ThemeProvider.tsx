@@ -1,4 +1,4 @@
-import React, { createContext, useEffect } from "react";
+import React, { useEffect } from "react";
 import themeConfig from "../theme/theme-config.json";
 
 export interface ThemeConfig {
@@ -9,13 +9,6 @@ export interface ThemeConfig {
   animation?: Record<string, Record<string, string>>;
   scrollbar?: Record<string, string>;
 }
-
-interface ThemeContextType {
-  config: ThemeConfig;
-  applyTheme: () => void;
-}
-
-export const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -34,7 +27,6 @@ interface ThemeProviderProps {
  *
  * Accessing theme tokens in components:
  *   - Via CSS: background-color: var(--color-primary);
- *   - Via useThemeConfig hook: const { getColor } = useThemeConfig();
  */
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const applyTheme = React.useCallback(() => {
@@ -113,10 +105,5 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     applyTheme();
   }, [applyTheme]);
 
-  const value: ThemeContextType = {
-    config: themeConfig as ThemeConfig,
-    applyTheme,
-  };
-
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  return <>{children}</>;
 };

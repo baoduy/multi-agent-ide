@@ -1,11 +1,10 @@
 import React, { useState } from "react";
-import { Star, FolderOpen, FolderGit2, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork } from "lucide-react";
+import { Star, FolderOpen, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
-import { ScrollableText } from "../common/ScrollableText";
-import { BranchLabel } from "../common/RepoLabel";
+import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { openInFileManager } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
@@ -125,63 +124,24 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           transition: "background 0.12s",
         }}
       >
-        {/* Git icon */}
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 26,
-            height: 26,
-            borderRadius: 5,
-            background: colors.bgMuted,
-            flexShrink: 0,
-          }}
-        >
-          <FolderGit2 size={14} color={colors.textSecondary} strokeWidth={1.8} />
-        </span>
-
-        {/* Name + meta */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ScrollableText
+        <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+          <span
             style={{
-              fontWeight: 600,
-              fontSize: 12,
-              color: colors.textStrong,
-              lineHeight: 1.4,
+              display: "inline-block",
+              padding: "1px 6px",
+              borderRadius: 3,
+              fontSize: 9,
+              fontWeight: 500,
+              background: badge.bg,
+              color: badge.color,
+              lineHeight: "16px",
             }}
           >
-            {repo.name}
-          </ScrollableText>
-          <div
-            style={{
-              fontSize: 10,
-              color: colors.textTertiary,
-              marginTop: 2,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <span
-              style={{
-                display: "inline-block",
-                padding: "1px 6px",
-                borderRadius: 3,
-                fontSize: 9,
-                fontWeight: 500,
-                background: badge.bg,
-                color: badge.color,
-                lineHeight: "16px",
-              }}
-            >
-              {badge.label}
-            </span>
-
-            {/* Current branch — read-only tag */}
-            <BranchLabel name={repo.branch} size="xs" badge />
-          </div>
-        </div>
+            {badge.label}
+          </span>
+          {/* Current branch — read-only tag */}
+          <BranchLabel name={repo.branch} size="xs" />
+        </RepoLabel>
       </button>
 
       {/* Pin toggle */}

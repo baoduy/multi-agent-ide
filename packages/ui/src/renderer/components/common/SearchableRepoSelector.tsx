@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Search, FolderOpen, FolderGit2, X } from "lucide-react";
+import { ChevronDown, Search, FolderOpen, X } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { RepoLabel, BranchLabel } from "./RepoLabel";
@@ -257,64 +257,23 @@ export function SearchableRepoSelector({
                     e.currentTarget.style.background = isSelected ? colors.bgHover : "transparent";
                   }}
                 >
-                  {/* Git icon box */}
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 26,
-                      height: 26,
-                      borderRadius: 5,
-                      background: "#C15F3C14",
-                      flexShrink: 0,
-                    }}
-                  >
-                    <FolderGit2 size={14} color="#C15F3C" strokeWidth={1.8} />
-                  </span>
-
-                  {/* Name + meta row */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
+                  <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+                    <span
                       style={{
-                        fontWeight: 600,
-                        fontSize: 12,
-                        color: "#2c2c2c",
-                        lineHeight: 1.4,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
+                        display: "inline-block",
+                        padding: "1px 6px",
+                        borderRadius: 3,
+                        fontSize: 9,
+                        fontWeight: 500,
+                        background: badge.bg,
+                        color: badge.color,
+                        lineHeight: "16px",
                       }}
                     >
-                      {repo.name}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        color: "#9a958c",
-                        marginTop: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
-                      <span
-                        style={{
-                          display: "inline-block",
-                          padding: "1px 6px",
-                          borderRadius: 3,
-                          fontSize: 9,
-                          fontWeight: 500,
-                          background: badge.bg,
-                          color: badge.color,
-                          lineHeight: "16px",
-                        }}
-                      >
-                        {badge.label}
-                      </span>
-                      <BranchLabel name={repo.branch} size="xs" badge />
-                    </div>
-                  </div>
+                      {badge.label}
+                    </span>
+                    <BranchLabel name={repo.branch} size="xs" />
+                  </RepoLabel>
                 </button>
               );
             })}

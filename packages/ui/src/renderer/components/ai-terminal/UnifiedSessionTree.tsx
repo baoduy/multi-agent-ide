@@ -2,7 +2,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
-  FolderGit2,
   Folder,
   Clock,
 } from "lucide-react";
@@ -11,7 +10,7 @@ import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
 import type { Repository } from "@magenta/shared/models";
 import { AISessionListItem } from "./AISessionListItem";
 import { ProviderBadge } from "../common/ProviderBadge";
-import { BranchLabel } from "../common/RepoLabel";
+import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime, formatTokens } from "../../utils/formatters";
 import { getRepoBadge } from "../../utils/repoBadge";
@@ -67,64 +66,23 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
         <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
       )}
 
-      {/* Git icon in a rounded box — matching RepoItem style */}
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 26,
-          height: 26,
-          borderRadius: 5,
-          background: colors.primaryAlpha,
-          flexShrink: 0,
-        }}
-      >
-        <FolderGit2 size={14} color={colors.primary} strokeWidth={1.8} />
-      </span>
-
-      {/* Repo name + meta (badge + branch) */}
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
         <span
           style={{
-            fontWeight: 600,
-            fontSize: 12,
-            color: colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            display: "block",
+            display: "inline-block",
+            padding: "1px 6px",
+            borderRadius: 3,
+            fontSize: 9,
+            fontWeight: 500,
+            background: badge.bg,
+            color: badge.color,
+            lineHeight: "16px",
           }}
         >
-          {repo.name}
+          {badge.label}
         </span>
-        <div
-          style={{
-            fontSize: 10,
-            color: colors.textTertiary,
-            marginTop: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              padding: "1px 6px",
-              borderRadius: 3,
-              fontSize: 9,
-              fontWeight: 500,
-              background: badge.bg,
-              color: badge.color,
-              lineHeight: "16px",
-            }}
-          >
-            {badge.label}
-          </span>
-          <BranchLabel name={repo.branch} size="xs" badge />
-        </div>
-      </div>
+        <BranchLabel name={repo.branch} size="xs" />
+      </RepoLabel>
 
       {/* Active indicator */}
       {activeCount > 0 && (

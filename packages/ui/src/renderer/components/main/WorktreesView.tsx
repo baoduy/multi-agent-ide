@@ -98,7 +98,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
               color: colors.textTertiary,
             }}
           >
-            <BranchLabel name={wt.branch} size="xs" style={{ color: colors.textTertiary }} />
+            <BranchLabel name={wt.branch} size="xs" badge={false} style={{ color: colors.textTertiary }} />
             <span
               style={{
                 display: "inline-flex",

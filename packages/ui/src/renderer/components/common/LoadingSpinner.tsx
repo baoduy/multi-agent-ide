@@ -32,11 +32,6 @@ export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps):
         }}
       />
       <p style={{ fontSize: 14, color: colors.textSecondary, margin: 0 }}>{message}</p>
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

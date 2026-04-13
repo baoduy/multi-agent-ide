@@ -3,6 +3,7 @@ import React from "react";
 import type { PipelineStage } from "@magenta/shared/models";
 import type { StageStatus } from "@magenta/shared/constants";
 import { stageStatusColor } from "../../utils/stageColors";
+import { colors } from "../../utils/colors";
 
 type StageDotsProps = {
   stages: PipelineStage[];
@@ -35,7 +36,7 @@ export function StageDots({ stages }: StageDotsProps): React.ReactElement {
           height: 8,
           borderRadius: "50%",
           backgroundColor: isMissing || isPending ? "transparent" : colors.dot,
-          border: isMissing || isPending ? "1.5px solid #d1cec6" : "none",
+          border: isMissing || isPending ? `1.5px solid ${colors.borderMuted}` : "none",
           transition: "background-color 0.2s, border-color 0.2s",
           ...(isRunning || isInProgress ? { animation: "stagePulse 1.4s ease-in-out infinite" } : {}),
         };
@@ -48,11 +49,6 @@ export function StageDots({ stages }: StageDotsProps): React.ReactElement {
           />
         );
       })}
-
-      {/* Pulse animation for "running" stages */}
-      {stages.some((s) => s.status === "running" || s.status === "in-progress") && (
-        <style>{`@keyframes stagePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
-      )}
     </div>
   );
 }

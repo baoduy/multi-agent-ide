@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitBranch, GitFork, FolderPlus, Loader2, Bot, Terminal } from "lucide-react";
+import { GitBranch, GitFork, FolderPlus, Loader2, Bot, Terminal, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -8,12 +8,10 @@ import { useWorktreeStore } from "../../store/worktreeStore";
 import type { WorktreeInfo } from "../../store/worktreeStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton, PrimaryButton } from "../common/DialogButtons";
-import { FormLabel, FormError, SectionHeader } from "../common/FormControls";
-import { SearchableRepoSelector } from "../common/SearchableRepoSelector";
+import { FormLabel, FormError } from "../common/FormControls";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { ButtonGroup, type ButtonGroupOption } from "../common/ButtonGroup";
-import { PermissionDropdown } from "../common/PermissionDropdown";
-import { SelectDropdown, type SelectOption } from "../common/SelectDropdown";
+import { DoublePicker, type DoublePickerOption } from "../common/DoublePicker";
 import { BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { getProviderName } from "../common/providerConfig";
@@ -118,8 +116,7 @@ export function NewSessionDialog({
   // Existing worktree mode
   const [selectedWorktreePath, setSelectedWorktreePath] = useState<string | null>(null);
 
-  // New worktree mode
-  const [baseBranch, setBaseBranch] = useState<string>("");
+  // New worktree mode (branch for new worktree comes from top-level selectedBranch)
   const [worktreeCustomName, setWorktreeCustomName] = useState("");
   const [worktreeNameError, setWorktreeNameError] = useState<string | null>(null);
 
@@ -130,7 +127,17 @@ export function NewSessionDialog({
 
   /* ── Derived values ── */
 
-  const repoOptions = useMemo(() => repos, [repos]);
+  /** Repo dropdown options for the DoublePicker. */
+  const repoOptions = useMemo(
+    (): readonly DoublePickerOption<string>[] =>
+      repos.map((r) => ({
+        value: r.path,
+        label: r.name,
+        description: r.path,
+        icon: <FolderGit2 size={14} color={colors.textTertiary} />,
+      })),
+    [repos],
+  );
 
   const repoWorktrees = useMemo(
     () =>
@@ -147,16 +154,41 @@ export function NewSessionDialog({
 
   /** Provider dropdown options with brand icons. */
   const providerOptions = useMemo(
-    (): readonly SelectOption<AIProvider>[] => [
+    (): readonly DoublePickerOption<AIProvider>[] => [
       {
         value: "claude",
         label: getProviderName("claude"),
-        icon: <ProviderIcon provider="claude" size={16} />,
+        icon: <ProviderIcon provider="claude" size={14} />,
       },
       {
         value: "copilot",
         label: getProviderName("copilot"),
-        icon: <ProviderIcon provider="copilot" size={16} />,
+        icon: <ProviderIcon provider="copilot" size={14} />,
+      },
+    ],
+    [],
+  );
+
+  /** Permission dropdown options. */
+  const permissionOptions = useMemo(
+    (): readonly DoublePickerOption<SimplifiedPermission>[] => [
+      {
+        value: "default",
+        label: "Default",
+        description: "Asks before file edits",
+        icon: <Shield size={14} color={colors.textSecondary} strokeWidth={1.8} />,
+      },
+      {
+        value: "auto",
+        label: "Auto",
+        description: "Auto-accepts safe actions",
+        icon: <Zap size={14} color={colors.textSecondary} strokeWidth={1.8} />,
+      },
+      {
+        value: "bypassPermissions",
+        label: "Bypass",
+        description: "Skips all permission checks",
+        icon: <ShieldOff size={14} color={colors.error} strokeWidth={1.8} />,
       },
     ],
     [],
@@ -164,7 +196,7 @@ export function NewSessionDialog({
 
   /** Branch dropdown options with "(current)" suffix. */
   const branchOptions = useMemo(
-    (): readonly SelectOption[] =>
+    (): readonly DoublePickerOption<string>[] =>
       branches.map((b) => ({
         value: b,
         label: b,
@@ -177,7 +209,6 @@ export function NewSessionDialog({
   /** Dynamic "Run in" options — disable "Existing Worktree" when none available. */
   const workspaceTargetOptions = useMemo(
     (): readonly ButtonGroupOption<WorkspaceTarget>[] => [
-      { key: "branch", label: "Branch", icon: <GitBranch size={13} /> },
       {
         key: "existing-worktree",
         label: `Worktree${repoWorktrees.length > 0 ? ` (${repoWorktrees.length})` : ""}`,
@@ -193,10 +224,10 @@ export function NewSessionDialog({
     if (!selectedRepoPath) return false;
     if (workspaceTarget === "branch" && !selectedBranch) return false;
     if (workspaceTarget === "existing-worktree" && !selectedWorktreePath) return false;
-    if (workspaceTarget === "new-worktree" && !baseBranch) return false;
+    if (workspaceTarget === "new-worktree" && !selectedBranch) return false;
     if (sessionType === "agent" && !provider) return false;
     return true;
-  }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, baseBranch, sessionType, provider]);
+  }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, sessionType, provider]);
 
   /* ── Effects ── */
 
@@ -222,7 +253,6 @@ export function NewSessionDialog({
       setBranches([]);
       setCurrentBranch("");
       setSelectedBranch("");
-      setBaseBranch("");
       return;
     }
 
@@ -236,7 +266,6 @@ export function NewSessionDialog({
         setBranches(res.branches);
         setCurrentBranch(res.current);
         setSelectedBranch(res.current);
-        setBaseBranch(res.current);
         setIsLoadingBranches(false);
       })
       .catch(() => {
@@ -264,7 +293,7 @@ export function NewSessionDialog({
 
   /* ── Handlers ── */
 
-  const handleRepoSelect = useCallback((path: string | null) => {
+  const handleRepoSelect = useCallback((path: string) => {
     setSelectedRepoPath(path);
     setWorkspaceTarget("branch");
     setSelectedWorktreePath(null);
@@ -273,13 +302,29 @@ export function NewSessionDialog({
     setCreateError(null);
   }, []);
 
-  const handleWorkspaceTargetChange = useCallback((target: WorkspaceTarget) => {
-    setWorkspaceTarget(target);
-    setSelectedWorktreePath(null);
-    setWorktreeCustomName("");
-    setWorktreeNameError(null);
-    setCreateError(null);
-  }, []);
+  // Auto-sync selectedBranch to the chosen worktree's branch so the disabled
+  // picker still displays meaningful info in existing-worktree mode.
+  const handleExistingWorktreeSelect = useCallback(
+    (worktreePath: string) => {
+      setSelectedWorktreePath(worktreePath);
+      const wt = repoWorktrees.find((w) => w.worktreePath === worktreePath);
+      if (wt) setSelectedBranch(wt.branch);
+    },
+    [repoWorktrees],
+  );
+
+  const handleWorkspaceTargetChange = useCallback(
+    (target: WorkspaceTarget) => {
+      // Toggle: clicking the active option reverts to plain "branch" mode.
+      const next = target === workspaceTarget ? "branch" : target;
+      setWorkspaceTarget(next);
+      setSelectedWorktreePath(null);
+      setWorktreeCustomName("");
+      setWorktreeNameError(null);
+      setCreateError(null);
+    },
+    [workspaceTarget],
+  );
 
   const handleConfirm = useCallback(async () => {
     if (!selectedRepoPath) {
@@ -326,7 +371,7 @@ export function NewSessionDialog({
         const result = await sendOrThrow({
           type: "worktree:create",
           repoPath: selectedRepoPath,
-          branch: baseBranch,
+          branch: selectedBranch,
           name: wtName,
         });
         worktreePathToUse = result.worktreePath;
@@ -367,7 +412,6 @@ export function NewSessionDialog({
     workspaceTarget,
     selectedBranch,
     selectedWorktreePath,
-    baseBranch,
     worktreeCustomName,
     providerPrefix,
     repoWorktrees,
@@ -397,7 +441,8 @@ export function NewSessionDialog({
       title="New Session"
       width={560}
       scrollable
-      maxHeight="88vh"
+      minHeight="80vh"
+      maxHeight="90vh"
       onClose={onClose}
       footer={
         <>
@@ -433,39 +478,57 @@ export function NewSessionDialog({
           </div>
         </div>
 
-        {/* ─── Provider + Permission (Agent only) — single row ─── */}
-        {sessionType === "agent" && (
-          <div style={{ display: "flex", gap: 12, alignItems: "flex-end" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <FormLabel>Provider</FormLabel>
-              <SelectDropdown
-                options={providerOptions}
-                value={provider}
-                onChange={setProvider}
-                placeholder="Select provider"
+        {/* ─── Agent + Workspace on one row ─── */}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {sessionType === "agent" && (
+            <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+              <FormLabel>Agent</FormLabel>
+              <DoublePicker<AIProvider, SimplifiedPermission>
+                left={{
+                  options: providerOptions,
+                  value: provider,
+                  onChange: setProvider,
+                  placeholder: "Provider",
+                  minPanelWidth: 180,
+                }}
+                right={{
+                  options: permissionOptions,
+                  value: permissionMode,
+                  onChange: setPermissionMode,
+                  placeholder: "Permission",
+                  minPanelWidth: 220,
+                }}
               />
             </div>
-            <div style={{ flexShrink: 0 }}>
-              <FormLabel>Permission</FormLabel>
-              <PermissionDropdown
-                value={permissionMode}
-                onChange={(v) => setPermissionMode(v as SimplifiedPermission)}
-              />
-            </div>
+          )}
+
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+            <FormLabel>Workspace</FormLabel>
+            <DoublePicker<string, string>
+              left={{
+                options: repoOptions,
+                value: selectedRepoPath ?? "",
+                onChange: handleRepoSelect,
+                placeholder: "Select repository",
+                searchable: repos.length > 5,
+                searchPlaceholder: "Search repositories...",
+                minPanelWidth: 280,
+              }}
+              right={{
+                options: branchOptions,
+                value: selectedBranch,
+                onChange: setSelectedBranch,
+                placeholder: hasRepo ? "Select branch" : "Branch",
+                searchable: branches.length > 5,
+                searchPlaceholder: "Search branches...",
+                minPanelWidth: 240,
+                disabled:
+                  !hasRepo ||
+                  isLoadingBranches ||
+                  workspaceTarget === "existing-worktree",
+              }}
+            />
           </div>
-        )}
-
-        {/* ─── Workspace divider ─── */}
-        <SectionHeader style={{ marginBottom: 0, marginTop: 4 }}>Workspace</SectionHeader>
-
-        {/* ─── Repository ─── */}
-        <div>
-          <FormLabel>Repository</FormLabel>
-          <SearchableRepoSelector
-            repos={repoOptions}
-            selectedPath={selectedRepoPath}
-            onSelect={handleRepoSelect}
-          />
         </div>
 
         {/* ─── Loading branches indicator ─── */}
@@ -492,21 +555,6 @@ export function NewSessionDialog({
               />
             </div>
 
-            {/* ── Branch mode ── */}
-            {workspaceTarget === "branch" && (
-              <div>
-                <FormLabel>Branch</FormLabel>
-                <SelectDropdown
-                  options={branchOptions}
-                  value={selectedBranch}
-                  onChange={setSelectedBranch}
-                  placeholder="Select branch"
-                  searchable={branches.length > 5}
-                  searchPlaceholder="Search branches..."
-                />
-              </div>
-            )}
-
             {/* ── Existing worktree mode ── */}
             {workspaceTarget === "existing-worktree" && repoWorktrees.length > 0 && (
               <div>
@@ -514,7 +562,7 @@ export function NewSessionDialog({
                 <WorktreeList
                   worktrees={repoWorktrees}
                   selectedPath={selectedWorktreePath}
-                  onSelect={setSelectedWorktreePath}
+                  onSelect={handleExistingWorktreeSelect}
                 />
               </div>
             )}
@@ -522,18 +570,6 @@ export function NewSessionDialog({
             {/* ── New worktree mode ── */}
             {workspaceTarget === "new-worktree" && (
               <>
-                <div>
-                  <FormLabel>Base Branch</FormLabel>
-                  <SelectDropdown
-                    options={branchOptions}
-                    value={baseBranch}
-                    onChange={setBaseBranch}
-                    placeholder="Select base branch"
-                    searchable={branches.length > 5}
-                    searchPlaceholder="Search branches..."
-                  />
-                </div>
-
                 <div>
                   <FormLabel>Worktree Name</FormLabel>
                   <div style={{ display: "flex", alignItems: "center", gap: 0 }}>

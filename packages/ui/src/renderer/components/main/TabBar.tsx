@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import { getFileIconInfo } from "../common/fileIcons";
 import { ScrollableText } from "../common/ScrollableText";
+import { colors } from "../../utils/colors";
 
 /* ── Types ── */
 
@@ -44,8 +45,8 @@ function CloseButton({ onClick }: { onClick: (e: React.MouseEvent) => void }): R
         borderRadius: 3,
         fontSize: 11,
         lineHeight: 1,
-        color: hovered ? "#2c2c2c" : "#9a958c",
-        background: hovered ? "#e5e2da" : "transparent",
+        color: hovered ? colors.textStrong : colors.textTertiary,
+        background: hovered ? colors.border : "transparent",
         cursor: "pointer",
         marginLeft: 4,
         transition: "all 0.1s",
@@ -73,8 +74,8 @@ export function TabBar({
     <div
       style={{
         display: "flex",
-        borderBottom: "1px solid #e5e2da",
-        background: "#f5f4ed",
+        borderBottom: `1px solid ${colors.border}`,
+        background: colors.bgPanel,
         padding: "0 4px",
         overflowX: "auto",
         flexShrink: 0,
@@ -100,9 +101,9 @@ export function TabBar({
               fontWeight: isActive ? 500 : 400,
               cursor: "pointer",
               border: "none",
-              borderBottom: isActive ? "2px solid #C15F3C" : "2px solid transparent",
+              borderBottom: isActive ? `2px solid ${colors.primary}` : "2px solid transparent",
               background: "transparent",
-              color: isActive ? "#2c2c2c" : "#9a958c",
+              color: isActive ? colors.textStrong : colors.textTertiary,
               transition: "color 0.12s, border-color 0.12s",
               marginBottom: -1,
               flexShrink: 0,
@@ -110,10 +111,10 @@ export function TabBar({
               maxWidth: 200,
             }}
             onMouseEnter={(e) => {
-              if (!isActive) e.currentTarget.style.color = "#2c2c2c";
+              if (!isActive) e.currentTarget.style.color = colors.textStrong;
             }}
             onMouseLeave={(e) => {
-              if (!isActive) e.currentTarget.style.color = "#9a958c";
+              if (!isActive) e.currentTarget.style.color = colors.textTertiary;
             }}
           >
             {/* File icon */}

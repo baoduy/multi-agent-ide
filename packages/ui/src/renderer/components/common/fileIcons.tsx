@@ -83,8 +83,8 @@ const EXT_MAP: Record<string, FileIconInfo> = {
 };
 
 const DEFAULT_FILE_ICON: FileIconInfo = { Icon: File, color: "#9a958c", label: "" };
-const FOLDER_ICON: FileIconInfo       = { Icon: Folder, color: "#C15F3C", label: "" };
-const FOLDER_OPEN_ICON: FileIconInfo  = { Icon: FolderOpen, color: "#C15F3C", label: "" };
+const FOLDER_ICON: FileIconInfo       = { Icon: Folder, color: "#6b6560", label: "" };
+const FOLDER_OPEN_ICON: FileIconInfo  = { Icon: FolderOpen, color: "#6b6560", label: "" };
 const FOLDER_CODE_ICON: FileIconInfo  = { Icon: FolderCode, color: "#7C3AED", label: "" };
 
 /* ── Public API ── */

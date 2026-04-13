@@ -69,7 +69,7 @@ function ButtonGroupComponent<T extends string = string>({
               alignItems: "center",
               justifyContent: "center",
               gap: 6,
-              padding: "8px 8px",
+              padding: "7px 10px",
               cursor: opt.disabled ? "not-allowed" : "pointer",
               border: "none",
               borderRight: i < options.length - 1 ? `1px solid ${colors.border}` : "none",

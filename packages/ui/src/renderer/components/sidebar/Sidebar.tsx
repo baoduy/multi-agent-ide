@@ -9,6 +9,7 @@ import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoList } from "./RepoList";
 import { SpecTree } from "./SpecTree";
 import { SettingsDialog } from "../settings/SettingsDialog";
+import { colors } from "../../utils/colors";
 
 /* ── Constants ── */
 
@@ -140,15 +141,15 @@ export function Sidebar(): React.ReactElement {
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#f5f3ef",
+              background: colors.bgPanel,
               borderRadius: 6,
               padding: "0 8px",
-              border: "1px solid #c5c0b8",
+              border: `1px solid ${colors.borderStrong}`,
               height: 26,
               boxSizing: "border-box",
             }}
           >
-            <Search size={13} color="#9a958c" strokeWidth={1.8} style={{ flexShrink: 0 }} />
+            <Search size={13} color={colors.textTertiary} strokeWidth={1.8} style={{ flexShrink: 0 }} />
             <input
               ref={searchInputRef}
               type="text"
@@ -167,7 +168,7 @@ export function Sidebar(): React.ReactElement {
                 background: "transparent",
                 outline: "none",
                 fontSize: 12,
-                color: "#2c2c2c",
+                color: colors.textStrong,
                 padding: 0,
                 lineHeight: "18px",
               }}
@@ -184,7 +185,7 @@ export function Sidebar(): React.ReactElement {
                   lineHeight: 1,
                   display: "inline-flex",
                   alignItems: "center",
-                  color: "#9a958c",
+                  color: colors.textTertiary,
                   borderRadius: 3,
                 }}
                 title="Clear search"
@@ -215,20 +216,20 @@ export function Sidebar(): React.ReactElement {
               }}
               title="Search repositories"
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#eae8e1";
+                e.currentTarget.style.background = colors.bgHover;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.background = "none";
               }}
             >
-              <Search size={11} color="#b5b0a6" strokeWidth={2} style={{ flexShrink: 0 }} />
+              <Search size={11} color={colors.borderStrong} strokeWidth={2} style={{ flexShrink: 0 }} />
               <span
                 style={{
                   fontSize: 11,
                   fontWeight: 600,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  color: "#9a958c",
+                  color: colors.textTertiary,
                 }}
               >
                 Repositories
@@ -246,7 +247,7 @@ export function Sidebar(): React.ReactElement {
             border: "none",
             cursor: "pointer",
             fontSize: 16,
-            color: "#9a958c",
+            color: colors.textTertiary,
             padding: "3px 5px",
             borderRadius: 5,
             lineHeight: 1,
@@ -255,11 +256,11 @@ export function Sidebar(): React.ReactElement {
           }}
           title="Settings"
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#2c2c2c";
-            e.currentTarget.style.background = "#e5e2da";
+            e.currentTarget.style.color = colors.textStrong;
+            e.currentTarget.style.background = colors.border;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = "#9a958c";
+            e.currentTarget.style.color = colors.textTertiary;
             e.currentTarget.style.background = "none";
           }}
         >
@@ -320,7 +321,7 @@ function HorizontalResizeHandle({
         cursor: "row-resize",
         position: "relative",
         flexShrink: 0,
-        borderTop: "1px solid #e5e2da",
+        borderTop: `1px solid ${colors.border}`,
         zIndex: 10,
       }}
     >
@@ -332,7 +333,7 @@ function HorizontalResizeHandle({
           right: 0,
           top: 0,
           height: 2,
-          background: hovered ? "#C15F3C" : "transparent",
+          background: hovered ? colors.primary : "transparent",
           transition: "background 0.15s",
           borderRadius: 1,
         }}

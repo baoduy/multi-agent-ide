@@ -306,7 +306,7 @@ function TableOfContents({
         top: 0,
         alignSelf: "flex-start",
         padding: "20px 12px 20px 0",
-        borderLeft: "1px solid #e5e2da",
+        borderLeft: `1px solid ${colors.border}`,
         overflowY: "auto",
         maxHeight: "100%",
       }}
@@ -317,7 +317,7 @@ function TableOfContents({
           fontWeight: 700,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
-          color: "#9a958c",
+          color: colors.textTertiary,
           padding: "0 12px 8px",
         }}
       >
@@ -341,10 +341,10 @@ function TableOfContents({
               fontSize: 11,
               lineHeight: 1.4,
               fontWeight: isActive ? 600 : 400,
-              color: isActive ? "#C15F3C" : "#6b6560",
+              color: isActive ? colors.primary : colors.textMuted,
               background: "transparent",
               border: "none",
-              borderLeft: isActive ? "2px solid #C15F3C" : "2px solid transparent",
+              borderLeft: isActive ? `2px solid ${colors.primary}` : "2px solid transparent",
               cursor: "pointer",
               fontFamily: "inherit",
               transition: "color 0.12s",
@@ -352,10 +352,10 @@ function TableOfContents({
             }}
             title={h.text}
             onMouseEnter={(e) => {
-              if (!isActive) e.currentTarget.style.color = "#2c2c2c";
+              if (!isActive) e.currentTarget.style.color = colors.text;
             }}
             onMouseLeave={(e) => {
-              if (!isActive) e.currentTarget.style.color = "#6b6560";
+              if (!isActive) e.currentTarget.style.color = colors.textMuted;
             }}
           >
             <ScrollableText>{h.text}</ScrollableText>
@@ -365,236 +365,6 @@ function TableOfContents({
     </nav>
   );
 }
-
-/* ═══════════════════════════════════════════════════════
-   Styles
-   ═══════════════════════════════════════════════════════ */
-
-const MARKDOWN_STYLES = `
-/* ── Base ── */
-.md-viewer {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.7;
-  color: #2c2c2c;
-  max-width: 820px;
-}
-
-/* ── Typography ── */
-.md-viewer h1 { font-size: 26px; font-weight: 700; margin: 28px 0 12px; color: #1a1a1a; border-bottom: 1px solid #e5e2da; padding-bottom: 8px; }
-.md-viewer h2 { font-size: 21px; font-weight: 650; margin: 24px 0 10px; color: #1a1a1a; border-bottom: 1px solid #f0ede8; padding-bottom: 6px; }
-.md-viewer h3 { font-size: 17px; font-weight: 600; margin: 20px 0 8px; color: #2c2c2c; }
-.md-viewer h4 { font-size: 15px; font-weight: 600; margin: 16px 0 6px; color: #4a4540; }
-.md-viewer h5, .md-viewer h6 { font-size: 14px; font-weight: 600; margin: 12px 0 6px; color: #6b6560; }
-.md-viewer p { margin: 8px 0; }
-.md-viewer hr { border: none; border-top: 1px solid #e5e2da; margin: 24px 0; }
-.md-viewer strong { font-weight: 600; }
-.md-viewer em { font-style: italic; }
-.md-viewer img { max-width: 100%; border-radius: 6px; margin: 8px 0; }
-
-/* ── Links ── */
-.md-viewer a { color: #C15F3C; text-decoration: none; border-bottom: 1px solid #C15F3C40; transition: border-color 0.15s; }
-.md-viewer a:hover { border-bottom-color: #C15F3C; }
-
-/* ── Inline code ── */
-.md-viewer code:not(pre code) {
-  background: #f0ebe4;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12.5px;
-  color: #C15F3C;
-}
-
-/* ── Code blocks ── */
-.md-viewer .md-code-block {
-  position: relative;
-  background: #1e1e2e;
-  border-radius: 8px;
-  margin: 16px 0;
-  overflow: hidden;
-}
-.md-viewer .md-code-block .md-code-lang {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #7f849c;
-  padding: 8px 14px 0;
-  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-}
-.md-viewer .md-code-block pre {
-  margin: 0;
-  padding: 12px 14px;
-  overflow-x: auto;
-}
-.md-viewer .md-code-block code {
-  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12.5px;
-  color: #cdd6f4;
-  line-height: 1.55;
-  background: transparent;
-  padding: 0;
-}
-.md-viewer .md-copy-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: #313244;
-  color: #9399b2;
-  border: 1px solid #45475a;
-  border-radius: 4px;
-  padding: 2px 8px;
-  font-size: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.15s, background 0.15s, color 0.15s;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  z-index: 2;
-}
-.md-viewer .md-code-block:hover .md-copy-btn { opacity: 1; }
-.md-viewer .md-copy-btn:hover { background: #45475a; color: #cdd6f4; }
-.md-viewer .md-copy-btn.copied { background: #16a34a30; color: #16a34a; border-color: #16a34a50; }
-
-/* ── Lists ── */
-.md-viewer ul, .md-viewer ol { margin: 6px 0; padding-left: 24px; }
-.md-viewer li { margin: 3px 0; }
-.md-viewer li::marker { color: #9a958c; }
-.md-viewer ul li { list-style-type: disc; }
-.md-viewer ul li ul li { list-style-type: circle; }
-.md-viewer ul li ul li ul li { list-style-type: square; }
-
-/* ── Task lists ── */
-.md-viewer input[type="checkbox"] {
-  margin-right: 6px;
-  accent-color: #C15F3C;
-  pointer-events: none;
-}
-.md-viewer li.task-list-item { list-style: none; margin-left: -20px; }
-
-/* ── Blockquotes ── */
-.md-viewer blockquote {
-  border-left: 3px solid #C15F3C;
-  padding: 6px 14px;
-  margin: 12px 0;
-  color: #6b6560;
-  background: #f5f4ed;
-  border-radius: 0 6px 6px 0;
-}
-.md-viewer blockquote p { margin: 4px 0; }
-.md-viewer blockquote blockquote { border-left-color: #d1cec6; background: #eeece6; }
-
-/* ── Tables ── */
-.md-viewer table {
-  margin: 16px 0;
-  border-radius: 8px;
-  border: 1px solid #e5e2da;
-  overflow: hidden;
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.md-viewer thead { background: #f5f4ed; }
-.md-viewer th {
-  text-align: left;
-  padding: 8px 12px;
-  font-weight: 600;
-  color: #4a4540;
-  border-bottom: 2px solid #e5e2da;
-  white-space: nowrap;
-}
-.md-viewer td {
-  padding: 7px 12px;
-  border-bottom: 1px solid #f0ede8;
-  color: #2c2c2c;
-}
-.md-viewer tbody tr:last-child td { border-bottom: none; }
-.md-viewer tbody tr:hover { background: #faf9f5; }
-
-/* ── Mermaid diagrams ── */
-.md-viewer .md-mermaid {
-  background: #faf9f5;
-  border: 1px solid #e5e2da;
-  border-radius: 8px;
-  padding: 16px;
-  margin: 16px 0;
-  text-align: center;
-  overflow-x: auto;
-  font-family: 'SF Mono', 'Fira Code', ui-monospace, monospace;
-  font-size: 12px;
-  color: #6b6560;
-  white-space: pre;
-}
-.md-viewer .md-mermaid-rendered {
-  white-space: normal;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  color: #2c2c2c;
-}
-.md-viewer .md-mermaid-rendered svg { max-width: 100%; height: auto; }
-.md-viewer .md-mermaid-error {
-  color: #a14a2f;
-  font-size: 11px;
-  font-weight: 500;
-  margin-bottom: 8px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-}
-
-/* ── Definition lists (via HTML in md) ── */
-.md-viewer dl { margin: 8px 0; }
-.md-viewer dt { font-weight: 600; margin-top: 8px; }
-.md-viewer dd { margin-left: 20px; color: #4a4540; }
-
-/* ── Highlight.js theme (Catppuccin Latte-inspired for dark blocks) ── */
-.hljs { color: #cdd6f4; }
-.hljs-keyword, .hljs-selector-tag, .hljs-built_in { color: #cba6f7; }
-.hljs-string, .hljs-attr { color: #a6e3a1; }
-.hljs-number, .hljs-literal { color: #fab387; }
-.hljs-comment, .hljs-quote { color: #6c7086; font-style: italic; }
-.hljs-function .hljs-title, .hljs-title.function_ { color: #89b4fa; }
-.hljs-type, .hljs-class .hljs-title { color: #f9e2af; }
-.hljs-variable, .hljs-template-variable { color: #f38ba8; }
-.hljs-property { color: #89dceb; }
-.hljs-meta { color: #f5c2e7; }
-.hljs-tag { color: #cba6f7; }
-.hljs-name { color: #89b4fa; }
-.hljs-attribute { color: #f9e2af; }
-.hljs-selector-class { color: #a6e3a1; }
-.hljs-selector-id { color: #fab387; }
-.hljs-regexp { color: #f38ba8; }
-.hljs-symbol { color: #f5e0dc; }
-.hljs-params { color: #cdd6f4; }
-.hljs-punctuation { color: #9399b2; }
-.hljs-addition { color: #a6e3a1; background: #a6e3a110; }
-.hljs-deletion { color: #f38ba8; background: #f38ba810; }
-
-/* ── Raw view line numbers ── */
-.md-raw-viewer {
-  display: flex;
-  font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 12.5px;
-  line-height: 1.55;
-  background: #faf9f5;
-}
-.md-raw-gutter {
-  padding: 16px 12px 16px 16px;
-  text-align: right;
-  color: #d1cec6;
-  user-select: none;
-  border-right: 1px solid #e5e2da;
-  min-width: 36px;
-  flex-shrink: 0;
-}
-.md-raw-content {
-  flex: 1;
-  padding: 16px 20px;
-  color: #2c2c2c;
-  white-space: pre-wrap;
-  word-break: break-word;
-  overflow-x: auto;
-}
-`;
 
 /* ═══════════════════════════════════════════════════════
    View mode toggle button
@@ -614,9 +384,9 @@ function ViewModeToggle({
       style={{
         display: "inline-flex",
         borderRadius: 6,
-        border: "1px solid #e5e2da",
+        border: `1px solid ${colors.border}`,
         overflow: "hidden",
-        background: "#f5f4ed",
+        background: colors.bgMuted,
       }}
     >
       <ToggleBtn
@@ -709,9 +479,9 @@ function CopyContentButton({ content }: { content: string }): React.ReactElement
         fontSize: 11,
         fontWeight: 500,
         color: copied ? colors.success : hovered ? colors.textMuted : colors.textTertiary,
-        background: copied ? "#dcfce7" : hovered ? colors.bgHover : "transparent",
+        background: copied ? colors.successSoft : hovered ? colors.bgHover : "transparent",
         border: "1px solid",
-        borderColor: copied ? "#bbf7d0" : colors.border,
+        borderColor: copied ? colors.successSoftBorder : colors.border,
         borderRadius: 6,
         cursor: "pointer",
         transition: "all 0.15s",
@@ -778,8 +548,8 @@ function ApproveButton({
           fontSize: 11,
           fontWeight: 600,
           color: colors.success,
-          background: "#dcfce7",
-          border: "1px solid #bbf7d0",
+          background: colors.successSoft,
+          border: `1px solid ${colors.successSoftBorder}`,
           borderRadius: 6,
         }}
       >
@@ -973,8 +743,8 @@ function ApproveButton({
           padding: "4px 10px",
           fontSize: 11,
           fontWeight: 600,
-          color: colors.primaryForeground ?? "#fff",
-          background: approving ? "#86efac" : hovered ? "#15803d" : "#16A34A",
+          color: colors.primaryForeground,
+          background: approving ? colors.successMuted : hovered ? colors.successHover : colors.success,
           border: "none",
           borderRadius: 6,
           cursor: approving ? "wait" : "pointer",
@@ -1006,15 +776,15 @@ function ApproveButton({
             position: "fixed",
             bottom: 20,
             right: 20,
-            background: "#fae8e1",
-            border: "1px solid #e5b8a5",
+            background: colors.errorSoft,
+            border: `1px solid ${colors.errorSoftBorder}`,
             borderRadius: 8,
             padding: "10px 16px",
             fontSize: 12,
             color: colors.errorDark,
             maxWidth: 360,
             zIndex: 10000,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            boxShadow: colors.shadowSoft,
             cursor: "pointer",
           }}
           onClick={() => setWorktreeError(null)}
@@ -1128,7 +898,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   if (loading) {
     return (
-      <div style={{ padding: 20, color: "#9a958c", fontSize: 13 }}>
+      <div style={{ padding: 20, color: colors.textTertiary, fontSize: 13 }}>
         Loading {getFileName(filePath)}...
       </div>
     );
@@ -1139,12 +909,12 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
       <div style={{ padding: 20 }}>
         <div
           style={{
-            background: "#fae8e1",
-            border: "1px solid #e5b8a5",
+            background: colors.errorSoft,
+            border: `1px solid ${colors.errorSoftBorder}`,
             borderRadius: 8,
             padding: 12,
             fontSize: 13,
-            color: "#a14a2f",
+            color: colors.errorDark,
           }}
         >
           {error}
@@ -1157,8 +927,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      <style>{MARKDOWN_STYLES}</style>
-
       {/* Toolbar — only for markdown files */}
       {isMd && (
         <div
@@ -1167,12 +935,12 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             alignItems: "center",
             justifyContent: "space-between",
             padding: "8px 20px",
-            borderBottom: "1px solid #e5e2da",
-            background: "#faf9f5",
+            borderBottom: `1px solid ${colors.border}`,
+            background: colors.bgSurface,
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: 11, color: "#9a958c", fontWeight: 500 }}>
+          <span style={{ fontSize: 11, color: colors.textTertiary, fontWeight: 500 }}>
             {getFileName(filePath)}
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -1181,8 +949,8 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: "#7c6a3e",
-                  background: "#fef3c7",
+                  color: colors.warningText,
+                  background: colors.warningSoft,
                   padding: "3px 8px",
                   borderRadius: 4,
                 }}
@@ -1234,8 +1002,8 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
               fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
               fontSize: 12.5,
               lineHeight: 1.55,
-              color: "#2c2c2c",
-              background: "#faf9f5",
+              color: colors.text,
+              background: colors.bgSurface,
               whiteSpace: "pre-wrap",
               wordBreak: "break-word",
             }}

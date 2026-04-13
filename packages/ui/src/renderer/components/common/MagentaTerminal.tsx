@@ -5,6 +5,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import xtermCss from "@xterm/xterm/css/xterm.css";
 import stripAnsi from "strip-ansi";
 import { TERMINAL_THEMES } from "../../utils/terminalThemes";
+import { colors } from "../../utils/colors";
 import { useTerminalStore } from "../../store/terminalStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
 
@@ -44,60 +45,6 @@ export interface MagentaTerminalProps {
 // ── Runtime theme policy: light-only for now ─────────────────────────────────
 const THEME = TERMINAL_THEMES.light;
 const THEME_BG = THEME.background;
-
-// ── Pulse keyframe (shared by both branches) ────────────────────────────────
-
-const PULSE_STYLE = `
-  @keyframes magenta-terminal-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
-  }
-`;
-
-/** Zero-gap xterm styles: fill 100% of parent, no padding/margin anywhere */
-const XTERM_SCROLLBAR_STYLE = `
-  .xterm {
-    width: 100% !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background-color: ${THEME_BG} !important;
-  }
-  .xterm-viewport {
-    width: 100% !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    background-color: ${THEME_BG} !important;
-  }
-  .xterm-screen {
-    width: 100% !important;
-    height: 100% !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  .xterm-helpers {
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-  .xterm .xterm-viewport::-webkit-scrollbar {
-    width: 4px !important;
-  }
-  .xterm .xterm-viewport::-webkit-scrollbar-track {
-    background: transparent !important;
-  }
-  .xterm .xterm-viewport::-webkit-scrollbar-thumb {
-    background: rgba(56, 58, 66, 0.2) !important;
-    border-radius: 2px !important;
-  }
-  .xterm .xterm-viewport::-webkit-scrollbar-thumb:hover {
-    background: rgba(56, 58, 66, 0.35) !important;
-  }
-  .xterm .xterm-viewport {
-    scrollbar-width: thin !important;
-    scrollbar-color: rgba(56, 58, 66, 0.2) transparent !important;
-  }
-`;
 
 let xtermStylesInjected = false;
 
@@ -193,8 +140,6 @@ function MagentaTerminalReadonly({
           <span style={{ color: THEME.yellow }}>{"\n"}Canceled</span>
         )}
       </pre>
-
-      <style>{PULSE_STYLE}</style>
     </div>
   );
 }
@@ -647,7 +592,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
             alignItems: "center",
             gap: 0,
             marginBottom: 4,
-            borderBottom: "1px solid #e5e2da",
+            borderBottom: "1px solid var(--color-border)",
             overflowX: "auto",
             paddingBottom: 0,
           }}
@@ -663,10 +608,10 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
                   alignItems: "center",
                   background:
                     activeTabId === tabId
-                      ? "rgba(193, 95, 60, 0.08)"
+                      ? "var(--color-primary-soft)"
                       : "transparent",
-                  borderBottom: activeTabId === tabId ? "2px solid #c15f3c" : "none",
-                  borderRight: index < tabIds.length - 1 ? "1px solid #e5e2da" : "none",
+                  borderBottom: activeTabId === tabId ? "2px solid var(--color-primary)" : "none",
+                  borderRight: index < tabIds.length - 1 ? "1px solid var(--color-border)" : "none",
                 }}
               >
                 <button
@@ -677,7 +622,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
                     gap: 2,
                     padding: "3px 6px",
                     background: "transparent",
-                    color: activeTabId === tabId ? "#383a42" : "#9a958c",
+                    color: activeTabId === tabId ? "var(--color-foreground-strong)" : "var(--color-foreground-muted)",
                     border: "none",
                     cursor: "pointer",
                     fontSize: 9,
@@ -700,15 +645,15 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
                     padding: "2px 4px",
                     background: "transparent",
                     border: "none",
-                    color: "#9a958c",
+                    color: "var(--color-foreground-muted)",
                     cursor: "pointer",
                     fontSize: 8,
                     display: "flex",
                     alignItems: "center",
                     transition: "color 0.15s ease",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = "#d1cec6")}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = "#9a958c")}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-border)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-foreground-muted)")}
                   title="Close tab"
                 >
                   ✕
@@ -727,6 +672,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
       */}
       <div
         ref={containerRef}
+        className="magenta-terminal-xterm"
         onClick={() => activeTab?.xterm.focus()}
         onContextMenu={(event) => {
           event.preventDefault();
@@ -744,6 +690,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
           display: "flex",
           flexDirection: "column",
           background: THEME_BG,
+          "--magenta-terminal-bg": THEME_BG,
           padding: 0,
           borderRadius: enableTabs ? 8 : 0,
           ...(maxHeight != null ? { maxHeight } : {}),
@@ -751,7 +698,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
           minHeight: 0,
           flex: 1,
           margin: 0,
-        }}
+        } as React.CSSProperties}
       />
 
       {menuState.open && (
@@ -762,10 +709,10 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
             left: menuState.x,
             zIndex: 20,
             minWidth: 140,
-            background: "#252526",
-            border: "1px solid #3c3c3c",
+            background: colors.dialogBg,
+            border: `1px solid ${colors.border}`,
             borderRadius: 6,
-            boxShadow: "0 8px 24px rgba(0, 0, 0, 0.35)",
+            boxShadow: colors.dialogShadow,
             padding: 4,
           }}
           onMouseDown={(event) => event.stopPropagation()}
@@ -802,8 +749,6 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
           </button>
         </div>
       )}
-
-      <style>{PULSE_STYLE}{XTERM_SCROLLBAR_STYLE}</style>
     </div>
   );
 });
@@ -813,7 +758,7 @@ const menuButtonStyle: React.CSSProperties = {
   border: "none",
   borderRadius: 4,
   background: "transparent",
-  color: "#d4d4d4",
+  color: "var(--color-foreground)",
   textAlign: "left",
   padding: "6px 8px",
   fontSize: 12,

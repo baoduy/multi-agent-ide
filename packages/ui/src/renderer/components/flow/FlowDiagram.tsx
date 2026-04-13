@@ -6,6 +6,7 @@ import reactflowCSS from "reactflow/dist/style.css";
 import type { SpecFolder } from "@magenta/shared/models";
 import { specToFlowDiagram } from "./diagramUtils";
 import { nodeTypes } from "./nodeTypes";
+import { colors } from "../../utils/colors";
 
 type FlowDiagramProps = {
   spec: SpecFolder | null;
@@ -46,7 +47,7 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#9a958c",
+          color: colors.textTertiary,
           fontSize: 13,
           backgroundColor: "#1a1a2e",
         }}

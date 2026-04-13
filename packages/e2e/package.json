@@ -1,0 +1,28 @@
+{
+  "name": "@magenta/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "End-to-end Playwright tests and Claude debugging helpers for the Magenta IDE Electron app. Not shipped in release builds.",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug --headed",
+    "debug:launch": "tsx scripts/debug-electron.ts",
+    "debug:inspect": "tsx scripts/inspect.ts",
+    "debug:click": "tsx scripts/click.ts",
+    "debug:eval": "tsx scripts/eval.ts",
+    "debug:snapshot": "tsx scripts/snapshot.ts",
+    "debug:stop": "tsx scripts/stop.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "echo 'no build — e2e package runs via tsx'",
+    "lint": "echo 'No linter configured'"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "*",
+    "electron": "*",
+    "playwright": "^1.48.0",
+    "tsx": "^4.19.0",
+    "typescript": "*"
+  }
+}

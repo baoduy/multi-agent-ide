@@ -11,6 +11,7 @@ import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
 import { AddWorktreeDialog } from "../dialogs/AddWorktreeDialog";
 import { getRepoBadge } from "../../utils/repoBadge";
+import { colors } from "../../utils/colors";
 
 /* ── RepoItem ── */
 
@@ -114,8 +115,8 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           flex: 1,
           textAlign: "left",
           border: "none",
-          borderLeft: active ? "2px solid #C15F3C" : "2px solid transparent",
-          background: active ? "#f0ebe4" : hovered ? "#eeece6" : "transparent",
+          borderLeft: active ? `2px solid ${colors.primary}` : "2px solid transparent",
+          background: active ? colors.bgHover : hovered ? colors.bgCodeInline : "transparent",
           padding: "7px 32px 7px 10px",
           cursor: "pointer",
           display: "flex",
@@ -133,11 +134,11 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             width: 26,
             height: 26,
             borderRadius: 5,
-            background: "#C15F3C14",
+            background: colors.bgMuted,
             flexShrink: 0,
           }}
         >
-          <FolderGit2 size={14} color="#C15F3C" strokeWidth={1.8} />
+          <FolderGit2 size={14} color={colors.textSecondary} strokeWidth={1.8} />
         </span>
 
         {/* Name + meta */}
@@ -146,7 +147,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             style={{
               fontWeight: 600,
               fontSize: 12,
-              color: "#2c2c2c",
+              color: colors.textStrong,
               lineHeight: 1.4,
             }}
           >
@@ -155,7 +156,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           <div
             style={{
               fontSize: 10,
-              color: "#9a958c",
+              color: colors.textTertiary,
               marginTop: 2,
               display: "flex",
               alignItems: "center",
@@ -205,14 +206,14 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             lineHeight: 1,
             display: "inline-flex",
             alignItems: "center",
-            color: pinned ? "#C15F3C" : "#d1cec6",
+            color: pinned ? colors.primary : colors.borderMuted,
             transition: "color 0.12s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = "#C15F3C";
+            e.currentTarget.style.color = colors.primary;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = pinned ? "#C15F3C" : "#d1cec6";
+            e.currentTarget.style.color = pinned ? colors.primary : colors.borderMuted;
           }}
         >
           <Star size={12} fill={pinned ? "currentColor" : "none"} strokeWidth={1.8} />

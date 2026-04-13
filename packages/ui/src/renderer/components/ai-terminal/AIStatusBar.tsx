@@ -6,6 +6,7 @@ import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { getStatusColor } from "../../utils/sessionStatus";
+import { colors } from "../../utils/colors";
 
 /** Simplified permission modes — matches NewSessionDialog. */
 type SimplifiedPermission = "default" | "auto" | "bypassPermissions";
@@ -39,11 +40,11 @@ type AIStatusBarProps = {
 function getModeColor(mode: SimplifiedPermission): string {
   switch (mode) {
     case "auto":
-      return "#3d7a2a";
+      return colors.success;
     case "bypassPermissions":
-      return "#c75050";
+      return colors.errorDark;
     default:
-      return "#6b6560";
+      return colors.textMuted;
   }
 }
 
@@ -75,7 +76,7 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
   const isAgent = tab.kind === "agent";
   const session = isAgent ? tab.session : null;
 
-  const statusColor = session ? getStatusColor(session.status) : "#3d7a2a";
+  const statusColor = session ? getStatusColor(session.status) : colors.success;
   const statusText = session ? formatStatus(session.status) : "Running";
 
   // Permission mode (agent tabs only)
@@ -115,20 +116,20 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
         alignItems: "center",
         gap: 8,
         padding: "0 16px",
-        background: "#f5f4ed",
-        borderTop: "1px solid #e5e2da",
+        background: colors.bgPanel,
+        borderTop: `1px solid ${colors.border}`,
         fontSize: 12,
         flexShrink: 0,
-        color: "#6b6560",
+        color: colors.textMuted,
       }}
     >
       {/* ── Agent tab content ── */}
       {isAgent && session && (
         <>
           {/* Provider badge (icon + name) */}
-          <ProviderBadge provider={session.provider} iconSize={12} fontSize={12} color="#6b6560" />
+          <ProviderBadge provider={session.provider} iconSize={12} fontSize={12} color={colors.textMuted} />
 
-          <span style={{ color: "#d1cec6" }}>·</span>
+          <span style={{ color: colors.borderMuted }}>·</span>
 
           {/* Repo / branch info */}
           {session.repoName ? (
@@ -142,14 +143,14 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
             <WorkspaceLabel size="xs" />
           )}
 
-          <span style={{ color: "#d1cec6" }}>·</span>
+          <span style={{ color: colors.borderMuted }}>·</span>
 
           {/* Status text */}
           <span style={{ color: statusColor, fontWeight: 500 }}>
             {statusText}
           </span>
 
-          <span style={{ color: "#d1cec6" }}>·</span>
+          <span style={{ color: colors.borderMuted }}>·</span>
 
           {/* Permission mode dropdown */}
           <div
@@ -167,14 +168,14 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
                 padding: "2px 6px",
                 borderRadius: 4,
                 border: "none",
-                background: dropdownOpen ? "#e5e2da" : "transparent",
+                background: dropdownOpen ? colors.border : "transparent",
                 cursor: "pointer",
                 fontSize: 11,
                 fontWeight: 600,
                 color: modeColor,
                 transition: "background 0.12s",
               }}
-              onMouseEnter={(e) => { if (!dropdownOpen) e.currentTarget.style.background = "#eae8e1"; }}
+              onMouseEnter={(e) => { if (!dropdownOpen) e.currentTarget.style.background = colors.bgHover; }}
               onMouseLeave={(e) => { if (!dropdownOpen) e.currentTarget.style.background = "transparent"; }}
               title="Change permission mode"
             >
@@ -191,8 +192,8 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
                   left: 0,
                   marginBottom: 4,
                   minWidth: 180,
-                  background: "#ffffff",
-                  border: "1px solid #e5e2da",
+                  background: colors.bgWhite,
+                  border: `1px solid ${colors.border}`,
                   borderRadius: 6,
                   boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                   zIndex: 100,
@@ -213,15 +214,15 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
                         width: "100%",
                         padding: "8px 12px",
                         border: "none",
-                        background: isActive ? "#f5f4ed" : "transparent",
+                        background: isActive ? colors.bgPanel : "transparent",
                         cursor: "pointer",
                         fontSize: 12,
                         fontWeight: isActive ? 600 : 400,
-                        color: isActive ? getModeColor(key) : "#2c2c2c",
+                        color: isActive ? getModeColor(key) : colors.textStrong,
                         textAlign: "left",
                         transition: "background 0.1s",
                       }}
-                      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "#faf9f5"; }}
+                      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = colors.bgSurface; }}
                       onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                     >
                       {/* Active indicator dot */}
@@ -248,11 +249,11 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
       {!isAgent && (
         <>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-            <Terminal size={12} strokeWidth={1.8} color="#6b6560" />
+            <Terminal size={12} strokeWidth={1.8} color={colors.textMuted} />
             <span style={{ fontWeight: 500 }}>Shell</span>
           </span>
 
-          <span style={{ color: "#d1cec6" }}>·</span>
+          <span style={{ color: colors.borderMuted }}>·</span>
 
           {/* Directory label */}
           <span
@@ -261,17 +262,17 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
               maxWidth: 260,
-              color: "#8a857e",
+              color: colors.textTertiary,
             }}
             title={(tab as TerminalTabInfo).cwd}
           >
             {(tab as TerminalTabInfo).label}
           </span>
 
-          <span style={{ color: "#d1cec6" }}>·</span>
+          <span style={{ color: colors.borderMuted }}>·</span>
 
           {/* Status */}
-          <span style={{ color: "#3d7a2a", fontWeight: 500 }}>
+          <span style={{ color: colors.success, fontWeight: 500 }}>
             Running
           </span>
         </>

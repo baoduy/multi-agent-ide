@@ -4,6 +4,7 @@ import { CheckCircle, FileText } from "lucide-react";
 
 import { ScrollableText } from "../common/ScrollableText";
 import { calculateCompletionPercent, getStageColor } from "./diagramUtils";
+import { colors as uiColors } from "../../utils/colors";
 
 export interface PipelineNodeData {
   label: string;
@@ -85,7 +86,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
         <span style={{ fontWeight: 700, fontSize: 14, color: colors.text, flex: 1 }}>
           {data.label}
         </span>
-        {(isApproved || isDone) && <CheckCircle size={14} color="#16A34A" strokeWidth={2} />}
+        {(isApproved || isDone) && <CheckCircle size={14} color={uiColors.success} strokeWidth={2} />}
       </div>
 
       {/* Status line */}
@@ -152,7 +153,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
               style={{
                 height: "100%",
                 width: `${completionPercent}%`,
-                backgroundColor: completionPercent === 100 ? "#16A34A" : colors.border,
+                backgroundColor: completionPercent === 100 ? uiColors.success : colors.border,
                 transition: "width 0.3s ease",
               }}
             />
@@ -186,9 +187,9 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
             fontSize: 11,
             fontWeight: 600,
             borderRadius: 5,
-            background: "#dcfce7",
-            border: "1px solid #16A34A",
-            color: "#166534",
+            background: uiColors.successSoft,
+            border: `1px solid ${uiColors.success}`,
+            color: uiColors.successText,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -210,9 +211,9 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
             fontSize: 11,
             fontWeight: 600,
             borderRadius: 5,
-            background: "#dcfce7",
-            border: "1px solid #16A34A",
-            color: "#166534",
+            background: uiColors.successSoft,
+            border: `1px solid ${uiColors.success}`,
+            color: uiColors.successText,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -239,8 +240,8 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
             fontWeight: 600,
             border: "none",
             borderRadius: 5,
-            background: "#16A34A",
-            color: "#ffffff",
+            background: uiColors.success,
+            color: uiColors.textWhite,
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
@@ -248,8 +249,8 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
             gap: 4,
             transition: "background 0.12s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#15803d"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "#16A34A"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = uiColors.successHover; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = uiColors.success; }}
         >
           <CheckCircle size={11} strokeWidth={2} />
           Approve

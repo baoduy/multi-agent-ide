@@ -14,6 +14,8 @@ type BaseDialogProps = {
   scrollable?: boolean;
   /** Optional max-height when scrollable (default: 80vh) */
   maxHeight?: number | string;
+  /** Optional min-height */
+  minHeight?: number | string;
   /** Dialog body content */
   children: React.ReactNode;
   /** Footer content (buttons etc.) */
@@ -38,6 +40,7 @@ export function BaseDialog({
   width = 440,
   scrollable = false,
   maxHeight = "80vh",
+  minHeight,
   children,
   footer,
   onClose,
@@ -79,6 +82,8 @@ export function BaseDialog({
           position: "fixed",
           inset: 0,
           background: colors.backdropBg,
+          backdropFilter: "blur(2px)",
+          WebkitBackdropFilter: "blur(2px)",
           zIndex: 9998,
         }}
       />
@@ -99,6 +104,7 @@ export function BaseDialog({
           boxShadow: colors.dialogShadow,
           width,
           maxWidth: "90vw",
+          ...(minHeight !== undefined ? { minHeight } : {}),
           ...(scrollable
             ? { maxHeight, display: "flex", flexDirection: "column" as const }
             : {}),
@@ -161,9 +167,6 @@ export function BaseDialog({
           </div>
         )}
       </div>
-
-      {/* Spinner keyframe (shared by all dialogs) */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </>
   );
 }

@@ -6,6 +6,8 @@ interface ThemeConfig {
   typography: Record<string, Record<string, string>>;
   spacing: Record<string, string>;
   radius: Record<string, string>;
+  animation?: Record<string, Record<string, string>>;
+  scrollbar?: Record<string, string>;
 }
 
 interface ThemeContextType {
@@ -85,6 +87,26 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     Object.entries(themeConfig.radius).forEach(([key, value]) => {
       root.style.setProperty(`--radius-${key}`, value);
     });
+
+    // Apply animation tokens
+    if (themeConfig.animation?.duration) {
+      Object.entries(themeConfig.animation.duration).forEach(([key, value]) => {
+        root.style.setProperty(`--animation-duration-${key}`, value);
+      });
+    }
+
+    if (themeConfig.animation?.timing) {
+      Object.entries(themeConfig.animation.timing).forEach(([key, value]) => {
+        root.style.setProperty(`--animation-timing-${key}`, value);
+      });
+    }
+
+    // Apply scrollbar tokens
+    if (themeConfig.scrollbar) {
+      Object.entries(themeConfig.scrollbar).forEach(([key, value]) => {
+        root.style.setProperty(`--scrollbar-${key}`, value);
+      });
+    }
   }, []);
 
   useEffect(() => {

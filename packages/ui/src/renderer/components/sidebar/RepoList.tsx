@@ -5,6 +5,7 @@ import { useConfigStore } from "../../store/configStore";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoItem } from "./RepoItem";
 import { DirectoryTree } from "./DirectoryTree";
+import { colors } from "../../utils/colors";
 
 export function RepoList(): React.ReactElement {
   const repos = useRepoStore((state) => state.repos);
@@ -51,18 +52,18 @@ export function RepoList(): React.ReactElement {
   return (
     <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {error ? (
-        <div style={{ color: "#a14a2f", padding: "6px 16px", fontSize: 12, background: "#fae8e1" }}>
+        <div style={{ color: colors.errorDark, padding: "6px 16px", fontSize: 12, background: colors.errorSoft }}>
           {error}
         </div>
       ) : null}
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {repos.length === 0 ? (
-          <div style={{ color: "#9a958c", fontSize: 12, padding: "12px 16px" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 16px" }}>
             No repositories found.
           </div>
         ) : filteredRepos.length === 0 ? (
-          <div style={{ color: "#9a958c", fontSize: 12, padding: "12px 16px" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 16px" }}>
             No matches for &ldquo;{searchQuery}&rdquo;
           </div>
         ) : (
@@ -77,7 +78,7 @@ export function RepoList(): React.ReactElement {
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.1em",
-                    color: "#C15F3C",
+                    color: colors.primary,
                     display: "flex",
                     alignItems: "center",
                     gap: 4,
@@ -96,7 +97,7 @@ export function RepoList(): React.ReactElement {
                     onTogglePin={togglePin}
                   />
                 ))}
-                <div style={{ height: 1, background: "#e5e2da", margin: "4px 16px 2px" }} />
+                <div style={{ height: 1, background: colors.border, margin: "4px 16px 2px" }} />
               </>
             )}
 

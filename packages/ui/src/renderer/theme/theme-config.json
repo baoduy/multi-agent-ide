@@ -2,7 +2,10 @@
   "colors": {
     "background": "#faf9f5",
     "foreground": "#2c2c2c",
+    "foreground-strong": "#383a42",
+    "foreground-muted": "#9a958c",
     "primary": "#C15F3C",
+    "primary-soft": "rgba(193, 95, 60, 0.08)",
     "primary-foreground": "#ffffff",
     "secondary": "#8b7355",
     "secondary-foreground": "#ffffff",
@@ -50,6 +53,7 @@
     }
   },
   "spacing": {
+    "2xs": "0.125rem",
     "xs": "0.25rem",
     "sm": "0.5rem",
     "md": "0.75rem",
@@ -61,10 +65,27 @@
     "5xl": "3rem"
   },
   "radius": {
+    "xs": "0.125rem",
     "sm": "0.3rem",
     "md": "0.5rem",
     "lg": "0.75rem",
     "xl": "1rem",
     "full": "9999px"
+  },
+  "animation": {
+    "duration": {
+      "fast": "0.1s",
+      "normal": "0.15s",
+      "spinner": "1s",
+      "pulse": "1.2s"
+    },
+    "timing": {
+      "linear": "linear",
+      "ease": "ease"
+    }
+  },
+  "scrollbar": {
+    "xterm-thumb": "rgba(56, 58, 66, 0.2)",
+    "xterm-thumb-hover": "rgba(56, 58, 66, 0.35)"
   }
 }

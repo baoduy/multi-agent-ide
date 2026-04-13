@@ -23,30 +23,32 @@
     "postinstall": "electron-rebuild -f -w node-pty"
   },
   "dependencies": {
-    "sql.js": "^1.14.1",
     "chokidar": "5.0.0",
+    "highlight.js": "^11.11.1",
+    "lucide-react": "1.8.0",
+    "marked": "18.0.0",
+    "marked-highlight": "^2.2.4",
+    "mermaid": "^11.14.0",
     "react": "^19.2.5",
+    "react-diff-viewer-continued": "^4.0.5",
     "react-dom": "^19.2.5",
     "reactflow": "^11.11.4",
     "simple-git": "^3.36.0",
+    "sql.js": "^1.14.1",
     "ulid": "^3.0.2",
-    "lucide-react": "1.8.0",
-    "zustand": "^5.0.12",
     "zod": "4.3.6",
-    "marked": "18.0.0",
-    "marked-highlight": "^2.2.4",
-    "highlight.js": "^11.11.1",
-    "mermaid": "^11.14.0"
+    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@electron/rebuild": "*",
-    "@types/sql.js": "^1.4.11",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/sql.js": "^1.4.11",
     "electron": "41.2.0",
-    "esbuild": "^0.28.0",
     "electron-builder": "26.8.1",
+    "esbuild": "^0.28.0",
+    "shadcn": "^4.2.0",
     "typescript": "6.0.2"
   }
 }

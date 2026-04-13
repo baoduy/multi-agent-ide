@@ -439,9 +439,9 @@ export function NewSessionDialog({
   return (
     <BaseDialog
       title="New Session"
-      width={560}
+      width={680}
       scrollable
-      minHeight="80vh"
+      minHeight="70vh"
       maxHeight="90vh"
       onClose={onClose}
       footer={

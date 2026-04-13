@@ -215,3 +215,19 @@ jobs:
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Job 4: Notify Homebrew tap to update the formula
+  # ────────────────────────────────────────────────────────────────────────────
+  notify-tap:
+    name: Notify Homebrew tap
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger tap update
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          repository: baoduy/homebrew-magenta
+          event-type: release-published
+          client-payload: '{"version": "${{ github.event.release.tag_name }}"}'

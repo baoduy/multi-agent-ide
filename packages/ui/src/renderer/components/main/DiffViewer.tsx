@@ -17,38 +17,42 @@ export type DiffViewerProps = {
   fileStatus: string;
 };
 
-/**
- * Concrete color tokens for the diff viewer, derived from globals.css.
- * react-diff-viewer-continued injects styles via CSS-in-JS, so CSS custom
- * properties (var(--x)) don't resolve — we must supply real values.
- */
-const THEME_TOKENS = {
-  light: {
-    bg: "#ffffff",              // --background: oklch(1 0 0)
-    fg: "#1a1a1a",              // --foreground: oklch(0.145 0 0)
-    muted: "#f5f4f2",           // --muted: oklch(0.972 0.008 85)
-    mutedFg: "#7c7568",         // --muted-foreground: oklch(0.556 0.018 55)
-    panel: "#f5f5f5",           // --panel: oklch(0.97 0 0)
-    border: "#e5e2de",          // --border: oklch(0.922 0.008 82)
-  },
-  dark: {
-    bg: "#2b2b2b",              // --background: oklch(0.205 0 0)
-    fg: "#f5f5f5",              // --foreground: oklch(0.985 0 0)
-    muted: "#3a3731",           // --muted: oklch(0.275 0.012 70)
-    mutedFg: "#b3a99a",         // --muted-foreground: oklch(0.74 0.018 75)
-    panel: "#363636",           // --panel: oklch(0.24 0 0)
-    border: "rgba(255,255,255,0.10)", // --border: oklch(1 0 0 / 10%)
-  },
-} as const;
+function readCssVar(name: string, fallback: string): string {
+  if (typeof window === "undefined") return fallback;
+  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
+}
 
 export function DiffViewer({
   filePath,
   repoPath,
   fileStatus,
 }: DiffViewerProps): React.ReactElement {
-  const { resolved: theme } = useTheme();
-  const isDark = theme === "dark";
-  const t = isDark ? THEME_TOKENS.dark : THEME_TOKENS.light;
+  const { resolved } = useTheme();
+  const isDark = resolved === "dark";
+
+  const t = useMemo(() => {
+    // react-diff-viewer uses CSS-in-JS and cannot resolve var(--token) directly,
+    // so we read concrete values from computed CSS variables.
+    return {
+      bg: readCssVar("--diff-viewer-bg", colors.bgSurface),
+      fg: readCssVar("--diff-viewer-fg", colors.text),
+      muted: readCssVar("--diff-viewer-muted", colors.bgMuted),
+      mutedFg: readCssVar("--diff-viewer-muted-fg", colors.textTertiary),
+      panel: readCssVar("--diff-viewer-panel", colors.bgPanel),
+      border: readCssVar("--diff-viewer-border", colors.border),
+      addedBg: readCssVar("--diff-added-bg", "color-mix(in srgb, var(--success) 20%, transparent)"),
+      removedBg: readCssVar("--diff-removed-bg", "color-mix(in srgb, var(--destructive) 20%, transparent)"),
+      addedWordBg: readCssVar("--diff-added-word-bg", "color-mix(in srgb, var(--success) 35%, transparent)"),
+      removedWordBg: readCssVar("--diff-removed-word-bg", "color-mix(in srgb, var(--destructive) 35%, transparent)"),
+      addedGutterBg: readCssVar("--diff-added-gutter-bg", "color-mix(in srgb, var(--success) 26%, transparent)"),
+      removedGutterBg: readCssVar("--diff-removed-gutter-bg", "color-mix(in srgb, var(--destructive) 26%, transparent)"),
+      highlightBg: readCssVar("--diff-highlight-bg", "color-mix(in srgb, var(--muted-foreground) 18%, transparent)"),
+      highlightGutterBg: readCssVar("--diff-highlight-gutter-bg", "color-mix(in srgb, var(--muted-foreground) 24%, transparent)"),
+      addedText: readCssVar("--diff-added-text", colors.success),
+      removedText: readCssVar("--diff-removed-text", colors.error),
+    };
+  }, [resolved]);
 
   const [oldValue, setOldValue] = useState<string>("");
   const [newValue, setNewValue] = useState<string>("");
@@ -217,12 +221,12 @@ export function DiffViewer({
         {!isLoading && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
             {diffStats.added > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#2ea043", fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: t.addedText, fontFamily: "var(--font-mono)" }}>
                 +{diffStats.added}
               </span>
             )}
             {diffStats.removed > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: "#f85149", fontFamily: "var(--font-mono)" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: t.removedText, fontFamily: "var(--font-mono)" }}>
                 -{diffStats.removed}
               </span>
             )}
@@ -245,18 +249,18 @@ export function DiffViewer({
               light: {
                 diffViewerBackground: t.bg,
                 diffViewerColor: t.fg,
-                addedBackground: "rgba(46, 160, 67, 0.10)",
+                addedBackground: t.addedBg,
                 addedColor: t.fg,
-                removedBackground: "rgba(248, 81, 73, 0.10)",
+                removedBackground: t.removedBg,
                 removedColor: t.fg,
-                wordAddedBackground: "rgba(46, 160, 67, 0.30)",
-                wordRemovedBackground: "rgba(248, 81, 73, 0.30)",
-                addedGutterBackground: "rgba(46, 160, 67, 0.15)",
-                removedGutterBackground: "rgba(248, 81, 73, 0.15)",
+                wordAddedBackground: t.addedWordBg,
+                wordRemovedBackground: t.removedWordBg,
+                addedGutterBackground: t.addedGutterBg,
+                removedGutterBackground: t.removedGutterBg,
                 gutterBackground: t.muted,
                 gutterBackgroundDark: t.muted,
-                highlightBackground: "rgba(139, 148, 158, 0.10)",
-                highlightGutterBackground: "rgba(139, 148, 158, 0.15)",
+                highlightBackground: t.highlightBg,
+                highlightGutterBackground: t.highlightGutterBg,
                 codeFoldGutterBackground: t.muted,
                 codeFoldBackground: t.muted,
                 emptyLineBackground: t.bg,
@@ -268,18 +272,18 @@ export function DiffViewer({
               dark: {
                 diffViewerBackground: t.bg,
                 diffViewerColor: t.fg,
-                addedBackground: "rgba(46, 160, 67, 0.15)",
+                addedBackground: t.addedBg,
                 addedColor: t.fg,
-                removedBackground: "rgba(248, 81, 73, 0.15)",
+                removedBackground: t.removedBg,
                 removedColor: t.fg,
-                wordAddedBackground: "rgba(46, 160, 67, 0.40)",
-                wordRemovedBackground: "rgba(248, 81, 73, 0.40)",
-                addedGutterBackground: "rgba(46, 160, 67, 0.20)",
-                removedGutterBackground: "rgba(248, 81, 73, 0.20)",
+                wordAddedBackground: t.addedWordBg,
+                wordRemovedBackground: t.removedWordBg,
+                addedGutterBackground: t.addedGutterBg,
+                removedGutterBackground: t.removedGutterBg,
                 gutterBackground: t.muted,
                 gutterBackgroundDark: t.muted,
-                highlightBackground: "rgba(139, 148, 158, 0.15)",
-                highlightGutterBackground: "rgba(139, 148, 158, 0.20)",
+                highlightBackground: t.highlightBg,
+                highlightGutterBackground: t.highlightGutterBg,
                 codeFoldGutterBackground: t.muted,
                 codeFoldBackground: t.muted,
                 emptyLineBackground: t.bg,

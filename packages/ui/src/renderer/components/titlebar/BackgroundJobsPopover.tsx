@@ -355,7 +355,7 @@ export function BackgroundJobsPopover({
         background: colors.bgWhite,
         border: `1px solid ${colors.border}`,
         borderRadius: 10,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        boxShadow: colors.shadowPopover,
         zIndex: 1000,
         display: "flex",
         flexDirection: "column",

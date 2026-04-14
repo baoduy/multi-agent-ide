@@ -1,4 +1,5 @@
 import type { StageStatus } from "@magenta/shared/constants";
+import { colors } from "./colors";
 
 /**
  * Shared stage-status color mapping.
@@ -14,16 +15,16 @@ export function stageStatusColor(status: StageStatus): { bg: string; fg: string;
     case "missing":
     case "pending":
     case "idle":
-      return { bg: "#dbeafe", fg: "#1e40af", dot: "#3b82f6", borderMuted: "#93c5fd" };
+      return { bg: colors.stagePendingBg, fg: colors.stagePendingFg, dot: colors.stagePendingDot, borderMuted: colors.stagePendingBorderMuted };
     case "draft":
     case "review":
     case "running":
     case "in-progress":
-      return { bg: "#fef3c7", fg: "#92400e", dot: "#f59e0b", borderMuted: "#fcd34d" };
+      return { bg: colors.stageReviewBg, fg: colors.stageReviewFg, dot: colors.stageReviewDot, borderMuted: colors.stageReviewBorderMuted };
     case "approved":
     case "done":
-      return { bg: "#dcfce7", fg: "#166534", dot: "#16a34a", borderMuted: "#86efac" };
+      return { bg: colors.stageApprovedBg, fg: colors.stageApprovedFg, dot: colors.stageApprovedDot, borderMuted: colors.stageApprovedBorderMuted };
     default:
-      return { bg: "#f3f4f6", fg: "#6b6560", dot: "#d1cec6", borderMuted: "#d1d5db" };
+      return { bg: colors.stageDefaultBg, fg: colors.stageDefaultFg, dot: colors.stageDefaultDot, borderMuted: colors.stageDefaultBorderMuted };
   }
 }

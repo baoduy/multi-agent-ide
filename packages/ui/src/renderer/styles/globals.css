@@ -186,6 +186,66 @@
   --error-soft: #fef2f2;
   --error-soft-border: #fecaca;
 
+  /* ── Session / repo / stage semantic helpers ── */
+  --status-active: var(--success);
+  --status-waiting: var(--warning-text-strong);
+  --status-error: var(--destructive);
+  --status-idle: var(--muted-foreground);
+  --repo-badge-missing-bg: var(--error-soft);
+  --repo-badge-missing-fg: color-mix(in srgb, var(--destructive) 75%, black);
+  --repo-badge-spec-bg: color-mix(in srgb, var(--primary) 14%, transparent);
+  --repo-badge-spec-fg: color-mix(in srgb, var(--primary) 82%, black);
+  --repo-badge-active-bg: var(--success-soft);
+  --repo-badge-active-fg: var(--success-text);
+  --repo-badge-default-bg: var(--muted);
+  --repo-badge-default-fg: var(--muted-foreground);
+  --stage-pending-bg: #dbeafe;
+  --stage-pending-fg: #1e40af;
+  --stage-pending-dot: #3b82f6;
+  --stage-pending-border-muted: #93c5fd;
+  --stage-review-bg: var(--warning-soft);
+  --stage-review-fg: var(--warning-text-strong);
+  --stage-review-dot: #f59e0b;
+  --stage-review-border-muted: var(--warning-border);
+  --stage-approved-bg: var(--success-soft);
+  --stage-approved-fg: var(--success-text);
+  --stage-approved-dot: var(--success);
+  --stage-approved-border-muted: var(--success-muted);
+  --stage-default-bg: #f3f4f6;
+  --stage-default-fg: #6b6560;
+  --stage-default-dot: #d1cec6;
+  --stage-default-border-muted: #d1d5db;
+
+  /* ── Icon family tokens ── */
+  --icon-neutral: var(--muted-foreground);
+  --icon-blue: #3178c6;
+  --icon-cyan: #00add8;
+  --icon-gold: #b76b01;
+  --icon-green: var(--success);
+  --icon-orange: var(--info);
+  --icon-purple: #7c3aed;
+  --icon-pink: #c2419a;
+  --icon-red: var(--destructive);
+  --icon-brown: #b07219;
+
+  /* ── Diff viewer colors ── */
+  --diff-viewer-bg: #ffffff;
+  --diff-viewer-fg: #1a1a1a;
+  --diff-viewer-muted: #f5f4f2;
+  --diff-viewer-muted-fg: #7c7568;
+  --diff-viewer-panel: #f5f5f5;
+  --diff-viewer-border: #e5e2de;
+  --diff-added-bg: rgba(46, 160, 67, 0.1);
+  --diff-added-word-bg: rgba(46, 160, 67, 0.3);
+  --diff-added-gutter-bg: rgba(46, 160, 67, 0.15);
+  --diff-added-text: #2ea043;
+  --diff-removed-bg: rgba(248, 81, 73, 0.1);
+  --diff-removed-word-bg: rgba(248, 81, 73, 0.3);
+  --diff-removed-gutter-bg: rgba(248, 81, 73, 0.15);
+  --diff-removed-text: #f85149;
+  --diff-highlight-bg: rgba(139, 148, 158, 0.1);
+  --diff-highlight-gutter-bg: rgba(139, 148, 158, 0.15);
+
   /* ── Code blocks ── */
   --code-block-bg: oklch(0.97 0.005 80);
   --code-block-border: var(--border);
@@ -218,6 +278,10 @@
   /* ── Terminal / animation defaults ── */
   --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
   --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
+  --shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --shadow-context-menu: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
   --animation-duration-fast: 0.1s;
   --animation-duration-normal: 0.15s;
   --animation-duration-spinner: 1s;
@@ -343,6 +407,66 @@
   --error-soft: rgba(239, 68, 68, 0.15);
   --error-soft-border: rgba(239, 68, 68, 0.3);
 
+  /* ── Session / repo / stage semantic helpers (dark) ── */
+  --status-active: var(--success);
+  --status-waiting: var(--warning-text-strong);
+  --status-error: var(--destructive);
+  --status-idle: var(--muted-foreground);
+  --repo-badge-missing-bg: var(--error-soft);
+  --repo-badge-missing-fg: #fca5a5;
+  --repo-badge-spec-bg: color-mix(in srgb, var(--primary) 20%, transparent);
+  --repo-badge-spec-fg: #fcd34d;
+  --repo-badge-active-bg: var(--success-soft);
+  --repo-badge-active-fg: var(--success-text);
+  --repo-badge-default-bg: var(--muted);
+  --repo-badge-default-fg: var(--muted-foreground);
+  --stage-pending-bg: rgba(59, 130, 246, 0.16);
+  --stage-pending-fg: #93c5fd;
+  --stage-pending-dot: #60a5fa;
+  --stage-pending-border-muted: rgba(96, 165, 250, 0.45);
+  --stage-review-bg: var(--warning-soft);
+  --stage-review-fg: var(--warning-text);
+  --stage-review-dot: var(--warning-text-strong);
+  --stage-review-border-muted: var(--warning-border);
+  --stage-approved-bg: var(--success-soft);
+  --stage-approved-fg: var(--success-text);
+  --stage-approved-dot: var(--success);
+  --stage-approved-border-muted: var(--success-soft-border);
+  --stage-default-bg: var(--muted);
+  --stage-default-fg: var(--muted-foreground);
+  --stage-default-dot: var(--border-muted);
+  --stage-default-border-muted: var(--border);
+
+  /* ── Icon family tokens (dark) ── */
+  --icon-neutral: var(--muted-foreground);
+  --icon-blue: #60a5fa;
+  --icon-cyan: #22d3ee;
+  --icon-gold: #facc15;
+  --icon-green: #4ade80;
+  --icon-orange: #fb923c;
+  --icon-purple: #a78bfa;
+  --icon-pink: #f472b6;
+  --icon-red: #f87171;
+  --icon-brown: #d4a373;
+
+  /* ── Diff viewer colors (dark) ── */
+  --diff-viewer-bg: #2b2b2b;
+  --diff-viewer-fg: #f5f5f5;
+  --diff-viewer-muted: #3a3731;
+  --diff-viewer-muted-fg: #b3a99a;
+  --diff-viewer-panel: #363636;
+  --diff-viewer-border: rgba(255, 255, 255, 0.1);
+  --diff-added-bg: rgba(46, 160, 67, 0.15);
+  --diff-added-word-bg: rgba(46, 160, 67, 0.4);
+  --diff-added-gutter-bg: rgba(46, 160, 67, 0.2);
+  --diff-added-text: #4ade80;
+  --diff-removed-bg: rgba(248, 81, 73, 0.15);
+  --diff-removed-word-bg: rgba(248, 81, 73, 0.4);
+  --diff-removed-gutter-bg: rgba(248, 81, 73, 0.2);
+  --diff-removed-text: #f87171;
+  --diff-highlight-bg: rgba(139, 148, 158, 0.15);
+  --diff-highlight-gutter-bg: rgba(139, 148, 158, 0.2);
+
   /* ── Code blocks (dark — Catppuccin Mocha) ── */
   --code-block-bg: #1e1e2e;
   --code-block-border: #313244;
@@ -374,6 +498,10 @@
 
   --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
   --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
+  --shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.28);
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-context-menu: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 
 /*

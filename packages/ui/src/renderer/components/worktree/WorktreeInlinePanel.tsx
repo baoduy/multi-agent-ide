@@ -465,7 +465,7 @@ export function WorktreeInlinePanel({
                         background: colors.dialogBg,
                         border: `1px solid ${colors.border}`,
                         borderRadius: 8,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                        boxShadow: colors.shadowPopover,
                         maxHeight: 180,
                         overflowY: "auto",
                         zIndex: 10,

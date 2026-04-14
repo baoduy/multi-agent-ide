@@ -15,6 +15,7 @@ import {
   FolderCode,
   Hash,
 } from "lucide-react";
+import { colors } from "../../utils/colors";
 
 /* ── Icon descriptor ── */
 
@@ -28,64 +29,64 @@ export type FileIconInfo = {
 
 const EXT_MAP: Record<string, FileIconInfo> = {
   // Markdown
-  md:   { Icon: FileText,  color: "#2563EB", label: "MD" },
-  mdx:  { Icon: FileText,  color: "#2563EB", label: "MDX" },
+  md:   { Icon: FileText,  color: colors.iconBlue, label: "MD" },
+  mdx:  { Icon: FileText,  color: colors.iconBlue, label: "MDX" },
 
   // Plain text
-  txt:  { Icon: FileType,  color: "#6b6560", label: "TXT" },
+  txt:  { Icon: FileType,  color: colors.iconNeutral, label: "TXT" },
 
   // Data / Config
-  json: { Icon: FileJson,  color: "#C15F3C", label: "JSON" },
-  yaml: { Icon: FileCode,  color: "#7C3AED", label: "YAML" },
-  yml:  { Icon: FileCode,  color: "#7C3AED", label: "YML" },
-  toml: { Icon: FileCode,  color: "#9B4DCA", label: "TOML" },
-  cfg:  { Icon: Settings,  color: "#9a958c", label: "CFG" },
-  env:  { Icon: Settings,  color: "#9a958c", label: "ENV" },
-  ini:  { Icon: Settings,  color: "#9a958c", label: "INI" },
+  json: { Icon: FileJson,  color: colors.iconOrange, label: "JSON" },
+  yaml: { Icon: FileCode,  color: colors.iconPurple, label: "YAML" },
+  yml:  { Icon: FileCode,  color: colors.iconPurple, label: "YML" },
+  toml: { Icon: FileCode,  color: colors.iconPurple, label: "TOML" },
+  cfg:  { Icon: Settings,  color: colors.iconNeutral, label: "CFG" },
+  env:  { Icon: Settings,  color: colors.iconNeutral, label: "ENV" },
+  ini:  { Icon: Settings,  color: colors.iconNeutral, label: "INI" },
 
   // TypeScript / JavaScript
-  ts:   { Icon: FileCode,  color: "#3178C6", label: "TS" },
-  tsx:  { Icon: FileCode,  color: "#3178C6", label: "TSX" },
-  js:   { Icon: FileCode,  color: "#F0DB4F", label: "JS" },
-  jsx:  { Icon: FileCode,  color: "#F0DB4F", label: "JSX" },
+  ts:   { Icon: FileCode,  color: colors.iconBlue, label: "TS" },
+  tsx:  { Icon: FileCode,  color: colors.iconBlue, label: "TSX" },
+  js:   { Icon: FileCode,  color: colors.iconGold, label: "JS" },
+  jsx:  { Icon: FileCode,  color: colors.iconGold, label: "JSX" },
 
   // Python
-  py:   { Icon: FileCode,  color: "#3776AB", label: "PY" },
+  py:   { Icon: FileCode,  color: colors.iconBlue, label: "PY" },
 
   // Shell
-  sh:   { Icon: Terminal,  color: "#16A34A", label: "SH" },
-  bash: { Icon: Terminal,  color: "#16A34A", label: "BASH" },
-  zsh:  { Icon: Terminal,  color: "#16A34A", label: "ZSH" },
+  sh:   { Icon: Terminal,  color: colors.iconGreen, label: "SH" },
+  bash: { Icon: Terminal,  color: colors.iconGreen, label: "BASH" },
+  zsh:  { Icon: Terminal,  color: colors.iconGreen, label: "ZSH" },
 
   // Web
-  html: { Icon: Globe,    color: "#E34C26", label: "HTML" },
-  css:  { Icon: Hash,     color: "#264de4", label: "CSS" },
-  scss: { Icon: Hash,     color: "#CC6699", label: "SCSS" },
+  html: { Icon: Globe,    color: colors.iconOrange, label: "HTML" },
+  css:  { Icon: Hash,     color: colors.iconBlue, label: "CSS" },
+  scss: { Icon: Hash,     color: colors.iconPink, label: "SCSS" },
 
   // Images
-  svg:  { Icon: Palette,  color: "#FFB13B", label: "SVG" },
-  png:  { Icon: Image,    color: "#16A34A", label: "PNG" },
-  jpg:  { Icon: Image,    color: "#16A34A", label: "JPG" },
-  jpeg: { Icon: Image,    color: "#16A34A", label: "JPEG" },
-  gif:  { Icon: Image,    color: "#16A34A", label: "GIF" },
-  webp: { Icon: Image,    color: "#16A34A", label: "WEBP" },
+  svg:  { Icon: Palette,  color: colors.iconGold, label: "SVG" },
+  png:  { Icon: Image,    color: colors.iconGreen, label: "PNG" },
+  jpg:  { Icon: Image,    color: colors.iconGreen, label: "JPG" },
+  jpeg: { Icon: Image,    color: colors.iconGreen, label: "JPEG" },
+  gif:  { Icon: Image,    color: colors.iconGreen, label: "GIF" },
+  webp: { Icon: Image,    color: colors.iconGreen, label: "WEBP" },
 
   // Rust / Go / Java
-  rs:   { Icon: FileCode,  color: "#DEA584", label: "RS" },
-  go:   { Icon: FileCode,  color: "#00ADD8", label: "GO" },
-  java: { Icon: FileCode,  color: "#B07219", label: "JAVA" },
+  rs:   { Icon: FileCode,  color: colors.iconBrown, label: "RS" },
+  go:   { Icon: FileCode,  color: colors.iconCyan, label: "GO" },
+  java: { Icon: FileCode,  color: colors.iconBrown, label: "JAVA" },
 
   // Misc
-  sql:  { Icon: FileCode,  color: "#e38d13", label: "SQL" },
-  graphql: { Icon: FileCode, color: "#E535AB", label: "GQL" },
-  proto: { Icon: FileCode, color: "#7C3AED", label: "PROTO" },
-  lock: { Icon: File,     color: "#9a958c", label: "LOCK" },
+  sql:  { Icon: FileCode,  color: colors.iconGold, label: "SQL" },
+  graphql: { Icon: FileCode, color: colors.iconPink, label: "GQL" },
+  proto: { Icon: FileCode, color: colors.iconPurple, label: "PROTO" },
+  lock: { Icon: File,     color: colors.iconNeutral, label: "LOCK" },
 };
 
-const DEFAULT_FILE_ICON: FileIconInfo = { Icon: File, color: "#9a958c", label: "" };
-const FOLDER_ICON: FileIconInfo       = { Icon: Folder, color: "#6b6560", label: "" };
-const FOLDER_OPEN_ICON: FileIconInfo  = { Icon: FolderOpen, color: "#6b6560", label: "" };
-const FOLDER_CODE_ICON: FileIconInfo  = { Icon: FolderCode, color: "#7C3AED", label: "" };
+const DEFAULT_FILE_ICON: FileIconInfo = { Icon: File, color: colors.iconNeutral, label: "" };
+const FOLDER_ICON: FileIconInfo       = { Icon: Folder, color: colors.iconNeutral, label: "" };
+const FOLDER_OPEN_ICON: FileIconInfo  = { Icon: FolderOpen, color: colors.iconNeutral, label: "" };
+const FOLDER_CODE_ICON: FileIconInfo  = { Icon: FolderCode, color: colors.iconPurple, label: "" };
 
 /* ── Public API ── */
 
@@ -128,7 +129,7 @@ export function FileIconBadge({
         width: 22,
         height: 22,
         borderRadius: 4,
-        background: `${info.color}14`,
+        background: `color-mix(in srgb, ${info.color} 14%, transparent)`,
         flexShrink: 0,
       }}
     >
@@ -157,7 +158,7 @@ export function FolderIconBadge({
         width: 22,
         height: 22,
         borderRadius: 4,
-        background: `${info.color}14`,
+        background: `color-mix(in srgb, ${info.color} 14%, transparent)`,
         flexShrink: 0,
       }}
     >
@@ -180,7 +181,7 @@ export function ExtensionBadge({ fileName }: { fileName: string }): React.ReactE
         fontWeight: 600,
         textTransform: "uppercase",
         color: info.color,
-        background: `${info.color}12`,
+        background: `color-mix(in srgb, ${info.color} 12%, transparent)`,
         padding: "2px 5px",
         borderRadius: 3,
         flexShrink: 0,

@@ -3,6 +3,8 @@
  * Single source of truth for provider colors, display names, and related constants.
  */
 
+import { colors } from "../../utils/colors";
+
 export type ProviderVariant = "claude" | "copilot";
 
 export type ProviderConfig = {
@@ -15,16 +17,16 @@ export type ProviderConfig = {
 export const PROVIDER_CONFIG: Record<ProviderVariant, ProviderConfig> = {
   claude: {
     displayName: "Claude Code",
-    color: "#C15F3C",
+    color: colors.info,
   },
   copilot: {
     displayName: "GitHub Copilot",
-    color: "#3d7a2a",
+    color: colors.success,
   },
 } as const;
 
 /** Color used for idle / unassigned agent state. */
-export const IDLE_COLOR = "#d1cec6";
+export const IDLE_COLOR = colors.statusIdle;
 
 /**
  * Returns the display name for a provider.

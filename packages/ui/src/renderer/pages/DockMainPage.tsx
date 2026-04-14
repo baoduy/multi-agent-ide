@@ -280,6 +280,20 @@ export function DockMainPage(): React.ReactElement {
     [openTab]
   );
 
+  const handleOpenDiff = useCallback(
+    (filePath: string, fileStatus: string) => {
+      const tabId = `diff-${filePath}`;
+      const fileName = filePath.split("/").pop() ?? filePath;
+      openTab("center", {
+        tabId,
+        viewId: "diff-viewer",
+        props: { filePath, repoPath: activeRepoPath, fileStatus },
+        title: `${fileName} (diff)`,
+      });
+    },
+    [openTab, activeRepoPath]
+  );
+
   const terminalCounter = useRef(0);
 
   const handleOpenAgentSession = useCallback(
@@ -421,6 +435,7 @@ export function DockMainPage(): React.ReactElement {
       repoPath: activeRepoPath ?? undefined,
       worktreePath: worktreePathForChanges,
       onOpenFile: handleOpenFile,
+      onOpenDiff: handleOpenDiff,
     },
     "spec-files": {
       onOpenFile: handleOpenFile,

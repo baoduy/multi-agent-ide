@@ -1,4 +1,5 @@
 import type { Repository } from "@magenta/shared/models";
+import { colors } from "./colors";
 
 export interface BadgeInfo {
   label: string;
@@ -8,13 +9,13 @@ export interface BadgeInfo {
 
 export function getRepoBadge(repo: Repository): BadgeInfo {
   if (repo.status === "missing") {
-    return { label: "missing", bg: "#fae8e1", color: "#a14a2f" };
+    return { label: "missing", bg: colors.repoBadgeMissingBg, color: colors.repoBadgeMissingFg };
   }
   if (repo.hasSpecs) {
-    return { label: "spec", bg: "#e8e5f5", color: "#6b5ebd" };
+    return { label: "spec", bg: colors.repoBadgeSpecBg, color: colors.repoBadgeSpecFg };
   }
   if (repo.status === "active") {
-    return { label: "active", bg: "#e4f0df", color: "#3d7a2a" };
+    return { label: "active", bg: colors.repoBadgeActiveBg, color: colors.repoBadgeActiveFg };
   }
-  return { label: repo.status, bg: "#eeece6", color: "#6b6560" };
+  return { label: repo.status, bg: colors.repoBadgeDefaultBg, color: colors.repoBadgeDefaultFg };
 }

@@ -31,6 +31,7 @@ import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { WorktreesView } from "../main/WorktreesView";
 import { WorkflowView } from "../main/WorkflowView";
 import { FileViewer } from "../main/FileViewer";
+import { DiffViewer } from "../main/DiffViewer";
 import { AISessionsView } from "../ai-terminal/AISessionsView";
 import { MagentaTerminal } from "../common/MagentaTerminal";
 import { useSpecStore } from "../../store/specStore";
@@ -82,6 +83,7 @@ function RepoChangesView(props: {
   repoPath?: string;
   worktreePath?: string | null;
   onOpenFile?: (filePath: string) => void;
+  onOpenDiff?: (filePath: string, fileStatus: string) => void;
 }): React.ReactElement {
   if (!props.repoPath) {
     return (
@@ -96,6 +98,7 @@ function RepoChangesView(props: {
         repoPath={props.repoPath}
         worktreePath={props.worktreePath}
         onOpenFile={props.onOpenFile}
+        onOpenDiff={props.onOpenDiff}
       />
     </div>
   );
@@ -191,9 +194,26 @@ function FileViewerTabView(props: {
   repoPath?: string;
 }): React.ReactElement {
   if (!props.filePath) {
-    return <div style={{ padding: 20, color: "#999" }}>No file selected</div>;
+    return <div style={{ padding: 20, color: colors.textTertiary }}>No file selected</div>;
   }
   return <FileViewer filePath={props.filePath} repoPath={props.repoPath} />;
+}
+
+function DiffViewerTabView(props: {
+  filePath?: string;
+  repoPath?: string;
+  fileStatus?: string;
+}): React.ReactElement {
+  if (!props.filePath || !props.repoPath) {
+    return <div style={{ padding: 20, color: colors.textTertiary }}>No file selected</div>;
+  }
+  return (
+    <DiffViewer
+      filePath={props.filePath}
+      repoPath={props.repoPath}
+      fileStatus={props.fileStatus ?? "modified"}
+    />
+  );
 }
 
 /* ── Session Views (multi-instance, opened as center tabs) ── */
@@ -205,7 +225,7 @@ function AgentSessionTabView(props: {
   isVisible?: boolean;
 }): React.ReactElement {
   if (!props.aiSessionId || !props.aiProvider) {
-    return <div style={{ padding: 20, color: "#999" }}>No session selected</div>;
+    return <div style={{ padding: 20, color: colors.textTertiary }}>No session selected</div>;
   }
   return (
     <MagentaTerminal
@@ -346,6 +366,17 @@ export function registerAllViews(): void {
     title: "File",
     icon: <FileCode size={14} strokeWidth={1.8} />,
     component: FileViewerTabView,
+    defaultLocation: "center",
+    canHaveMultiple: true,
+    closable: true,
+    keepAlive: false,
+  });
+
+  viewRegistry.register({
+    id: "diff-viewer",
+    title: "Diff",
+    icon: <GitCompareArrows size={14} strokeWidth={1.8} />,
+    component: DiffViewerTabView,
     defaultLocation: "center",
     canHaveMultiple: true,
     closable: true,

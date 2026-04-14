@@ -195,7 +195,7 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
                   background: colors.bgWhite,
                   border: `1px solid ${colors.border}`,
                   borderRadius: 6,
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                  boxShadow: colors.shadowSoft,
                   zIndex: 100,
                   overflow: "hidden",
                 }}

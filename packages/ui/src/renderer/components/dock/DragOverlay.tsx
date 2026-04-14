@@ -94,7 +94,7 @@ function DropZone({
         justifyContent: "center",
         borderRadius: 8,
         border: `2px dashed ${hovered ? colors.primary : colors.border}`,
-        background: hovered ? `color-mix(in srgb, ${colors.primary} 10%, transparent)` : "rgba(0,0,0,0.03)",
+        background: hovered ? `color-mix(in srgb, ${colors.primary} 10%, transparent)` : `color-mix(in srgb, ${colors.border} 24%, transparent)`,
         color: hovered ? colors.primary : colors.textTertiary,
         fontSize: 13,
         fontWeight: 500,

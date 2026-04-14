@@ -161,7 +161,7 @@ function SelectDropdownComponent<T extends string = string>({
             background: colors.bgWhite,
             border: `1px solid ${colors.border}`,
             borderRadius: 8,
-            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            boxShadow: colors.shadowPopover,
             maxHeight: 280,
             display: "flex",
             flexDirection: "column",

@@ -193,7 +193,7 @@ export function OnboardDialog({
                   background: colors.dialogBg,
                   border: `1px solid ${colors.border}`,
                   borderRadius: 8,
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+                  boxShadow: colors.shadowPopover,
                   maxHeight: 240,
                   overflowY: "auto",
                   zIndex: 10000,

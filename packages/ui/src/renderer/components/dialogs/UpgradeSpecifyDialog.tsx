@@ -14,7 +14,7 @@ type UpgradeSpecifyDialogProps = {
   onClose: () => void;
 };
 
-const PURPLE = "#6b5ebd";
+const PURPLE = colors.repoBadgeSpecFg;
 
 export function UpgradeSpecifyDialog({
   repoPath,

@@ -1,17 +1,18 @@
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
+import { colors } from "./colors";
 
 export function getStatusColor(status: AISessionRecord["status"]): string {
   switch (status) {
     case "active":
-      return "#3d7a2a";
+      return colors.statusActive;
     case "waiting-input":
-      return "#b8860b";
+      return colors.statusWaiting;
     case "error":
-      return "#c75050";
+      return colors.statusError;
     case "exited":
     case "idle":
     default:
-      return "#9a958c";
+      return colors.statusIdle;
   }
 }
 

@@ -3,221 +3,51 @@
 @import "tw-animate-css";
 @import "./github-markdown-light.css";
 @import "./github-markdown-dark.css";
-
-/*
- * Magenta IDE — shadcn/ui theme
- *
- * Amber + Orange palette (radix-mira style) using oklch color space.
- * Maps inline-style color constants (colors.ts) to shadcn CSS variables
- * so new shadcn components blend with existing hand-styled UI.
- *
- * Preset: Mira style, Amber theme, Neutral base, JetBrains Mono, Small radius
- */
+/* Generated shadcn theme tokens (base colors/fonts/radii/shadows). */
+@import "./colours.css";
 
 /* Dark mode: activated by adding `.dark` to <html> via ThemeProvider. */
 @custom-variant dark (&:is(.dark *));
 
+/* App-level semantic utility tokens layered on top of colours.css base theme tokens. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
   --color-panel: var(--panel);
   --color-panel-soft: var(--panel-soft);
   --color-surface: var(--surface);
   --color-success: var(--success);
   --color-info: var(--info);
-
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.5);
 }
 
 :root {
-  --radius: 0.625rem;
+  /* Base theme tokens and reusable palette values are defined in colours.css. */
 
-  /* ── Fonts ── */
-  --font-sans: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
+  /* ── Session / repo / stage semantic helpers ── */
+  --status-active: var(--success);
+  --status-waiting: var(--warning-text-strong);
+  --status-error: var(--destructive);
+  --status-idle: var(--muted-foreground);
+  --repo-badge-missing-bg: var(--error-soft);
+  --repo-badge-missing-fg: color-mix(in srgb, var(--destructive) 75%, black);
+  --repo-badge-spec-bg: color-mix(in srgb, var(--primary) 14%, transparent);
+  --repo-badge-spec-fg: color-mix(in srgb, var(--primary) 82%, black);
+  --repo-badge-active-bg: var(--success-soft);
+  --repo-badge-active-fg: var(--success-text);
+  --repo-badge-default-bg: var(--muted);
+  --repo-badge-default-fg: var(--muted-foreground);
+  --stage-review-bg: var(--warning-soft);
+  --stage-review-fg: var(--warning-text-strong);
+  --stage-review-dot: var(--flow-status-pending-border);
+  --stage-review-border-muted: var(--warning-border);
+  --stage-approved-bg: var(--success-soft);
+  --stage-approved-fg: var(--success-text);
+  --stage-approved-dot: var(--success);
+  --stage-approved-border-muted: var(--success-muted);
 
-  /* ── Core: Amber primary + Warm neutral base (oklch) ── */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-
-  --primary: oklch(0.673 0.179 47.2);
-  --primary-foreground: oklch(0.985 0.01 95);
-
-  --secondary: oklch(0.977 0.012 85);
-  --secondary-foreground: oklch(0.31 0.03 48);
-  --muted: oklch(0.972 0.008 85);
-  --muted-foreground: oklch(0.556 0.018 55);
-
-  --accent: oklch(0.965 0.016 78);
-  --accent-foreground: oklch(0.27 0.03 45);
-
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-
-  --border: oklch(0.922 0.008 82);
-  --input: oklch(0.922 0.008 82);
-  --ring: oklch(0.673 0.179 47.2);
-
-  /* ── Charts (amber -> orange scale) ── */
-  --chart-1: oklch(0.84 0.148 77);
-  --chart-2: oklch(0.758 0.17 63);
-  --chart-3: oklch(0.673 0.179 47.2);
-  --chart-4: oklch(0.604 0.165 38);
-  --chart-5: oklch(0.53 0.137 28);
-
-  /* ── Sidebar ── */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.673 0.179 47.2);
-  --sidebar-primary-foreground: oklch(0.985 0.01 95);
-  --sidebar-accent: oklch(0.965 0.016 78);
-  --sidebar-accent-foreground: oklch(0.27 0.03 45);
-  --sidebar-border: oklch(0.922 0.008 82);
-  --sidebar-ring: oklch(0.758 0.17 63);
-
-  /* ── Tab bar ── */
-  --tabbar-bg: oklch(0.97 0 0);
-  --tabbar-active-bg: oklch(1 0 0);
-  --tabbar-border: oklch(0.922 0 0);
-  --tabbar-fg: oklch(0.145 0 0);
-  --tabbar-fg-muted: oklch(0.556 0 0);
-
-  /* ── Workflow / pipeline canvas + nodes ── */
-  --flow-bg: oklch(1 0 0);
-  --flow-grid: oklch(0.922 0 0);
-  --flow-node-bg: oklch(1 0 0);
-  --flow-node-border: oklch(0.922 0 0);
-  --flow-node-text: oklch(0.145 0 0);
-  --flow-status-pending-bg: #fff1db;
-  --flow-status-pending-border: #f59e0b;
-  --flow-status-pending-text: #b45309;
-  --flow-status-review-bg: #ffedd5;
-  --flow-status-review-border: #fb923c;
-  --flow-status-review-text: #9a3412;
-  --flow-status-approved-bg: #dcfce7;
-  --flow-status-approved-border: #16a34a;
-  --flow-status-approved-text: #166534;
-
-  /* ── Panels & surfaces ── */
-  --panel: oklch(0.97 0 0);
-  --panel-soft: oklch(0.98 0 0);
-  --code-inline-bg: oklch(0.95 0 0);
-  --surface: oklch(1 0 0);
-
-  /* ── Extended border helpers ── */
-  --border-muted: oklch(0.85 0 0);
-  --border-strong: oklch(0.75 0 0);
-
-  /* ── Extended text helpers ── */
-  --text-strong: oklch(0.145 0 0);
-  --text-on-primary: oklch(1 0 0);
-
-  /* ── Status: success ── */
-  --success: #16A34A;
-  --success-hover: #15803d;
-  --success-soft: #dcfce7;
-  --success-soft-border: #bbf7d0;
-  --success-muted: #86efac;
-  --success-text: #166534;
-
-  /* ── Status: warning ── */
-  --warning-soft: #fff1db;
-  --warning-text: #9a6b21;
-  --warning-border: #fcd34d;
-  --warning-text-strong: #92400e;
-  --warning-text-deep: #9a3412;
-  --warning-border-soft: #fdba74;
-
-  /* ── Status: info ── */
-  --info-soft: #ffedd5;
-  --info-text: #b45309;
-  --info-border: #fdba74;
-  --info: #ea580c;
-  --accent-purple: #c2410c;
-
-  /* ── Status: progress ── */
-  --progress-soft: #fff7ed;
-  --progress-text: #c2410c;
-  --progress-border: #fdba74;
-
-  /* ── Status: error ── */
-  --error-soft: #fef2f2;
-  --error-soft-border: #fecaca;
-
-  /* ── Code blocks ── */
-  --code-block-bg: oklch(0.97 0.005 80);
-  --code-block-border: var(--border);
-  --code-block-fg: oklch(0.30 0.02 50);
-  --code-block-label: oklch(0.55 0.01 50);
-  --code-block-btn-bg: oklch(0.94 0.005 80);
-  --code-block-btn-fg: oklch(0.50 0.01 50);
-  --code-block-btn-border: var(--border);
-  --code-block-btn-hover-bg: oklch(0.90 0.008 80);
-  --code-block-btn-hover-fg: oklch(0.30 0.02 50);
-
-  /* ── Syntax highlighting (light — warm One Light inspired) ── */
-  --hljs-fg: #383a42;
-  --hljs-keyword: #a626a4;
-  --hljs-string: #50a14f;
-  --hljs-number: #b76b01;
-  --hljs-comment: #a0a1a7;
-  --hljs-function: #4078f2;
-  --hljs-type: #c18401;
-  --hljs-variable: #e45649;
-  --hljs-property: #0184bc;
-  --hljs-meta: #a626a4;
-  --hljs-symbol: #986801;
-  --hljs-punctuation: #696c77;
-  --hljs-addition: #50a14f;
-  --hljs-addition-bg: rgba(80, 161, 79, 0.08);
-  --hljs-deletion: #e45649;
-  --hljs-deletion-bg: rgba(228, 86, 73, 0.08);
-
-  /* ── Terminal / animation defaults ── */
-  --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
-  --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
+  /* ── Icon family tokens ── */
+  --icon-neutral: var(--muted-foreground);
+  --icon-green: var(--success);
+  --icon-orange: var(--info);
+  --icon-red: var(--destructive);
   --animation-duration-fast: 0.1s;
   --animation-duration-normal: 0.15s;
   --animation-duration-spinner: 1s;
@@ -227,153 +57,36 @@
 }
 
 /*
- * Dark mode — uses softened dark surfaces (not pure black).
- * Activated by adding `.dark` to the <html> element.
- *
- * --background is oklch(0.205) instead of shadcn's default oklch(0.145)
- * for softer contrast on prolonged use.
+ * Dark mode extensions.
+ * Core dark palette tokens come from colours.css; this block adds app-specific tokens.
  */
 .dark {
-  --background: oklch(0.205 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.269 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.269 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  /* ── Session / repo / stage semantic helpers (dark) ── */
+  --status-active: var(--success);
+  --status-waiting: var(--warning-text-strong);
+  --status-error: var(--destructive);
+  --status-idle: var(--muted-foreground);
+  --repo-badge-missing-bg: var(--error-soft);
+  --repo-badge-spec-bg: color-mix(in srgb, var(--primary) 20%, transparent);
+  --repo-badge-active-bg: var(--success-soft);
+  --repo-badge-active-fg: var(--success-text);
+  --repo-badge-default-bg: var(--muted);
+  --repo-badge-default-fg: var(--muted-foreground);
+  --stage-review-bg: var(--warning-soft);
+  --stage-review-fg: var(--warning-text);
+  --stage-review-dot: var(--warning-text-strong);
+  --stage-review-border-muted: var(--warning-border);
+  --stage-approved-bg: var(--success-soft);
+  --stage-approved-fg: var(--success-text);
+  --stage-approved-dot: var(--success);
+  --stage-approved-border-muted: var(--success-soft-border);
+  --stage-default-bg: var(--muted);
+  --stage-default-fg: var(--muted-foreground);
+  --stage-default-dot: var(--border-muted);
+  --stage-default-border-muted: var(--border);
 
-  --primary: oklch(0.758 0.17 63);
-  --primary-foreground: oklch(0.29 0.03 40);
-
-  --secondary: oklch(0.29 0.015 70);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.275 0.012 70);
-  --muted-foreground: oklch(0.74 0.018 75);
-
-  --accent: oklch(0.302 0.018 64);
-  --accent-foreground: oklch(0.985 0 0);
-
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.758 0.17 63);
-
-  /* ── Charts (amber -> orange scale — same in dark) ── */
-  --chart-1: oklch(0.84 0.148 77);
-  --chart-2: oklch(0.758 0.17 63);
-  --chart-3: oklch(0.673 0.179 47.2);
-  --chart-4: oklch(0.604 0.165 38);
-  --chart-5: oklch(0.53 0.137 28);
-
-  /* ── Sidebar (dark) ── */
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.758 0.17 63);
-  --sidebar-primary-foreground: oklch(0.29 0.03 40);
-  --sidebar-accent: oklch(0.302 0.018 64);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.758 0.17 63);
-
-  /* ── Tab bar (dark) ── */
-  --tabbar-bg: oklch(0.18 0 0);
-  --tabbar-active-bg: oklch(0.205 0 0);
-  --tabbar-border: oklch(0.30 0 0);
-  --tabbar-fg: oklch(0.985 0 0);
-  --tabbar-fg-muted: oklch(0.65 0 0);
-
-  /* ── Workflow / pipeline canvas + nodes (dark) ── */
-  --flow-bg: oklch(0.16 0 0);
-  --flow-grid: oklch(0.28 0 0);
-  --flow-node-bg: oklch(0.269 0 0);
-  --flow-node-border: oklch(0.32 0 0);
-  --flow-node-text: oklch(0.985 0 0);
-  --flow-status-pending-bg: rgba(245, 158, 11, 0.18);
-  --flow-status-pending-border: #fbbf24;
-  --flow-status-pending-text: #fcd34d;
-  --flow-status-review-bg: rgba(249, 115, 22, 0.18);
-  --flow-status-review-border: #fb923c;
-  --flow-status-review-text: #fdba74;
-  --flow-status-approved-bg: rgba(22, 163, 74, 0.18);
-  --flow-status-approved-border: #4ade80;
-  --flow-status-approved-text: #86efac;
-
-  /* ── Panels & surfaces (dark) ── */
-  --panel: oklch(0.24 0 0);
-  --panel-soft: oklch(0.27 0 0);
-  --code-inline-bg: oklch(0.28 0 0);
-  --surface: oklch(0.269 0 0);
-
-  --border-muted: oklch(0.35 0 0);
-  --border-strong: oklch(0.42 0 0);
-
-  --text-strong: oklch(0.985 0 0);
-  --text-on-primary: oklch(1 0 0);
-
-  /* ── Status: success (dark) ── */
-  --success: #4ade80;
-  --success-hover: #22c55e;
-  --success-soft: rgba(22, 163, 74, 0.15);
-  --success-soft-border: rgba(22, 163, 74, 0.3);
-  --success-muted: #166534;
-  --success-text: #86efac;
-
-  /* ── Status: warning (dark) ── */
-  --warning-soft: rgba(245, 158, 11, 0.15);
-  --warning-text: #fde68a;
-  --warning-border: rgba(251, 191, 35, 0.35);
-  --warning-text-strong: #fbbf24;
-  --warning-text-deep: #f59e0b;
-  --warning-border-soft: rgba(253, 186, 116, 0.35);
-
-  /* ── Status: info (dark) ── */
-  --info-soft: rgba(249, 115, 22, 0.15);
-  --info-text: #fdba74;
-  --info-border: rgba(251, 146, 60, 0.3);
-  --info: #fb923c;
-  --accent-purple: #fdba74;
-
-  /* ── Status: progress (dark) ── */
-  --progress-soft: rgba(251, 146, 60, 0.15);
-  --progress-text: #fdba74;
-  --progress-border: rgba(251, 191, 36, 0.3);
-
-  /* ── Status: error (dark) ── */
-  --error-soft: rgba(239, 68, 68, 0.15);
-  --error-soft-border: rgba(239, 68, 68, 0.3);
-
-  /* ── Code blocks (dark — Catppuccin Mocha) ── */
-  --code-block-bg: #1e1e2e;
-  --code-block-border: #313244;
-  --code-block-fg: #cdd6f4;
-  --code-block-label: #7f849c;
-  --code-block-btn-bg: #313244;
-  --code-block-btn-fg: #9399b2;
-  --code-block-btn-border: #45475a;
-  --code-block-btn-hover-bg: #45475a;
-  --code-block-btn-hover-fg: #cdd6f4;
-
-  /* ── Syntax highlighting (dark — Catppuccin Mocha) ── */
-  --hljs-fg: #cdd6f4;
-  --hljs-keyword: #cba6f7;
-  --hljs-string: #a6e3a1;
-  --hljs-number: #fab387;
-  --hljs-comment: #6c7086;
-  --hljs-function: #89b4fa;
-  --hljs-type: #f9e2af;
-  --hljs-variable: #f38ba8;
-  --hljs-property: #89dceb;
-  --hljs-meta: #f5c2e7;
-  --hljs-symbol: #f5e0dc;
-  --hljs-punctuation: #9399b2;
-  --hljs-addition: #a6e3a1;
-  --hljs-addition-bg: rgba(166, 227, 161, 0.06);
-  --hljs-deletion: #f38ba8;
-  --hljs-deletion-bg: rgba(243, 139, 168, 0.06);
-
-  --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
-  --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
+  /* ── Icon family tokens (dark) ── */
+  --icon-neutral: var(--muted-foreground);
 }
 
 /*
@@ -550,9 +263,9 @@
   }
 
   .md-viewer .md-copy-btn.copied {
-    background: #16a34a30;
-    color: #16a34a;
-    border-color: #16a34a50;
+    background: color-mix(in srgb, var(--success) 18%, transparent);
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 31%, transparent);
   }
 
   .md-viewer .md-mermaid {

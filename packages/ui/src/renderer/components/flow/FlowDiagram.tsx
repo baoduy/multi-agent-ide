@@ -7,7 +7,6 @@ import type { SpecFolder } from "@magenta/shared/models";
 import { specToFlowDiagram } from "./diagramUtils";
 import { nodeTypes } from "./nodeTypes";
 import { colors } from "../../utils/colors";
-import { useTheme } from "../../theme/ThemeProvider";
 
 type FlowDiagramProps = {
   spec: SpecFolder | null;
@@ -39,8 +38,7 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
   const onNodesChange = useCallback(() => {}, []);
   const onEdgesChange = useCallback(() => {}, []);
 
-  const { resolved } = useTheme();
-  const gridColor = resolved === "dark" ? "#3a3a3a" : "#e5e2da";
+  const gridColor = colors.flowGrid;
 
   if (!spec) {
     return (

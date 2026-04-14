@@ -68,7 +68,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps): Rea
         background: colors.bgSurface,
         border: `1px solid ${colors.border}`,
         borderRadius: 8,
-        boxShadow: "0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)",
+        boxShadow: colors.shadowContextMenu,
         padding: "4px 0",
         minWidth: 190,
       }}

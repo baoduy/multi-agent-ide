@@ -389,7 +389,7 @@ export function WorkflowView({
             color: colors.errorDark,
             maxWidth: 360,
             zIndex: 10000,
-            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            boxShadow: colors.shadowSoft,
             cursor: "pointer",
           }}
         >

@@ -114,10 +114,10 @@ export function SpecifyOnboardBanner({
           gap: 10,
           padding: "10px 14px",
           borderRadius: 8,
-          background: "var(--success-soft, #e8f5e9)",
-          border: "1px solid var(--success-border, #a5d6a7)",
+          background: colors.successSoft,
+          border: `1px solid ${colors.successSoftBorder}`,
           fontSize: 12,
-          color: "var(--success-text, #2e7d32)",
+          color: colors.successText,
           lineHeight: 1.4,
         }}
       >
@@ -167,7 +167,7 @@ export function SpecifyOnboardBanner({
               borderRadius: 6,
               border: `1px solid ${colors.warningBorder}`,
               background: colors.warningTextStrong,
-              color: "#fff",
+              color: colors.textWhite,
               cursor: "pointer",
               whiteSpace: "nowrap",
               transition: "opacity 0.15s",
@@ -242,7 +242,7 @@ export function SpecifyOnboardBanner({
             overflowY: "auto",
             padding: "8px 14px",
             borderTop: `1px solid ${colors.warningBorder}`,
-            background: "rgba(0,0,0,0.04)",
+            background: `color-mix(in srgb, ${colors.border} 20%, transparent)`,
           }}
         >
           <pre

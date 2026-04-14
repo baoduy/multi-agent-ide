@@ -311,12 +311,35 @@ export class OnboardApplicationService {
   /**
    * Returns the Specify onboard status for a repo: whether .specify/ exists
    * and which AI agent is configured (or null if not onboarded).
+   * Checks integration.json first (canonical after switch), then init-options.json.
    */
   getSpecifyStatus(repoPath: string): { hasSpecs: boolean; currentAgent: string | null } {
     const specifyDir = join(repoPath, ".specify");
     const hasSpecs = existsSync(specifyDir);
-    const currentAgent = hasSpecs ? this.readInitOptionsAgent(repoPath) : null;
+    const currentAgent = hasSpecs
+      ? this.readCurrentIntegration(repoPath) ?? this.readInitOptionsAgent(repoPath)
+      : null;
     return { hasSpecs, currentAgent };
+  }
+
+  /**
+   * Reads the current integration from .specify/integration.json.
+   * This is the canonical source after `specify integration switch`.
+   */
+  private readCurrentIntegration(repoPath: string): string | null {
+    const integrationPath = join(repoPath, ".specify", "integration.json");
+    try {
+      if (existsSync(integrationPath)) {
+        const content = readFileSync(integrationPath, "utf-8");
+        const data = JSON.parse(content) as Record<string, unknown>;
+        if (typeof data.integration === "string") {
+          return data.integration;
+        }
+      }
+    } catch (err) {
+      console.warn(`[onboard-service] Could not read integration.json: ${err}`);
+    }
+    return null;
   }
 
   /**

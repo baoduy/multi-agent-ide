@@ -603,7 +603,9 @@ export function NewSessionDialog({
             repoPath={selectedRepoPath!}
             repoName={repos.find((r) => r.path === selectedRepoPath)?.name ?? ""}
             onComplete={() => {
-              // Re-fetch specify status after successful onboard/switch
+              // Optimistically update to hide banner immediately
+              setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
+              // Also re-fetch from daemon for accuracy
               sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath! })
                 .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
                 .catch(() => {});

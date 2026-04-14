@@ -1,10 +1,9 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 
 /**
- * Executes a shell command synchronously and returns the trimmed output.
- * Returns the provided default value on any error (command not found, non-zero exit, etc.).
- *
- * Standard options for git commands: encoding utf-8, suppress stdio.
+ * Executes a git command synchronously and returns the trimmed output.
+ * Uses execFileSync to call git directly (no shell required).
+ * Returns the provided default value on any error.
  */
 export function safeExecSync(
   command: string,
@@ -24,11 +23,7 @@ export function safeExecSync<T>(
   transform?: (output: string) => T,
 ): T | string {
   try {
-    const output = execSync(command, {
-      cwd,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+    const output = gitExecSync(command, cwd).trim();
 
     if (transform) {
       return transform(output);
@@ -48,4 +43,53 @@ export function parseGitLines(output: string): string[] {
     .split("\n")
     .map((line) => line.trim().replace(/^'|'$/g, ""))
     .filter(Boolean);
+}
+
+/**
+ * Executes a command string by splitting it into binary + args and calling
+ * execFileSync (no shell required). This avoids the `/bin/sh ENOENT` error
+ * in packaged Electron apps where the shell may not be accessible.
+ *
+ * Supports simple quoted arguments (double quotes only) for paths with spaces.
+ */
+export function gitExecSync(
+  command: string,
+  cwd: string,
+  options?: { maxBuffer?: number },
+): string {
+  const args = parseCommandArgs(command);
+  const binary = args.shift()!;
+  return execFileSync(binary, args, {
+    cwd,
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+    ...options,
+  });
+}
+
+/**
+ * Split a command string into arguments, respecting double-quoted segments.
+ * e.g. `git worktree add "/path with spaces" -b "branch"` →
+ *      ["git", "worktree", "add", "/path with spaces", "-b", "branch"]
+ */
+function parseCommandArgs(command: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+    if (ch === '"') {
+      inQuotes = !inQuotes;
+    } else if (ch === " " && !inQuotes) {
+      if (current) {
+        args.push(current);
+        current = "";
+      }
+    } else {
+      current += ch;
+    }
+  }
+  if (current) args.push(current);
+  return args;
 }

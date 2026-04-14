@@ -44,16 +44,19 @@ files:
 
 # ── Extra resources (outside the asar, accessible via process.resourcesPath) ─
 extraResources:
+  # pnpm hoists dependencies into packages/<pkg>/node_modules/ as symlinks,
+  # so "from" paths go through the workspace package that owns the dep.
+
   # sql.js WASM binary — the daemon loads this at runtime and it can't be
   # inside the asar archive (binary file that needs direct fs access)
-  - from: node_modules/sql.js/dist/sql-wasm.wasm
+  - from: packages/daemon/node_modules/sql.js/dist/sql-wasm.wasm
     to: sql-wasm.wasm
 
   # node-pty is a native addon required by the daemon (forked with
   # ELECTRON_RUN_AS_NODE=1). Forked processes use plain Node.js require
   # which can't read from asar archives, so the module must live outside
   # the asar entirely. The main process adds this path to NODE_PATH.
-  - from: node_modules/node-pty
+  - from: packages/daemon/node_modules/node-pty
     to: node_modules/node-pty
     filter:
       - "**/*"

@@ -1,6 +1,6 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { gitExecSync } from "./utils/safeExecSync";
 /**
  * Info about a single git worktree discovered on disk.
  */
@@ -33,11 +33,7 @@ export class GitGateway {
     }
 
     const resolved = path.resolve(repoPath);
-    const raw = execSync("git worktree list --porcelain", {
-      cwd: resolved,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const raw = gitExecSync("git worktree list --porcelain", resolved);
 
     const mainPath = this.getMainWorktreePath(resolved);
     return this.parseWorktreeList(raw, resolved, mainPath);
@@ -92,7 +88,7 @@ export class GitGateway {
    */
   private getMainWorktreePath(repoPath: string): string {
     try {
-      const raw = execSync("git worktree list --porcelain", { cwd: repoPath, encoding: "utf-8" });
+      const raw = gitExecSync("git worktree list --porcelain", repoPath);
       const first = raw.split("\n")[0]; // "worktree /path/to/main"
       if (first.startsWith("worktree ")) {
         return first.slice("worktree ".length);
@@ -123,22 +119,22 @@ export class GitGateway {
     // If the branch already exists locally, just create the worktree from it.
     try {
       // Try to create worktree tracking the remote branch
-      execSync(
+      gitExecSync(
         `git worktree add "${worktreePath}" -b "${safeName}" "origin/${branch}"`,
-        { cwd: repoPath, stdio: "pipe" },
+        repoPath,
       );
     } catch {
       // If local branch already exists, try creating worktree from it
       try {
-        execSync(
+        gitExecSync(
           `git worktree add "${worktreePath}" "${branch}"`,
-          { cwd: repoPath, stdio: "pipe" },
+          repoPath,
         );
       } catch {
         // If both fail, try creating worktree with detached HEAD from the ref
-        execSync(
+        gitExecSync(
           `git worktree add --detach "${worktreePath}" "origin/${branch}"`,
-          { cwd: repoPath, stdio: "pipe" },
+          repoPath,
         );
       }
     }
@@ -156,11 +152,7 @@ export class GitGateway {
     const resolved = path.resolve(worktreePath);
 
     // Get changed files (staged + unstaged + untracked)
-    const raw = execSync("git status --porcelain=v1", {
-      cwd: resolved,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const raw = gitExecSync("git status --porcelain=v1", resolved);
 
     const files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }> = [];
 
@@ -200,11 +192,7 @@ export class GitGateway {
     let ahead = 0;
     let behind = 0;
     try {
-      const revList = execSync("git rev-list --left-right --count HEAD...@{upstream}", {
-        cwd: resolved,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
+      const revList = gitExecSync("git rev-list --left-right --count HEAD...@{upstream}", resolved).trim();
       const parts = revList.split("\t");
       if (parts.length === 2) {
         ahead = parseInt(parts[0], 10) || 0;
@@ -227,19 +215,18 @@ export class GitGateway {
    */
   mergeWorktree(repoPath: string, worktreeBranch: string, targetBranch: string): { success: boolean; message: string } {
     const resolved = path.resolve(repoPath);
-    const execOpts = { cwd: resolved, encoding: "utf-8" as const, stdio: ["pipe", "pipe", "pipe"] as ["pipe", "pipe", "pipe"] };
 
     try {
       // Save current branch to restore later
-      const currentBranch = execSync("git branch --show-current", execOpts).trim();
+      const currentBranch = gitExecSync("git branch --show-current", resolved).trim();
 
       // Checkout target branch
-      execSync(`git checkout "${targetBranch}"`, execOpts);
+      gitExecSync(`git checkout "${targetBranch}"`, resolved);
 
       const restoreOriginalBranch = () => {
         if (currentBranch) {
           try {
-            execSync(`git checkout "${currentBranch}"`, { cwd: resolved, stdio: "pipe" });
+            gitExecSync(`git checkout "${currentBranch}"`, resolved);
           } catch {
             // best effort
           }
@@ -248,7 +235,7 @@ export class GitGateway {
 
       try {
         // Attempt merge allowing fast-forward (--ff is default, explicit for clarity)
-        const output = execSync(`git merge --ff --no-edit "${worktreeBranch}"`, execOpts).trim();
+        const output = gitExecSync(`git merge --ff --no-edit "${worktreeBranch}"`, resolved).trim();
 
         // "Already up to date" is a successful no-op
         if (output.includes("Already up to date")) {
@@ -261,7 +248,7 @@ export class GitGateway {
       } catch (mergeError) {
         // Abort the failed merge first
         try {
-          execSync("git merge --abort", { cwd: resolved, stdio: "pipe" });
+          gitExecSync("git merge --abort", resolved);
         } catch {
           // merge --abort may fail if there's nothing to abort
         }
@@ -270,13 +257,13 @@ export class GitGateway {
         // This handles the case where the same changes exist on both branches
         // (e.g., cherry-picked commits, independent but identical work).
         try {
-          const targetTree = execSync(`git rev-parse "${targetBranch}^{tree}"`, execOpts).trim();
-          const worktreeTree = execSync(`git rev-parse "${worktreeBranch}^{tree}"`, execOpts).trim();
+          const targetTree = gitExecSync(`git rev-parse "${targetBranch}^{tree}"`, resolved).trim();
+          const worktreeTree = gitExecSync(`git rev-parse "${worktreeBranch}^{tree}"`, resolved).trim();
 
           if (targetTree === worktreeTree) {
             // Trees are identical — the branches have the same content.
             // Fast-forward target to worktree branch tip so history is unified.
-            execSync(`git merge --ff-only "${worktreeBranch}"`, execOpts);
+            gitExecSync(`git merge --ff-only "${worktreeBranch}"`, resolved);
             restoreOriginalBranch();
             return {
               success: true,
@@ -287,13 +274,13 @@ export class GitGateway {
           // Trees differ but merge conflicted — try merge with
           // "-X theirs" strategy option to auto-resolve in favour of the worktree branch
           // only when the tree comparison shows the worktree branch is strictly ahead
-          const mergeBase = execSync(`git merge-base "${targetBranch}" "${worktreeBranch}"`, execOpts).trim();
-          const targetCommit = execSync(`git rev-parse "${targetBranch}"`, execOpts).trim();
+          const mergeBase = gitExecSync(`git merge-base "${targetBranch}" "${worktreeBranch}"`, resolved).trim();
+          const targetCommit = gitExecSync(`git rev-parse "${targetBranch}"`, resolved).trim();
 
           if (mergeBase === targetCommit) {
             // Target is an ancestor of worktree — this is a pure fast-forward case
             // that somehow failed above (e.g., dirty index). Force fast-forward.
-            execSync(`git merge --ff-only "${worktreeBranch}"`, execOpts);
+            gitExecSync(`git merge --ff-only "${worktreeBranch}"`, resolved);
             restoreOriginalBranch();
             return {
               success: true,
@@ -325,11 +312,7 @@ export class GitGateway {
   listLocalBranches(repoPath: string): { branches: string[]; current: string } {
     const resolved = path.resolve(repoPath);
 
-    const raw = execSync("git branch --format='%(refname:short)'", {
-      cwd: resolved,
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const raw = gitExecSync("git branch --format=%(refname:short)", resolved);
 
     const branches = raw
       .trim()
@@ -339,11 +322,7 @@ export class GitGateway {
 
     let current = "";
     try {
-      current = execSync("git branch --show-current", {
-        cwd: resolved,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
+      current = gitExecSync("git branch --show-current", resolved).trim();
     } catch {
       // detached HEAD
     }
@@ -360,11 +339,7 @@ export class GitGateway {
     const wtResolved = path.resolve(worktreePath);
 
     try {
-      execSync(`git worktree remove "${wtResolved}" --force`, {
-        cwd: resolved,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      gitExecSync(`git worktree remove "${wtResolved}" --force`, resolved);
     } catch (error) {
       // Fallback: prune stale worktrees if remove failed
       try {
@@ -372,11 +347,7 @@ export class GitGateway {
         if (fs.existsSync(wtResolved)) {
           fs.rmSync(wtResolved, { recursive: true, force: true });
         }
-        execSync("git worktree prune", {
-          cwd: resolved,
-          encoding: "utf-8",
-          stdio: ["pipe", "pipe", "pipe"],
-        });
+        gitExecSync("git worktree prune", resolved);
       } catch {
         throw error; // re-throw original error
       }

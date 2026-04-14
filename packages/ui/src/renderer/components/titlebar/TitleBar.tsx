@@ -113,9 +113,9 @@ function TitleBarTabGroup({
           <Button
             key={tab.id}
             variant={isActive ? "default" : "outline"}
-            size="lg"
+            //size="lg"
             onClick={() => onSelectTab(tab.id)}
-            style={{ ...noDrag, paddingLeft: 20, paddingRight: 20 }}
+            style={{ ...noDrag, paddingLeft: 15, paddingRight: 15 }}
           >
             {tab.icon}
             {tab.label}
@@ -126,7 +126,7 @@ function TitleBarTabGroup({
         <>
           <ButtonGroupSeparator />
           <Button
-            size="icon-lg"
+            size="icon"
             variant="outline"
             onClick={onPlus}
             title="New AI Session"

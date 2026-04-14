@@ -101,6 +101,13 @@ export class RepoRepository {
     };
   }
 
+  deleteByPath(repoPath: string): void {
+    this.databaseService
+      .getSqlite()
+      .prepare(`DELETE FROM repos WHERE path = ?`)
+      .run(repoPath);
+  }
+
   markMissingAbsentPaths(activePaths: Set<string>, scannedAt: number): number {
     const existing = this.listAll();
     let changed = 0;

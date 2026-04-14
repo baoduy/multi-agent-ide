@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from "react";
-import { RotateCcw, Terminal } from "lucide-react";
+import { RotateCcw, Terminal, ScrollText } from "lucide-react";
 import { useLayoutStore } from "./layoutStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useRepoStore } from "../../store/repoStore";
@@ -70,6 +70,7 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
   const resolvedTerminalCwd = activeRepoPath ?? agentRepoPath ?? terminalCwd;
 
   const hasTerminal = bottomTabs.some((t: TabState) => t.viewId === "terminal-session");
+  const hasLog = bottomTabs.some((t: TabState) => t.viewId === "log-viewer");
 
   const toggleTerminal = useCallback(() => {
     if (!resolvedTerminalCwd) return;
@@ -85,6 +86,20 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
       setRegionCollapsed("bottom", false);
     }
   }, [resolvedTerminalCwd, bottomTabs, openTab, toggleRegionCollapse, setRegionCollapsed]);
+
+  const toggleLog = useCallback(() => {
+    const exists = bottomTabs.some((t: TabState) => t.viewId === "log-viewer");
+    if (exists) {
+      toggleRegionCollapse("bottom");
+    } else {
+      openTab("bottom", {
+        tabId: "tab-bottom-log",
+        viewId: "log-viewer",
+        props: {},
+      });
+      setRegionCollapsed("bottom", false);
+    }
+  }, [bottomTabs, openTab, toggleRegionCollapse, setRegionCollapsed]);
 
   return (
     <div
@@ -173,6 +188,12 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           active={hasTerminal && !bottomCollapsed}
           disabled={!resolvedTerminalCwd}
           onClick={toggleTerminal}
+        />
+        <StatusBarButton
+          icon={<ScrollText size={12} />}
+          label="Log"
+          active={hasLog && !bottomCollapsed}
+          onClick={toggleLog}
         />
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { execSync } from "node:child_process";
+import { gitExecSync } from "../infrastructure/utils/safeExecSync";
 import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { join, basename, resolve } from "node:path";
 import type { IPCBridge } from "../ipc/IPCBridge";
@@ -237,11 +237,7 @@ export class OnboardApplicationService {
     // Get the current branch name
     let currentBranch = "main";
     try {
-      currentBranch = execSync("git rev-parse --abbrev-ref HEAD", {
-        cwd: resolved,
-        encoding: "utf-8",
-        stdio: ["pipe", "pipe", "pipe"],
-      }).trim();
+      currentBranch = gitExecSync("git rev-parse --abbrev-ref HEAD", resolved).trim();
     } catch {
       // fallback to "main"
     }
@@ -264,22 +260,22 @@ export class OnboardApplicationService {
 
     // Create the worktree with a new branch from current HEAD
     try {
-      execSync(
+      gitExecSync(
         `git worktree add "${worktreePath}" -b "${newBranch}"`,
-        { cwd: resolved, stdio: "pipe" },
+        resolved,
       );
     } catch {
       // Branch may already exist — try without -b
       try {
-        execSync(
+        gitExecSync(
           `git worktree add "${worktreePath}" "${newBranch}"`,
-          { cwd: resolved, stdio: "pipe" },
+          resolved,
         );
       } catch (err2) {
         // Last resort: detach from HEAD
-        execSync(
+        gitExecSync(
           `git worktree add --detach "${worktreePath}"`,
-          { cwd: resolved, stdio: "pipe" },
+          resolved,
         );
       }
     }

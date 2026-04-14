@@ -1,6 +1,4 @@
-import { execSync } from "child_process";
-
-import { safeExecSync, parseGitLines } from "./utils/safeExecSync";
+import { safeExecSync, parseGitLines, gitExecSync } from "./utils/safeExecSync";
 
 /**
  * SpecGitGateway wraps git commands for spec access.
@@ -30,7 +28,7 @@ export class SpecGitGateway {
    */
   listLocalBranches(repoPath: string): string[] {
     return safeExecSync(
-      "git branch --format='%(refname:short)'",
+      "git branch --format=%(refname:short)",
       repoPath,
       [] as string[],
       parseGitLines,
@@ -68,10 +66,7 @@ export class SpecGitGateway {
    */
   gitPathExists(repoPath: string, branch: string, relativePath: string): boolean {
     try {
-      execSync(`git cat-file -e "${branch}:${relativePath}"`, {
-        cwd: repoPath,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      gitExecSync(`git cat-file -e "${branch}:${relativePath}"`, repoPath);
       return true;
     } catch {
       return false;
@@ -103,12 +98,7 @@ export class SpecGitGateway {
    */
   readGitFile(repoPath: string, ref: string, relativePath: string): string | null {
     try {
-      return execSync(`git show "${ref}:${relativePath}"`, {
-        cwd: repoPath,
-        encoding: "utf-8",
-        maxBuffer: 5 * 1024 * 1024,
-        stdio: ["pipe", "pipe", "pipe"],
-      });
+      return gitExecSync(`git show "${ref}:${relativePath}"`, repoPath, { maxBuffer: 5 * 1024 * 1024 });
     } catch {
       return null;
     }

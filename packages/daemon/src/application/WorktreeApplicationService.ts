@@ -1,6 +1,8 @@
+import fs from "node:fs";
 import path from "node:path";
 import { sanitizeName } from "../domain/sanitizeName";
 import type { GitGateway, WorktreeEntry } from "../infrastructure/GitGateway";
+import type { RepoRepository } from "../services/RepoRepository";
 import { requireNonEmpty } from "../errors/validation";
 import { wrapError } from "../errors/wrapError";
 import { AppError } from "../errors/AppError";
@@ -10,10 +12,20 @@ import { AppError } from "../errors/AppError";
  * Delegates to GitGateway for actual git operations.
  */
 export class WorktreeApplicationService {
-  constructor(private readonly gitGateway: GitGateway) {}
+  constructor(
+    private readonly gitGateway: GitGateway,
+    private readonly repoRepository: RepoRepository,
+  ) {}
 
   listWorktrees(repoPath?: string): WorktreeEntry[] {
     if (!repoPath) {
+      return [];
+    }
+
+    // If the repo directory no longer exists, remove it from the database
+    if (!fs.existsSync(repoPath)) {
+      console.warn(`[worktree-service] Repo path no longer exists, removing from DB: ${repoPath}`);
+      this.repoRepository.deleteByPath(repoPath);
       return [];
     }
 

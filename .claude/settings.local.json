@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm --filter @magenta/ui add cmdk)"
+      "Bash(pnpm --filter @magenta/ui add cmdk)",
+      "Bash(pnpm -C packages/e2e add -D playwright-bdd@^8)"
     ]
   }
 }

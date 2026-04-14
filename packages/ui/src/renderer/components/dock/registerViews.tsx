@@ -17,6 +17,7 @@ import {
   FileCode,
   List,
   Terminal,
+  ScrollText,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
 
@@ -34,6 +35,7 @@ import { FileViewer } from "../main/FileViewer";
 import { DiffViewer } from "../main/DiffViewer";
 import { AISessionsView } from "../ai-terminal/AISessionsView";
 import { MagentaTerminal } from "../common/MagentaTerminal";
+import { LogViewer } from "../common/LogViewer";
 import { useSpecStore } from "../../store/specStore";
 import { colors } from "../../utils/colors";
 
@@ -261,6 +263,10 @@ function TerminalSessionTabView(props: {
   );
 }
 
+function LogViewerTabView(): React.ReactElement {
+  return <LogViewer />;
+}
+
 /* ── Bottom Panel Views ── */
 
 /**
@@ -405,6 +411,19 @@ export function registerAllViews(): void {
     canHaveMultiple: true,
     closable: true,
     keepAlive: true,
+  });
+
+  // ── Bottom Panel Views ──
+
+  viewRegistry.register({
+    id: "log-viewer",
+    title: "Log",
+    icon: <ScrollText size={14} strokeWidth={1.8} />,
+    component: LogViewerTabView,
+    defaultLocation: "bottom",
+    canHaveMultiple: false,
+    closable: true,
+    keepAlive: false,
   });
 
 }

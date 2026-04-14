@@ -46,6 +46,13 @@ const api = {
   async openInFileManager(dirPath: string): Promise<void> {
     await ipcRenderer.invoke("magenta:open-in-file-manager", dirPath);
   },
+
+  /**
+   * Reads today's application log file.
+   */
+  async readLog(): Promise<{ content: string; path: string }> {
+    return ipcRenderer.invoke("magenta:read-log") as Promise<{ content: string; path: string }>;
+  },
 };
 
 contextBridge.exposeInMainWorld("magentaIpc", api);

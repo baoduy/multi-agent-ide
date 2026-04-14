@@ -1,3 +1,3 @@
 #!/bin/bash
 
-pnpm build && pnpm dev
+pnpm install && pnpm run dev

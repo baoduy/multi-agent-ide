@@ -251,6 +251,20 @@ function registerIpcHandler() {
     }
   });
 
+  // Read today's application log file
+  ipcMain.handle("magenta:read-log", async () => {
+    try {
+      const logPath = getLogFilePath();
+      if (!fs.existsSync(logPath)) {
+        return { content: "", path: logPath };
+      }
+      const content = fs.readFileSync(logPath, "utf-8");
+      return { content, path: logPath };
+    } catch {
+      return { content: "", path: getLogFilePath() };
+    }
+  });
+
   ipcMain.handle("magenta:ipc", async (_event, request) => {
     const requestType = request?.type ?? "unknown";
     console.log(`[main] IPC request: ${requestType}, daemonReady=${daemonReady}`);
@@ -328,6 +342,45 @@ function startDaemon() {
     const daemonEnv: Record<string, string> = { ...process.env } as Record<string, string>;
     if (isPackaged) {
       daemonEnv["MAGENTA_RESOURCES_PATH"] = process.resourcesPath;
+
+      // node-pty lives in extraResources/node_modules (outside the asar).
+      // Set NODE_PATH so the daemon's plain Node.js require() can find it.
+      daemonEnv["NODE_PATH"] = path.join(process.resourcesPath, "node_modules");
+
+      // macOS GUI apps launched from Finder inherit a minimal PATH that may
+      // not include directories where git and other CLI tools live.
+      // Ensure standard paths are present so child_process.execSync can find
+      // /bin/sh and git commands succeed.
+      const standardPaths = [
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+        "/opt/homebrew/bin",   // Apple Silicon Homebrew
+      ];
+      const currentPath = daemonEnv["PATH"] || "";
+      const existingParts = new Set(currentPath.split(":").filter(Boolean));
+      const missing = standardPaths.filter((p) => !existingParts.has(p));
+      if (missing.length > 0) {
+        daemonEnv["PATH"] = currentPath ? `${currentPath}:${missing.join(":")}` : missing.join(":");
+      }
+      writeLog("INFO", "main", `Daemon PATH: ${daemonEnv["PATH"]}`);
+
+      // Resolve git to an absolute path — Electron's ELECTRON_RUN_AS_NODE
+      // forked processes don't reliably search PATH with execFileSync.
+      const gitCandidates = [
+        "/usr/bin/git",
+        "/opt/homebrew/bin/git",
+        "/usr/local/bin/git",
+      ];
+      for (const candidate of gitCandidates) {
+        if (fs.existsSync(candidate)) {
+          daemonEnv["MAGENTA_GIT_PATH"] = candidate;
+          writeLog("INFO", "main", `Resolved git: ${candidate}`);
+          break;
+        }
+      }
     }
 
     const nodeExecPath =

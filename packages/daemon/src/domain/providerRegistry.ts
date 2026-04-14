@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { AIProvider, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
 import { PROVIDER_PERMISSION_MODES } from "@magenta/shared/aiTerminal";
 
@@ -92,7 +92,7 @@ let cachedCopilotVersion: string | null = null;
 function getCopilotVersion(): string {
   if (cachedCopilotVersion !== null) return cachedCopilotVersion;
   try {
-    const raw = execSync("copilot --version", { encoding: "utf-8", timeout: 5000 }).trim();
+    const raw = execFileSync("copilot", ["--version"], { encoding: "utf-8", timeout: 5000 }).trim();
     // Output is typically "1.0.24" or "copilot version 1.0.24"
     const match = raw.match(/(\d+\.\d+\.\d+)/);
     cachedCopilotVersion = match ? match[1] : "";

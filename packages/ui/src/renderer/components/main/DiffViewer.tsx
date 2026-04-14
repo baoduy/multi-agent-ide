@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 
 import { ipc } from "../../utils/ipc";
 import { colors } from "../../utils/colors";
+import { useTheme } from "../../theme/ThemeProvider";
 import { FileIconBadge } from "../common/fileIcons";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 
@@ -21,6 +22,9 @@ export function DiffViewer({
   repoPath,
   fileStatus,
 }: DiffViewerProps): React.ReactElement {
+  const { resolved: theme } = useTheme();
+  const isDark = theme === "dark";
+
   const [oldValue, setOldValue] = useState<string>("");
   const [newValue, setNewValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);

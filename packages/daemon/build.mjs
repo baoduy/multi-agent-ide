@@ -9,10 +9,9 @@ await esbuild.build({
   outfile: "dist/daemon-ipc-worker.js",
   sourcemap: true,
   // sql.js WASM is loaded at runtime from extraResources — keep it external
-  // sql.js WASM is loaded at runtime from extraResources — keep it external.
   // node-pty is a native addon — must be loaded from node_modules, not bundled.
-  // strip-ansi v6 CJS — keep external so require() finds it in node_modules.
-  external: ["better-sqlite3", "node-pty", "strip-ansi"],
+  // strip-ansi v7 is ESM-only, so bundle it into this CJS output.
+  external: ["node-pty"],
 });
 
 console.log("daemon bundled ✓");

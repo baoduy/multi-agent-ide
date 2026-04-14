@@ -272,6 +272,10 @@ function useActiveHeading(
 }
 
 /** Table of Contents sidebar component. */
+const TOC_MIN_WIDTH = 120;
+const TOC_MAX_WIDTH = 400;
+const TOC_DEFAULT_WIDTH = 220;
+
 const TableOfContents = React.memo(function TableOfContents({
   headings,
   activeId,
@@ -281,6 +285,10 @@ const TableOfContents = React.memo(function TableOfContents({
   activeId: string | null;
   containerRef: React.RefObject<HTMLDivElement | null>;
 }): React.ReactElement | null {
+  const [width, setWidth] = useState(TOC_DEFAULT_WIDTH);
+  const draggingRef = useRef(false);
+  const lastXRef = useRef(0);
+
   if (headings.length === 0) return null;
 
   const minLevel = Math.min(...headings.map((h) => h.level));
@@ -294,73 +302,143 @@ const TableOfContents = React.memo(function TableOfContents({
     }
   };
 
+  /* ── Resize handle logic (drag left edge) ── */
+  const onHandleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    draggingRef.current = true;
+    lastXRef.current = e.clientX;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!draggingRef.current) return;
+      // Dragging left → delta negative → width grows (ToC is on the right)
+      const delta = lastXRef.current - ev.clientX;
+      lastXRef.current = ev.clientX;
+      setWidth((prev) => Math.min(TOC_MAX_WIDTH, Math.max(TOC_MIN_WIDTH, prev + delta)));
+    };
+
+    const onMouseUp = () => {
+      draggingRef.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  };
+
   return (
-    <nav
+    <div
       style={{
-        width: 200,
-        minWidth: 200,
+        width,
+        minWidth: TOC_MIN_WIDTH,
+        maxWidth: TOC_MAX_WIDTH,
         flexShrink: 0,
         position: "sticky",
         top: 0,
-        alignSelf: "flex-start",
-        padding: "20px 12px 20px 0",
-        borderLeft: `1px solid ${colors.border}`,
-        overflowY: "auto",
-        maxHeight: "100%",
+        alignSelf: "stretch",
+        display: "flex",
+        height: "100vh",
       }}
     >
+      {/* Resize handle — left edge */}
       <div
+        role="separator"
+        aria-orientation="vertical"
+        onMouseDown={onHandleMouseDown}
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          color: colors.textTertiary,
-          padding: "0 12px 8px",
+          width: 5,
+          flexShrink: 0,
+          cursor: "col-resize",
+          position: "relative",
+          borderLeft: `1px solid ${colors.border}`,
         }}
       >
-        On this page
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            bottom: 0,
+            left: 0,
+            width: 2,
+            background: "transparent",
+            transition: "background 0.15s",
+            borderRadius: 1,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = colors.primary;
+          }}
+          onMouseLeave={(e) => {
+            if (!draggingRef.current) e.currentTarget.style.background = "transparent";
+          }}
+        />
       </div>
-      {headings.map((h) => {
-        const isActive = h.id === activeId;
-        const indent = (h.level - minLevel) * 12;
 
-        return (
-          <button
-            key={h.id}
-            type="button"
-            onClick={() => handleClick(h.id)}
-            style={{
-              display: "block",
-              width: "100%",
-              textAlign: "left",
-              padding: "4px 12px",
-              paddingLeft: 12 + indent,
-              fontSize: 11,
-              lineHeight: 1.4,
-              fontWeight: isActive ? 600 : 400,
-              color: isActive ? colors.primary : colors.textMuted,
-              background: "transparent",
-              border: "none",
-              borderLeft: isActive ? `2px solid ${colors.primary}` : "2px solid transparent",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "color 0.12s",
-              overflow: "hidden",
-            }}
-            title={h.text}
-            onMouseEnter={(e) => {
-              if (!isActive) e.currentTarget.style.color = colors.text;
-            }}
-            onMouseLeave={(e) => {
-              if (!isActive) e.currentTarget.style.color = colors.textMuted;
-            }}
-          >
-            <ScrollableText>{h.text}</ScrollableText>
-          </button>
-        );
-      })}
-    </nav>
+      {/* Scrollable ToC content */}
+      <nav
+        style={{
+          flex: 1,
+          minWidth: 0,
+          overflowY: "auto",
+          padding: "20px 12px 20px 0",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            color: colors.textTertiary,
+            padding: "0 12px 8px",
+          }}
+        >
+          On this page
+        </div>
+        {headings.map((h) => {
+          const isActive = h.id === activeId;
+          const indent = (h.level - minLevel) * 12;
+
+          return (
+            <button
+              key={h.id}
+              type="button"
+              onClick={() => handleClick(h.id)}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "4px 12px",
+                paddingLeft: 12 + indent,
+                fontSize: 11,
+                lineHeight: 1.4,
+                fontWeight: isActive ? 600 : 400,
+                color: isActive ? colors.primary : colors.textMuted,
+                background: "transparent",
+                border: "none",
+                borderLeft: isActive ? `2px solid ${colors.primary}` : "2px solid transparent",
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "color 0.12s",
+                overflow: "hidden",
+              }}
+              title={h.text}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.color = colors.text;
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.color = colors.textMuted;
+              }}
+            >
+              <ScrollableText>{h.text}</ScrollableText>
+            </button>
+          );
+        })}
+      </nav>
+    </div>
   );
 });
 

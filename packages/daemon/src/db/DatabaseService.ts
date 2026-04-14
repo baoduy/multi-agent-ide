@@ -6,8 +6,8 @@ import { runMigrations } from "./MigrationRunner";
 import { AppError } from "../errors/AppError";
 
 /**
- * DatabaseService wraps sql.js (pure WASM SQLite) with a better-sqlite3-compatible
- * API. Using WASM eliminates all native module compilation / ABI issues.
+ * DatabaseService wraps sql.js (pure WASM SQLite) with the project's synchronous
+ * statement API. Using WASM eliminates all native module compilation / ABI issues.
  *
  * Because sql.js initialization is async, use `DatabaseService.create()` instead
  * of `getInstance()` for the first initialization.
@@ -79,7 +79,6 @@ export class DatabaseService {
 
   /**
    * Returns the SqliteCompat instance for raw queries.
-   * This provides the same prepare().all() / .get() / .run() API as better-sqlite3.
    */
   getSqlite(): SqliteCompat {
     return this.sqlite;

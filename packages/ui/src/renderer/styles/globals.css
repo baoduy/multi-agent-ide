@@ -186,6 +186,35 @@
   --error-soft: #fef2f2;
   --error-soft-border: #fecaca;
 
+  /* ── Code blocks ── */
+  --code-block-bg: oklch(0.97 0.005 80);
+  --code-block-border: var(--border);
+  --code-block-fg: oklch(0.30 0.02 50);
+  --code-block-label: oklch(0.55 0.01 50);
+  --code-block-btn-bg: oklch(0.94 0.005 80);
+  --code-block-btn-fg: oklch(0.50 0.01 50);
+  --code-block-btn-border: var(--border);
+  --code-block-btn-hover-bg: oklch(0.90 0.008 80);
+  --code-block-btn-hover-fg: oklch(0.30 0.02 50);
+
+  /* ── Syntax highlighting (light — warm One Light inspired) ── */
+  --hljs-fg: #383a42;
+  --hljs-keyword: #a626a4;
+  --hljs-string: #50a14f;
+  --hljs-number: #b76b01;
+  --hljs-comment: #a0a1a7;
+  --hljs-function: #4078f2;
+  --hljs-type: #c18401;
+  --hljs-variable: #e45649;
+  --hljs-property: #0184bc;
+  --hljs-meta: #a626a4;
+  --hljs-symbol: #986801;
+  --hljs-punctuation: #696c77;
+  --hljs-addition: #50a14f;
+  --hljs-addition-bg: rgba(80, 161, 79, 0.08);
+  --hljs-deletion: #e45649;
+  --hljs-deletion-bg: rgba(228, 86, 73, 0.08);
+
   /* ── Terminal / animation defaults ── */
   --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
   --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
@@ -314,6 +343,35 @@
   --error-soft: rgba(239, 68, 68, 0.15);
   --error-soft-border: rgba(239, 68, 68, 0.3);
 
+  /* ── Code blocks (dark — Catppuccin Mocha) ── */
+  --code-block-bg: #1e1e2e;
+  --code-block-border: #313244;
+  --code-block-fg: #cdd6f4;
+  --code-block-label: #7f849c;
+  --code-block-btn-bg: #313244;
+  --code-block-btn-fg: #9399b2;
+  --code-block-btn-border: #45475a;
+  --code-block-btn-hover-bg: #45475a;
+  --code-block-btn-hover-fg: #cdd6f4;
+
+  /* ── Syntax highlighting (dark — Catppuccin Mocha) ── */
+  --hljs-fg: #cdd6f4;
+  --hljs-keyword: #cba6f7;
+  --hljs-string: #a6e3a1;
+  --hljs-number: #fab387;
+  --hljs-comment: #6c7086;
+  --hljs-function: #89b4fa;
+  --hljs-type: #f9e2af;
+  --hljs-variable: #f38ba8;
+  --hljs-property: #89dceb;
+  --hljs-meta: #f5c2e7;
+  --hljs-symbol: #f5e0dc;
+  --hljs-punctuation: #9399b2;
+  --hljs-addition: #a6e3a1;
+  --hljs-addition-bg: rgba(166, 227, 161, 0.06);
+  --hljs-deletion: #f38ba8;
+  --hljs-deletion-bg: rgba(243, 139, 168, 0.06);
+
   --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
   --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
 }
@@ -421,36 +479,18 @@
     scrollbar-color: var(--scrollbar-xterm-thumb) transparent !important;
   }
 
-  /* FileViewer markdown styling
-   * Base typography, headings, lists, tables, blockquotes etc. are provided
-   * by github-markdown-css (.markdown-body). We only override what Magenta
-   * needs to customise: max-width, accent colours, and custom components
-   * (code blocks, mermaid, raw viewer).
+  /* FileViewer custom components (code blocks, mermaid, raw viewer).
+   * These stay in @layer components because they don't conflict with
+   * github-markdown-css (they target .md-* classes, not .markdown-body).
    */
   .md-viewer {
-    max-width: 820px;
-    font-size: 15px;
-    background-color: transparent;
-  }
-
-  /* Theme-aware accent for links */
-  .md-viewer a {
-    color: var(--primary);
-  }
-
-  .md-viewer a:hover {
-    color: color-mix(in srgb, var(--primary) 80%, black);
-  }
-
-  /* Theme-aware inline code */
-  .md-viewer code:not(pre code) {
-    background: var(--muted);
-    color: var(--primary);
+    font-size: 13.5px;
   }
 
   .md-viewer .md-code-block {
     position: relative;
-    background: #1e1e2e;
+    background: var(--code-block-bg);
+    border: 1px solid var(--code-block-border);
     border-radius: 8px;
     margin: 16px 0;
     overflow: hidden;
@@ -462,7 +502,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: #7f849c;
+    color: var(--code-block-label);
     padding: 8px 14px 0;
     font-family: var(--font-mono);
   }
@@ -476,7 +516,7 @@
   .md-viewer .md-code-block code {
     font-family: var(--font-mono);
     font-size: 12.5px;
-    color: #cdd6f4;
+    color: var(--code-block-fg);
     line-height: 1.55;
     background: transparent;
     padding: 0;
@@ -486,9 +526,9 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    background: #313244;
-    color: #9399b2;
-    border: 1px solid #45475a;
+    background: var(--code-block-btn-bg);
+    color: var(--code-block-btn-fg);
+    border: 1px solid var(--code-block-btn-border);
     border-radius: 4px;
     padding: 2px 8px;
     font-size: 10px;
@@ -505,19 +545,14 @@
   }
 
   .md-viewer .md-copy-btn:hover {
-    background: #45475a;
-    color: #cdd6f4;
+    background: var(--code-block-btn-hover-bg);
+    color: var(--code-block-btn-hover-fg);
   }
 
   .md-viewer .md-copy-btn.copied {
     background: #16a34a30;
     color: #16a34a;
     border-color: #16a34a50;
-  }
-
-  /* Task list checkbox accent */
-  .md-viewer input[type="checkbox"] {
-    accent-color: var(--primary);
   }
 
   .md-viewer .md-mermaid {
@@ -554,99 +589,100 @@
   }
 
 
+  /* Syntax highlighting — uses CSS variables defined in :root / .dark */
   .hljs {
-    color: #cdd6f4;
+    color: var(--hljs-fg);
   }
 
   .hljs-keyword,
   .hljs-selector-tag,
   .hljs-built_in {
-    color: #cba6f7;
+    color: var(--hljs-keyword);
   }
 
   .hljs-string,
   .hljs-attr {
-    color: #a6e3a1;
+    color: var(--hljs-string);
   }
 
   .hljs-number,
   .hljs-literal {
-    color: #fab387;
+    color: var(--hljs-number);
   }
 
   .hljs-comment,
   .hljs-quote {
-    color: #6c7086;
+    color: var(--hljs-comment);
     font-style: italic;
   }
 
   .hljs-function .hljs-title,
   .hljs-title.function_ {
-    color: #89b4fa;
+    color: var(--hljs-function);
   }
 
   .hljs-type,
   .hljs-class .hljs-title {
-    color: #f9e2af;
+    color: var(--hljs-type);
   }
 
   .hljs-variable,
   .hljs-template-variable {
-    color: #f38ba8;
+    color: var(--hljs-variable);
   }
 
   .hljs-property {
-    color: #89dceb;
+    color: var(--hljs-property);
   }
 
   .hljs-meta {
-    color: #f5c2e7;
+    color: var(--hljs-meta);
   }
 
   .hljs-tag {
-    color: #cba6f7;
+    color: var(--hljs-keyword);
   }
 
   .hljs-name {
-    color: #89b4fa;
+    color: var(--hljs-function);
   }
 
   .hljs-attribute {
-    color: #f9e2af;
+    color: var(--hljs-type);
   }
 
   .hljs-selector-class {
-    color: #a6e3a1;
+    color: var(--hljs-string);
   }
 
   .hljs-selector-id {
-    color: #fab387;
+    color: var(--hljs-number);
   }
 
   .hljs-regexp {
-    color: #f38ba8;
+    color: var(--hljs-variable);
   }
 
   .hljs-symbol {
-    color: #f5e0dc;
+    color: var(--hljs-symbol);
   }
 
   .hljs-params {
-    color: #cdd6f4;
+    color: var(--hljs-fg);
   }
 
   .hljs-punctuation {
-    color: #9399b2;
+    color: var(--hljs-punctuation);
   }
 
   .hljs-addition {
-    color: #a6e3a1;
-    background: #a6e3a110;
+    color: var(--hljs-addition);
+    background: var(--hljs-addition-bg);
   }
 
   .hljs-deletion {
-    color: #f38ba8;
-    background: #f38ba810;
+    color: var(--hljs-deletion);
+    background: var(--hljs-deletion-bg);
   }
 
   .md-raw-viewer {
@@ -676,15 +712,6 @@
     overflow-x: auto;
   }
 
-  /*
-   * Dark mode overrides for markdown viewer.
-   * Base dark theme (text, headings, tables, lists, blockquotes) is handled
-   * by github-markdown-dark.css scoped under `.dark .markdown-body`.
-   * Below: Magenta accent overrides + custom components only.
-   */
-  .dark .md-viewer {
-    background-color: transparent;
-  }
 }
 
 /* Hide scrollbar on dock tab bars while keeping scroll functionality */
@@ -694,4 +721,105 @@
 }
 .dock-tab-bar-no-scrollbar::-webkit-scrollbar {
   display: none; /* Chrome / Safari / Electron */
+}
+
+/*
+ * Markdown viewer theme overrides.
+ *
+ * These MUST be outside @layer so they can beat the unlayered
+ * github-markdown-{light,dark}.css rules by source order.
+ * Uses CSS variables so both light and dark modes resolve automatically.
+ */
+.markdown-body.md-viewer {
+  background-color: transparent;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+}
+
+.markdown-body.md-viewer h1,
+.markdown-body.md-viewer h2,
+.markdown-body.md-viewer h3,
+.markdown-body.md-viewer h4,
+.markdown-body.md-viewer h5,
+.markdown-body.md-viewer h6 {
+  color: var(--foreground);
+}
+
+.markdown-body.md-viewer h1,
+.markdown-body.md-viewer h2 {
+  border-bottom-color: var(--border);
+}
+
+/* Links */
+.markdown-body.md-viewer a {
+  color: var(--primary);
+}
+
+.markdown-body.md-viewer a:hover {
+  color: color-mix(in srgb, var(--primary) 80%, black);
+}
+
+.dark .markdown-body.md-viewer a:hover {
+  color: color-mix(in srgb, var(--primary) 85%, white);
+}
+
+/* Inline code */
+.markdown-body.md-viewer code:not(pre code),
+.markdown-body.md-viewer tt:not(pre tt) {
+  background: var(--muted);
+  color: var(--primary);
+}
+
+/* Pre / code blocks (fallback — custom .md-code-block handled in layer) */
+.markdown-body.md-viewer .highlight pre,
+.markdown-body.md-viewer pre:not(.md-code-block pre) {
+  color: var(--foreground);
+  background-color: var(--muted);
+}
+
+/* Blockquotes */
+.markdown-body.md-viewer blockquote {
+  color: var(--muted-foreground);
+  border-left-color: var(--border);
+}
+
+/* Horizontal rules */
+.markdown-body.md-viewer hr {
+  background-color: var(--border);
+}
+
+/* Tables */
+.markdown-body.md-viewer table th,
+.markdown-body.md-viewer table td {
+  border-color: var(--border);
+}
+
+.markdown-body.md-viewer table tr {
+  background-color: var(--background);
+  border-top-color: var(--border);
+}
+
+.markdown-body.md-viewer table tr:nth-child(2n) {
+  background-color: var(--muted);
+}
+
+/* Images */
+.markdown-body.md-viewer img {
+  background-color: transparent;
+}
+
+/* Markdown alerts */
+.markdown-body.md-viewer .markdown-alert {
+  border-left-color: var(--border);
+}
+
+/* Strong text */
+.markdown-body.md-viewer strong {
+  color: var(--foreground);
+}
+
+/* Task list checkbox accent */
+.markdown-body.md-viewer input[type="checkbox"] {
+  accent-color: var(--primary);
 }

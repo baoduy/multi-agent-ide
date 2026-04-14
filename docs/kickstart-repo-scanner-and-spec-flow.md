@@ -367,7 +367,7 @@ my-repo/
 
 **What to do:**
 
-1. Install: `pnpm add better-sqlite3 drizzle-orm ulid && pnpm add -D drizzle-kit @types/better-sqlite3`
+1. Install: `pnpm add sql.js ulid && pnpm add -D @types/sql.js`
 
 2. Create `packages/daemon/src/db/schema.ts`:
    ```typescript
@@ -405,20 +405,8 @@ my-repo/
 
 3. Create `packages/daemon/src/db/client.ts`:
    ```typescript
-   import Database from 'better-sqlite3';
-   import { drizzle } from 'drizzle-orm/better-sqlite3';
-   import path from 'path';
-   import os from 'os';
-   import * as schema from './schema';
-
-   const DB_PATH = path.join(os.homedir(), '.magenta', 'magenta.db');
-
-   export function createDb() {
-     const sqlite = new Database(DB_PATH);
-     sqlite.pragma('journal_mode = WAL');
-     sqlite.pragma('foreign_keys = ON');
-     return drizzle(sqlite, { schema });
-   }
+  // Use SqliteCompat/DatabaseService wrappers around sql.js for DB access.
+  // No native sqlite bindings are required.
    ```
 
 4. Create `packages/daemon/src/db/migrate.ts`:
@@ -1761,8 +1749,8 @@ K.10 (Session State) depends on K.2 (SQLite schema) and is wired into K.4/K.5/K.
 
 ```bash
 # Daemon
-pnpm add simple-git chokidar better-sqlite3 drizzle-orm ulid --filter @magenta/daemon
-pnpm add -D drizzle-kit @types/better-sqlite3 --filter @magenta/daemon
+pnpm add simple-git chokidar sql.js ulid --filter @magenta/daemon
+pnpm add -D @types/sql.js --filter @magenta/daemon
 
 # UI
 pnpm add @xyflow/react --filter @magenta/ui

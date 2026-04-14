@@ -63,13 +63,16 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
     ),
   );
 
-  // ── Active repo for terminal ──
+  // ── Resolve terminal cwd ──
+  // Priority: selected repo > active AI agent session's repoPath > active terminal tab's cwd
   const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
+  const agentRepoPath = session?.repoPath ?? null;
+  const resolvedTerminalCwd = activeRepoPath ?? agentRepoPath ?? terminalCwd;
 
   const hasTerminal = bottomTabs.some((t: TabState) => t.viewId === "terminal-session");
 
   const toggleTerminal = useCallback(() => {
-    if (!activeRepoPath) return;
+    if (!resolvedTerminalCwd) return;
     const exists = bottomTabs.some((t: TabState) => t.viewId === "terminal-session");
     if (exists) {
       toggleRegionCollapse("bottom");
@@ -77,11 +80,11 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
       openTab("bottom", {
         tabId: "tab-bottom-terminal",
         viewId: "terminal-session",
-        props: { cwd: activeRepoPath },
+        props: { cwd: resolvedTerminalCwd },
       });
       setRegionCollapsed("bottom", false);
     }
-  }, [activeRepoPath, bottomTabs, openTab, toggleRegionCollapse, setRegionCollapsed]);
+  }, [resolvedTerminalCwd, bottomTabs, openTab, toggleRegionCollapse, setRegionCollapsed]);
 
   return (
     <div
@@ -106,11 +109,11 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           active={false}
           onClick={resetLayout}
         />
+        <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />
 
         {/* ── Active agent session info ── */}
         {session && (
           <>
-            <Separator />
             <ProviderBadge provider={session.provider} iconSize={11} fontSize={11} color={colors.textTertiary} />
             <Separator />
             {session.repoName ? (
@@ -168,7 +171,7 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           icon={<Terminal size={12} />}
           label="Terminal"
           active={hasTerminal && !bottomCollapsed}
-          disabled={!activeRepoPath}
+          disabled={!resolvedTerminalCwd}
           onClick={toggleTerminal}
         />
       </div>

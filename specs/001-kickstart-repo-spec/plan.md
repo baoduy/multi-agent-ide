@@ -377,7 +377,7 @@ export const sessionState = sqliteTable(
 
 #### 1a.7 Dependencies
 - Node.js 22+, SQLite3 native bindings
-- Drizzle ORM, better-sqlite3 driver
+- sql.js (WASM SQLite) driver
 - Zod for schema validation
 - ULID generator (ulidx package)
 
@@ -2497,11 +2497,12 @@ export default defineConfig({
 **Test Database Setup** (isolated SQLite per test):
 ```typescript
 // test/setup.ts
-import Database from 'better-sqlite3';
+import initSqlJs from 'sql.js';
 
 beforeEach(() => {
-  // Create in-memory DB for each test
-  const db = new Database(':memory:');
+  // Create in-memory sql.js DB for each test
+  const SQL = await initSqlJs();
+  const db = new SQL.Database();
   // Run schema
   // Make available to test
 });

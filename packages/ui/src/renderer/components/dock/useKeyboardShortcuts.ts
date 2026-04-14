@@ -13,6 +13,7 @@
 
 import { useEffect } from "react";
 import { useLayoutStore } from "./layoutStore";
+import { useRepoStore } from "../../store/repoStore";
 
 export function useKeyboardShortcuts(): void {
   const toggleRegionCollapse = useLayoutStore((s) => s.toggleRegionCollapse);
@@ -20,6 +21,7 @@ export function useKeyboardShortcuts(): void {
   const openTab = useLayoutStore((s) => s.openTab);
   const setRegionCollapsed = useLayoutStore((s) => s.setRegionCollapsed);
   const bottomTabs = useLayoutStore((s) => s.layout.bottom.tabs);
+  const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -43,9 +45,13 @@ export function useKeyboardShortcuts(): void {
       // Cmd+J — toggle bottom panel
       if (e.key === "j" && !e.shiftKey && !e.altKey) {
         e.preventDefault();
-        if (bottomTabs.length === 0) {
-          // Open output as default bottom tab
-          openTab("bottom", { tabId: "tab-output", viewId: "output" });
+        if (bottomTabs.length === 0 && activeRepoPath) {
+          // Open terminal as default bottom tab
+          openTab("bottom", {
+            tabId: "tab-bottom-terminal",
+            viewId: "terminal-session",
+            props: { cwd: activeRepoPath },
+          });
           setRegionCollapsed("bottom", false);
         } else {
           toggleRegionCollapse("bottom");
@@ -63,5 +69,5 @@ export function useKeyboardShortcuts(): void {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleRegionCollapse, resetLayout, openTab, setRegionCollapsed, bottomTabs]);
+  }, [toggleRegionCollapse, resetLayout, openTab, setRegionCollapsed, bottomTabs, activeRepoPath]);
 }

@@ -31,10 +31,10 @@ export class DirWatcher {
       }
     });
 
-    watcher.on("unlinkDir", (path) => {
-      if (path.endsWith("/.git")) {
-        this.requestRescan();
-      }
+    watcher.on("unlinkDir", (_path) => {
+      // Any directory removal could be a repo folder deletion.
+      // Rescan to detect missing repos (debounced to avoid rapid-fire).
+      this.requestRescan();
     });
 
     this.watchers.set(dirPath, watcher);

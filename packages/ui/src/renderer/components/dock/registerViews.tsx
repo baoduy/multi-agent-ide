@@ -16,7 +16,6 @@ import {
   Bot,
   FileCode,
   List,
-  ScrollText,
   Terminal,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
@@ -244,23 +243,6 @@ function TerminalSessionTabView(props: {
 
 /* ── Bottom Panel Views ── */
 
-function OutputView(): React.ReactElement {
-  return (
-    <div
-      style={{
-        padding: 12,
-        fontFamily: "monospace",
-        fontSize: 12,
-        color: "#888",
-        height: "100%",
-        overflowY: "auto",
-      }}
-    >
-      <div style={{ opacity: 0.5 }}>No output to display.</div>
-    </div>
-  );
-}
-
 /**
  * Register all views. Call this once during app initialization.
  */
@@ -394,15 +376,4 @@ export function registerAllViews(): void {
     keepAlive: true,
   });
 
-  // ── Bottom Panel Views ──
-
-  viewRegistry.register({
-    id: "output",
-    title: "Output",
-    icon: <ScrollText size={14} strokeWidth={1.8} />,
-    component: OutputView,
-    defaultLocation: "bottom",
-    closable: true,
-    keepAlive: false,
-  });
 }

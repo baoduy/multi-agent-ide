@@ -3,13 +3,14 @@
  * and active agent session info.
  *
  * Left section: Panel toggle + active agent info (provider, repo, branch, status).
- * Right section: Output toggle, layout reset.
+ * Right section: Terminal toggle, layout reset.
  */
 
 import React, { useState, useCallback, useMemo } from "react";
-import { ScrollText, RotateCcw, PanelBottom, Terminal } from "lucide-react";
+import { RotateCcw, PanelBottom, Terminal } from "lucide-react";
 import { useLayoutStore } from "./layoutStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
+import { useRepoStore } from "../../store/repoStore";
 import { colors } from "../../utils/colors";
 import { getStatusColor } from "../../utils/sessionStatus";
 import { ProviderBadge } from "../common/ProviderBadge";
@@ -62,22 +63,25 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
     ),
   );
 
-  const hasOutput = bottomTabs.some((t: TabState) => t.viewId === "output");
+  // ── Active repo for terminal ──
+  const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
 
-  const toggleBottomView = useCallback(
-    (viewId: string, tabId: string) => {
-      const exists = bottomTabs.some((t: TabState) => t.viewId === viewId);
-      if (exists) {
-        // Toggle bottom panel visibility
-        toggleRegionCollapse("bottom");
-      } else {
-        // Open the tab and make sure bottom is visible
-        openTab("bottom", { tabId, viewId });
-        setRegionCollapsed("bottom", false);
-      }
-    },
-    [bottomTabs, openTab, toggleRegionCollapse, setRegionCollapsed]
-  );
+  const hasTerminal = bottomTabs.some((t: TabState) => t.viewId === "terminal-session");
+
+  const toggleTerminal = useCallback(() => {
+    if (!activeRepoPath) return;
+    const exists = bottomTabs.some((t: TabState) => t.viewId === "terminal-session");
+    if (exists) {
+      toggleRegionCollapse("bottom");
+    } else {
+      openTab("bottom", {
+        tabId: "tab-bottom-terminal",
+        viewId: "terminal-session",
+        props: { cwd: activeRepoPath },
+      });
+      setRegionCollapsed("bottom", false);
+    }
+  }, [activeRepoPath, bottomTabs, openTab, toggleRegionCollapse, setRegionCollapsed]);
 
   return (
     <div
@@ -101,8 +105,12 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           label="Panel"
           active={!bottomCollapsed && bottomTabs.length > 0}
           onClick={() => {
-            if (bottomTabs.length === 0) {
-              openTab("bottom", { tabId: "tab-output", viewId: "output" });
+            if (bottomTabs.length === 0 && activeRepoPath) {
+              openTab("bottom", {
+                tabId: "tab-bottom-terminal",
+                viewId: "terminal-session",
+                props: { cwd: activeRepoPath },
+              });
               setRegionCollapsed("bottom", false);
             } else {
               toggleRegionCollapse("bottom");
@@ -168,10 +176,11 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
       {/* Right section — view toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
         <StatusBarButton
-          icon={<ScrollText size={12} />}
-          label="Output"
-          active={hasOutput && !bottomCollapsed}
-          onClick={() => toggleBottomView("output", "tab-output")}
+          icon={<Terminal size={12} />}
+          label="Terminal"
+          active={hasTerminal && !bottomCollapsed}
+          disabled={!activeRepoPath}
+          onClick={toggleTerminal}
         />
 
         <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />
@@ -201,11 +210,13 @@ function StatusBarButton({
   icon,
   label,
   active,
+  disabled,
   onClick,
 }: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
+  disabled?: boolean;
   onClick: () => void;
 }): React.ReactElement {
   const [hovered, setHovered] = useState(false);
@@ -213,7 +224,8 @@ function StatusBarButton({
   return (
     <button
       type="button"
-      title={label}
+      title={disabled ? `${label} (no repository selected)` : label}
+      disabled={disabled}
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -224,11 +236,12 @@ function StatusBarButton({
         padding: "1px 6px",
         borderRadius: 3,
         border: "none",
-        background: hovered ? colors.bgHover : "transparent",
-        color: active ? colors.textStrong : colors.textTertiary,
-        cursor: "pointer",
+        background: !disabled && hovered ? colors.bgHover : "transparent",
+        color: disabled ? colors.textMuted : active ? colors.textStrong : colors.textTertiary,
+        cursor: disabled ? "default" : "pointer",
         fontSize: 11,
-        transition: "background 0.1s, color 0.1s",
+        opacity: disabled ? 0.5 : 1,
+        transition: "background 0.1s, color 0.1s, opacity 0.1s",
       }}
     >
       {icon}

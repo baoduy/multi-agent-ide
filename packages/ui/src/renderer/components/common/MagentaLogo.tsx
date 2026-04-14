@@ -10,6 +10,22 @@ type MagentaLogoProps = {
  * on a dark rounded-square background.
  */
 export function MagentaLogo({ size = 28 }: MagentaLogoProps): React.ReactElement {
+  const themeColor = {
+    bgStart: "var(--logo-bg-start)",
+    bgEnd: "var(--logo-bg-end)",
+    magentaStart: "var(--logo-magenta-start)",
+    magentaMid: "var(--logo-magenta-mid)",
+    magentaEnd: "var(--logo-magenta-end)",
+    accentStart: "var(--logo-accent-start)",
+    accentEnd: "var(--logo-accent-end)",
+    grid: "var(--logo-grid)",
+    nodePrimary: "var(--logo-node-primary)",
+    nodeCenter: "var(--logo-node-center)",
+    nodeSecondary: "var(--logo-node-secondary)",
+    nodeOrbitStart: "var(--logo-node-orbit-start)",
+    nodeOrbitEnd: "var(--logo-node-orbit-end)",
+  } as const;
+
   return (
     <svg
       width={size}
@@ -21,17 +37,17 @@ export function MagentaLogo({ size = 28 }: MagentaLogoProps): React.ReactElement
     >
       <defs>
         <linearGradient id="ml-bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#1a1a2e" />
-          <stop offset="100%" stopColor="#16213e" />
+          <stop offset="0%" stopColor={themeColor.bgStart} />
+          <stop offset="100%" stopColor={themeColor.bgEnd} />
         </linearGradient>
         <linearGradient id="ml-magentaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#ff00ff" />
-          <stop offset="50%" stopColor="#e040fb" />
-          <stop offset="100%" stopColor="#aa00ff" />
+          <stop offset="0%" stopColor={themeColor.magentaStart} />
+          <stop offset="50%" stopColor={themeColor.magentaMid} />
+          <stop offset="100%" stopColor={themeColor.magentaEnd} />
         </linearGradient>
         <linearGradient id="ml-accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#e040fb" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#7c4dff" stopOpacity="0.6" />
+          <stop offset="0%" stopColor={themeColor.accentStart} stopOpacity="0.6" />
+          <stop offset="100%" stopColor={themeColor.accentEnd} stopOpacity="0.6" />
         </linearGradient>
       </defs>
 
@@ -39,7 +55,7 @@ export function MagentaLogo({ size = 28 }: MagentaLogoProps): React.ReactElement
       <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#ml-bgGrad)" />
 
       {/* Subtle grid */}
-      <g opacity="0.06" stroke="#e040fb" strokeWidth="1">
+      <g opacity="0.06" stroke={themeColor.grid} strokeWidth="1">
         <line x1="96" y1="16" x2="96" y2="496" />
         <line x1="176" y1="16" x2="176" y2="496" />
         <line x1="256" y1="16" x2="256" y2="496" />
@@ -70,17 +86,17 @@ export function MagentaLogo({ size = 28 }: MagentaLogoProps): React.ReactElement
       />
 
       {/* Agent node dots */}
-      <circle cx="128" cy="134" r="10" fill="#ff80ff" opacity="0.9" />
-      <circle cx="384" cy="134" r="10" fill="#ff80ff" opacity="0.9" />
-      <circle cx="256" cy="268" r="12" fill="#ffffff" opacity="0.9" />
-      <circle cx="128" cy="390" r="8" fill="#ce93d8" opacity="0.7" />
-      <circle cx="384" cy="390" r="8" fill="#ce93d8" opacity="0.7" />
+      <circle cx="128" cy="134" r="10" fill={themeColor.nodePrimary} opacity="0.9" />
+      <circle cx="384" cy="134" r="10" fill={themeColor.nodePrimary} opacity="0.9" />
+      <circle cx="256" cy="268" r="12" fill={themeColor.nodeCenter} opacity="0.9" />
+      <circle cx="128" cy="390" r="8" fill={themeColor.nodeSecondary} opacity="0.7" />
+      <circle cx="384" cy="390" r="8" fill={themeColor.nodeSecondary} opacity="0.7" />
 
       {/* Small orbiting dots */}
-      <circle cx="200" cy="140" r="4" fill="#e040fb" opacity="0.6" />
-      <circle cx="312" cy="140" r="4" fill="#e040fb" opacity="0.6" />
-      <circle cx="180" cy="310" r="3.5" fill="#7c4dff" opacity="0.5" />
-      <circle cx="332" cy="310" r="3.5" fill="#7c4dff" opacity="0.5" />
+      <circle cx="200" cy="140" r="4" fill={themeColor.nodeOrbitStart} opacity="0.6" />
+      <circle cx="312" cy="140" r="4" fill={themeColor.nodeOrbitStart} opacity="0.6" />
+      <circle cx="180" cy="310" r="3.5" fill={themeColor.nodeOrbitEnd} opacity="0.5" />
+      <circle cx="332" cy="310" r="3.5" fill={themeColor.nodeOrbitEnd} opacity="0.5" />
     </svg>
   );
 }

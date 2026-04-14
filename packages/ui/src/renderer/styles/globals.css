@@ -3,119 +3,23 @@
 @import "tw-animate-css";
 @import "./github-markdown-light.css";
 @import "./github-markdown-dark.css";
-
-/*
- * Magenta IDE — shadcn/ui theme
- *
- * Amber + Orange palette (radix-mira style) using oklch color space.
- * Maps inline-style color constants (colors.ts) to shadcn CSS variables
- * so new shadcn components blend with existing hand-styled UI.
- *
- * Preset: Mira style, Amber theme, Neutral base, JetBrains Mono, Small radius
- */
+/* Generated shadcn theme tokens (base colors/fonts/radii/shadows). */
+@import "./colours.css";
 
 /* Dark mode: activated by adding `.dark` to <html> via ThemeProvider. */
 @custom-variant dark (&:is(.dark *));
 
+/* App-level semantic utility tokens layered on top of colours.css base theme tokens. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
   --color-panel: var(--panel);
   --color-panel-soft: var(--panel-soft);
   --color-surface: var(--surface);
   --color-success: var(--success);
   --color-info: var(--info);
-
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-mono);
-
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.5);
 }
 
 :root {
-  --radius: 0.625rem;
-
-  /* ── Fonts ── */
-  --font-sans: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
-
-  /* ── Core: Amber primary + Warm neutral base (oklch) ── */
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-
-  --primary: oklch(0.673 0.179 47.2);
-  --primary-foreground: oklch(0.985 0.01 95);
-
-  --secondary: oklch(0.977 0.012 85);
-  --secondary-foreground: oklch(0.31 0.03 48);
-  --muted: oklch(0.972 0.008 85);
-  --muted-foreground: oklch(0.556 0.018 55);
-
-  --accent: oklch(0.965 0.016 78);
-  --accent-foreground: oklch(0.27 0.03 45);
-
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.985 0 0);
-
-  --border: oklch(0.922 0.008 82);
-  --input: oklch(0.922 0.008 82);
-  --ring: oklch(0.673 0.179 47.2);
-
-  /* ── Charts (amber -> orange scale) ── */
-  --chart-1: oklch(0.84 0.148 77);
-  --chart-2: oklch(0.758 0.17 63);
-  --chart-3: oklch(0.673 0.179 47.2);
-  --chart-4: oklch(0.604 0.165 38);
-  --chart-5: oklch(0.53 0.137 28);
-
-  /* ── Sidebar ── */
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.673 0.179 47.2);
-  --sidebar-primary-foreground: oklch(0.985 0.01 95);
-  --sidebar-accent: oklch(0.965 0.016 78);
-  --sidebar-accent-foreground: oklch(0.27 0.03 45);
-  --sidebar-border: oklch(0.922 0.008 82);
-  --sidebar-ring: oklch(0.758 0.17 63);
+  /* Base theme tokens (colors, fonts, radii, shadows) are defined in colours.css. */
 
   /* ── Tab bar ── */
   --tabbar-bg: oklch(0.97 0 0);
@@ -292,54 +196,10 @@
 }
 
 /*
- * Dark mode — uses softened dark surfaces (not pure black).
- * Activated by adding `.dark` to the <html> element.
- *
- * --background is oklch(0.205) instead of shadcn's default oklch(0.145)
- * for softer contrast on prolonged use.
+ * Dark mode extensions.
+ * Core dark palette tokens come from colours.css; this block adds app-specific tokens.
  */
 .dark {
-  --background: oklch(0.205 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.269 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.269 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-
-  --primary: oklch(0.758 0.17 63);
-  --primary-foreground: oklch(0.29 0.03 40);
-
-  --secondary: oklch(0.29 0.015 70);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.275 0.012 70);
-  --muted-foreground: oklch(0.74 0.018 75);
-
-  --accent: oklch(0.302 0.018 64);
-  --accent-foreground: oklch(0.985 0 0);
-
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.758 0.17 63);
-
-  /* ── Charts (amber -> orange scale — same in dark) ── */
-  --chart-1: oklch(0.84 0.148 77);
-  --chart-2: oklch(0.758 0.17 63);
-  --chart-3: oklch(0.673 0.179 47.2);
-  --chart-4: oklch(0.604 0.165 38);
-  --chart-5: oklch(0.53 0.137 28);
-
-  /* ── Sidebar (dark) ── */
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.758 0.17 63);
-  --sidebar-primary-foreground: oklch(0.29 0.03 40);
-  --sidebar-accent: oklch(0.302 0.018 64);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.758 0.17 63);
 
   /* ── Tab bar (dark) ── */
   --tabbar-bg: oklch(0.18 0 0);

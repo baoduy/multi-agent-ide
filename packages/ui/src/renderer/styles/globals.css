@@ -1,28 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./github-markdown-light.css";
+@import "./github-markdown-dark.css";
 
 /*
  * Magenta IDE — shadcn/ui theme
  *
- * Warm neutral palette derived from the existing Magenta design system.
+ * Lime + Neutral palette (radix-mira style) using oklch color space.
  * Maps inline-style color constants (colors.ts) to shadcn CSS variables
  * so new shadcn components blend with existing hand-styled UI.
  *
- * Reference palette (from utils/colors.ts):
- *   primary   #C15F3C   (warm terracotta)
- *   text      #2c2c2c
- *   border    #e5e2da
- *   bgSurface #faf9f5
- *   bgMuted   #f5f4ed
- *   bgHover   #f0ede8
- *   error     #ef4444
- *   success   #16A34A
+ * Preset: Mira style, Lime theme, Neutral base, JetBrains Mono, Small radius
  */
 
-/*
- * Light-only runtime policy.
- * Keep dark variant reserved for future feature work, but do not activate it.
- */
+/* Dark mode: activated by adding `.dark` to <html> via ThemeProvider. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -45,6 +37,29 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-panel: var(--panel);
+  --color-panel-soft: var(--panel-soft);
+  --color-surface: var(--surface);
+  --color-success: var(--success);
+  --color-info: var(--info);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -53,40 +68,125 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  /* ── Backgrounds ── */
-  --background: #faf9f5;
-  --foreground: #2c2c2c;
-  --card: #ffffff;
-  --card-foreground: #2c2c2c;
-  --popover: #faf9f5;
-  --popover-foreground: #2c2c2c;
+  /* ── Fonts ── */
+  --font-sans: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* ── Brand ── */
-  --primary: #C15F3C;
-  --primary-foreground: #ffffff;
+  /* ── Core: Lime primary + Neutral base (oklch) ── */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
 
-  /* ── Secondary / Muted ── */
-  --secondary: #f5f4ed;
-  --secondary-foreground: #4a4540;
-  --muted: #f5f4ed;
-  --muted-foreground: #9a958c;
+  --primary: oklch(0.841 0.238 128.85);
+  --primary-foreground: oklch(0.405 0.101 131.063);
 
-  /* ── Accent (hover) ── */
-  --accent: #f0ede8;
-  --accent-foreground: #2c2c2c;
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
 
-  /* ── Destructive ── */
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
 
-  /* ── Borders & Rings ── */
-  --border: #e5e2da;
-  --input: #e5e2da;
-  --ring: #C15F3C;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
 
-  /* Terminal / animation defaults (overridden by ThemeProvider tokens) */
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.841 0.238 128.85);
+
+  /* ── Charts (Lime scale) ── */
+  --chart-1: oklch(0.897 0.196 126.665);
+  --chart-2: oklch(0.768 0.233 130.85);
+  --chart-3: oklch(0.648 0.2 131.684);
+  --chart-4: oklch(0.532 0.157 131.589);
+  --chart-5: oklch(0.453 0.124 130.933);
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.648 0.2 131.684);
+  --sidebar-primary-foreground: oklch(0.986 0.031 120.757);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.841 0.238 128.85);
+
+  /* ── Tab bar ── */
+  --tabbar-bg: oklch(0.97 0 0);
+  --tabbar-active-bg: oklch(1 0 0);
+  --tabbar-border: oklch(0.922 0 0);
+  --tabbar-fg: oklch(0.145 0 0);
+  --tabbar-fg-muted: oklch(0.556 0 0);
+
+  /* ── Workflow / pipeline canvas + nodes ── */
+  --flow-bg: oklch(1 0 0);
+  --flow-grid: oklch(0.922 0 0);
+  --flow-node-bg: oklch(1 0 0);
+  --flow-node-border: oklch(0.922 0 0);
+  --flow-node-text: oklch(0.145 0 0);
+  --flow-status-pending-bg: #dbeafe;
+  --flow-status-pending-border: #3b82f6;
+  --flow-status-pending-text: #1e40af;
+  --flow-status-review-bg: #fef3c7;
+  --flow-status-review-border: #fde68a;
+  --flow-status-review-text: #92400e;
+  --flow-status-approved-bg: #dcfce7;
+  --flow-status-approved-border: #16a34a;
+  --flow-status-approved-text: #166534;
+
+  /* ── Panels & surfaces ── */
+  --panel: oklch(0.97 0 0);
+  --panel-soft: oklch(0.98 0 0);
+  --code-inline-bg: oklch(0.95 0 0);
+  --surface: oklch(1 0 0);
+
+  /* ── Extended border helpers ── */
+  --border-muted: oklch(0.85 0 0);
+  --border-strong: oklch(0.75 0 0);
+
+  /* ── Extended text helpers ── */
+  --text-strong: oklch(0.145 0 0);
+  --text-on-primary: oklch(1 0 0);
+
+  /* ── Status: success ── */
+  --success: #16A34A;
+  --success-hover: #15803d;
+  --success-soft: #dcfce7;
+  --success-soft-border: #bbf7d0;
+  --success-muted: #86efac;
+  --success-text: #166534;
+
+  /* ── Status: warning ── */
+  --warning-soft: #fef3c7;
+  --warning-text: #7c6a3e;
+  --warning-border: #fde68a;
+  --warning-text-strong: #92400e;
+  --warning-text-deep: #9a3412;
+  --warning-border-soft: #fed7aa;
+
+  /* ── Status: info ── */
+  --info-soft: #dbeafe;
+  --info-text: #1e40af;
+  --info-border: #bfdbfe;
+  --info: #3b82f6;
+  --accent-purple: #7C3AED;
+
+  /* ── Status: progress ── */
+  --progress-soft: #fce4ec;
+  --progress-text: #9f1239;
+  --progress-border: #fda4af;
+
+  /* ── Status: error ── */
+  --error-soft: #fef2f2;
+  --error-soft-border: #fecaca;
+
+  /* ── Terminal / animation defaults ── */
   --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
   --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
   --animation-duration-fast: 0.1s;
@@ -95,6 +195,127 @@
   --animation-duration-pulse: 1.2s;
   --animation-timing-linear: linear;
   --animation-timing-ease: ease;
+}
+
+/*
+ * Dark mode — uses softened dark surfaces (not pure black).
+ * Activated by adding `.dark` to the <html> element.
+ *
+ * --background is oklch(0.205) instead of shadcn's default oklch(0.145)
+ * for softer contrast on prolonged use.
+ */
+.dark {
+  --background: oklch(0.205 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.269 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+
+  --primary: oklch(0.768 0.233 130.85);
+  --primary-foreground: oklch(0.405 0.101 131.063);
+
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
+
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.405 0.101 131.063);
+
+  /* ── Charts (Lime scale — same in dark) ── */
+  --chart-1: oklch(0.897 0.196 126.665);
+  --chart-2: oklch(0.768 0.233 130.85);
+  --chart-3: oklch(0.648 0.2 131.684);
+  --chart-4: oklch(0.532 0.157 131.589);
+  --chart-5: oklch(0.453 0.124 130.933);
+
+  /* ── Sidebar (dark) ── */
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.768 0.233 130.85);
+  --sidebar-primary-foreground: oklch(0.274 0.072 132.109);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.405 0.101 131.063);
+
+  /* ── Tab bar (dark) ── */
+  --tabbar-bg: oklch(0.18 0 0);
+  --tabbar-active-bg: oklch(0.205 0 0);
+  --tabbar-border: oklch(0.30 0 0);
+  --tabbar-fg: oklch(0.985 0 0);
+  --tabbar-fg-muted: oklch(0.65 0 0);
+
+  /* ── Workflow / pipeline canvas + nodes (dark) ── */
+  --flow-bg: oklch(0.16 0 0);
+  --flow-grid: oklch(0.28 0 0);
+  --flow-node-bg: oklch(0.269 0 0);
+  --flow-node-border: oklch(0.32 0 0);
+  --flow-node-text: oklch(0.985 0 0);
+  --flow-status-pending-bg: rgba(59, 130, 246, 0.18);
+  --flow-status-pending-border: #60a5fa;
+  --flow-status-pending-text: #93c5fd;
+  --flow-status-review-bg: rgba(245, 158, 11, 0.18);
+  --flow-status-review-border: #fbbf24;
+  --flow-status-review-text: #fcd34d;
+  --flow-status-approved-bg: rgba(22, 163, 74, 0.18);
+  --flow-status-approved-border: #4ade80;
+  --flow-status-approved-text: #86efac;
+
+  /* ── Panels & surfaces (dark) ── */
+  --panel: oklch(0.24 0 0);
+  --panel-soft: oklch(0.27 0 0);
+  --code-inline-bg: oklch(0.28 0 0);
+  --surface: oklch(0.269 0 0);
+
+  --border-muted: oklch(0.35 0 0);
+  --border-strong: oklch(0.42 0 0);
+
+  --text-strong: oklch(0.985 0 0);
+  --text-on-primary: oklch(1 0 0);
+
+  /* ── Status: success (dark) ── */
+  --success: #4ade80;
+  --success-hover: #22c55e;
+  --success-soft: rgba(22, 163, 74, 0.15);
+  --success-soft-border: rgba(22, 163, 74, 0.3);
+  --success-muted: #166534;
+  --success-text: #86efac;
+
+  /* ── Status: warning (dark) ── */
+  --warning-soft: rgba(245, 158, 11, 0.15);
+  --warning-text: #fcd34d;
+  --warning-border: rgba(251, 191, 35, 0.3);
+  --warning-text-strong: #fbbf24;
+  --warning-text-deep: #f59e0b;
+  --warning-border-soft: rgba(253, 186, 116, 0.3);
+
+  /* ── Status: info (dark) ── */
+  --info-soft: rgba(59, 130, 246, 0.15);
+  --info-text: #93c5fd;
+  --info-border: rgba(59, 130, 246, 0.3);
+  --info: #60a5fa;
+  --accent-purple: #a78bfa;
+
+  /* ── Status: progress (dark) ── */
+  --progress-soft: rgba(159, 18, 57, 0.15);
+  --progress-text: #fda4af;
+  --progress-border: rgba(253, 164, 175, 0.3);
+
+  /* ── Status: error (dark) ── */
+  --error-soft: rgba(239, 68, 68, 0.15);
+  --error-soft-border: rgba(239, 68, 68, 0.3);
+
+  --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
+  --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
 }
 
 /*
@@ -200,97 +421,31 @@
     scrollbar-color: var(--scrollbar-xterm-thumb) transparent !important;
   }
 
-  /* FileViewer markdown styling */
+  /* FileViewer markdown styling
+   * Base typography, headings, lists, tables, blockquotes etc. are provided
+   * by github-markdown-css (.markdown-body). We only override what Magenta
+   * needs to customise: max-width, accent colours, and custom components
+   * (code blocks, mermaid, raw viewer).
+   */
   .md-viewer {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    font-size: 14px;
-    line-height: 1.7;
-    color: #2c2c2c;
     max-width: 820px;
-  }
-
-  .md-viewer h1 {
-    font-size: 26px;
-    font-weight: 700;
-    margin: 28px 0 12px;
-    color: #1a1a1a;
-    border-bottom: 1px solid #e5e2da;
-    padding-bottom: 8px;
-  }
-
-  .md-viewer h2 {
-    font-size: 21px;
-    font-weight: 650;
-    margin: 24px 0 10px;
-    color: #1a1a1a;
-    border-bottom: 1px solid #f0ede8;
-    padding-bottom: 6px;
-  }
-
-  .md-viewer h3 {
-    font-size: 17px;
-    font-weight: 600;
-    margin: 20px 0 8px;
-    color: #2c2c2c;
-  }
-
-  .md-viewer h4 {
     font-size: 15px;
-    font-weight: 600;
-    margin: 16px 0 6px;
-    color: #4a4540;
+    background-color: transparent;
   }
 
-  .md-viewer h5,
-  .md-viewer h6 {
-    font-size: 14px;
-    font-weight: 600;
-    margin: 12px 0 6px;
-    color: #6b6560;
-  }
-
-  .md-viewer p {
-    margin: 8px 0;
-  }
-
-  .md-viewer hr {
-    border: none;
-    border-top: 1px solid #e5e2da;
-    margin: 24px 0;
-  }
-
-  .md-viewer strong {
-    font-weight: 600;
-  }
-
-  .md-viewer em {
-    font-style: italic;
-  }
-
-  .md-viewer img {
-    max-width: 100%;
-    border-radius: 6px;
-    margin: 8px 0;
-  }
-
+  /* Theme-aware accent for links */
   .md-viewer a {
-    color: #c15f3c;
-    text-decoration: none;
-    border-bottom: 1px solid #c15f3c40;
-    transition: border-color 0.15s;
+    color: var(--primary);
   }
 
   .md-viewer a:hover {
-    border-bottom-color: #c15f3c;
+    color: color-mix(in srgb, var(--primary) 80%, black);
   }
 
+  /* Theme-aware inline code */
   .md-viewer code:not(pre code) {
-    background: #f0ebe4;
-    padding: 1px 5px;
-    border-radius: 3px;
-    font-family: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
-    font-size: 12.5px;
-    color: #c15f3c;
+    background: var(--muted);
+    color: var(--primary);
   }
 
   .md-viewer .md-code-block {
@@ -309,7 +464,7 @@
     letter-spacing: 0.06em;
     color: #7f849c;
     padding: 8px 14px 0;
-    font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+    font-family: var(--font-mono);
   }
 
   .md-viewer .md-code-block pre {
@@ -319,7 +474,7 @@
   }
 
   .md-viewer .md-code-block code {
-    font-family: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 12.5px;
     color: #cdd6f4;
     line-height: 1.55;
@@ -341,7 +496,7 @@
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.15s, background 0.15s, color 0.15s;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family: var(--font-sans);
     z-index: 2;
   }
 
@@ -360,116 +515,29 @@
     border-color: #16a34a50;
   }
 
-  .md-viewer ul,
-  .md-viewer ol {
-    margin: 6px 0;
-    padding-left: 24px;
-  }
-
-  .md-viewer li {
-    margin: 3px 0;
-  }
-
-  .md-viewer li::marker {
-    color: #9a958c;
-  }
-
-  .md-viewer ul li {
-    list-style-type: disc;
-  }
-
-  .md-viewer ul li ul li {
-    list-style-type: circle;
-  }
-
-  .md-viewer ul li ul li ul li {
-    list-style-type: square;
-  }
-
+  /* Task list checkbox accent */
   .md-viewer input[type="checkbox"] {
-    margin-right: 6px;
-    accent-color: #c15f3c;
-    pointer-events: none;
-  }
-
-  .md-viewer li.task-list-item {
-    list-style: none;
-    margin-left: -20px;
-  }
-
-  .md-viewer blockquote {
-    border-left: 3px solid #c15f3c;
-    padding: 6px 14px;
-    margin: 12px 0;
-    color: #6b6560;
-    background: #f5f4ed;
-    border-radius: 0 6px 6px 0;
-  }
-
-  .md-viewer blockquote p {
-    margin: 4px 0;
-  }
-
-  .md-viewer blockquote blockquote {
-    border-left-color: #d1cec6;
-    background: #eeece6;
-  }
-
-  .md-viewer table {
-    margin: 16px 0;
-    border-radius: 8px;
-    border: 1px solid #e5e2da;
-    overflow: hidden;
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-
-  .md-viewer thead {
-    background: #f5f4ed;
-  }
-
-  .md-viewer th {
-    text-align: left;
-    padding: 8px 12px;
-    font-weight: 600;
-    color: #4a4540;
-    border-bottom: 2px solid #e5e2da;
-    white-space: nowrap;
-  }
-
-  .md-viewer td {
-    padding: 7px 12px;
-    border-bottom: 1px solid #f0ede8;
-    color: #2c2c2c;
-  }
-
-  .md-viewer tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .md-viewer tbody tr:hover {
-    background: #faf9f5;
+    accent-color: var(--primary);
   }
 
   .md-viewer .md-mermaid {
-    background: #faf9f5;
-    border: 1px solid #e5e2da;
+    background: var(--background);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 16px;
     margin: 16px 0;
     text-align: center;
     overflow-x: auto;
-    font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
-    color: #6b6560;
+    color: var(--muted-foreground);
     white-space: pre;
   }
 
   .md-viewer .md-mermaid-rendered {
     white-space: normal;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    color: #2c2c2c;
+    font-family: var(--font-sans);
+    color: var(--foreground);
   }
 
   .md-viewer .md-mermaid-rendered svg {
@@ -478,26 +546,13 @@
   }
 
   .md-viewer .md-mermaid-error {
-    color: #a14a2f;
+    color: var(--destructive);
     font-size: 11px;
     font-weight: 500;
     margin-bottom: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family: var(--font-sans);
   }
 
-  .md-viewer dl {
-    margin: 8px 0;
-  }
-
-  .md-viewer dt {
-    font-weight: 600;
-    margin-top: 8px;
-  }
-
-  .md-viewer dd {
-    margin-left: 20px;
-    color: #4a4540;
-  }
 
   .hljs {
     color: #cdd6f4;
@@ -596,18 +651,18 @@
 
   .md-raw-viewer {
     display: flex;
-    font-family: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 12.5px;
     line-height: 1.55;
-    background: #faf9f5;
+    background: var(--background);
   }
 
   .md-raw-gutter {
     padding: 16px 12px 16px 16px;
     text-align: right;
-    color: #d1cec6;
+    color: var(--border-muted);
     user-select: none;
-    border-right: 1px solid #e5e2da;
+    border-right: 1px solid var(--border);
     min-width: 36px;
     flex-shrink: 0;
   }
@@ -615,9 +670,19 @@
   .md-raw-content {
     flex: 1;
     padding: 16px 20px;
-    color: #2c2c2c;
+    color: var(--foreground);
     white-space: pre-wrap;
     word-break: break-word;
     overflow-x: auto;
+  }
+
+  /*
+   * Dark mode overrides for markdown viewer.
+   * Base dark theme (text, headings, tables, lists, blockquotes) is handled
+   * by github-markdown-dark.css scoped under `.dark .markdown-body`.
+   * Below: Magenta accent overrides + custom components only.
+   */
+  .dark .md-viewer {
+    background-color: transparent;
   }
 }

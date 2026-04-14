@@ -42,8 +42,11 @@ export interface MagentaTerminalProps {
   isVisible?: boolean;
 }
 
-// ── Runtime theme policy: light-only for now ─────────────────────────────────
-const THEME = TERMINAL_THEMES.light;
+// ── Runtime theme policy: always dark ────────────────────────────────────────
+// Terminals (both MagentaTerminal shells and AI agent sessions) use a fixed
+// dark palette regardless of the app's light/dark mode. ANSI colours from CLI
+// tools are authored against dark backgrounds and wash out on a light terminal.
+const THEME = TERMINAL_THEMES.dark;
 const THEME_BG = THEME.background;
 
 let xtermStylesInjected = false;

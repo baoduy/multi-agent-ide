@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+import { colors } from "../../utils/colors";
 import { ipc } from "../../utils/ipc";
 import { ScrollableText } from "../common/ScrollableText";
 import { useOnboardStore } from "../../store/onboardStore";
@@ -94,9 +95,9 @@ export function useBackgroundJobs() {
 /* ── Status dot colors ── */
 
 const STATUS_COLORS: Record<JobStatus, string> = {
-  running: "#C15F3C",
-  completed: "#3d7a2a",
-  failed: "#c44",
+  running: "var(--primary)",
+  completed: "var(--success)",
+  failed: "var(--destructive)",
 };
 
 /* ── Bell icon with optional badge ── */
@@ -137,8 +138,8 @@ export function BellIcon({
             position: "absolute",
             top: -3,
             right: -4,
-            background: hasError ? "#c44" : "#C15F3C",
-            color: "#fff",
+            background: hasError ? colors.error : colors.primary,
+            color: colors.textWhite,
             fontSize: 9,
             fontWeight: 700,
             borderRadius: 6,
@@ -173,7 +174,7 @@ function Spinner(): React.ReactElement {
         cx="6"
         cy="6"
         r="5"
-        stroke="#C15F3C"
+        stroke="currentColor"
         strokeWidth="1.5"
         fill="none"
         strokeDasharray="20"
@@ -218,7 +219,7 @@ function OnboardJobRow({
     <div
       style={{
         padding: "10px 14px",
-        borderBottom: "1px solid #f0ede6",
+        borderBottom: `1px solid ${colors.borderLight}`,
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -244,7 +245,7 @@ function OnboardJobRow({
         <ScrollableText
           style={{
             fontSize: 12,
-            color: "#2c2c2c",
+            color: colors.text,
           }}
         >
           {label}
@@ -253,7 +254,7 @@ function OnboardJobRow({
           <ScrollableText
             style={{
               fontSize: 11,
-              color: "#c44",
+              color: colors.error,
               marginTop: 2,
             }}
             title={process.error}
@@ -271,8 +272,8 @@ function OnboardJobRow({
         onMouseLeave={() => setHovered(false)}
         style={{
           fontSize: 11,
-          color: hovered ? "#C15F3C" : "#9a958c",
-          background: hovered ? "#f0ede6" : "none",
+          color: hovered ? colors.primary : colors.textTertiary,
+          background: hovered ? colors.bgHover : "none",
           border: "none",
           cursor: "pointer",
           padding: "2px 8px",
@@ -351,8 +352,8 @@ export function BackgroundJobsPopover({
         right: 0,
         width: 300,
         maxHeight: 360,
-        background: "#fff",
-        border: "1px solid #e5e2da",
+        background: colors.bgWhite,
+        border: `1px solid ${colors.border}`,
         borderRadius: 10,
         boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
         zIndex: 1000,
@@ -371,10 +372,10 @@ export function BackgroundJobsPopover({
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderBottom: "1px solid #f0ede6",
+          borderBottom: `1px solid ${colors.borderLight}`,
         }}
       >
-        <span style={{ fontSize: 12, fontWeight: 600, color: "#2c2c2c" }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
           Background Jobs
         </span>
         {(hasNonRunning || hasCompletedOnboard) && (
@@ -383,7 +384,7 @@ export function BackgroundJobsPopover({
             onClick={handleClearAll}
             style={{
               fontSize: 11,
-              color: "#9a958c",
+              color: colors.textTertiary,
               background: "none",
               border: "none",
               cursor: "pointer",
@@ -391,11 +392,11 @@ export function BackgroundJobsPopover({
               borderRadius: 4,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.color = "#2c2c2c";
-              e.currentTarget.style.background = "#f0ede6";
+              e.currentTarget.style.color = colors.text;
+              e.currentTarget.style.background = colors.bgHover;
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.color = "#9a958c";
+              e.currentTarget.style.color = colors.textTertiary;
               e.currentTarget.style.background = "none";
             }}
           >
@@ -412,7 +413,7 @@ export function BackgroundJobsPopover({
               padding: "24px 14px",
               textAlign: "center",
               fontSize: 12,
-              color: "#9a958c",
+              color: colors.textTertiary,
             }}
           >
             No background jobs
@@ -434,7 +435,7 @@ export function BackgroundJobsPopover({
                 key={job.name}
                 style={{
                   padding: "10px 14px",
-                  borderBottom: "1px solid #f0ede6",
+                  borderBottom: `1px solid ${colors.borderLight}`,
                   display: "flex",
                   alignItems: "center",
                   gap: 10,
@@ -460,7 +461,7 @@ export function BackgroundJobsPopover({
                   <ScrollableText
                     style={{
                       fontSize: 12,
-                      color: "#2c2c2c",
+                      color: colors.text,
                     }}
                   >
                     {job.name}
@@ -469,7 +470,7 @@ export function BackgroundJobsPopover({
                     <ScrollableText
                       style={{
                         fontSize: 11,
-                        color: "#c44",
+                        color: colors.error,
                         marginTop: 2,
                       }}
                       title={job.error}
@@ -484,7 +485,7 @@ export function BackgroundJobsPopover({
                   <span
                     style={{
                       fontSize: 11,
-                      color: "#9a958c",
+                      color: colors.textTertiary,
                       flexShrink: 0,
                     }}
                   >

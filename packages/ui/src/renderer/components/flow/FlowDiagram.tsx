@@ -7,6 +7,7 @@ import type { SpecFolder } from "@magenta/shared/models";
 import { specToFlowDiagram } from "./diagramUtils";
 import { nodeTypes } from "./nodeTypes";
 import { colors } from "../../utils/colors";
+import { useTheme } from "../../theme/ThemeProvider";
 
 type FlowDiagramProps = {
   spec: SpecFolder | null;
@@ -38,6 +39,9 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
   const onNodesChange = useCallback(() => {}, []);
   const onEdgesChange = useCallback(() => {}, []);
 
+  const { resolved } = useTheme();
+  const gridColor = resolved === "dark" ? "#3a3a3a" : "#e5e2da";
+
   if (!spec) {
     return (
       <div
@@ -49,7 +53,7 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
           justifyContent: "center",
           color: colors.textTertiary,
           fontSize: 13,
-          backgroundColor: "#1a1a2e",
+          backgroundColor: "var(--flow-bg)",
         }}
       >
         Select a spec to view the workflow
@@ -58,7 +62,7 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
   }
 
   return (
-    <div style={{ width: "100%", height: "100%", backgroundColor: "#1a1a2e" }}>
+    <div style={{ width: "100%", height: "100%", backgroundColor: "var(--flow-bg)" }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -70,7 +74,7 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
         minZoom={0.3}
         maxZoom={2}
       >
-        <Background color="#2a2a3e" gap={20} />
+        <Background color={gridColor} gap={20} />
         <Controls
           style={{
             bottom: 12,

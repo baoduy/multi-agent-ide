@@ -75,7 +75,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
         textAlign: "left",
         fontSize: 13,
         transition: "box-shadow 0.15s, transform 0.12s, opacity 0.15s",
-        boxShadow: hovered && hasFile && !isInactive ? "0 4px 12px rgba(0,0,0,0.1)" : "none",
+        boxShadow: hovered && hasFile && !isInactive ? uiColors.shadowSoft : "none",
         transform: hovered && hasFile && !isInactive ? "translateY(-1px)" : "none",
         opacity: isMissing ? 0.45 : 1,
         position: "relative",
@@ -144,7 +144,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
             style={{
               width: "100%",
               height: 4,
-              backgroundColor: "rgba(0,0,0,0.1)",
+              backgroundColor: uiColors.borderLight,
               borderRadius: 2,
               overflow: "hidden",
             }}

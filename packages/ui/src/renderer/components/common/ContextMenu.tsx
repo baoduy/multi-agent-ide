@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
 
+import { colors } from "../../utils/colors";
+
 /* ── Types ── */
 
 export type ContextMenuPosition = { x: number; y: number };
@@ -63,8 +65,8 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps): Rea
         top: adjustedPos.y,
         left: adjustedPos.x,
         zIndex: 9999,
-        background: "#faf9f5",
-        border: "1px solid #e5e2da",
+        background: colors.bgSurface,
+        border: `1px solid ${colors.border}`,
         borderRadius: 8,
         boxShadow: "0 4px 16px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)",
         padding: "4px 0",
@@ -74,7 +76,7 @@ export function ContextMenu({ position, items, onClose }: ContextMenuProps): Rea
       {items.map((item, i) => (
         <React.Fragment key={item.label}>
           {item.separator && i > 0 && (
-            <div style={{ height: 1, background: "#e5e2da", margin: "4px 0" }} />
+            <div style={{ height: 1, background: colors.border, margin: "4px 0" }} />
           )}
           <ContextMenuItem
             label={item.label}
@@ -118,17 +120,17 @@ function ContextMenuItem({
         gap: 8,
         width: "100%",
         border: "none",
-        background: hovered ? "#eeece6" : "transparent",
+        background: hovered ? colors.bgHover : "transparent",
         padding: "7px 14px",
         cursor: "pointer",
         fontSize: 12,
-        color: "#2c2c2c",
+        color: colors.text,
         textAlign: "left",
         transition: "background 0.08s",
       }}
     >
       <span style={{ display: "inline-flex", width: 18, justifyContent: "center", flexShrink: 0 }}>
-        {Icon ? <Icon size={14} color="#6b6560" strokeWidth={1.8} /> : emoji ? <span style={{ fontSize: 13 }}>{emoji}</span> : null}
+        {Icon ? <Icon size={14} color={colors.textMuted} strokeWidth={1.8} /> : emoji ? <span style={{ fontSize: 13 }}>{emoji}</span> : null}
       </span>
       {label}
     </button>

@@ -1,6 +1,7 @@
 /**
  * Centralized color constants for the Magenta IDE design system.
- * Use these instead of hardcoding hex values in components.
+ * All values reference CSS custom properties defined in globals.css,
+ * ensuring they respond to light/dark theme changes automatically.
  */
 
 export const colors = {
@@ -14,53 +15,53 @@ export const colors = {
   /** Text colors */
   text: "var(--foreground)",
   textMuted: "var(--secondary-foreground)",
-  textSecondary: "color-mix(in srgb, var(--foreground) 75%, white)",
+  textSecondary: "color-mix(in srgb, var(--foreground) 75%, transparent)",
   textTertiary: "var(--muted-foreground)",
 
   /** Border colors */
   border: "var(--border)",
-  borderLight: "color-mix(in srgb, var(--border) 70%, white)",
+  borderLight: "color-mix(in srgb, var(--border) 70%, transparent)",
 
   /** Background colors */
   bgSurface: "var(--background)",
   bgMuted: "var(--muted)",
   bgHover: "var(--accent)",
-  bgPanel: "#f5f4ed",
-  bgPanelSoft: "#faf5f2",
-  bgCodeInline: "#eeece6",
-  bgWhite: "#ffffff",
+  bgPanel: "var(--panel)",
+  bgPanelSoft: "var(--panel-soft)",
+  bgCodeInline: "var(--code-inline-bg)",
+  bgWhite: "var(--surface)",
 
   /** Border/neutral helpers */
-  borderMuted: "#d1cec6",
-  borderStrong: "#b5b1a8",
+  borderMuted: "var(--border-muted)",
+  borderStrong: "var(--border-strong)",
 
   /** Text helpers */
-  textStrong: "#2c2c2c",
-  textWhite: "#ffffff",
+  textStrong: "var(--text-strong)",
+  textWhite: "var(--text-on-primary)",
 
   /** Status colors */
-  success: "#16A34A",
-  successHover: "#15803d",
-  successSoft: "#dcfce7",
-  successSoftBorder: "#bbf7d0",
-  successMuted: "#86efac",
-  successText: "#166534",
-  warningSoft: "#fef3c7",
-  warningText: "#7c6a3e",
-  warningBorder: "#fde68a",
-  warningTextStrong: "#92400e",
-  warningTextDeep: "#9a3412",
-  warningBorderSoft: "#fed7aa",
-  infoSoft: "#dbeafe",
-  infoText: "#1e40af",
-  infoBorder: "#bfdbfe",
-  info: "#3b82f6",
-  progressSoft: "#fce4ec",
-  progressText: "#9f1239",
-  progressBorder: "#fda4af",
+  success: "var(--success)",
+  successHover: "var(--success-hover)",
+  successSoft: "var(--success-soft)",
+  successSoftBorder: "var(--success-soft-border)",
+  successMuted: "var(--success-muted)",
+  successText: "var(--success-text)",
+  warningSoft: "var(--warning-soft)",
+  warningText: "var(--warning-text)",
+  warningBorder: "var(--warning-border)",
+  warningTextStrong: "var(--warning-text-strong)",
+  warningTextDeep: "var(--warning-text-deep)",
+  warningBorderSoft: "var(--warning-border-soft)",
+  infoSoft: "var(--info-soft)",
+  infoText: "var(--info-text)",
+  infoBorder: "var(--info-border)",
+  info: "var(--info)",
+  progressSoft: "var(--progress-soft)",
+  progressText: "var(--progress-text)",
+  progressBorder: "var(--progress-border)",
   error: "var(--destructive)",
-  errorSoft: "#fae8e1",
-  errorSoftBorder: "#e5b8a5",
+  errorSoft: "var(--error-soft)",
+  errorSoftBorder: "var(--error-soft-border)",
   errorDark: "color-mix(in srgb, var(--destructive) 80%, black)",
 
   /** Dialog specific */

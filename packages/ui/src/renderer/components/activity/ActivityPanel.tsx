@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 
+import { colors } from "../../utils/colors";
 import { useSpecStore } from "../../store/specStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useRepoStore } from "../../store/repoStore";
@@ -30,7 +31,7 @@ function Section({
         display: "flex",
         flexDirection: "column",
         padding: "14px 16px",
-        borderBottom: "1px solid #e5e2da",
+        borderBottom: `1px solid ${colors.border}`,
         minHeight: 0,
         ...style,
       }}
@@ -50,7 +51,7 @@ function Section({
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.08em",
-            color: "#9a958c",
+            color: colors.textTertiary,
           }}
           title={title}
         >
@@ -85,7 +86,7 @@ function ProviderStatusItem({
       >
         <ProviderIcon provider={provider} size={16} />
       </span>
-      <span style={{ fontSize: 11, color: active ? "#2c2c2c" : "#9a958c", fontWeight: active ? 500 : 400 }}>
+      <span style={{ fontSize: 11, color: active ? colors.text : colors.textTertiary, fontWeight: active ? 500 : 400 }}>
         {getProviderName(provider)}
       </span>
       {active && (
@@ -93,8 +94,8 @@ function ProviderStatusItem({
           style={{
             fontSize: 9,
             fontWeight: 600,
-            color: "#3d7a2a",
-            background: "#e4f0df",
+            color: colors.successText,
+            background: colors.successSoft,
             padding: "1px 6px",
             borderRadius: 8,
             lineHeight: "14px",
@@ -169,7 +170,7 @@ export function ActivityPanel({ onOpenFile, activeBuiltinTab }: ActivityPanelPro
       )}
 
       {/* Agent Status — always pinned at the bottom */}
-      <Section title="Agents" style={{ flexShrink: 0, borderBottom: "none", borderTop: "1px solid #e5e2da" }}>
+      <Section title="Agents" style={{ flexShrink: 0, borderBottom: "none", borderTop: `1px solid ${colors.border}` }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <ProviderStatusItem provider="claude" active={isClaudeRunning} />
           <ProviderStatusItem provider="copilot" active={isCopilotRunning} />

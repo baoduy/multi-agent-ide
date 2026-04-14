@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
 import { selectFolder } from "../../utils/ipc";
 
@@ -46,8 +47,8 @@ export function AddWorkingDirButton({ onError }: AddWorkingDirButtonProps): Reac
         padding: "8px 12px",
         fontSize: 13,
         fontWeight: 500,
-        backgroundColor: "#3b82f6",
-        color: "#ffffff",
+        backgroundColor: colors.info,
+        color: colors.textWhite,
         border: "none",
         borderRadius: 6,
         cursor: isLoading ? "default" : "pointer",

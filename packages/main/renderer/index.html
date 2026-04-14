@@ -4,6 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Magenta IDE</title>
+  <!-- Apply saved theme before first paint to prevent flash -->
+  <script>
+    (function() {
+      try {
+        var pref = localStorage.getItem('magenta.theme');
+        var dark = pref === 'dark' ||
+          (pref !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+      } catch(e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="../../ui/dist/styles.css">
   <style>
     * {
@@ -17,22 +28,22 @@
       overflow: hidden;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif;
+      font-family: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
       font-size: 13px;
       line-height: 1.5;
-      background: var(--background, #faf9f5);
-      color: var(--foreground, #2c2c2c);
+      background: var(--background, #fff);
+      color: var(--foreground, #1a1a1a);
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       font-feature-settings: 'kern' 1, 'liga' 1;
     }
-    /* Warm scrollbar matching Claude palette */
+    /* Scrollbar — uses theme-aware CSS variables */
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #d1cec6; border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: #b5b1a8; }
+    ::-webkit-scrollbar-thumb { background: var(--border-muted, #d1cec6); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-strong, #b5b1a8); }
     /* Selection */
-    ::selection { background: #C15F3C30; }
+    ::selection { background: rgba(132, 204, 22, 0.2); }
     /* Electron custom title bar: prevent body scroll under frameless window */
     html, body { overflow: hidden; }
   </style>

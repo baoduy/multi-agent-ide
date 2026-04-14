@@ -54,8 +54,8 @@ function ButtonGroupComponent<T extends string = string>({
     >
       {options.map((opt, i) => {
         const isActive = value === opt.key;
-        const bg = isActive ? (opt.activeColor ?? colors.primary) : "#fff";
-        const fg = isActive ? "#fff" : opt.disabled ? colors.textTertiary : colors.textSecondary;
+        const bg = isActive ? (opt.activeColor ?? colors.primary) : colors.bgSurface;
+        const fg = isActive ? colors.textWhite : opt.disabled ? colors.textTertiary : colors.textSecondary;
 
         return (
           <button

@@ -84,7 +84,7 @@ function DoublePickerComponent<L extends string = string, R extends string = str
         border: `1px solid ${colors.border}`,
         borderRadius: 6,
         overflow: "visible",
-        background: "#ffffff",
+        background: colors.bgWhite,
       }}
     >
       <PickerTrigger
@@ -238,7 +238,7 @@ function DropdownPanel<T extends string>({
         left: 0,
         right: 0,
         zIndex: 50,
-        background: "#ffffff",
+        background: colors.bgWhite,
         border: `1px solid ${colors.border}`,
         borderRadius: 8,
         boxShadow: "0 8px 24px rgba(0,0,0,0.12)",

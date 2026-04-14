@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import { FileIconBadge, FolderIconBadge, ExtensionBadge } from "./fileIcons";
 import { ScrollableText } from "./ScrollableText";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
@@ -40,8 +41,6 @@ export type FileTreeProps = {
    * Useful for the repo sidebar where leaf items are RepoItem components.
    */
   renderLeaf?: (entry: TreeEntry, depth: number) => React.ReactNode;
-  /** Depth-based colors for folder names. Falls back to default warm gray. */
-  depthColors?: string[];
   /** Show lucide file-type icon badges. Default: true */
   showFileIcons?: boolean;
   /** Show extension badge on files. Default: true */
@@ -59,19 +58,9 @@ export type FileTreeProps = {
 };
 
 /* ═══════════════════════════════════════════════════════
-   Default depth colors (matches existing design)
+   Folder name color — uses the default foreground color
+   for all depth levels to follow the active theme.
    ═══════════════════════════════════════════════════════ */
-
-const DEFAULT_DEPTH_COLORS = [
-  "#7C3AED", // purple
-  "#16A34A", // green
-  "#2563EB", // blue
-  "#6b6560", // warm gray
-];
-
-function colorForDepth(depth: number, colors: string[]): string {
-  return colors[Math.min(depth, colors.length - 1)];
-}
 
 /* ═══════════════════════════════════════════════════════
    FileTree (entry point)
@@ -115,7 +104,6 @@ function FolderNode({
   contextMenuItems,
   renderItemContent,
   renderLeaf,
-  depthColors = DEFAULT_DEPTH_COLORS,
   showFileIcons = true,
   showExtensionBadge = true,
   showCountBadge = false,
@@ -173,7 +161,7 @@ function FolderNode({
   }, [expanded, children, onLoadChildren, entry, onFolderClick]);
 
   const indent = depth * indentPx;
-  const folderColor = colorForDepth(depth, depthColors);
+  const folderColor = "var(--foreground)";
   const hasChildren = children ? children.length > 0 : entry.children !== null || onLoadChildren !== undefined;
 
   const ctxItems = contextMenuItems?.(entry) ?? [];
@@ -195,7 +183,7 @@ function FolderNode({
           padding: `5px 8px 5px ${8 + indent}px`,
           border: "none",
           borderRadius: 4,
-          background: hovered ? "#eeece6" : "transparent",
+          background: hovered ? colors.bgHover : "transparent",
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.1s",
@@ -211,7 +199,7 @@ function FolderNode({
             flexShrink: 0,
             transition: "transform 0.12s",
             transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
-            color: "#9a958c",
+            color: colors.textTertiary,
           }}
         >
           {hasChildren ? <ChevronDown size={12} strokeWidth={2} /> : null}
@@ -242,10 +230,10 @@ function FolderNode({
           <span
             style={{
               fontSize: 9,
-              color: "#b5b1a8",
+              color: colors.borderStrong,
               marginLeft: "auto",
               flexShrink: 0,
-              fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {countItems(entry)}
@@ -254,7 +242,7 @@ function FolderNode({
 
         {/* Loading */}
         {loading && (
-          <span style={{ fontSize: 9, color: "#9a958c", marginLeft: "auto", flexShrink: 0 }}>...</span>
+          <span style={{ fontSize: 9, color: colors.textTertiary, marginLeft: "auto", flexShrink: 0 }}>...</span>
         )}
       </button>
 
@@ -269,7 +257,6 @@ function FolderNode({
           contextMenuItems={contextMenuItems}
           renderItemContent={renderItemContent}
           renderLeaf={renderLeaf}
-          depthColors={depthColors}
           showFileIcons={showFileIcons}
           showExtensionBadge={showExtensionBadge}
           showCountBadge={showCountBadge}
@@ -284,7 +271,7 @@ function FolderNode({
           style={{
             padding: `3px 8px 3px ${22 + indent}px`,
             fontSize: 10,
-            color: "#b5b1a8",
+            color: colors.borderStrong,
             fontStyle: "italic",
           }}
         >
@@ -336,7 +323,7 @@ function FileNode({
           padding: `5px 8px 5px ${22 + indent}px`,
           border: "none",
           borderRadius: 4,
-          background: hovered ? "#eeece6" : "transparent",
+          background: hovered ? colors.bgHover : "transparent",
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.1s",
@@ -353,7 +340,7 @@ function FileNode({
             style={{
               fontSize: 11,
               fontWeight: 500,
-              color: "#2c2c2c",
+              color: colors.text,
               flex: 1,
             }}
           >

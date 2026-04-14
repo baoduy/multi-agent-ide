@@ -240,8 +240,10 @@ export function AISessionsView({
             alignItems: "center",
             justifyContent: "space-between",
             padding: "16px 20px",
-            borderBottom: `1px solid ${colors.border}`,
-            background: colors.bgSurface,
+            // Transparent — inherit the surrounding panel background so the
+            // Sessions header blends with the rest of the view instead of
+            // looking like a separate strip.
+            background: "transparent",
             flexShrink: 0,
           }}
         >
@@ -267,7 +269,7 @@ export function AISessionsView({
               outline: "none",
               boxShadow: "none",
               background: colors.primary,
-              color: "#ffffff",
+              color: colors.textWhite,
               cursor: "pointer",
               fontSize: 12,
               fontWeight: 500,
@@ -363,7 +365,7 @@ export function AISessionsView({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: "#282a36",
+        background: "var(--tabbar-active-bg)",
       }}
     >
       {/* Tab bar */}
@@ -371,8 +373,8 @@ export function AISessionsView({
         style={{
           display: "flex",
           alignItems: "stretch",
-          background: "#252526",
-          borderBottom: "1px solid #3c3c3c",
+          background: "var(--tabbar-bg)",
+          borderBottom: "1px solid var(--tabbar-border)",
           flexShrink: 0,
           overflowX: "auto",
           minHeight: 36,
@@ -393,7 +395,7 @@ export function AISessionsView({
                 provider={session.provider}
                 iconSize={12}
                 fontSize={11}
-                color={isActive ? "#d4d4d4" : "#9a958c"}
+                color={isActive ? "var(--tabbar-fg)" : "var(--tabbar-fg-muted)"}
               />
             ) : null;
           } else {
@@ -401,7 +403,7 @@ export function AISessionsView({
             tabIcon = (
               <Terminal
                 size={12}
-                color={isActive ? "#d4d4d4" : "#9a958c"}
+                color={isActive ? "var(--tabbar-fg)" : "var(--tabbar-fg-muted)"}
                 strokeWidth={1.8}
               />
             );
@@ -413,9 +415,9 @@ export function AISessionsView({
               style={{
                 display: "flex",
                 alignItems: "center",
-                background: isActive ? "#282a36" : "transparent",
-                borderBottom: isActive ? "2px solid #c15f3c" : "2px solid transparent",
-                borderRight: index < openTabs.length - 1 ? "1px solid #3c3c3c" : "none",
+                background: isActive ? "var(--tabbar-active-bg)" : "transparent",
+                borderBottom: isActive ? "2px solid var(--primary)" : "2px solid transparent",
+                borderRight: index < openTabs.length - 1 ? "1px solid var(--tabbar-border)" : "none",
                 flexShrink: 0,
               }}
             >
@@ -429,14 +431,14 @@ export function AISessionsView({
                   padding: "6px 10px 6px 12px",
                   background: "transparent",
                   border: "none",
-                  color: isActive ? "#d4d4d4" : "#9a958c",
+                  color: isActive ? "var(--tabbar-fg)" : "var(--tabbar-fg-muted)",
                   cursor: "pointer",
                   fontSize: 12,
                   whiteSpace: "nowrap",
                   transition: "color 0.12s",
                 }}
-                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "#c0bdb7"; }}
-                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "#9a958c"; }}
+                onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.color = "var(--tabbar-fg)"; }}
+                onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.color = "var(--tabbar-fg-muted)"; }}
               >
                 {tabIcon}
                 <span
@@ -459,7 +461,7 @@ export function AISessionsView({
                   padding: "4px 8px",
                   background: "transparent",
                   border: "none",
-                  color: "#9a958c",
+                  color: "var(--tabbar-fg-muted)",
                   cursor: "pointer",
                   fontSize: 10,
                   display: "flex",
@@ -467,8 +469,8 @@ export function AISessionsView({
                   transition: "color 0.12s",
                   flexShrink: 0,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "#9a958c"; }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tabbar-fg)"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tabbar-fg-muted)"; }}
                 title="Close tab"
               >
                 ✕
@@ -489,15 +491,15 @@ export function AISessionsView({
             width: 36,
             background: "transparent",
             border: "none",
-            borderLeft: "1px solid #3c3c3c",
-            color: "#9a958c",
+            borderLeft: "1px solid var(--tabbar-border)",
+            color: "var(--tabbar-fg-muted)",
             cursor: "pointer",
             flexShrink: 0,
             marginLeft: "auto",
             transition: "color 0.12s",
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.color = "#d4d4d4"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = "#9a958c"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.color = "var(--tabbar-fg)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = "var(--tabbar-fg-muted)"; }}
         >
           <Plus size={14} strokeWidth={2} />
         </button>

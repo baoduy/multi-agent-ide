@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { RotateCcw } from "lucide-react";
 
 import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
+import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
 
 /**
@@ -52,12 +53,12 @@ export function SpecifyCommandSetting(): React.ReactElement {
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: "#374151" }}>
+      <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: colors.textStrong }}>
         Specify Command
       </h3>
-      <p style={{ margin: "0 0 8px 0", fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>
+      <p style={{ margin: "0 0 8px 0", fontSize: 13, color: colors.textMuted, lineHeight: 1.5 }}>
         Command used for both onboarding and upgrading Specify.
-        Use <code style={{ fontSize: 12, background: "#f3f4f6", padding: "1px 4px", borderRadius: 3 }}>{"{agent}"}</code> as
+        Use <code style={{ fontSize: 12, background: colors.bgMuted, padding: "1px 4px", borderRadius: 3 }}>{"{agent}"}</code> as
         a placeholder for the selected AI agent.
       </p>
 
@@ -73,11 +74,11 @@ export function SpecifyCommandSetting(): React.ReactElement {
             flex: 1,
             padding: "8px 10px",
             fontSize: 12,
-            fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-            border: "1px solid #e5e2da",
+            fontFamily: "var(--font-mono)",
+            border: `1px solid ${colors.border}`,
             borderRadius: 6,
-            background: "#faf9f5",
-            color: "#2c2c2c",
+            background: colors.bgSurface,
+            color: colors.text,
             outline: "none",
           }}
         />
@@ -92,11 +93,11 @@ export function SpecifyCommandSetting(): React.ReactElement {
               alignItems: "center",
               justifyContent: "center",
               padding: "8px",
-              border: "1px solid #e5e2da",
+              border: `1px solid ${colors.border}`,
               borderRadius: 6,
-              background: "#faf9f5",
+              background: colors.bgSurface,
               cursor: isLoading ? "not-allowed" : "pointer",
-              color: "#6b6560",
+              color: colors.textMuted,
               flexShrink: 0,
             }}
           >
@@ -107,12 +108,12 @@ export function SpecifyCommandSetting(): React.ReactElement {
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, minHeight: 18 }}>
         {saved && (
-          <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 500 }}>
+          <span style={{ fontSize: 11, color: colors.success, fontWeight: 500 }}>
             Saved
           </span>
         )}
         {isDirty && !saved && (
-          <span style={{ fontSize: 11, color: "#9a958c" }}>
+          <span style={{ fontSize: 11, color: colors.textTertiary }}>
             Press Enter or click away to save
           </span>
         )}

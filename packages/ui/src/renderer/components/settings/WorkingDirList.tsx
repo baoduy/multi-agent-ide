@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 
+import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
 
 /**
@@ -32,14 +33,14 @@ export function WorkingDirList(): React.ReactElement {
       <div
         style={{
           padding: 16,
-          backgroundColor: "#f3f4f6",
+          backgroundColor: colors.bgMuted,
           borderRadius: 6,
-          border: "1px solid #e5e7eb",
+          border: `1px solid ${colors.border}`,
           marginBottom: 16,
           textAlign: "center",
       }}
       >
-        <p style={{ margin: 0, fontSize: 13, color: "#6b7280" }}>No working directories added yet.</p>
+        <p style={{ margin: 0, fontSize: 13, color: colors.textMuted }}>No working directories added yet.</p>
       </div>
     );
   }
@@ -54,8 +55,8 @@ export function WorkingDirList(): React.ReactElement {
             justifyContent: "space-between",
             alignItems: "center",
             padding: "10px 12px",
-            backgroundColor: "#f9fafb",
-            border: "1px solid #e5e7eb",
+            backgroundColor: colors.bgMuted,
+            border: `1px solid ${colors.border}`,
             borderRadius: 6,
             marginBottom: 8,
           }}
@@ -63,8 +64,8 @@ export function WorkingDirList(): React.ReactElement {
           <span
             style={{
               fontSize: 13,
-              color: "#374151",
-              fontFamily: "monospace",
+              color: colors.textStrong,
+              fontFamily: "var(--font-mono)",
               wordBreak: "break-all",
             }}
           >
@@ -79,9 +80,9 @@ export function WorkingDirList(): React.ReactElement {
               padding: "4px 8px",
               fontSize: 12,
               fontWeight: 500,
-              backgroundColor: "#fee2e2",
-              color: "#991b1b",
-              border: "1px solid #fecaca",
+              backgroundColor: colors.errorSoft,
+              color: colors.errorDark,
+              border: `1px solid ${colors.errorSoftBorder}`,
               borderRadius: 4,
               cursor: isLoading || deletingPath === dir ? "default" : "pointer",
               opacity: isLoading || deletingPath === dir ? 0.7 : 1,

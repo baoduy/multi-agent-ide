@@ -134,5 +134,5 @@ export const colors = {
   shadowSoft: "var(--shadow-soft)",
   shadowPopover: "var(--shadow-popover)",
   shadowContextMenu: "var(--shadow-context-menu)",
-  backdropBg: "rgba(0, 0, 0, 0.55)",
+  backdropBg: "var(--backdrop-bg)",
 } as const;

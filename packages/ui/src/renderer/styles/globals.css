@@ -148,6 +148,7 @@
   --info-text: #1e40af;
   --info-border: #bfdbfe;
   --info: #3b82f6;
+  --accent-purple: #7C3AED;
 
   /* ── Status: progress ── */
   --progress-soft: #fce4ec;
@@ -260,6 +261,7 @@
   --info-text: #93c5fd;
   --info-border: rgba(59, 130, 246, 0.3);
   --info: #60a5fa;
+  --accent-purple: #a78bfa;
 
   /* ── Status: progress (dark) ── */
   --progress-soft: rgba(159, 18, 57, 0.15);

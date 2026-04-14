@@ -11,10 +11,10 @@ import { RepoItem } from "./RepoItem";
 /* ── Depth-based colors ── */
 
 const DEPTH_COLORS = [
-  "#7C3AED", // depth 0 — Purple (root working dirs)
-  "#16A34A", // depth 1 — Green
-  "#2563EB", // depth 2 — Blue
-  "#6b6560", // depth 3+ — warm gray
+  "var(--accent-purple, #7C3AED)", // depth 0 — Purple (root working dirs)
+  "var(--success, #16A34A)", // depth 1 — Green
+  "var(--info, #2563EB)",    // depth 2 — Blue
+  "var(--muted-foreground, #6b6560)", // depth 3+ — warm gray
 ];
 
 /* ── Internal tree node (for building the tree from flat repos) ── */

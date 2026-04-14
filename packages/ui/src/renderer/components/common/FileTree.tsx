@@ -64,7 +64,7 @@ export type FileTreeProps = {
    ═══════════════════════════════════════════════════════ */
 
 const DEFAULT_DEPTH_COLORS = [
-  "var(--chart-4, #7C3AED)", // purple
+  "var(--accent-purple, #7C3AED)", // purple
   "var(--success, #16A34A)", // green
   "var(--info, #2563EB)",    // blue
   "var(--muted-foreground, #6b6560)", // warm gray

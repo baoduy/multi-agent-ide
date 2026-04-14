@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, List, Workflow, GitBranch, Bot } from "lucide-react";
 
 import type { ActiveTab, BuiltinTabId } from "../main/TabBar";
 import {
@@ -27,11 +27,11 @@ type TitleBarProps = {
 
 /* ── Built-in tab definitions ── */
 
-const builtinTabs: { id: BuiltinTabId; label: string }[] = [
-  { id: "specs", label: "Specs" },
-  { id: "workflow", label: "Workflow" },
-  { id: "worktrees", label: "Worktrees" },
-  { id: "ai", label: "AI" },
+const builtinTabs: { id: BuiltinTabId; label: string; icon: React.ReactNode }[] = [
+  { id: "specs", label: "Specs", icon: <List size={14} strokeWidth={1.8} /> },
+  { id: "workflow", label: "Workflow", icon: <Workflow size={14} strokeWidth={1.8} /> },
+  { id: "worktrees", label: "Worktrees", icon: <GitBranch size={14} strokeWidth={1.8} /> },
+  { id: "ai", label: "AI", icon: <Bot size={14} strokeWidth={1.8} /> },
 ];
 
 /* ── Toolbar icon button ── */
@@ -85,10 +85,12 @@ function ToolbarButton({
 
 function TitleBarTab({
   label,
+  icon,
   isActive,
   onClick,
 }: {
   label: string;
+  icon?: React.ReactNode;
   isActive: boolean;
   onClick: () => void;
 }): React.ReactElement {
@@ -101,6 +103,9 @@ function TitleBarTab({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 5,
         padding: "6px 14px",
         fontSize: 12,
         fontWeight: isActive ? 600 : 400,
@@ -118,6 +123,7 @@ function TitleBarTab({
         WebkitAppRegion: "no-drag",
       } as React.CSSProperties}
     >
+      {icon && <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span>}
       {label}
     </button>
   );
@@ -295,6 +301,7 @@ export function TitleBar({
           <TitleBarTab
             key={tab.id}
             label={tab.label}
+            icon={tab.icon}
             isActive={activeTab.kind === "builtin" && activeTab.id === tab.id}
             onClick={() => onSelectBuiltinTab(tab.id)}
           />

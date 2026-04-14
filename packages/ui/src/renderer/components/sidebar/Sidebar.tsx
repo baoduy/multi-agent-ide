@@ -8,7 +8,6 @@ import { useSessionStore } from "../../store/sessionStore";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoList } from "./RepoList";
 import { SpecTree } from "./SpecTree";
-import { SettingsDialog } from "../settings/SettingsDialog";
 import { colors } from "../../utils/colors";
 
 /* ── Constants ── */
@@ -31,25 +30,12 @@ export function Sidebar(): React.ReactElement {
   const storedSpecPanelHeight = useSessionStore((state) => state.specPanelHeight);
   const patchSession = useSessionStore((state) => state.patchSession);
 
-  const [showSettings, setShowSettings] = useState(false);
   const [specHeight, setSpecHeight] = useState(storedSpecPanelHeight ?? DEFAULT_SPEC_HEIGHT);
 
   /* ── Inline search state ── */
   const searchQuery = useRepoStore((state) => state.searchQuery);
   const setSearchQuery = useRepoStore((state) => state.setSearchQuery);
-  const [searchOpen, setSearchOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  const openSearch = useCallback(() => {
-    setSearchOpen(true);
-    // Focus after React re-renders
-    requestAnimationFrame(() => searchInputRef.current?.focus());
-  }, []);
-
-  const closeSearch = useCallback(() => {
-    setSearchQuery("");
-    setSearchOpen(false);
-  }, [setSearchQuery]);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const draggingRef = useRef(false);
@@ -120,152 +106,79 @@ export function Sidebar(): React.ReactElement {
 
   return (
     <div ref={containerRef} style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <SettingsDialog isOpen={showSettings} onClose={() => setShowSettings(false)} />
-
-      {/* Section header — label toggles into inline search */}
+      {/* Unified search + repositories header */}
       <div
         style={{
           padding: "8px 10px 6px",
           display: "flex",
           alignItems: "center",
-          gap: 6,
           flexShrink: 0,
           minHeight: 32,
         }}
       >
-        {searchOpen ? (
-          /* ── Inline search input ── */
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: colors.bgPanel,
-              borderRadius: 6,
-              padding: "0 8px",
-              border: `1px solid ${colors.borderStrong}`,
-              height: 26,
-              boxSizing: "border-box",
-            }}
-          >
-            <Search size={13} color={colors.textTertiary} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Escape") closeSearch();
-              }}
-              onBlur={() => {
-                if (!searchQuery) setSearchOpen(false);
-              }}
-              placeholder="Search repositories..."
-              style={{
-                flex: 1,
-                border: "none",
-                background: "transparent",
-                outline: "none",
-                fontSize: 12,
-                color: colors.textStrong,
-                padding: 0,
-                lineHeight: "18px",
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={closeSearch}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "1px",
-                  lineHeight: 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  color: colors.textTertiary,
-                  borderRadius: 3,
-                }}
-                title="Clear search"
-              >
-                <X size={12} strokeWidth={2} />
-              </button>
-            )}
-          </div>
-        ) : (
-          /* ── Label + search icon ── */
-          <>
-            <button
-              type="button"
-              onClick={openSearch}
-              style={{
-                flex: 1,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                background: "none",
-                border: "1px solid transparent",
-                cursor: "pointer",
-                padding: "0 4px",
-                borderRadius: 6,
-                height: 26,
-                boxSizing: "border-box",
-                transition: "background 0.12s",
-              }}
-              title="Search repositories"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = colors.bgHover;
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "none";
-              }}
-            >
-              <Search size={11} color={colors.borderStrong} strokeWidth={2} style={{ flexShrink: 0 }} />
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  color: colors.textTertiary,
-                }}
-              >
-                Repositories
-              </span>
-            </button>
-          </>
-        )}
-
-        {/* Settings gear — always visible */}
-        <button
-          type="button"
-          onClick={() => setShowSettings(true)}
+        <div
           style={{
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            fontSize: 16,
-            color: colors.textTertiary,
-            padding: "3px 5px",
-            borderRadius: 5,
-            lineHeight: 1,
-            flexShrink: 0,
-            transition: "color 0.15s, background 0.15s",
-          }}
-          title="Settings"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = colors.textStrong;
-            e.currentTarget.style.background = colors.border;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = colors.textTertiary;
-            e.currentTarget.style.background = "none";
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            background: colors.bgPanel,
+            borderRadius: 6,
+            padding: "0 8px",
+            border: `1px solid ${searchQuery ? colors.borderStrong : colors.border}`,
+            height: 26,
+            boxSizing: "border-box",
+            transition: "border-color 0.15s",
           }}
         >
-          &#x2699;
-        </button>
+          <Search size={13} color={colors.textTertiary} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setSearchQuery("");
+                searchInputRef.current?.blur();
+              }
+            }}
+            placeholder="Repositories"
+            style={{
+              flex: 1,
+              border: "none",
+              background: "transparent",
+              outline: "none",
+              fontSize: 12,
+              color: colors.textStrong,
+              padding: 0,
+              lineHeight: "18px",
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                searchInputRef.current?.focus();
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: "1px",
+                lineHeight: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                color: colors.textTertiary,
+                borderRadius: 3,
+              }}
+              title="Clear search"
+            >
+              <X size={12} strokeWidth={2} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Repo list — fills remaining space */}

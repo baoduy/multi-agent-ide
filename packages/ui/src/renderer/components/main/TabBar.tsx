@@ -4,18 +4,10 @@ import { getFileIconInfo } from "../common/fileIcons";
 import { ScrollableText } from "../common/ScrollableText";
 import { colors } from "../../utils/colors";
 
-/* ── Types ── */
+/* ── Types (re-exported from shared location) ── */
 
-export type BuiltinTabId = "specs" | "worktrees" | "workflow" | "ai";
-
-export type OpenFileTab = {
-  filePath: string;
-  fileName: string;
-};
-
-export type ActiveTab =
-  | { kind: "builtin"; id: BuiltinTabId }
-  | { kind: "file"; filePath: string };
+import type { BuiltinTabId, OpenFileTab, ActiveTab } from "../../types/tabs";
+export type { BuiltinTabId, OpenFileTab, ActiveTab };
 
 type TabBarProps = {
   activeTab: ActiveTab;

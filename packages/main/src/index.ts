@@ -365,6 +365,22 @@ function startDaemon() {
       if (missing.length > 0) {
         daemonEnv["PATH"] = currentPath ? `${currentPath}:${missing.join(":")}` : missing.join(":");
       }
+      writeLog("INFO", "main", `Daemon PATH: ${daemonEnv["PATH"]}`);
+
+      // Resolve git to an absolute path — Electron's ELECTRON_RUN_AS_NODE
+      // forked processes don't reliably search PATH with execFileSync.
+      const gitCandidates = [
+        "/usr/bin/git",
+        "/opt/homebrew/bin/git",
+        "/usr/local/bin/git",
+      ];
+      for (const candidate of gitCandidates) {
+        if (fs.existsSync(candidate)) {
+          daemonEnv["MAGENTA_GIT_PATH"] = candidate;
+          writeLog("INFO", "main", `Resolved git: ${candidate}`);
+          break;
+        }
+      }
     }
 
     const nodeExecPath =

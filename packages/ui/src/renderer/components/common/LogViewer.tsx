@@ -81,7 +81,7 @@ export function LogViewer(): React.ReactElement {
         }}
       >
         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {logPath || "Application Log"}
+          Application Log
         </span>
         <button
           type="button"

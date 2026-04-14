@@ -60,7 +60,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
     repoScanner,
   );
   const specService = new SpecApplicationService(context.specSyncService, specReader, specGitGateway);
-  const worktreeService = new WorktreeApplicationService(gitGateway);
+  const worktreeService = new WorktreeApplicationService(gitGateway, context.repoRepository);
 
   registerRepoHandlers({ bridge, repoService });
   registerSpecHandlers({ bridge, specService });

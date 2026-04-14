@@ -1,4 +1,5 @@
 import { execFileSync } from "child_process";
+import { existsSync } from "fs";
 
 /**
  * Executes a git command synchronously and returns the trimmed output.
@@ -50,6 +51,9 @@ export function parseGitLines(output: string): string[] {
  * execFileSync (no shell required). This avoids the `/bin/sh ENOENT` error
  * in packaged Electron apps where the shell may not be accessible.
  *
+ * For "git" commands, uses the absolute path from MAGENTA_GIT_PATH if set
+ * (Electron's ELECTRON_RUN_AS_NODE forked processes don't reliably search PATH).
+ *
  * Supports simple quoted arguments (double quotes only) for paths with spaces.
  */
 export function gitExecSync(
@@ -58,7 +62,21 @@ export function gitExecSync(
   options?: { maxBuffer?: number },
 ): string {
   const args = parseCommandArgs(command);
-  const binary = args.shift()!;
+  let binary = args.shift()!;
+
+  // In packaged Electron apps, the main process resolves git to an absolute
+  // path and passes it via MAGENTA_GIT_PATH since execFileSync in forked
+  // ELECTRON_RUN_AS_NODE processes can't reliably search PATH.
+  if (binary === "git" && process.env["MAGENTA_GIT_PATH"]) {
+    binary = process.env["MAGENTA_GIT_PATH"];
+  }
+
+  // Guard: Node.js reports ENOENT for the binary when the cwd doesn't exist,
+  // which is very misleading. Throw a clear error instead.
+  if (!existsSync(cwd)) {
+    throw new Error(`Directory does not exist: ${cwd}`);
+  }
+
   return execFileSync(binary, args, {
     cwd,
     encoding: "utf-8",

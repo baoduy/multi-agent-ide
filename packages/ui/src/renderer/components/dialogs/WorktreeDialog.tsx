@@ -70,7 +70,7 @@ export function WorktreeDialog({
       footer={
         <>
           <CancelButton onClick={onCancel} />
-          <PrimaryButton onClick={handleConfirm} color="#16A34A">
+          <PrimaryButton onClick={handleConfirm} color={colors.success}>
             Create & Approve
           </PrimaryButton>
         </>

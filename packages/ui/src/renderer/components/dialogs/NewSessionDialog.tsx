@@ -67,7 +67,7 @@ function PickerButton({ selected, onClick, icon, label, selectedColor = colors.p
         padding: "10px 12px",
         borderRadius: 6,
         border: selected ? `1.5px solid ${selectedColor}` : `1px solid ${colors.border}`,
-        background: selected ? `${selectedColor}08` : "#ffffff",
+        background: selected ? `${selectedColor}08` : colors.bgWhite,
         cursor: "pointer",
         fontSize: 12,
         fontWeight: 500,

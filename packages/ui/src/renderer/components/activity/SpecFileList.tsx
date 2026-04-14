@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from "react";
 import { FolderOpen, FileText, Clipboard } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import { FileTree } from "../common/FileTree";
 import type { TreeEntry } from "../common/FileTree";
 import type { ContextMenuAction } from "../common/ContextMenu";
@@ -96,7 +97,7 @@ export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.Re
   );
 
   if (files.length === 0) {
-    return <div style={{ fontSize: 12, color: "#9a958c" }}>No files in this spec.</div>;
+    return <div style={{ fontSize: 12, color: colors.textTertiary }}>No files in this spec.</div>;
   }
 
   return (

@@ -224,7 +224,7 @@ export function OnboardDialog({
                       border: "none",
                       background:
                         agent.id === selectedAgent
-                          ? "#f0ebe4"
+                          ? colors.bgHover
                           : "transparent",
                       color: colors.text,
                       cursor: "pointer",
@@ -241,7 +241,7 @@ export function OnboardDialog({
                     onMouseLeave={(e) => {
                       e.currentTarget.style.background =
                         agent.id === selectedAgent
-                          ? "#f0ebe4"
+                          ? colors.bgHover
                           : "transparent";
                     }}
                   >

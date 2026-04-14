@@ -259,9 +259,9 @@ export function WorktreeInlinePanel({
               display: "flex",
               alignItems: "center",
               gap: 6,
-              background: "#f0fdf4",
+              background: colors.successSoft,
               color: colors.success,
-              border: "1px solid #bbf7d0",
+              border: `1px solid ${colors.successSoftBorder}`,
               marginBottom: 12,
             }}
           >
@@ -282,8 +282,8 @@ export function WorktreeInlinePanel({
                 padding: "8px 14px",
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#fff",
-                background: isDeleting ? "#c4c1ba" : colors.errorDark,
+                color: colors.textWhite,
+                background: isDeleting ? colors.borderMuted : colors.errorDark,
                 border: "none",
                 borderRadius: 6,
                 cursor: isDeleting ? "not-allowed" : "pointer",
@@ -344,9 +344,9 @@ export function WorktreeInlinePanel({
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 6,
-                background: "#fef2f2",
-                color: "#dc2626",
-                border: "1px solid #fecaca",
+                background: colors.errorSoft,
+                color: colors.errorDark,
+                border: `1px solid ${colors.errorSoftBorder}`,
               }}
             >
               <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
@@ -360,7 +360,7 @@ export function WorktreeInlinePanel({
           /* Delete section — no changes in this worktree */
           <div
             style={{
-              borderTop: "1px solid #e5e2da",
+              borderTop: `1px solid ${colors.border}`,
               padding: "12px 16px 14px",
               display: "flex",
               alignItems: "center",
@@ -379,8 +379,8 @@ export function WorktreeInlinePanel({
                 padding: "7px 16px",
                 fontSize: 12,
                 fontWeight: 600,
-                color: "#fff",
-                background: isDeleting ? "#c4c1ba" : colors.errorDark,
+                color: colors.textWhite,
+                background: isDeleting ? colors.borderMuted : colors.errorDark,
                 border: "none",
                 borderRadius: 6,
                 cursor: isDeleting ? "not-allowed" : "pointer",
@@ -489,7 +489,7 @@ export function WorktreeInlinePanel({
                               fontSize: 12,
                               color: b === targetBranch ? colors.primary : colors.text,
                               fontWeight: b === targetBranch ? 600 : 400,
-                              background: b === targetBranch ? "#faf5f2" : "transparent",
+                              background: b === targetBranch ? colors.bgPanelSoft : "transparent",
                               border: "none",
                               textAlign: "left",
                               cursor: "pointer",
@@ -518,8 +518,8 @@ export function WorktreeInlinePanel({
                   padding: "7px 16px",
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "#fff",
-                  background: !targetBranch || isMerging ? "#c4c1ba" : colors.primary,
+                  color: colors.textWhite,
+                  background: !targetBranch || isMerging ? colors.borderMuted : colors.primary,
                   border: "none",
                   borderRadius: 6,
                   cursor: !targetBranch || isMerging ? "not-allowed" : "pointer",
@@ -555,9 +555,9 @@ export function WorktreeInlinePanel({
                   display: "flex",
                   alignItems: "flex-start",
                   gap: 6,
-                  background: "#fef2f2",
+                  background: colors.errorSoft,
                   color: colors.errorDark,
-                  border: "1px solid #fecaca",
+                  border: `1px solid ${colors.errorSoftBorder}`,
                 }}
               >
                 <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />

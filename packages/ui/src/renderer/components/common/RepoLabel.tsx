@@ -132,8 +132,8 @@ export const RepoLabel = React.memo(RepoLabelComponent);
  * ══════════════════════════════════════════ */
 
 const branchColors: Record<LabelVariant, { icon: string; text: string; bg: string; border: string }> = {
-  light: { icon: colors.success, text: colors.success, bg: "#dcfce7", border: "#bbf7d0" },
-  dark: { icon: colors.success, text: colors.success, bg: "#dcfce7", border: "#bbf7d0" },
+  light: { icon: colors.success, text: colors.success, bg: colors.successSoft, border: colors.successSoftBorder },
+  dark: { icon: colors.success, text: colors.success, bg: colors.successSoft, border: colors.successSoftBorder },
 };
 
 type BranchLabelProps = {

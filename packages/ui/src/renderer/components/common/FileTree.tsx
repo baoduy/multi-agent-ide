@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
+import { colors } from "../../utils/colors";
 import { FileIconBadge, FolderIconBadge, ExtensionBadge } from "./fileIcons";
 import { ScrollableText } from "./ScrollableText";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
@@ -195,7 +196,7 @@ function FolderNode({
           padding: `5px 8px 5px ${8 + indent}px`,
           border: "none",
           borderRadius: 4,
-          background: hovered ? "#eeece6" : "transparent",
+          background: hovered ? colors.bgHover : "transparent",
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.1s",
@@ -211,7 +212,7 @@ function FolderNode({
             flexShrink: 0,
             transition: "transform 0.12s",
             transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
-            color: "#9a958c",
+            color: colors.textTertiary,
           }}
         >
           {hasChildren ? <ChevronDown size={12} strokeWidth={2} /> : null}
@@ -242,7 +243,7 @@ function FolderNode({
           <span
             style={{
               fontSize: 9,
-              color: "#b5b1a8",
+              color: colors.borderStrong,
               marginLeft: "auto",
               flexShrink: 0,
               fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
@@ -254,7 +255,7 @@ function FolderNode({
 
         {/* Loading */}
         {loading && (
-          <span style={{ fontSize: 9, color: "#9a958c", marginLeft: "auto", flexShrink: 0 }}>...</span>
+          <span style={{ fontSize: 9, color: colors.textTertiary, marginLeft: "auto", flexShrink: 0 }}>...</span>
         )}
       </button>
 
@@ -284,7 +285,7 @@ function FolderNode({
           style={{
             padding: `3px 8px 3px ${22 + indent}px`,
             fontSize: 10,
-            color: "#b5b1a8",
+            color: colors.borderStrong,
             fontStyle: "italic",
           }}
         >
@@ -336,7 +337,7 @@ function FileNode({
           padding: `5px 8px 5px ${22 + indent}px`,
           border: "none",
           borderRadius: 4,
-          background: hovered ? "#eeece6" : "transparent",
+          background: hovered ? colors.bgHover : "transparent",
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.1s",
@@ -353,7 +354,7 @@ function FileNode({
             style={{
               fontSize: 11,
               fontWeight: 500,
-              color: "#2c2c2c",
+              color: colors.text,
               flex: 1,
             }}
           >

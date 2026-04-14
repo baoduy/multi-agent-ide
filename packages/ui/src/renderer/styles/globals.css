@@ -19,10 +19,7 @@
  *   success   #16A34A
  */
 
-/*
- * Light-only runtime policy.
- * Keep dark variant reserved for future feature work, but do not activate it.
- */
+/* Dark mode: activated by adding `.dark` to <html> via ThemeProvider. */
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -45,6 +42,11 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-panel: var(--panel);
+  --color-panel-soft: var(--panel-soft);
+  --color-surface: var(--surface);
+  --color-success: var(--success);
+  --color-info: var(--info);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -109,7 +111,52 @@
   --flow-status-approved-border: #16a34a;
   --flow-status-approved-text: #166534;
 
-  /* Terminal / animation defaults (overridden by ThemeProvider tokens) */
+  /* ── Panels & surfaces ── */
+  --panel: #f5f4ed;
+  --panel-soft: #faf5f2;
+  --code-inline-bg: #eeece6;
+  --surface: #ffffff;
+
+  /* ── Extended border helpers ── */
+  --border-muted: #d1cec6;
+  --border-strong: #b5b1a8;
+
+  /* ── Extended text helpers ── */
+  --text-strong: #2c2c2c;
+  --text-on-primary: #ffffff;
+
+  /* ── Status: success ── */
+  --success: #16A34A;
+  --success-hover: #15803d;
+  --success-soft: #dcfce7;
+  --success-soft-border: #bbf7d0;
+  --success-muted: #86efac;
+  --success-text: #166534;
+
+  /* ── Status: warning ── */
+  --warning-soft: #fef3c7;
+  --warning-text: #7c6a3e;
+  --warning-border: #fde68a;
+  --warning-text-strong: #92400e;
+  --warning-text-deep: #9a3412;
+  --warning-border-soft: #fed7aa;
+
+  /* ── Status: info ── */
+  --info-soft: #dbeafe;
+  --info-text: #1e40af;
+  --info-border: #bfdbfe;
+  --info: #3b82f6;
+
+  /* ── Status: progress ── */
+  --progress-soft: #fce4ec;
+  --progress-text: #9f1239;
+  --progress-border: #fda4af;
+
+  /* ── Status: error ── */
+  --error-soft: #fae8e1;
+  --error-soft-border: #e5b8a5;
+
+  /* ── Terminal / animation defaults ── */
   --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
   --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
   --animation-duration-fast: 0.1s;
@@ -177,6 +224,49 @@
   --flow-status-approved-bg: rgba(22, 163, 74, 0.18);
   --flow-status-approved-border: #4ade80;
   --flow-status-approved-text: #86efac;
+
+  /* ── Panels & surfaces (dark) ── */
+  --panel: #2e2e2e;
+  --panel-soft: #333333;
+  --code-inline-bg: #3a3a3a;
+  --surface: #323232;
+
+  --border-muted: #4a4a4a;
+  --border-strong: #5a5a5a;
+
+  --text-strong: #ededed;
+  --text-on-primary: #ffffff;
+
+  /* ── Status: success (dark) ── */
+  --success: #4ade80;
+  --success-hover: #22c55e;
+  --success-soft: rgba(22, 163, 74, 0.15);
+  --success-soft-border: rgba(22, 163, 74, 0.3);
+  --success-muted: #166534;
+  --success-text: #86efac;
+
+  /* ── Status: warning (dark) ── */
+  --warning-soft: rgba(245, 158, 11, 0.15);
+  --warning-text: #fcd34d;
+  --warning-border: rgba(251, 191, 35, 0.3);
+  --warning-text-strong: #fbbf24;
+  --warning-text-deep: #f59e0b;
+  --warning-border-soft: rgba(253, 186, 116, 0.3);
+
+  /* ── Status: info (dark) ── */
+  --info-soft: rgba(59, 130, 246, 0.15);
+  --info-text: #93c5fd;
+  --info-border: rgba(59, 130, 246, 0.3);
+  --info: #60a5fa;
+
+  /* ── Status: progress (dark) ── */
+  --progress-soft: rgba(159, 18, 57, 0.15);
+  --progress-text: #fda4af;
+  --progress-border: rgba(253, 164, 175, 0.3);
+
+  /* ── Status: error (dark) ── */
+  --error-soft: rgba(239, 68, 68, 0.15);
+  --error-soft-border: rgba(239, 68, 68, 0.3);
 
   --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
   --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
@@ -704,5 +794,127 @@
     white-space: pre-wrap;
     word-break: break-word;
     overflow-x: auto;
+  }
+
+  /*
+   * Dark mode overrides for markdown viewer.
+   * Code blocks (.md-code-block), syntax highlighting (.hljs-*),
+   * and copy buttons (.md-copy-btn) are always dark — no overrides needed.
+   */
+  .dark .md-viewer {
+    color: #ededed;
+  }
+
+  .dark .md-viewer h1 {
+    color: #f0f0f0;
+    border-bottom-color: #3f3f3f;
+  }
+
+  .dark .md-viewer h2 {
+    color: #f0f0f0;
+    border-bottom-color: #3a3a3a;
+  }
+
+  .dark .md-viewer h3 {
+    color: #ededed;
+  }
+
+  .dark .md-viewer h4 {
+    color: #b0b0b0;
+  }
+
+  .dark .md-viewer h5,
+  .dark .md-viewer h6 {
+    color: #a0a0a0;
+  }
+
+  .dark .md-viewer hr {
+    border-top-color: #3f3f3f;
+  }
+
+  .dark .md-viewer a {
+    color: #e08060;
+    border-bottom-color: rgba(224, 128, 96, 0.25);
+  }
+
+  .dark .md-viewer a:hover {
+    border-bottom-color: #e08060;
+  }
+
+  .dark .md-viewer code:not(pre code) {
+    background: #3a3535;
+    color: #e08060;
+  }
+
+  .dark .md-viewer li::marker {
+    color: #7a7a7a;
+  }
+
+  .dark .md-viewer input[type="checkbox"] {
+    accent-color: #e08060;
+  }
+
+  .dark .md-viewer blockquote {
+    border-left-color: #C15F3C;
+    color: #a0a0a0;
+    background: #2e2e2e;
+  }
+
+  .dark .md-viewer blockquote blockquote {
+    border-left-color: #4a4a4a;
+    background: #383838;
+  }
+
+  .dark .md-viewer table {
+    border-color: #3f3f3f;
+  }
+
+  .dark .md-viewer thead {
+    background: #2e2e2e;
+  }
+
+  .dark .md-viewer th {
+    color: #b0b0b0;
+    border-bottom-color: #3f3f3f;
+  }
+
+  .dark .md-viewer td {
+    border-bottom-color: #3a3a3a;
+    color: #ededed;
+  }
+
+  .dark .md-viewer tbody tr:hover {
+    background: #333333;
+  }
+
+  .dark .md-viewer .md-mermaid {
+    background: #2a2a2a;
+    border-color: #3f3f3f;
+    color: #a0a0a0;
+  }
+
+  .dark .md-viewer .md-mermaid-rendered {
+    color: #ededed;
+  }
+
+  .dark .md-viewer .md-mermaid-error {
+    color: #f87171;
+  }
+
+  .dark .md-viewer dd {
+    color: #b0b0b0;
+  }
+
+  .dark .md-raw-viewer {
+    background: #2a2a2a;
+  }
+
+  .dark .md-raw-gutter {
+    color: #5a5a5a;
+    border-right-color: #3f3f3f;
+  }
+
+  .dark .md-raw-content {
+    color: #ededed;
   }
 }

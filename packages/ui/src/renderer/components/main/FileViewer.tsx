@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, FileCode, Copy, Check, Clipboard, CheckCircle, GitBranch } from "lucide-react";
-import { Marked } from "marked";
-import { markedHighlight } from "marked-highlight";
-import hljs from "highlight.js";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
+import rehypeSlug from "rehype-slug";
 
 import { ipc } from "../../utils/ipc";
 import { ScrollableText } from "../common/ScrollableText";
@@ -11,82 +12,15 @@ import { useWorktreeStore } from "../../store/worktreeStore";
 import { colors } from "../../utils/colors";
 
 /* ═══════════════════════════════════════════════════════
-   Marked instance — configured once with highlight.js
+   Remark / Rehype plugin instances (stable references)
    ═══════════════════════════════════════════════════════ */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- marked-highlight may carry its own marked types
-const marked = new Marked(
-  markedHighlight({
-    emptyLangClass: "hljs",
-    langPrefix: "hljs language-",
-    highlight(code: string, lang: string) {
-      if (lang === "mermaid") {
-        // Don't highlight mermaid — we render it as a diagram
-        return code;
-      }
-      if (lang && hljs.getLanguage(lang)) {
-        return hljs.highlight(code, { language: lang }).value;
-      }
-      return hljs.highlightAuto(code).value;
-    },
-  }) as any, // eslint-disable-line @typescript-eslint/no-explicit-any
-);
-
-marked.setOptions({
-  gfm: true,
-  breaks: false,
-});
-
-// Custom renderer to handle mermaid code blocks, copy buttons, and heading IDs
-const renderer = new marked.Renderer();
-const origCodeRenderer = renderer.code.bind(renderer);
-
-renderer.code = function (
-  token: { type: "code"; raw: string; text: string; lang?: string },
-): string {
-  if (token.lang === "mermaid") {
-    return `<div class="md-mermaid" data-mermaid="${encodeURIComponent(token.text)}">${escapeHtml(token.text)}</div>`;
-  }
-  const langLabel = token.lang
-    ? `<span class="md-code-lang">${escapeHtml(token.lang)}</span>`
-    : "";
-  const copyBtn = `<button class="md-copy-btn" data-code="${encodeURIComponent(token.text)}" title="Copy code">Copy</button>`;
-  const defaultHtml = origCodeRenderer(token);
-  return `<div class="md-code-block">${langLabel}${copyBtn}${defaultHtml}</div>`;
-};
-
-/** Generate a slug from heading text (for anchor IDs). */
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .trim();
-}
-
-// Override heading renderer to inject id attributes for ToC navigation
-const origHeadingRenderer = renderer.heading.bind(renderer);
-renderer.heading = function (
-  token: { type: "heading"; raw: string; depth: number; text: string },
-): string {
-  const id = `heading-${slugify(token.text)}`;
-  return `<h${token.depth} id="${id}">${token.text}</h${token.depth}>\n`;
-};
-
-marked.use({ renderer });
-
-function renderMarkdownToHtml(md: string): string {
-  return marked.parse(md) as string;
-}
+const remarkPlugins = [remarkGfm];
+const rehypePlugins = [rehypeHighlight, rehypeSlug];
 
 /* ═══════════════════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════════════════ */
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
 
 function isMarkdownFile(filePath: string): boolean {
   return /\.(md|mdx)$/i.test(filePath);
@@ -111,17 +45,25 @@ function isGitRefPath(filePath: string): boolean {
   return filePath.startsWith("gitref://");
 }
 
+/** Generate a slug from heading text (for anchor IDs). */
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim();
+}
+
 /* ═══════════════════════════════════════════════════════
-   Mermaid rendering hook
+   Mermaid block — lazy-rendered React component
    ═══════════════════════════════════════════════════════ */
 
-function useMermaidRendering(containerRef: React.RefObject<HTMLDivElement | null>, content: string | null, viewMode: string) {
+const MermaidBlock = React.memo(function MermaidBlock({ chart }: { chart: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (viewMode !== "preview" || !containerRef.current || !content) return;
-
-    const els = containerRef.current.querySelectorAll<HTMLDivElement>(".md-mermaid");
-    if (els.length === 0) return;
-
     let cancelled = false;
 
     void (async () => {
@@ -134,63 +76,120 @@ function useMermaidRendering(containerRef: React.RefObject<HTMLDivElement | null
           securityLevel: "strict",
         });
 
-        for (let i = 0; i < els.length; i++) {
-          if (cancelled) return;
-          const el = els[i];
-          const source = decodeURIComponent(el.getAttribute("data-mermaid") ?? "");
-          if (!source) continue;
+        const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const { svg } = await mermaid.render(id, chart);
 
-          try {
-            const id = `mermaid-${Date.now()}-${i}`;
-            const { svg } = await mermaid.render(id, source);
-            if (!cancelled) {
-              el.innerHTML = svg;
-              el.classList.add("md-mermaid-rendered");
-            }
-          } catch {
-            // If individual diagram fails, show error inline
-            el.innerHTML = `<div class="md-mermaid-error">Mermaid diagram error</div><pre>${escapeHtml(source)}</pre>`;
-          }
+        if (!cancelled && containerRef.current) {
+          containerRef.current.innerHTML = svg;
+          containerRef.current.classList.add("md-mermaid-rendered");
         }
       } catch {
-        // mermaid import failed — leave raw text
+        if (!cancelled) setError("Mermaid diagram error");
       }
     })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [containerRef, content, viewMode]);
+    return () => { cancelled = true; };
+  }, [chart]);
+
+  if (error) {
+    return (
+      <div className="md-mermaid">
+        <div className="md-mermaid-error">{error}</div>
+        <pre>{chart}</pre>
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} className="md-mermaid" />;
+});
+
+/* ═══════════════════════════════════════════════════════
+   Code block with copy button + language label
+   ═══════════════════════════════════════════════════════ */
+
+const CodeBlock = React.memo(function CodeBlock({
+  className,
+  children,
+}: {
+  className?: string;
+  children?: React.ReactNode;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  // Extract language from className (e.g. "hljs language-typescript" → "typescript")
+  const lang = className?.match(/language-(\S+)/)?.[1] ?? "";
+  const codeText = extractTextFromChildren(children);
+
+  const handleCopy = useCallback(() => {
+    void navigator.clipboard.writeText(codeText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [codeText]);
+
+  // Mermaid diagrams — render as diagram instead of code block
+  if (lang === "mermaid") {
+    return <MermaidBlock chart={codeText} />;
+  }
+
+  return (
+    <div className="md-code-block">
+      {lang && <span className="md-code-lang">{lang}</span>}
+      <button
+        type="button"
+        className={`md-copy-btn${copied ? " copied" : ""}`}
+        onClick={handleCopy}
+        title="Copy code"
+      >
+        {copied ? "Copied!" : "Copy"}
+      </button>
+      <pre>
+        <code className={className}>{children}</code>
+      </pre>
+    </div>
+  );
+});
+
+/** Recursively extract text content from React children. */
+function extractTextFromChildren(children: React.ReactNode): string {
+  if (typeof children === "string") return children;
+  if (typeof children === "number") return String(children);
+  if (!children) return "";
+  if (Array.isArray(children)) return children.map(extractTextFromChildren).join("");
+  if (React.isValidElement(children) && children.props) {
+    return extractTextFromChildren((children.props as { children?: React.ReactNode }).children);
+  }
+  return "";
 }
 
 /* ═══════════════════════════════════════════════════════
-   Copy button handler
+   react-markdown custom component overrides
    ═══════════════════════════════════════════════════════ */
 
-function useCopyButtons(containerRef: React.RefObject<HTMLDivElement | null>, viewMode: string) {
-  useEffect(() => {
-    if (viewMode !== "preview" || !containerRef.current) return;
+const markdownComponents: Components = {
+  // Code — inline or block
+  code({ className, children, ...props }) {
+    // If the code is inside a <pre>, it's a fenced code block
+    // react-markdown wraps fenced blocks in <pre><code>
+    const isBlock = className?.includes("language-") || className?.includes("hljs");
 
-    const handleClick = (e: MouseEvent) => {
-      const btn = (e.target as HTMLElement).closest<HTMLButtonElement>(".md-copy-btn");
-      if (!btn) return;
+    if (isBlock) {
+      return <CodeBlock className={className}>{children}</CodeBlock>;
+    }
 
-      const code = decodeURIComponent(btn.getAttribute("data-code") ?? "");
-      void navigator.clipboard.writeText(code).then(() => {
-        btn.textContent = "Copied!";
-        btn.classList.add("copied");
-        setTimeout(() => {
-          btn.textContent = "Copy";
-          btn.classList.remove("copied");
-        }, 1500);
-      });
-    };
+    // Inline code
+    return (
+      <code className={className} {...props}>
+        {children}
+      </code>
+    );
+  },
 
-    const container = containerRef.current;
-    container.addEventListener("click", handleClick);
-    return () => container.removeEventListener("click", handleClick);
-  }, [containerRef, viewMode]);
-}
+  // Override <pre> to pass through — our CodeBlock handles the wrapper
+  pre({ children }) {
+    return <>{children}</>;
+  },
+};
 
 /* ═══════════════════════════════════════════════════════
    Table of Contents — types, extraction, active tracking
@@ -205,8 +204,6 @@ type TocHeading = {
 /** Parse raw markdown and extract headings for the ToC. */
 function extractHeadings(md: string): TocHeading[] {
   const headings: TocHeading[] = [];
-  // Match lines like "# Heading", "## Sub-heading", etc.
-  // but skip headings inside fenced code blocks.
   let inCodeBlock = false;
 
   for (const line of md.split("\n")) {
@@ -220,7 +217,8 @@ function extractHeadings(md: string): TocHeading[] {
     if (match) {
       const level = match[1].length;
       const text = match[2].replace(/\*\*/g, "").replace(/\*/g, "").trim();
-      const id = `heading-${slugify(text)}`;
+      // rehype-slug generates IDs by slugifying heading text (lowercase, hyphenated)
+      const id = slugify(text);
       headings.push({ id, text, level });
     }
   }
@@ -247,7 +245,7 @@ function useActiveHeading(
     }
 
     const handleScroll = () => {
-      const offset = 80; // px from top to consider "active"
+      const offset = 80;
       let current: string | null = null;
 
       for (const h of headings) {
@@ -265,7 +263,7 @@ function useActiveHeading(
       setActiveId(current);
     };
 
-    handleScroll(); // initial check
+    handleScroll();
     container.addEventListener("scroll", handleScroll, { passive: true });
     return () => container.removeEventListener("scroll", handleScroll);
   }, [containerRef, headings, viewMode]);
@@ -274,7 +272,7 @@ function useActiveHeading(
 }
 
 /** Table of Contents sidebar component. */
-function TableOfContents({
+const TableOfContents = React.memo(function TableOfContents({
   headings,
   activeId,
   containerRef,
@@ -364,7 +362,7 @@ function TableOfContents({
       })}
     </nav>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════════
    View mode toggle button
@@ -846,7 +844,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
       let response;
       if (gitRef && repoPath) {
-        // Read from a non-current branch via git show
         response = await ipc.send({
           type: "gitfile:read",
           repoPath,
@@ -854,7 +851,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
           relativePath: gitRef.relativePath,
         });
       } else {
-        // Read from filesystem (current branch)
         response = await ipc.send({ type: "file:read", filePath });
       }
 
@@ -873,17 +869,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
       cancelled = true;
     };
   }, [filePath, repoPath]);
-
-  // Render mermaid diagrams after HTML is injected
-  useMermaidRendering(contentRef, content, viewMode);
-
-  // Attach copy button handlers
-  useCopyButtons(contentRef, viewMode);
-
-  const renderedHtml = useMemo(() => {
-    if (!content) return "";
-    return renderMarkdownToHtml(content);
-  }, [content]);
 
   // Extract headings for Table of Contents
   const headings = useMemo(() => {
@@ -976,12 +961,19 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
         {isMd ? (
           viewMode === "preview" ? (
             <div style={{ display: "flex" }}>
-              {/* Main markdown content */}
+              {/* Main markdown content — rendered via react-markdown */}
               <div
                 className="md-viewer"
                 style={{ padding: "20px 28px", flex: 1, minWidth: 0 }}
-                dangerouslySetInnerHTML={{ __html: renderedHtml }}
-              />
+              >
+                <ReactMarkdown
+                  remarkPlugins={remarkPlugins}
+                  rehypePlugins={rehypePlugins}
+                  components={markdownComponents}
+                >
+                  {content}
+                </ReactMarkdown>
+              </div>
 
               {/* Table of Contents — right sidebar */}
               {showToc && (

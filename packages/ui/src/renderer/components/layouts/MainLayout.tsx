@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
+import { colors } from "../../utils/colors";
 import { useSessionStore } from "../../store/sessionStore";
 
 /* ── Constants ── */
@@ -45,8 +46,8 @@ function ResizeHandle({
         zIndex: 10,
         // Slight overlap to make the grab area generous
         ...(side === "left"
-          ? { marginLeft: -1, borderRight: "1px solid #e5e2da" }
-          : { marginRight: -1, borderLeft: "1px solid #e5e2da" }),
+          ? { marginLeft: -1, borderRight: `1px solid ${colors.border}` }
+          : { marginRight: -1, borderLeft: `1px solid ${colors.border}` }),
       }}
     >
       {/* Highlight bar on hover/drag */}
@@ -58,7 +59,7 @@ function ResizeHandle({
           left: side === "left" ? "auto" : 0,
           right: side === "left" ? 0 : "auto",
           width: 2,
-          background: hovered ? "#C15F3C" : "transparent",
+          background: hovered ? colors.primary : "transparent",
           transition: "background 0.15s",
           borderRadius: 1,
         }}
@@ -163,8 +164,8 @@ export function MainLayout({
         height: "100vh",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif",
         fontSize: 13,
-        color: "#2c2c2c",
-        background: "#faf9f5",
+        color: colors.text,
+        background: colors.bgSurface,
       }}
     >
       {/* Title bar */}
@@ -187,7 +188,7 @@ export function MainLayout({
             flexShrink: 0,
             display: "flex",
             flexDirection: "column",
-            background: "#f5f4ed",
+            background: colors.bgPanel,
             overflow: "hidden",
             transition: COLLAPSE_TRANSITION,
             opacity: sidebarCollapsed ? 0 : 1,
@@ -219,7 +220,7 @@ export function MainLayout({
                 flexShrink: 0,
                 display: "flex",
                 flexDirection: "column",
-                background: "#f5f4ed",
+                background: colors.bgPanel,
                 overflow: "hidden",
                 transition: COLLAPSE_TRANSITION,
                 opacity: activityCollapsed ? 0 : 1,

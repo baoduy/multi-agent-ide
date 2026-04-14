@@ -269,7 +269,7 @@ export function AISessionsView({
               outline: "none",
               boxShadow: "none",
               background: colors.primary,
-              color: "#ffffff",
+              color: colors.textWhite,
               cursor: "pointer",
               fontSize: 12,
               fontWeight: 500,

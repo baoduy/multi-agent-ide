@@ -1,14 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import themeConfig from "../theme/theme-config.json";
-
-export interface ThemeConfig {
-  colors: Record<string, string>;
-  typography: Record<string, Record<string, string>>;
-  spacing: Record<string, string>;
-  radius: Record<string, string>;
-  animation?: Record<string, Record<string, string>>;
-  scrollbar?: Record<string, string>;
-}
 
 /** User-facing preference: light / dark / follow OS. */
 export type ThemePreference = "light" | "dark" | "system";
@@ -54,10 +44,6 @@ function getSystemTheme(): ResolvedTheme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function resolveTheme(pref: ThemePreference): ResolvedTheme {
-  return pref === "system" ? getSystemTheme() : pref;
-}
-
 interface ThemeProviderProps {
   children: React.ReactNode;
 }
@@ -77,60 +63,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const resolved: ResolvedTheme =
     preference === "system" ? systemTheme : preference;
-
-  const applyTokens = useCallback(() => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-
-    // Color tokens from theme-config.json (kept for backwards compatibility).
-    Object.entries(themeConfig.colors).forEach(([key, value]) => {
-      root.style.setProperty(`--color-${key}`, value);
-    });
-
-    if (themeConfig.typography.fontFamily) {
-      Object.entries(themeConfig.typography.fontFamily).forEach(([key, value]) => {
-        root.style.setProperty(`--font-${key}`, value);
-      });
-    }
-    if (themeConfig.typography.fontSize) {
-      Object.entries(themeConfig.typography.fontSize).forEach(([key, value]) => {
-        root.style.setProperty(`--text-${key}`, value);
-      });
-    }
-    if (themeConfig.typography.fontWeight) {
-      Object.entries(themeConfig.typography.fontWeight).forEach(([key, value]) => {
-        root.style.setProperty(`--font-weight-${key}`, value);
-      });
-    }
-    if (themeConfig.typography.lineHeight) {
-      Object.entries(themeConfig.typography.lineHeight).forEach(([key, value]) => {
-        root.style.setProperty(`--line-height-${key}`, value);
-      });
-    }
-
-    Object.entries(themeConfig.spacing).forEach(([key, value]) => {
-      root.style.setProperty(`--space-${key}`, value);
-    });
-    Object.entries(themeConfig.radius).forEach(([key, value]) => {
-      root.style.setProperty(`--radius-${key}`, value);
-    });
-
-    if (themeConfig.animation?.duration) {
-      Object.entries(themeConfig.animation.duration).forEach(([key, value]) => {
-        root.style.setProperty(`--animation-duration-${key}`, value);
-      });
-    }
-    if (themeConfig.animation?.timing) {
-      Object.entries(themeConfig.animation.timing).forEach(([key, value]) => {
-        root.style.setProperty(`--animation-timing-${key}`, value);
-      });
-    }
-    if (themeConfig.scrollbar) {
-      Object.entries(themeConfig.scrollbar).forEach(([key, value]) => {
-        root.style.setProperty(`--scrollbar-${key}`, value);
-      });
-    }
-  }, []);
 
   // Listen for OS colour-scheme changes so "system" mode live-updates.
   useEffect(() => {
@@ -160,10 +92,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       // ignore
     }
   }, [resolved, preference]);
-
-  useEffect(() => {
-    applyTokens();
-  }, [applyTokens]);
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);

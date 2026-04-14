@@ -342,6 +342,25 @@ function startDaemon() {
     const daemonEnv: Record<string, string> = { ...process.env } as Record<string, string>;
     if (isPackaged) {
       daemonEnv["MAGENTA_RESOURCES_PATH"] = process.resourcesPath;
+
+      // macOS GUI apps launched from Finder inherit a minimal PATH that may
+      // not include directories where git and other CLI tools live.
+      // Ensure standard paths are present so child_process.execSync can find
+      // /bin/sh and git commands succeed.
+      const standardPaths = [
+        "/usr/local/bin",
+        "/usr/bin",
+        "/bin",
+        "/usr/sbin",
+        "/sbin",
+        "/opt/homebrew/bin",   // Apple Silicon Homebrew
+      ];
+      const currentPath = daemonEnv["PATH"] || "";
+      const existingParts = new Set(currentPath.split(":").filter(Boolean));
+      const missing = standardPaths.filter((p) => !existingParts.has(p));
+      if (missing.length > 0) {
+        daemonEnv["PATH"] = currentPath ? `${currentPath}:${missing.join(":")}` : missing.join(":");
+      }
     }
 
     const nodeExecPath =

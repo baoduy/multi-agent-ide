@@ -68,7 +68,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 marginTop: 16,
                 padding: "8px 20px",
                 background: "var(--destructive, #991b1b)",
-                color: "white",
+                color: "var(--text-on-primary, white)",
                 border: "none",
                 borderRadius: 6,
                 cursor: "pointer",

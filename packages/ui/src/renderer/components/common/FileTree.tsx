@@ -64,10 +64,10 @@ export type FileTreeProps = {
    ═══════════════════════════════════════════════════════ */
 
 const DEFAULT_DEPTH_COLORS = [
-  "#7C3AED", // purple
-  "#16A34A", // green
-  "#2563EB", // blue
-  "#6b6560", // warm gray
+  "var(--chart-4, #7C3AED)", // purple
+  "var(--success, #16A34A)", // green
+  "var(--info, #2563EB)",    // blue
+  "var(--muted-foreground, #6b6560)", // warm gray
 ];
 
 function colorForDepth(depth: number, colors: string[]): string {

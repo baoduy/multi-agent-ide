@@ -963,7 +963,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             <div style={{ display: "flex" }}>
               {/* Main markdown content — rendered via react-markdown */}
               <div
-                className="md-viewer"
+                className="markdown-body md-viewer"
                 style={{ padding: "20px 28px", flex: 1, minWidth: 0 }}
               >
                 <ReactMarkdown

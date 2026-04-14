@@ -29,10 +29,6 @@ files:
   # Root package.json is required by Electron to locate the main entry
   - package.json
 
-  # Native addon required by the daemon at runtime (kept external by esbuild).
-  # asarUnpack extracts it outside the archive so the .node binary is loadable.
-  - node_modules/node-pty/**/*
-
   # Exclude everything else by default
   - "!**/node_modules/.cache"
   - "!**/*.ts"
@@ -53,13 +49,23 @@ extraResources:
   - from: node_modules/sql.js/dist/sql-wasm.wasm
     to: sql-wasm.wasm
 
+  # node-pty is a native addon required by the daemon (forked with
+  # ELECTRON_RUN_AS_NODE=1). Forked processes use plain Node.js require
+  # which can't read from asar archives, so the module must live outside
+  # the asar entirely. The main process adds this path to NODE_PATH.
+  - from: node_modules/node-pty
+    to: node_modules/node-pty
+    filter:
+      - "**/*"
+      - "!src/**"
+      - "!*.ts"
+
 # ── asar ─────────────────────────────────────────────────────────────────────
 asar: true
 asarUnpack:
   # Native modules and binaries that need to run outside the archive
   - "**/*.node"
   - "**/sql.js/**"
-  - "**/node_modules/node-pty/**"
 
 # ── Compression ──────────────────────────────────────────────────────────────
 compression: normal

@@ -343,6 +343,10 @@ function startDaemon() {
     if (isPackaged) {
       daemonEnv["MAGENTA_RESOURCES_PATH"] = process.resourcesPath;
 
+      // node-pty lives in extraResources/node_modules (outside the asar).
+      // Set NODE_PATH so the daemon's plain Node.js require() can find it.
+      daemonEnv["NODE_PATH"] = path.join(process.resourcesPath, "node_modules");
+
       // macOS GUI apps launched from Finder inherit a minimal PATH that may
       // not include directories where git and other CLI tools live.
       // Ensure standard paths are present so child_process.execSync can find

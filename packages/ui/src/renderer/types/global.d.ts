@@ -8,6 +8,7 @@ declare global {
       off(listener: (payload: IpcResponse) => void): void;
       selectFolder(): Promise<string | null>;
       openInFileManager(dirPath: string): Promise<void>;
+      readLog(): Promise<{ content: string; path: string }>;
     };
   }
 }

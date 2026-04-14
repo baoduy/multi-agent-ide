@@ -1,0 +1,230 @@
+import React, { useEffect, useState } from "react";
+import ReactDiffViewer from "react-diff-viewer-continued";
+import { Loader2 } from "lucide-react";
+
+import { ipc } from "../../utils/ipc";
+import { colors } from "../../utils/colors";
+import { FileIconBadge } from "../common/fileIcons";
+import { FileStatusBadge } from "../common/FileStatusBadge";
+
+export type DiffViewerProps = {
+  /** Absolute path to the file on disk (working tree version). */
+  filePath: string;
+  /** Repo root (used to derive the relative path for `git show HEAD:…`). */
+  repoPath: string;
+  /** Git status so we can skip fetching the old/new side when appropriate. */
+  fileStatus: string;
+};
+
+export function DiffViewer({
+  filePath,
+  repoPath,
+  fileStatus,
+}: DiffViewerProps): React.ReactElement {
+  const [oldValue, setOldValue] = useState<string>("");
+  const [newValue, setNewValue] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const relativePath = filePath.startsWith(repoPath)
+    ? filePath.slice(repoPath.length).replace(/^\//, "")
+    : filePath;
+  const fileName = filePath.split("/").pop() ?? filePath;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchContents() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const isNew = fileStatus === "added" || fileStatus === "untracked";
+        const isDeleted = fileStatus === "deleted";
+
+        // Fetch old (HEAD) version — skip for new files
+        let old = "";
+        if (!isNew) {
+          try {
+            const resp = await ipc.send({
+              type: "gitfile:read",
+              repoPath,
+              ref: "HEAD",
+              relativePath,
+            });
+            if (resp.type === "gitfile:read:result") {
+              old = resp.content;
+            }
+          } catch {
+            // File doesn't exist in HEAD (new file) — leave empty
+          }
+        }
+
+        // Fetch new (working tree) version — skip for deleted files
+        let current = "";
+        if (!isDeleted) {
+          try {
+            const resp = await ipc.send({
+              type: "file:read",
+              filePath,
+            });
+            if (resp.type === "file:read:result") {
+              current = resp.content;
+            }
+          } catch {
+            // File might not be readable — leave empty
+          }
+        }
+
+        if (!cancelled) {
+          setOldValue(old);
+          setNewValue(current);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void fetchContents();
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath, repoPath, relativePath, fileStatus]);
+
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          padding: 40,
+          color: colors.textTertiary,
+          fontSize: 13,
+        }}
+      >
+        <Loader2
+          size={16}
+          strokeWidth={2}
+          style={{ animation: "spin 1s linear infinite" }}
+        />
+        Loading diff…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        style={{
+          padding: 20,
+          color: colors.error,
+          fontSize: 13,
+        }}
+      >
+        Failed to load diff: {error}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "8px 12px",
+          borderBottom: `1px solid ${colors.border}`,
+          background: colors.bgPanel,
+          flexShrink: 0,
+        }}
+      >
+        <FileIconBadge fileName={fileName} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
+          {fileName}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: colors.textTertiary,
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          {relativePath}
+        </span>
+        <FileStatusBadge status={fileStatus as any} />
+      </div>
+
+      {/* Diff content */}
+      <div style={{ flex: 1, overflow: "auto" }}>
+        <ReactDiffViewer
+          oldValue={oldValue}
+          newValue={newValue}
+          splitView={true}
+          useDarkTheme={true}
+          leftTitle="HEAD"
+          rightTitle="Working Tree"
+          styles={{
+            variables: {
+              dark: {
+                diffViewerBackground: "var(--background)",
+                diffViewerColor: "var(--foreground)",
+                addedBackground: "rgba(46, 160, 67, 0.15)",
+                addedColor: "var(--foreground)",
+                removedBackground: "rgba(248, 81, 73, 0.15)",
+                removedColor: "var(--foreground)",
+                wordAddedBackground: "rgba(46, 160, 67, 0.40)",
+                wordRemovedBackground: "rgba(248, 81, 73, 0.40)",
+                addedGutterBackground: "rgba(46, 160, 67, 0.20)",
+                removedGutterBackground: "rgba(248, 81, 73, 0.20)",
+                gutterBackground: "var(--muted)",
+                gutterBackgroundDark: "var(--muted)",
+                highlightBackground: "rgba(139, 148, 158, 0.15)",
+                highlightGutterBackground: "rgba(139, 148, 158, 0.20)",
+                codeFoldGutterBackground: "var(--muted)",
+                codeFoldBackground: "var(--muted)",
+                emptyLineBackground: "var(--background)",
+                gutterColor: "var(--muted-foreground)",
+                addedGutterColor: "var(--foreground)",
+                removedGutterColor: "var(--foreground)",
+                codeFoldContentColor: "var(--muted-foreground)",
+              },
+            },
+            contentText: {
+              fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+              fontSize: "12px",
+              lineHeight: "20px",
+            },
+            gutter: {
+              minWidth: "40px",
+              padding: "0 8px",
+            },
+            titleBlock: {
+              fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+              fontSize: "11px",
+              padding: "6px 12px",
+              background: "var(--panel)",
+              borderBottom: "1px solid var(--border)",
+            },
+          }}
+        />
+      </div>
+    </div>
+  );
+}

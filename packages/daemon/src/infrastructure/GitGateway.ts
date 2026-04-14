@@ -167,7 +167,7 @@ export class GitGateway {
     for (const line of raw.trim().split("\n")) {
       if (!line) continue;
       const xy = line.substring(0, 2);
-      const filePath = line.substring(3).trim();
+      const filePath = line.substring(2).trim();
 
       // Map git status codes to our simplified status.
       // XY columns: X = index (staging) status, Y = working-tree status.

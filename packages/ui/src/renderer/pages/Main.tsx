@@ -411,12 +411,22 @@ export function MainPage(): React.ReactElement {
       activityCollapsed={activityCollapsed}
       main={
         <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-          <TabBar
-            activeTab={activeTab}
-            openFiles={openFiles}
-            onSelectFileTab={handleSelectFileTab}
-            onCloseFileTab={handleCloseFileTab}
-          />
+          {/*
+            File tab bar is only rendered when a file tab is active.
+            Built-in views (AI, Specs, Workflow, Worktrees) own their own
+            headers, so the file tab bar must not stack above them — the
+            top strip should always show exactly one tab bar. Open file
+            tabs remain in state and reappear the moment the user navigates
+            back to a file (back/forward, sidebar, or re-opens a file).
+          */}
+          {activeTab.kind === "file" && (
+            <TabBar
+              activeTab={activeTab}
+              openFiles={openFiles}
+              onSelectFileTab={handleSelectFileTab}
+              onCloseFileTab={handleCloseFileTab}
+            />
+          )}
           <div style={{ flex: 1, overflowY: "auto" }}>
             {renderTabContent()}
           </div>

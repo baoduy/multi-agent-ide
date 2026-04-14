@@ -86,6 +86,29 @@
   --input: #e5e2da;
   --ring: #C15F3C;
 
+  /* ── Tab bar (derived per-theme so surfaces react to dark mode) ── */
+  --tabbar-bg: #f5f4ed;
+  --tabbar-active-bg: #ffffff;
+  --tabbar-border: #e5e2da;
+  --tabbar-fg: #2c2c2c;
+  --tabbar-fg-muted: #9a958c;
+
+  /* ── Workflow / pipeline canvas + nodes ── */
+  --flow-bg: #faf9f5;
+  --flow-grid: #e5e2da;
+  --flow-node-bg: #ffffff;
+  --flow-node-border: #e5e2da;
+  --flow-node-text: #2c2c2c;
+  --flow-status-pending-bg: #dbeafe;
+  --flow-status-pending-border: #3b82f6;
+  --flow-status-pending-text: #1e40af;
+  --flow-status-review-bg: #fef3c7;
+  --flow-status-review-border: #fde68a;
+  --flow-status-review-text: #92400e;
+  --flow-status-approved-bg: #dcfce7;
+  --flow-status-approved-border: #16a34a;
+  --flow-status-approved-text: #166534;
+
   /* Terminal / animation defaults (overridden by ThemeProvider tokens) */
   --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
   --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
@@ -95,6 +118,68 @@
   --animation-duration-pulse: 1.2s;
   --animation-timing-linear: linear;
   --animation-timing-ease: ease;
+}
+
+/*
+ * Dark mode — uses darkgray surfaces (not pure black) as requested.
+ * Activated by adding `.dark` to the <html> element.
+ *
+ * Palette sourced from the shadcn preset `b1GdiyVEW` (radix-mira / neutral),
+ * but the --background is shifted from near-black (oklch 0.145) to a
+ * darkgray (#2a2a2a — oklch ~0.26) for softer contrast.
+ */
+.dark {
+  --background: #2a2a2a;
+  --foreground: #ededed;
+  --card: #323232;
+  --card-foreground: #ededed;
+  --popover: #323232;
+  --popover-foreground: #ededed;
+
+  --primary: #C15F3C;
+  --primary-foreground: #ffffff;
+
+  --secondary: #3a3a3a;
+  --secondary-foreground: #ededed;
+  --muted: #3a3a3a;
+  --muted-foreground: #a8a8a8;
+
+  --accent: #3f3f3f;
+  --accent-foreground: #ededed;
+
+  --destructive: #f87171;
+  --destructive-foreground: #ffffff;
+
+  --border: #3f3f3f;
+  --input: #3f3f3f;
+  --ring: #C15F3C;
+
+  --tabbar-bg: #252525;
+  --tabbar-active-bg: #2a2a2a;
+  --tabbar-border: #3c3c3c;
+  --tabbar-fg: #ededed;
+  --tabbar-fg-muted: #9a9a9a;
+
+  /* ── Workflow / pipeline canvas + nodes (dark) ── */
+  --flow-bg: #1f1f1f;
+  --flow-grid: #3a3a3a;
+  --flow-node-bg: #323232;
+  --flow-node-border: #3f3f3f;
+  --flow-node-text: #ededed;
+  /* Status chips in dark mode: keep the hue but dim the surface and lift the
+     text so legibility holds against a dark canvas. */
+  --flow-status-pending-bg: rgba(59, 130, 246, 0.18);
+  --flow-status-pending-border: #60a5fa;
+  --flow-status-pending-text: #93c5fd;
+  --flow-status-review-bg: rgba(245, 158, 11, 0.18);
+  --flow-status-review-border: #fbbf24;
+  --flow-status-review-text: #fcd34d;
+  --flow-status-approved-bg: rgba(22, 163, 74, 0.18);
+  --flow-status-approved-border: #4ade80;
+  --flow-status-approved-text: #86efac;
+
+  --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
+  --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
 }
 
 /*

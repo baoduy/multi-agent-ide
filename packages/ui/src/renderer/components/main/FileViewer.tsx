@@ -521,6 +521,20 @@ function ApproveButton({
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
+  // Fetch git user name/email when repoPath is available
+  // NOTE: all hooks must be declared before any early return to preserve hook order.
+  const [gitUserName, setGitUserName] = useState<string>("");
+  useEffect(() => {
+    if (!repoPath) return;
+    ipc.send({ type: "git:user", repoPath }).then((resp) => {
+      if (resp.type === "git:user:result") {
+        setGitUserName(resp.name || resp.email || "Unknown");
+      }
+    }).catch(() => {
+      // Fallback silently
+    });
+  }, [repoPath]);
+
   const isGitRef = isGitRefPath(filePath);
   const gitRef = isGitRef ? parseGitRef(filePath) : null;
 
@@ -558,19 +572,6 @@ function ApproveButton({
       </div>
     );
   }
-
-  // Fetch git user name/email when repoPath is available
-  const [gitUserName, setGitUserName] = useState<string>("");
-  useEffect(() => {
-    if (!repoPath) return;
-    ipc.send({ type: "git:user", repoPath }).then((resp) => {
-      if (resp.type === "git:user:result") {
-        setGitUserName(resp.name || resp.email || "Unknown");
-      }
-    }).catch(() => {
-      // Fallback silently
-    });
-  }, [repoPath]);
 
   /** Build the new content with the approval line inserted. */
   const buildApprovedContent = (original: string): string => {

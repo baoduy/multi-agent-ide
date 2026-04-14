@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from "react";
+import { Sun, Moon, Monitor } from "lucide-react";
 
 import type { ActiveTab, BuiltinTabId } from "../main/TabBar";
 import {
@@ -6,6 +7,7 @@ import {
   BellIcon,
   useBackgroundJobs,
 } from "./BackgroundJobsPopover";
+import { useTheme } from "../../theme/ThemeProvider";
 
 /* ── Types ── */
 
@@ -64,8 +66,8 @@ function ToolbarButton({
         border: "none",
         borderRadius: 6,
         cursor: disabled ? "default" : "pointer",
-        background: hovered && !disabled ? "#e5e2da" : "transparent",
-        color: disabled ? "#ccc8bf" : "#6b665c",
+        background: hovered && !disabled ? "var(--accent)" : "transparent",
+        color: disabled ? "var(--muted-foreground)" : "var(--foreground)",
         transition: "background 0.12s, color 0.12s",
         padding: 0,
         flexShrink: 0,
@@ -105,8 +107,8 @@ function TitleBarTab({
         cursor: "pointer",
         border: "none",
         borderRadius: 6,
-        background: isActive ? "#e5e2da" : hovered ? "#eae8e1" : "transparent",
-        color: isActive ? "#2c2c2c" : hovered ? "#2c2c2c" : "#9a958c",
+        background: isActive ? "var(--accent)" : hovered ? "var(--accent)" : "transparent",
+        color: isActive ? "var(--foreground)" : hovered ? "var(--foreground)" : "var(--muted-foreground)",
         transition: "background 0.12s, color 0.12s",
         flexShrink: 0,
         whiteSpace: "nowrap",
@@ -171,6 +173,7 @@ function ChevronRightIcon(): React.ReactElement {
   );
 }
 
+
 /* ── Title Bar ── */
 
 export const TITLE_BAR_HEIGHT = 40;
@@ -191,6 +194,22 @@ export function TitleBar({
   const { jobs, runningCount, failedCount, totalCount, clearCompleted } = useBackgroundJobs();
   const [jobsOpen, setJobsOpen] = useState(false);
   const toggleJobs = useCallback(() => setJobsOpen((o) => !o), []);
+  const { preference, cyclePreference } = useTheme();
+
+  const themeIcon =
+    preference === "light" ? (
+      <Sun size={16} strokeWidth={1.8} />
+    ) : preference === "dark" ? (
+      <Moon size={16} strokeWidth={1.8} />
+    ) : (
+      <Monitor size={16} strokeWidth={1.8} />
+    );
+  const themeTitle =
+    preference === "light"
+      ? "Theme: Light (click for Dark)"
+      : preference === "dark"
+      ? "Theme: Dark (click for System)"
+      : "Theme: System (click for Light)";
 
   const badgeCount = totalCount;
 
@@ -200,8 +219,9 @@ export function TitleBar({
         height: TITLE_BAR_HEIGHT,
         display: "flex",
         alignItems: "center",
-        background: "#f5f4ed",
-        borderBottom: "1px solid #e5e2da",
+        background: "var(--muted)",
+        color: "var(--foreground)",
+        borderBottom: "1px solid var(--border)",
         flexShrink: 0,
         position: "relative",
         zIndex: 100,
@@ -236,7 +256,7 @@ export function TitleBar({
           style={{
             width: 1,
             height: 16,
-            background: "#e5e2da",
+            background: "var(--border)",
             margin: "0 4px",
             flexShrink: 0,
           }}
@@ -293,6 +313,22 @@ export function TitleBar({
           flexShrink: 0,
         }}
       >
+        {/* Theme cycle: light → dark → system → light */}
+        <ToolbarButton onClick={cyclePreference} title={themeTitle}>
+          {themeIcon}
+        </ToolbarButton>
+
+        {/* Separator */}
+        <div
+          style={{
+            width: 1,
+            height: 16,
+            background: "var(--border)",
+            margin: "0 4px",
+            flexShrink: 0,
+          }}
+        />
+
         {/* Background jobs notification bell */}
         <div style={{ position: "relative" }}>
           <ToolbarButton onClick={toggleJobs} title="Background jobs">
@@ -312,7 +348,7 @@ export function TitleBar({
           style={{
             width: 1,
             height: 16,
-            background: "#e5e2da",
+            background: "var(--border)",
             margin: "0 4px",
             flexShrink: 0,
           }}

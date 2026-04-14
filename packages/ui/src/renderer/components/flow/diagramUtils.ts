@@ -162,17 +162,33 @@ export function getStageColor(status: string): {
     case "missing":
     case "pending":
     case "idle":
-      return { bg: colors.infoSoft, border: colors.info, text: colors.infoText };
+      return {
+        bg: "var(--flow-status-pending-bg)",
+        border: "var(--flow-status-pending-border)",
+        text: "var(--flow-status-pending-text)",
+      };
     case "draft":
     case "review":
     case "running":
     case "in-progress":
-      return { bg: colors.warningSoft, border: colors.warningBorder, text: colors.warningTextStrong };
+      return {
+        bg: "var(--flow-status-review-bg)",
+        border: "var(--flow-status-review-border)",
+        text: "var(--flow-status-review-text)",
+      };
     case "approved":
     case "done":
-      return { bg: colors.successSoft, border: colors.success, text: colors.successText };
+      return {
+        bg: "var(--flow-status-approved-bg)",
+        border: "var(--flow-status-approved-border)",
+        text: "var(--flow-status-approved-text)",
+      };
     default:
-      return { bg: colors.bgWhite, border: colors.border, text: colors.textStrong };
+      return {
+        bg: "var(--flow-node-bg)",
+        border: "var(--flow-node-border)",
+        text: "var(--flow-node-text)",
+      };
   }
 }
 

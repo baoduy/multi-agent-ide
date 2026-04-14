@@ -132,6 +132,21 @@
   --icon-red: var(--destructive);
   --icon-brown: #b07219;
 
+  /* ── Brand logo tokens ── */
+  --logo-bg-start: #1a1a2e;
+  --logo-bg-end: #16213e;
+  --logo-magenta-start: #ff00ff;
+  --logo-magenta-mid: #e040fb;
+  --logo-magenta-end: #aa00ff;
+  --logo-accent-start: #e040fb;
+  --logo-accent-end: #7c4dff;
+  --logo-grid: #e040fb;
+  --logo-node-primary: #ff80ff;
+  --logo-node-center: #ffffff;
+  --logo-node-secondary: #ce93d8;
+  --logo-node-orbit-start: #e040fb;
+  --logo-node-orbit-end: #7c4dff;
+
   /* ── Diff viewer colors ── */
   --diff-viewer-bg: #ffffff;
   --diff-viewer-fg: #1a1a1a;
@@ -309,6 +324,21 @@
   --icon-pink: #f472b6;
   --icon-red: #f87171;
   --icon-brown: #d4a373;
+
+  /* ── Brand logo tokens (dark) ── */
+  --logo-bg-start: #131326;
+  --logo-bg-end: #101a33;
+  --logo-magenta-start: #f564ff;
+  --logo-magenta-mid: #eb7cf7;
+  --logo-magenta-end: #b48dff;
+  --logo-accent-start: #eb7cf7;
+  --logo-accent-end: #9a88ff;
+  --logo-grid: #e87cf5;
+  --logo-node-primary: #f8a6ff;
+  --logo-node-center: #ffffff;
+  --logo-node-secondary: #d9b4e5;
+  --logo-node-orbit-start: #eb7cf7;
+  --logo-node-orbit-end: #9a88ff;
 
   /* ── Diff viewer colors (dark) ── */
   --diff-viewer-bg: #2b2b2b;

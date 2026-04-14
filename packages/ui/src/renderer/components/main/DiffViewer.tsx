@@ -294,7 +294,7 @@ export function DiffViewer({
               },
             },
             contentText: {
-              fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: "12px",
               lineHeight: "20px",
             },
@@ -303,7 +303,7 @@ export function DiffViewer({
               padding: "0 8px",
             },
             titleBlock: {
-              fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: "11px",
               padding: "6px 12px",
               background: t.panel,

@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./github-markdown-light.css";
@@ -6,19 +7,11 @@
 /*
  * Magenta IDE — shadcn/ui theme
  *
- * Warm neutral palette derived from the existing Magenta design system.
+ * Lime + Neutral palette (radix-mira style) using oklch color space.
  * Maps inline-style color constants (colors.ts) to shadcn CSS variables
  * so new shadcn components blend with existing hand-styled UI.
  *
- * Reference palette (from utils/colors.ts):
- *   primary   #C15F3C   (warm terracotta)
- *   text      #2c2c2c
- *   border    #e5e2da
- *   bgSurface #faf9f5
- *   bgMuted   #f5f4ed
- *   bgHover   #f0ede8
- *   error     #ef4444
- *   success   #16A34A
+ * Preset: Mira style, Lime theme, Neutral base, JetBrains Mono, Small radius
  */
 
 /* Dark mode: activated by adding `.dark` to <html> via ThemeProvider. */
@@ -50,6 +43,24 @@
   --color-success: var(--success);
   --color-info: var(--info);
 
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -57,52 +68,68 @@
 }
 
 :root {
-  --radius: 0.5rem;
+  --radius: 0.625rem;
 
-  /* ── Backgrounds ── */
-  --background: #faf9f5;
-  --foreground: #2c2c2c;
-  --card: #ffffff;
-  --card-foreground: #2c2c2c;
-  --popover: #faf9f5;
-  --popover-foreground: #2c2c2c;
+  /* ── Fonts ── */
+  --font-sans: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* ── Brand ── */
-  --primary: #C15F3C;
-  --primary-foreground: #ffffff;
+  /* ── Core: Lime primary + Neutral base (oklch) ── */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
 
-  /* ── Secondary / Muted ── */
-  --secondary: #f5f4ed;
-  --secondary-foreground: #4a4540;
-  --muted: #f5f4ed;
-  --muted-foreground: #9a958c;
+  --primary: oklch(0.841 0.238 128.85);
+  --primary-foreground: oklch(0.405 0.101 131.063);
 
-  /* ── Accent (hover) ── */
-  --accent: #f0ede8;
-  --accent-foreground: #2c2c2c;
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
 
-  /* ── Destructive ── */
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
 
-  /* ── Borders & Rings ── */
-  --border: #e5e2da;
-  --input: #e5e2da;
-  --ring: #C15F3C;
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.985 0 0);
 
-  /* ── Tab bar (derived per-theme so surfaces react to dark mode) ── */
-  --tabbar-bg: #f5f4ed;
-  --tabbar-active-bg: #ffffff;
-  --tabbar-border: #e5e2da;
-  --tabbar-fg: #2c2c2c;
-  --tabbar-fg-muted: #9a958c;
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.841 0.238 128.85);
+
+  /* ── Charts (Lime scale) ── */
+  --chart-1: oklch(0.897 0.196 126.665);
+  --chart-2: oklch(0.768 0.233 130.85);
+  --chart-3: oklch(0.648 0.2 131.684);
+  --chart-4: oklch(0.532 0.157 131.589);
+  --chart-5: oklch(0.453 0.124 130.933);
+
+  /* ── Sidebar ── */
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.648 0.2 131.684);
+  --sidebar-primary-foreground: oklch(0.986 0.031 120.757);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.841 0.238 128.85);
+
+  /* ── Tab bar ── */
+  --tabbar-bg: oklch(0.97 0 0);
+  --tabbar-active-bg: oklch(1 0 0);
+  --tabbar-border: oklch(0.922 0 0);
+  --tabbar-fg: oklch(0.145 0 0);
+  --tabbar-fg-muted: oklch(0.556 0 0);
 
   /* ── Workflow / pipeline canvas + nodes ── */
-  --flow-bg: #faf9f5;
-  --flow-grid: #e5e2da;
-  --flow-node-bg: #ffffff;
-  --flow-node-border: #e5e2da;
-  --flow-node-text: #2c2c2c;
+  --flow-bg: oklch(1 0 0);
+  --flow-grid: oklch(0.922 0 0);
+  --flow-node-bg: oklch(1 0 0);
+  --flow-node-border: oklch(0.922 0 0);
+  --flow-node-text: oklch(0.145 0 0);
   --flow-status-pending-bg: #dbeafe;
   --flow-status-pending-border: #3b82f6;
   --flow-status-pending-text: #1e40af;
@@ -114,18 +141,18 @@
   --flow-status-approved-text: #166534;
 
   /* ── Panels & surfaces ── */
-  --panel: #f5f4ed;
-  --panel-soft: #faf5f2;
-  --code-inline-bg: #eeece6;
-  --surface: #ffffff;
+  --panel: oklch(0.97 0 0);
+  --panel-soft: oklch(0.98 0 0);
+  --code-inline-bg: oklch(0.95 0 0);
+  --surface: oklch(1 0 0);
 
   /* ── Extended border helpers ── */
-  --border-muted: #d1cec6;
-  --border-strong: #b5b1a8;
+  --border-muted: oklch(0.85 0 0);
+  --border-strong: oklch(0.75 0 0);
 
   /* ── Extended text helpers ── */
-  --text-strong: #2c2c2c;
-  --text-on-primary: #ffffff;
+  --text-strong: oklch(0.145 0 0);
+  --text-on-primary: oklch(1 0 0);
 
   /* ── Status: success ── */
   --success: #16A34A;
@@ -156,8 +183,8 @@
   --progress-border: #fda4af;
 
   /* ── Status: error ── */
-  --error-soft: #fae8e1;
-  --error-soft-border: #e5b8a5;
+  --error-soft: #fef2f2;
+  --error-soft-border: #fecaca;
 
   /* ── Terminal / animation defaults ── */
   --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
@@ -171,53 +198,68 @@
 }
 
 /*
- * Dark mode — uses darkgray surfaces (not pure black) as requested.
+ * Dark mode — uses softened dark surfaces (not pure black).
  * Activated by adding `.dark` to the <html> element.
  *
- * Palette sourced from the shadcn preset `b1GdiyVEW` (radix-mira / neutral),
- * but the --background is shifted from near-black (oklch 0.145) to a
- * darkgray (#2a2a2a — oklch ~0.26) for softer contrast.
+ * --background is oklch(0.205) instead of shadcn's default oklch(0.145)
+ * for softer contrast on prolonged use.
  */
 .dark {
-  --background: #2a2a2a;
-  --foreground: #ededed;
-  --card: #323232;
-  --card-foreground: #ededed;
-  --popover: #323232;
-  --popover-foreground: #ededed;
+  --background: oklch(0.205 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.269 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.269 0 0);
+  --popover-foreground: oklch(0.985 0 0);
 
-  --primary: #C15F3C;
-  --primary-foreground: #ffffff;
+  --primary: oklch(0.768 0.233 130.85);
+  --primary-foreground: oklch(0.405 0.101 131.063);
 
-  --secondary: #3a3a3a;
-  --secondary-foreground: #ededed;
-  --muted: #3a3a3a;
-  --muted-foreground: #a8a8a8;
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
 
-  --accent: #3f3f3f;
-  --accent-foreground: #ededed;
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
 
-  --destructive: #f87171;
-  --destructive-foreground: #ffffff;
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.985 0 0);
 
-  --border: #3f3f3f;
-  --input: #3f3f3f;
-  --ring: #C15F3C;
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.405 0.101 131.063);
 
-  --tabbar-bg: #252525;
-  --tabbar-active-bg: #2a2a2a;
-  --tabbar-border: #3c3c3c;
-  --tabbar-fg: #ededed;
-  --tabbar-fg-muted: #9a9a9a;
+  /* ── Charts (Lime scale — same in dark) ── */
+  --chart-1: oklch(0.897 0.196 126.665);
+  --chart-2: oklch(0.768 0.233 130.85);
+  --chart-3: oklch(0.648 0.2 131.684);
+  --chart-4: oklch(0.532 0.157 131.589);
+  --chart-5: oklch(0.453 0.124 130.933);
+
+  /* ── Sidebar (dark) ── */
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.768 0.233 130.85);
+  --sidebar-primary-foreground: oklch(0.274 0.072 132.109);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.405 0.101 131.063);
+
+  /* ── Tab bar (dark) ── */
+  --tabbar-bg: oklch(0.18 0 0);
+  --tabbar-active-bg: oklch(0.205 0 0);
+  --tabbar-border: oklch(0.30 0 0);
+  --tabbar-fg: oklch(0.985 0 0);
+  --tabbar-fg-muted: oklch(0.65 0 0);
 
   /* ── Workflow / pipeline canvas + nodes (dark) ── */
-  --flow-bg: #1f1f1f;
-  --flow-grid: #3a3a3a;
-  --flow-node-bg: #323232;
-  --flow-node-border: #3f3f3f;
-  --flow-node-text: #ededed;
-  /* Status chips in dark mode: keep the hue but dim the surface and lift the
-     text so legibility holds against a dark canvas. */
+  --flow-bg: oklch(0.16 0 0);
+  --flow-grid: oklch(0.28 0 0);
+  --flow-node-bg: oklch(0.269 0 0);
+  --flow-node-border: oklch(0.32 0 0);
+  --flow-node-text: oklch(0.985 0 0);
   --flow-status-pending-bg: rgba(59, 130, 246, 0.18);
   --flow-status-pending-border: #60a5fa;
   --flow-status-pending-text: #93c5fd;
@@ -229,16 +271,16 @@
   --flow-status-approved-text: #86efac;
 
   /* ── Panels & surfaces (dark) ── */
-  --panel: #2e2e2e;
-  --panel-soft: #333333;
-  --code-inline-bg: #3a3a3a;
-  --surface: #323232;
+  --panel: oklch(0.24 0 0);
+  --panel-soft: oklch(0.27 0 0);
+  --code-inline-bg: oklch(0.28 0 0);
+  --surface: oklch(0.269 0 0);
 
-  --border-muted: #4a4a4a;
-  --border-strong: #5a5a5a;
+  --border-muted: oklch(0.35 0 0);
+  --border-strong: oklch(0.42 0 0);
 
-  --text-strong: #ededed;
-  --text-on-primary: #ffffff;
+  --text-strong: oklch(0.985 0 0);
+  --text-on-primary: oklch(1 0 0);
 
   /* ── Status: success (dark) ── */
   --success: #4ade80;
@@ -391,19 +433,19 @@
     background-color: transparent;
   }
 
-  /* Magenta accent colour for links */
+  /* Theme-aware accent for links */
   .md-viewer a {
-    color: #c15f3c;
+    color: var(--primary);
   }
 
   .md-viewer a:hover {
-    color: #a14a2f;
+    color: color-mix(in srgb, var(--primary) 80%, black);
   }
 
-  /* Magenta-branded inline code */
+  /* Theme-aware inline code */
   .md-viewer code:not(pre code) {
-    background: #f0ebe4;
-    color: #c15f3c;
+    background: var(--muted);
+    color: var(--primary);
   }
 
   .md-viewer .md-code-block {
@@ -422,7 +464,7 @@
     letter-spacing: 0.06em;
     color: #7f849c;
     padding: 8px 14px 0;
-    font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+    font-family: var(--font-mono);
   }
 
   .md-viewer .md-code-block pre {
@@ -432,7 +474,7 @@
   }
 
   .md-viewer .md-code-block code {
-    font-family: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 12.5px;
     color: #cdd6f4;
     line-height: 1.55;
@@ -454,7 +496,7 @@
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.15s, background 0.15s, color 0.15s;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family: var(--font-sans);
     z-index: 2;
   }
 
@@ -475,27 +517,27 @@
 
   /* Task list checkbox accent */
   .md-viewer input[type="checkbox"] {
-    accent-color: #c15f3c;
+    accent-color: var(--primary);
   }
 
   .md-viewer .md-mermaid {
-    background: #faf9f5;
-    border: 1px solid #e5e2da;
+    background: var(--background);
+    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 16px;
     margin: 16px 0;
     text-align: center;
     overflow-x: auto;
-    font-family: "SF Mono", "Fira Code", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
-    color: #6b6560;
+    color: var(--muted-foreground);
     white-space: pre;
   }
 
   .md-viewer .md-mermaid-rendered {
     white-space: normal;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-    color: #2c2c2c;
+    font-family: var(--font-sans);
+    color: var(--foreground);
   }
 
   .md-viewer .md-mermaid-rendered svg {
@@ -504,11 +546,11 @@
   }
 
   .md-viewer .md-mermaid-error {
-    color: #a14a2f;
+    color: var(--destructive);
     font-size: 11px;
     font-weight: 500;
     margin-bottom: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-family: var(--font-sans);
   }
 
 
@@ -609,18 +651,18 @@
 
   .md-raw-viewer {
     display: flex;
-    font-family: "SF Mono", "Fira Code", "JetBrains Mono", ui-monospace, monospace;
+    font-family: var(--font-mono);
     font-size: 12.5px;
     line-height: 1.55;
-    background: #faf9f5;
+    background: var(--background);
   }
 
   .md-raw-gutter {
     padding: 16px 12px 16px 16px;
     text-align: right;
-    color: #d1cec6;
+    color: var(--border-muted);
     user-select: none;
-    border-right: 1px solid #e5e2da;
+    border-right: 1px solid var(--border);
     min-width: 36px;
     flex-shrink: 0;
   }
@@ -628,7 +670,7 @@
   .md-raw-content {
     flex: 1;
     padding: 16px 20px;
-    color: #2c2c2c;
+    color: var(--foreground);
     white-space: pre-wrap;
     word-break: break-word;
     overflow-x: auto;
@@ -642,49 +684,5 @@
    */
   .dark .md-viewer {
     background-color: transparent;
-  }
-
-  .dark .md-viewer a {
-    color: #e08060;
-  }
-
-  .dark .md-viewer a:hover {
-    color: #f09070;
-  }
-
-  .dark .md-viewer code:not(pre code) {
-    background: #3a3535;
-    color: #e08060;
-  }
-
-  .dark .md-viewer input[type="checkbox"] {
-    accent-color: #e08060;
-  }
-
-  .dark .md-viewer .md-mermaid {
-    background: #2a2a2a;
-    border-color: #3f3f3f;
-    color: #a0a0a0;
-  }
-
-  .dark .md-viewer .md-mermaid-rendered {
-    color: #ededed;
-  }
-
-  .dark .md-viewer .md-mermaid-error {
-    color: #f87171;
-  }
-
-  .dark .md-raw-viewer {
-    background: #2a2a2a;
-  }
-
-  .dark .md-raw-gutter {
-    color: #5a5a5a;
-    border-right-color: #3f3f3f;
-  }
-
-  .dark .md-raw-content {
-    color: #ededed;
   }
 }

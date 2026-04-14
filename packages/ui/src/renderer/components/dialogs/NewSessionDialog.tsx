@@ -578,7 +578,7 @@ export function NewSessionDialog({
                         style={{
                           padding: "8px 6px 8px 12px",
                           fontSize: 13,
-                          fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                          fontFamily: "var(--font-mono)",
                           color: colors.textTertiary,
                           background: colors.bgMuted,
                           border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
@@ -611,7 +611,7 @@ export function NewSessionDialog({
                         outline: "none",
                         background: colors.bgSurface,
                         color: colors.text,
-                        fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                        fontFamily: "var(--font-mono)",
                         boxSizing: "border-box",
                         transition: "border-color 0.15s",
                       }}
@@ -639,7 +639,7 @@ export function NewSessionDialog({
                       Full name:{" "}
                       <code
                         style={{
-                          fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                          fontFamily: "var(--font-mono)",
                         }}
                       >
                         {fullWorktreeName}

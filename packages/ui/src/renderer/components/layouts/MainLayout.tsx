@@ -162,7 +162,7 @@ export function MainLayout({
         display: "flex",
         flexDirection: "column",
         height: "100vh",
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif",
+        fontFamily: "var(--font-sans)",
         fontSize: 13,
         color: colors.text,
         background: colors.bgSurface,

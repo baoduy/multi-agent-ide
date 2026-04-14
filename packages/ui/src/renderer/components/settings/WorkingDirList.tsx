@@ -65,7 +65,7 @@ export function WorkingDirList(): React.ReactElement {
             style={{
               fontSize: 13,
               color: colors.textStrong,
-              fontFamily: "monospace",
+              fontFamily: "var(--font-mono)",
               wordBreak: "break-all",
             }}
           >

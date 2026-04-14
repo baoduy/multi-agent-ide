@@ -74,7 +74,7 @@ export function SpecifyCommandSetting(): React.ReactElement {
             flex: 1,
             padding: "8px 10px",
             fontSize: 12,
-            fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+            fontFamily: "var(--font-mono)",
             border: `1px solid ${colors.border}`,
             borderRadius: 6,
             background: colors.bgSurface,

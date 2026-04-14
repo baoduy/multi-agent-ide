@@ -36,7 +36,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       const { error } = this.state;
 
       return (
-        <div style={{ padding: 32, maxWidth: 600, margin: "40px auto", fontFamily: "system-ui, sans-serif" }}>
+        <div style={{ padding: 32, maxWidth: 600, margin: "40px auto", fontFamily: "var(--font-sans)" }}>
           <div style={{ padding: 24, border: "1px solid var(--error-soft-border, #fecaca)", borderRadius: 12, background: "var(--error-soft, #fef2f2)" }}>
             <h2 style={{ marginTop: 0, color: "var(--destructive, #991b1b)", fontSize: 18 }}>Something went wrong</h2>
             <p style={{ color: "var(--foreground, #7f1d1d)", marginBottom: 12 }}>

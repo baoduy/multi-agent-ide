@@ -8,15 +8,6 @@ import type { ContextMenuAction } from "../common/ContextMenu";
 import { openInFileManager } from "../../utils/ipc";
 import { RepoItem } from "./RepoItem";
 
-/* ── Depth-based colors ── */
-
-const DEPTH_COLORS = [
-  "var(--accent-purple, #7C3AED)", // depth 0 — Purple (root working dirs)
-  "var(--success, #16A34A)", // depth 1 — Green
-  "var(--info, #2563EB)",    // depth 2 — Blue
-  "var(--muted-foreground, #6b6560)", // depth 3+ — warm gray
-];
-
 /* ── Internal tree node (for building the tree from flat repos) ── */
 
 type InternalNode = {
@@ -262,7 +253,6 @@ export function DirectoryTree({
       autoExpandPaths={autoExpandPaths}
       contextMenuItems={contextMenuItems}
       renderLeaf={renderLeaf}
-      depthColors={DEPTH_COLORS}
       showFileIcons
       showExtensionBadge={false}
       showCountBadge

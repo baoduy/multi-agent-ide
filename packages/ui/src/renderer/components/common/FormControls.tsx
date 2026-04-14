@@ -67,7 +67,7 @@ export function FormInput({
         outline: "none",
         background: colors.bgSurface,
         color: colors.text,
-        fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+        fontFamily: "var(--font-mono)",
         boxSizing: "border-box",
         transition: "border-color 0.15s",
       }}

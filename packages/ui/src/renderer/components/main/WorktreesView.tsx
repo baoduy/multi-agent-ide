@@ -120,7 +120,7 @@ const WorktreeCard = React.memo(function WorktreeCard({
             gap: 4,
             fontSize: 10,
             color: colors.textTertiary,
-            fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+            fontFamily: "var(--font-mono)",
             maxWidth: 200,
             flexShrink: 0,
             minWidth: 0,

@@ -157,7 +157,7 @@ export function WorktreeInlinePanel({
             gap: 4,
             color: colors.textTertiary,
             fontSize: 10,
-            fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+            fontFamily: "var(--font-mono)",
           }}
           title={worktree.worktreePath}
         >
@@ -225,7 +225,7 @@ export function WorktreeInlinePanel({
                   style={{
                     fontSize: 12,
                     color: isClickable && hoveredFile === file.path ? colors.primary : colors.text,
-                    fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+                    fontFamily: "var(--font-mono)",
                     flex: 1,
                     minWidth: 0,
                     transition: "color 0.1s",

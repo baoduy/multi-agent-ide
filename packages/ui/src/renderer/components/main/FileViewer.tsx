@@ -72,7 +72,7 @@ const MermaidBlock = React.memo(function MermaidBlock({ chart }: { chart: string
         mermaid.initialize({
           startOnLoad: false,
           theme: "neutral",
-          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
+          fontFamily: "var(--font-sans)",
           securityLevel: "strict",
         });
 
@@ -992,7 +992,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             style={{
               margin: 0,
               padding: "16px 20px",
-              fontFamily: "'SF Mono', 'Fira Code', 'JetBrains Mono', ui-monospace, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 12.5,
               lineHeight: 1.55,
               color: colors.text,

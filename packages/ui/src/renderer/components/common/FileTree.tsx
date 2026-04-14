@@ -41,8 +41,6 @@ export type FileTreeProps = {
    * Useful for the repo sidebar where leaf items are RepoItem components.
    */
   renderLeaf?: (entry: TreeEntry, depth: number) => React.ReactNode;
-  /** Depth-based colors for folder names. Falls back to default warm gray. */
-  depthColors?: string[];
   /** Show lucide file-type icon badges. Default: true */
   showFileIcons?: boolean;
   /** Show extension badge on files. Default: true */
@@ -60,19 +58,9 @@ export type FileTreeProps = {
 };
 
 /* ═══════════════════════════════════════════════════════
-   Default depth colors (matches existing design)
+   Folder name color — uses the default foreground color
+   for all depth levels to follow the active theme.
    ═══════════════════════════════════════════════════════ */
-
-const DEFAULT_DEPTH_COLORS = [
-  "var(--accent-purple, #7C3AED)", // purple
-  "var(--success, #16A34A)", // green
-  "var(--info, #2563EB)",    // blue
-  "var(--muted-foreground, #6b6560)", // warm gray
-];
-
-function colorForDepth(depth: number, colors: string[]): string {
-  return colors[Math.min(depth, colors.length - 1)];
-}
 
 /* ═══════════════════════════════════════════════════════
    FileTree (entry point)
@@ -116,7 +104,6 @@ function FolderNode({
   contextMenuItems,
   renderItemContent,
   renderLeaf,
-  depthColors = DEFAULT_DEPTH_COLORS,
   showFileIcons = true,
   showExtensionBadge = true,
   showCountBadge = false,
@@ -174,7 +161,7 @@ function FolderNode({
   }, [expanded, children, onLoadChildren, entry, onFolderClick]);
 
   const indent = depth * indentPx;
-  const folderColor = colorForDepth(depth, depthColors);
+  const folderColor = "var(--foreground)";
   const hasChildren = children ? children.length > 0 : entry.children !== null || onLoadChildren !== undefined;
 
   const ctxItems = contextMenuItems?.(entry) ?? [];
@@ -246,7 +233,7 @@ function FolderNode({
               color: colors.borderStrong,
               marginLeft: "auto",
               flexShrink: 0,
-              fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
+              fontFamily: "var(--font-mono)",
             }}
           >
             {countItems(entry)}
@@ -270,7 +257,6 @@ function FolderNode({
           contextMenuItems={contextMenuItems}
           renderItemContent={renderItemContent}
           renderLeaf={renderLeaf}
-          depthColors={depthColors}
           showFileIcons={showFileIcons}
           showExtensionBadge={showExtensionBadge}
           showCountBadge={showCountBadge}

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from "react";
-import { RotateCcw, PanelBottom, Terminal } from "lucide-react";
+import { RotateCcw, Terminal } from "lucide-react";
 import { useLayoutStore } from "./layoutStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useRepoStore } from "../../store/repoStore";
@@ -98,24 +98,13 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
         flexShrink: 0,
       }}
     >
-      {/* Left section — panel toggle + active session info */}
+      {/* Left section — reset layout + active session info */}
       <div style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, minWidth: 0 }}>
         <StatusBarButton
-          icon={<PanelBottom size={12} />}
-          label="Panel"
-          active={!bottomCollapsed && bottomTabs.length > 0}
-          onClick={() => {
-            if (bottomTabs.length === 0 && activeRepoPath) {
-              openTab("bottom", {
-                tabId: "tab-bottom-terminal",
-                viewId: "terminal-session",
-                props: { cwd: activeRepoPath },
-              });
-              setRegionCollapsed("bottom", false);
-            } else {
-              toggleRegionCollapse("bottom");
-            }
-          }}
+          icon={<RotateCcw size={11} />}
+          label="Reset Layout"
+          active={false}
+          onClick={resetLayout}
         />
 
         {/* ── Active agent session info ── */}
@@ -181,15 +170,6 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           active={hasTerminal && !bottomCollapsed}
           disabled={!activeRepoPath}
           onClick={toggleTerminal}
-        />
-
-        <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />
-
-        <StatusBarButton
-          icon={<RotateCcw size={11} />}
-          label="Reset Layout"
-          active={false}
-          onClick={resetLayout}
         />
       </div>
     </div>

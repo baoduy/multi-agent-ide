@@ -251,6 +251,20 @@ function registerIpcHandler() {
     }
   });
 
+  // Read today's application log file
+  ipcMain.handle("magenta:read-log", async () => {
+    try {
+      const logPath = getLogFilePath();
+      if (!fs.existsSync(logPath)) {
+        return { content: "", path: logPath };
+      }
+      const content = fs.readFileSync(logPath, "utf-8");
+      return { content, path: logPath };
+    } catch {
+      return { content: "", path: getLogFilePath() };
+    }
+  });
+
   ipcMain.handle("magenta:ipc", async (_event, request) => {
     const requestType = request?.type ?? "unknown";
     console.log(`[main] IPC request: ${requestType}, daemonReady=${daemonReady}`);

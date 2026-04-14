@@ -29,6 +29,10 @@ files:
   # Root package.json is required by Electron to locate the main entry
   - package.json
 
+  # Native addon required by the daemon at runtime (kept external by esbuild).
+  # asarUnpack extracts it outside the archive so the .node binary is loadable.
+  - node_modules/node-pty/**/*
+
   # Exclude everything else by default
   - "!**/node_modules/.cache"
   - "!**/*.ts"

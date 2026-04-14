@@ -43,6 +43,21 @@ export async function openInFileManager(dirPath: string): Promise<void> {
   }
 }
 
+/**
+ * Reads today's application log file via Electron.
+ */
+export async function readLog(): Promise<{ content: string; path: string }> {
+  if (!ipcAvailable() || typeof window.magentaIpc.readLog !== "function") {
+    return { content: "", path: "" };
+  }
+  try {
+    return await window.magentaIpc.readLog();
+  } catch (error) {
+    console.error("[ipc] readLog failed:", error);
+    return { content: "", path: "" };
+  }
+}
+
 export const ipc = {
   async send(request: IpcRequest): Promise<IpcResponse> {
     if (!ipcAvailable()) {

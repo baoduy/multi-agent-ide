@@ -148,3 +148,5 @@ Thumbs.db
 *.swp
 .idea/
 _tmp_*
+.claude/worktrees
+**/worktrees/**

@@ -79,6 +79,7 @@ let daemonReady = false;
 let daemonError: string | null = null;
 /** True when the app is in the process of quitting (before-quit fired). */
 let isQuitting = false;
+let daemonStoppedIntentionally = false;
 
 // Pending IPC requests waiting for daemon response
 let requestIdCounter = 0;
@@ -325,6 +326,8 @@ function registerIpcHandler() {
  * Start the daemon as a forked child process.
  */
 function startDaemon() {
+  daemonStoppedIntentionally = false;
+
   const daemonEntryPath = path.resolve(
     __dirname,
     "..",
@@ -473,7 +476,7 @@ function startDaemon() {
       daemonReady = false;
       daemonProcess = null;
 
-      const wasExpected = isQuitting || (signal === "SIGTERM" && isQuitting);
+      const wasExpected = isQuitting || daemonStoppedIntentionally;
 
       if (!daemonError) {
         if (signal) {
@@ -567,6 +570,8 @@ function restartDaemon(): void {
  * Gracefully stop the daemon, giving it time to clean up.
  */
 function stopDaemon(): Promise<void> {
+  daemonStoppedIntentionally = true;
+
   return new Promise((resolve) => {
     if (!daemonProcess) {
       resolve();

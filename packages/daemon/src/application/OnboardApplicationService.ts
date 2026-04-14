@@ -75,7 +75,7 @@ export class OnboardApplicationService {
     console.log(`[onboard-service] Starting onboard for ${targetPath} with agent ${aiAgent} (worktree: ${useWorktree ?? false})`);
     this.bridge.emit({ type: "repo:onboard:started", repoPath });
 
-    const { command, args, fullCommand } = this.buildCommand(aiAgent);
+    const fullCommand = this.buildCommand(aiAgent);
 
     this.bridge.emit({
       type: "repo:onboard:output",
@@ -86,8 +86,7 @@ export class OnboardApplicationService {
     await this.runCommand(
       repoPath,
       targetPath,
-      command,
-      args,
+      fullCommand,
       "repo:onboard:output",
       "repo:onboard:complete",
     );
@@ -108,7 +107,7 @@ export class OnboardApplicationService {
     console.log(`[onboard-service] Starting upgrade for ${repoPath} (agent: ${aiAgent})`);
     this.bridge.emit({ type: "repo:upgrade-specify:started", repoPath });
 
-    const { command, args, fullCommand } = this.buildCommand(aiAgent);
+    const fullCommand = this.buildCommand(aiAgent);
 
     this.bridge.emit({
       type: "repo:upgrade-specify:output",
@@ -119,8 +118,7 @@ export class OnboardApplicationService {
     await this.runCommand(
       repoPath,
       repoPath,
-      command,
-      args,
+      fullCommand,
       "repo:upgrade-specify:output",
       "repo:upgrade-specify:complete",
     );
@@ -143,7 +141,7 @@ export class OnboardApplicationService {
     console.log(`[onboard-service] Switching integration for ${repoPath} to ${aiAgent}`);
     this.bridge.emit({ type: "repo:onboard:started", repoPath });
 
-    const { command, args, fullCommand } = this.buildSwitchCommand(aiAgent);
+    const fullCommand = this.buildSwitchCommand(aiAgent);
 
     this.bridge.emit({
       type: "repo:onboard:output",
@@ -154,8 +152,7 @@ export class OnboardApplicationService {
     await this.runCommand(
       repoPath,
       repoPath,
-      command,
-      args,
+      fullCommand,
       "repo:onboard:output",
       "repo:onboard:complete",
     );
@@ -191,19 +188,13 @@ export class OnboardApplicationService {
    * Builds a shell command from the configured template by replacing {agent}.
    * Returns the first token as the command and the rest as args for spawn().
    */
-  private buildCommand(agent: string): { command: string; args: string[]; fullCommand: string } {
+  private buildCommand(agent: string): string {
     const template = this.configManager.getConfig().specifyCommand || DEFAULT_SPECIFY_COMMAND;
 
-    const fullCommand = template
+    return template
       .replace(/\{agent\}/g, agent)
       .replace(/\s+/g, " ")
       .trim();
-
-    const parts = fullCommand.split(" ");
-    const command = parts[0];
-    const args = parts.slice(1);
-
-    return { command, args, fullCommand };
   }
 
   /**
@@ -212,7 +203,7 @@ export class OnboardApplicationService {
    * E.g. if template is "uvx --from ... specify init --here --ai {agent} --force"
    * we extract "uvx --from ... specify" and append "integration switch {agent}".
    */
-  private buildSwitchCommand(agent: string): { command: string; args: string[]; fullCommand: string } {
+  private buildSwitchCommand(agent: string): string {
     const template = this.configManager.getConfig().specifyCommand || DEFAULT_SPECIFY_COMMAND;
 
     // Find the "specify" token in the template and take everything up to and including it
@@ -220,10 +211,7 @@ export class OnboardApplicationService {
     const specifyIdx = tokens.indexOf("specify");
     const prefix = specifyIdx >= 0 ? tokens.slice(0, specifyIdx + 1) : tokens.slice(0, 1);
 
-    const fullCommand = [...prefix, "integration", "switch", agent].join(" ");
-    const parts = fullCommand.split(" ");
-
-    return { command: parts[0], args: parts.slice(1), fullCommand };
+    return [...prefix, "integration", "switch", agent].join(" ");
   }
 
   /**
@@ -370,13 +358,12 @@ export class OnboardApplicationService {
   private runCommand(
     repoPath: string,
     cwd: string,
-    command: string,
-    args: string[],
+    fullCommand: string,
     outputEvent: "repo:onboard:output" | "repo:upgrade-specify:output",
     completeEvent?: "repo:onboard:complete" | "repo:upgrade-specify:complete",
   ): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      const child = spawn(command, args, {
+      const child = spawn(fullCommand, {
         cwd,
         shell: true,
         env: { ...process.env },
@@ -423,7 +410,7 @@ export class OnboardApplicationService {
           });
           resolve(false);
         } else {
-          reject(new AppError("INTERNAL_ERROR", `Failed to start ${command}: ${err.message}`));
+          reject(new AppError("INTERNAL_ERROR", `Failed to start command: ${err.message}`));
         }
       });
     });

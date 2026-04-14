@@ -6,6 +6,21 @@
   "author": "Steven Hoang <drunkcoding@outlook.com>",
   "main": "packages/main/dist/index.js",
   "packageManager": "pnpm@10.33.0",
+  "pnpm": {
+    "packageExtensions": {
+      "@emoji-mart/react@1.1.1": {
+        "peerDependencies": {
+          "react": "^16.8 || ^17 || ^18 || ^19"
+        }
+      },
+      "react-avatar-editor@13.0.2": {
+        "peerDependencies": {
+          "react": "^0.14.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
+          "react-dom": "^0.14.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
+        }
+      }
+    }
+  },
   "scripts": {
     "dev": "pnpm build && pnpm -C packages/main dev",
     "dev:watch": "pnpm -r --parallel dev",
@@ -17,7 +32,7 @@
     "test:e2e:headed": "pnpm build && pnpm -C packages/e2e test:headed",
     "test:e2e:debug": "pnpm build && pnpm -C packages/e2e test:debug",
     "debug:launch": "pnpm build && pnpm -C packages/e2e debug:launch",
-    "update": "npx npm-check-updates -u && pnpm install",
+    "update": "npx npm-check-updates -u && pnpm install && sh ./update-packages.sh",
     "pack": "pnpm build && pnpm exec electron-builder --dir",
     "dist": "pnpm build && pnpm exec electron-builder",
     "dist:mac": "pnpm build && pnpm exec electron-builder --mac",
@@ -25,26 +40,6 @@
     "dist:linux": "pnpm build && pnpm exec electron-builder --linux",
     "release": "pnpm build && pnpm exec electron-builder --publish always",
     "postinstall": "electron-rebuild -f -w node-pty"
-  },
-  "dependencies": {
-    "chokidar": "5.0.0",
-    "lucide-react": "1.8.0",
-    "mermaid": "^11.14.0",
-    "react-markdown": "^10.1.0",
-    "rehype-highlight": "^7.0.2",
-    "rehype-slug": "^6.0.0",
-    "remark-gfm": "^4.0.1",
-    "node-pty": "1.1.0",
-    "react": "^19.2.5",
-    "react-diff-viewer-continued": "^4.2.0",
-    "react-dom": "^19.2.5",
-    "reactflow": "^11.11.4",
-    "simple-git": "^3.36.0",
-    "sql.js": "^1.14.1",
-    "strip-ansi": "7.2.0",
-    "ulid": "^3.0.2",
-    "zod": "4.3.6",
-    "zustand": "^5.0.12"
   },
   "devDependencies": {
     "@electron/rebuild": "*",

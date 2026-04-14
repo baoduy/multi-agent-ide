@@ -38,6 +38,8 @@ type ResponseForRequest = {
   "repo:onboard": Extract<IpcResponse, { type: "repo:onboard:started" }>;
   "repo:upgrade-specify": Extract<IpcResponse, { type: "repo:upgrade-specify:started" }>;
   "repo:onboard:cancel": Extract<IpcResponse, { type: "repo:onboard:cancelled" }>;
+  "repo:specify-status": Extract<IpcResponse, { type: "repo:specify-status:result" }>;
+  "repo:specify-switch": Extract<IpcResponse, { type: "repo:specify-switch:started" }>;
   "repo:force-reload": Extract<IpcResponse, { type: "repo:force-reload:started" }>;
   "git:user": Extract<IpcResponse, { type: "git:user:result" }>;
   "terminal:spawn": Extract<IpcResponse, { type: "terminal:spawned" }>;

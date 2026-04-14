@@ -38,7 +38,11 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "lint": "echo 'No linter configured'",
-    "test": "echo 'No tests configured'"
+    "test": "echo 'No tests configured'",
+    "update": "npx npm-check-updates -u && pnpm install"
+  },
+  "dependencies": {
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "typescript": "*"

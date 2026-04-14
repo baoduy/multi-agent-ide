@@ -22,9 +22,11 @@ export function RepoList(): React.ReactElement {
   }, [initializeSubscriptions]);
 
   const filteredRepos = useMemo(() => {
-    if (!searchQuery.trim()) return repos;
+    // Exclude repos whose folder no longer exists on disk
+    const activeRepos = repos.filter((r) => r.status !== "missing");
+    if (!searchQuery.trim()) return activeRepos;
     const q = searchQuery.toLowerCase().trim();
-    return repos.filter(
+    return activeRepos.filter(
       (r) =>
         r.name.toLowerCase().includes(q) ||
         r.branch.toLowerCase().includes(q) ||

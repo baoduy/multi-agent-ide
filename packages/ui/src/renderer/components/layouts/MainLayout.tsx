@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use DockManager from components/dock/ instead.
+ * Kept for the legacy layout code path (feature flag off).
+ * Will be removed once dock layout becomes the default.
+ */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { colors } from "../../utils/colors";

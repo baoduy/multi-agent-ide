@@ -147,3 +147,4 @@ Thumbs.db
 *.tmp
 *.swp
 .idea/
+_tmp_*

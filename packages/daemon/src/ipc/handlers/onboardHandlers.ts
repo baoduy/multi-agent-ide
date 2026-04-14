@@ -24,4 +24,19 @@ export function registerOnboardHandlers({ bridge, onboardService }: OnboardHandl
     onboardService.cancel(msg.repoPath);
     return { type: "repo:onboard:cancelled", repoPath: msg.repoPath };
   });
+
+  safeHandle(bridge, "repo:specify-switch", async (msg) => {
+    // Fire-and-forget: streams output via repo:onboard:output/complete events
+    void onboardService.switchIntegration(msg.repoPath, msg.aiAgent);
+    return { type: "repo:specify-switch:started", repoPath: msg.repoPath };
+  });
+
+  safeHandle(bridge, "repo:specify-status", async (msg) => {
+    const status = onboardService.getSpecifyStatus(msg.repoPath);
+    return {
+      type: "repo:specify-status:result",
+      repoPath: msg.repoPath,
+      ...status,
+    };
+  });
 }

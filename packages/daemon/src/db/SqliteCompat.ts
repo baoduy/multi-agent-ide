@@ -1,9 +1,9 @@
 /**
- * SqliteCompat - A compatibility layer that provides a better-sqlite3-like API
- * on top of sql.js (pure WASM SQLite). This eliminates native module compilation
- * issues and ABI mismatches with Electron.
+ * SqliteCompat wraps sql.js (pure WASM SQLite) with a synchronous statement API
+ * used throughout this project. This eliminates native module compilation issues
+ * and ABI mismatches with Electron.
  *
- * Supports the subset of better-sqlite3 API used by this project:
+ * Supported API surface:
  * - prepare(sql).all(...params) → array of row objects
  * - prepare(sql).get(...params) → single row object or undefined
  * - prepare(sql).run(...params) → { changes: number }
@@ -124,8 +124,7 @@ export class SqliteCompat {
   }
 
   /**
-   * Wraps a function in a BEGIN/COMMIT transaction, just like better-sqlite3's
-   * Database.transaction().
+   * Wraps a function in a BEGIN/COMMIT transaction.
    */
   transaction<TFn extends (...args: unknown[]) => unknown>(fn: TFn): TFn {
     const wrapper = ((...args: unknown[]) => {
@@ -195,9 +194,9 @@ export class SqliteCompat {
   }
 
   /**
-   * Normalize parameters from better-sqlite3 calling conventions to sql.js conventions.
+   * Normalize parameters from this project's statement calling conventions to sql.js.
    *
-   * better-sqlite3 uses:
+   * Callers use:
    *   .run(val1, val2)          → positional  ?
    *   .run({ name: val })       → named       @name
    *
@@ -220,7 +219,6 @@ export class SqliteCompat {
 
       for (const [key, value] of Object.entries(obj)) {
         // sql.js needs $, :, or @ prefix on named params.
-        // better-sqlite3 uses @name in SQL but passes {name: value} in JS.
         // We prefix with @ to match the SQL parameter markers already in the queries.
         const prefixedKey = key.startsWith("@") || key.startsWith("$") || key.startsWith(":")
           ? key

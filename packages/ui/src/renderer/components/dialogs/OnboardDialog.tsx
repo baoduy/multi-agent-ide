@@ -8,6 +8,7 @@ import { MagentaTerminal } from "../common/MagentaTerminal";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton, PrimaryButton, DangerButton, SecondaryButton } from "../common/DialogButtons";
 import { FormLabel } from "../common/FormControls";
+import { ProviderIcon } from "../common/ProviderIcon";
 
 /**
  * Available AI agents for Specify onboarding.
@@ -16,20 +17,6 @@ import { FormLabel } from "../common/FormControls";
 const AI_AGENTS = [
   { id: "claude", label: "Claude Code" },
   { id: "copilot", label: "GitHub Copilot" },
-  { id: "cursor-agent", label: "Cursor" },
-  { id: "gemini", label: "Gemini CLI" },
-  { id: "codex", label: "Codex CLI" },
-  { id: "windsurf", label: "Windsurf" },
-  { id: "amp", label: "Amp" },
-  { id: "qwen", label: "Qwen Code" },
-  { id: "opencode", label: "OpenCode" },
-  { id: "junie", label: "Junie" },
-  { id: "kilocode", label: "Kilo Code" },
-  { id: "roo", label: "Roo Code" },
-  { id: "kiro-cli", label: "Kiro CLI" },
-  { id: "tabnine", label: "Tabnine CLI" },
-  { id: "trae", label: "Trae" },
-  { id: "forge", label: "Forge" },
 ] as const;
 
 type OnboardDialogProps = {
@@ -181,7 +168,10 @@ export function OnboardDialog({
                 fontFamily: "inherit",
               }}
             >
-              <span>{selectedLabel}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <ProviderIcon provider={selectedAgent as "claude" | "copilot"} size={16} />
+                {selectedLabel}
+              </span>
               <ChevronDown
                 size={14}
                 color={colors.textTertiary}
@@ -248,11 +238,9 @@ export function OnboardDialog({
                     {agent.id === selectedAgent && (
                       <Check size={12} color={colors.primary} strokeWidth={2.5} />
                     )}
-                    <span
-                      style={{
-                        marginLeft: agent.id === selectedAgent ? 0 : 20,
-                      }}
-                    >
+                    {!( agent.id === selectedAgent) && <span style={{ width: 12 }} />}
+                    <ProviderIcon provider={agent.id as "claude" | "copilot"} size={16} />
+                    <span>
                       {agent.label}
                     </span>
                   </button>

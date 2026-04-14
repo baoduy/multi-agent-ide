@@ -7,6 +7,9 @@
   "main": "packages/main/dist/index.js",
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
+    "overrides": {
+      "@magenta/daemon>strip-ansi": "6.0.1"
+    },
     "packageExtensions": {
       "@emoji-mart/react@1.1.1": {
         "peerDependencies": {

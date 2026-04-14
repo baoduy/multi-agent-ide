@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@magenta/daemon>strip-ansi': 6.0.1
+
 packageExtensionsChecksum: sha256-jOLwBq/Jcr5ttnyCB8mVAE/72D8EPrg0SV2uNNGDXKc=
 
 importers:
@@ -111,8 +114,8 @@ importers:
         specifier: '*'
         version: 3.35.2
       strip-ansi:
-        specifier: ^7.2.0
-        version: 7.2.0
+        specifier: 6.0.1
+        version: 6.0.1
       ulid:
         specifier: '*'
         version: 3.0.2

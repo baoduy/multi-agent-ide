@@ -15,7 +15,7 @@
     "chokidar": "*",
     "node-pty": "*",
     "simple-git": "*",
-    "strip-ansi": "^7.2.0",
+    "strip-ansi": "6.0.1",
     "ulid": "*",
     "zod": "*"
   },

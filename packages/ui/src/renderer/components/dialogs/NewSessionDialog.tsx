@@ -15,6 +15,7 @@ import { DoublePicker, type DoublePickerOption } from "../common/DoublePicker";
 import { BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { getProviderName } from "../common/providerConfig";
+import { SpecifyOnboardBanner } from "./SpecifyOnboardBanner";
 import type { AIPermissionMode, AIProvider, AISessionRecord } from "@magenta/shared/aiTerminal";
 
 /* ── Types ── */
@@ -119,6 +120,13 @@ export function NewSessionDialog({
   // New worktree mode (branch for new worktree comes from top-level selectedBranch)
   const [worktreeCustomName, setWorktreeCustomName] = useState("");
   const [worktreeNameError, setWorktreeNameError] = useState<string | null>(null);
+
+  // Specify onboard status
+  const [specifyStatus, setSpecifyStatus] = useState<{
+    hasSpecs: boolean;
+    currentAgent: string | null;
+  } | null>(null);
+  const [isLoadingSpecifyStatus, setIsLoadingSpecifyStatus] = useState(false);
 
   // Global
   const [isCreating, setIsCreating] = useState(false);
@@ -229,6 +237,21 @@ export function NewSessionDialog({
     return true;
   }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, sessionType, provider]);
 
+  type SpecifyBannerKind = "none" | "not-onboarded" | "agent-mismatch";
+
+  const specifyBanner = useMemo((): { kind: SpecifyBannerKind; currentAgent: string | null } => {
+    if (sessionType !== "agent" || !specifyStatus || isLoadingSpecifyStatus) {
+      return { kind: "none", currentAgent: null };
+    }
+    if (!specifyStatus.hasSpecs) {
+      return { kind: "not-onboarded", currentAgent: null };
+    }
+    if (specifyStatus.currentAgent && specifyStatus.currentAgent !== provider) {
+      return { kind: "agent-mismatch", currentAgent: specifyStatus.currentAgent };
+    }
+    return { kind: "none", currentAgent: null };
+  }, [sessionType, specifyStatus, isLoadingSpecifyStatus, provider]);
+
   /* ── Effects ── */
 
   // Reset form when dialog opens
@@ -244,6 +267,8 @@ export function NewSessionDialog({
       setWorktreeNameError(null);
       setCreateError(null);
       setIsCreating(false);
+      setSpecifyStatus(null);
+      setIsLoadingSpecifyStatus(false);
     }
   }, [open, initialRepoPath, defaultSessionType]);
 
@@ -276,6 +301,32 @@ export function NewSessionDialog({
       cancelled = true;
     };
   }, [open, selectedRepoPath]);
+
+  // Check Specify onboard status when repo changes
+  useEffect(() => {
+    if (!open || !selectedRepoPath || sessionType !== "agent") {
+      setSpecifyStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingSpecifyStatus(true);
+
+    sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath })
+      .then((res) => {
+        if (cancelled) return;
+        setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent });
+        setIsLoadingSpecifyStatus(false);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSpecifyStatus(null);
+          setIsLoadingSpecifyStatus(false);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [open, selectedRepoPath, sessionType]);
 
   // Load worktrees for selected repo
   useEffect(() => {
@@ -541,6 +592,23 @@ export function NewSessionDialog({
             />
             <span style={{ fontSize: 12, color: colors.textSecondary }}>Loading branches...</span>
           </div>
+        )}
+
+        {/* ─── Specify Onboard Notice ─── */}
+        {specifyBanner.kind !== "none" && branchesReady && (
+          <SpecifyOnboardBanner
+            kind={specifyBanner.kind}
+            currentAgent={specifyBanner.currentAgent}
+            selectedProvider={provider}
+            repoPath={selectedRepoPath!}
+            repoName={repos.find((r) => r.path === selectedRepoPath)?.name ?? ""}
+            onComplete={() => {
+              // Re-fetch specify status after successful onboard/switch
+              sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath! })
+                .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
+                .catch(() => {});
+            }}
+          />
         )}
 
         {/* ─── Run in (after repo selected + branches loaded) ─── */}

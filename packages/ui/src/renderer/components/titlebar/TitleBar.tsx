@@ -9,7 +9,7 @@ import {
 } from "./BackgroundJobsPopover";
 import { useTheme } from "../../theme/ThemeProvider";
 import { Button } from "../ui/button";
-import { ButtonGroup, ButtonGroupSeparator } from "../ui/button-group";
+import { ButtonGroup } from "../ui/button-group";
 
 /* ── Types ── */
 
@@ -123,8 +123,6 @@ function TitleBarTabGroup({
         );
       })}
       {onPlus && (
-        <>
-          <ButtonGroupSeparator />
           <Button
             size="icon"
             variant="outline"
@@ -134,7 +132,6 @@ function TitleBarTabGroup({
           >
             <Plus />
           </Button>
-        </>
       )}
     </ButtonGroup>
   );

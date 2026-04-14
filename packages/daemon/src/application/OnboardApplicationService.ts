@@ -127,6 +127,41 @@ export class OnboardApplicationService {
   }
 
   /**
+   * Switches the Specify integration to a different AI agent using
+   * `specify integration switch {agent}`. Much lighter than a full re-onboard.
+   */
+  async switchIntegration(repoPath: string, aiAgent: string): Promise<void> {
+    if (this.activeProcesses.has(repoPath)) {
+      throw new AppError("VALIDATION_ERROR", `Process already in progress for ${repoPath}`);
+    }
+
+    const validAgent = SPECIFY_AI_AGENTS.find((a) => a.id === aiAgent);
+    if (!validAgent) {
+      throw new AppError("VALIDATION_ERROR", `Unknown AI agent: ${aiAgent}`);
+    }
+
+    console.log(`[onboard-service] Switching integration for ${repoPath} to ${aiAgent}`);
+    this.bridge.emit({ type: "repo:onboard:started", repoPath });
+
+    const { command, args, fullCommand } = this.buildSwitchCommand(aiAgent);
+
+    this.bridge.emit({
+      type: "repo:onboard:output",
+      repoPath,
+      data: `$ ${fullCommand}\n`,
+    });
+
+    await this.runCommand(
+      repoPath,
+      repoPath,
+      command,
+      args,
+      "repo:onboard:output",
+      "repo:onboard:complete",
+    );
+  }
+
+  /**
    * Cancels a running onboard or upgrade process by killing the spawned child process.
    */
   cancel(repoPath: string): void {
@@ -169,6 +204,26 @@ export class OnboardApplicationService {
     const args = parts.slice(1);
 
     return { command, args, fullCommand };
+  }
+
+  /**
+   * Builds a `specify integration switch {agent}` command by extracting the
+   * specify runner prefix from the configured init command template.
+   * E.g. if template is "uvx --from ... specify init --here --ai {agent} --force"
+   * we extract "uvx --from ... specify" and append "integration switch {agent}".
+   */
+  private buildSwitchCommand(agent: string): { command: string; args: string[]; fullCommand: string } {
+    const template = this.configManager.getConfig().specifyCommand || DEFAULT_SPECIFY_COMMAND;
+
+    // Find the "specify" token in the template and take everything up to and including it
+    const tokens = template.replace(/\s+/g, " ").trim().split(" ");
+    const specifyIdx = tokens.indexOf("specify");
+    const prefix = specifyIdx >= 0 ? tokens.slice(0, specifyIdx + 1) : tokens.slice(0, 1);
+
+    const fullCommand = [...prefix, "integration", "switch", agent].join(" ");
+    const parts = fullCommand.split(" ");
+
+    return { command: parts[0], args: parts.slice(1), fullCommand };
   }
 
   /**
@@ -254,9 +309,20 @@ export class OnboardApplicationService {
   }
 
   /**
+   * Returns the Specify onboard status for a repo: whether .specify/ exists
+   * and which AI agent is configured (or null if not onboarded).
+   */
+  getSpecifyStatus(repoPath: string): { hasSpecs: boolean; currentAgent: string | null } {
+    const specifyDir = join(repoPath, ".specify");
+    const hasSpecs = existsSync(specifyDir);
+    const currentAgent = hasSpecs ? this.readInitOptionsAgent(repoPath) : null;
+    return { hasSpecs, currentAgent };
+  }
+
+  /**
    * Reads the AI agent from .specify/init-options.json if it exists.
    */
-  private readInitOptionsAgent(repoPath: string): string | null {
+  readInitOptionsAgent(repoPath: string): string | null {
     const optionsPath = join(repoPath, ".specify", "init-options.json");
     try {
       if (existsSync(optionsPath)) {

@@ -221,11 +221,11 @@ jobs:
   # ────────────────────────────────────────────────────────────────────────────
   notify-tap:
     name: Notify Homebrew tap
-    needs: release
+    needs: [quality, build]
     runs-on: ubuntu-latest
     steps:
       - name: Trigger tap update
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4.0.1
         with:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           repository: baoduy/homebrew-magenta

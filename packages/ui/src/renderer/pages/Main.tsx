@@ -20,6 +20,7 @@ import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
 import { AISessionsView } from "../components/ai-terminal/AISessionsView";
+import { NewSessionDialog } from "../components/dialogs/NewSessionDialog";
 
 import type { ActiveTab, BuiltinTabId, OpenFileTab } from "../components/main/TabBar";
 
@@ -120,6 +121,12 @@ export function MainPage(): React.ReactElement {
   const sidebarCollapsed = useSessionStore((state) => state.sidebarCollapsed);
   const activityCollapsed = useSessionStore((state) => state.activityCollapsed);
   const patchSession = useSessionStore((state) => state.patchSession);
+
+  // New session dialog state (lifted to MainPage so TitleBar can trigger it)
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+  const handleTitleBarNewSession = useCallback(() => {
+    setNewSessionDialogOpen(true);
+  }, []);
 
   // ── Fetch worktrees for all repos once repos are loaded ──
   useEffect(() => {
@@ -404,6 +411,7 @@ export function MainPage(): React.ReactElement {
           onGoForward={handleGoForward}
           activeTab={activeTab}
           onSelectBuiltinTab={handleSelectBuiltinTab}
+          onNewSession={handleTitleBarNewSession}
         />
       }
       sidebar={<Sidebar />}
@@ -439,6 +447,15 @@ export function MainPage(): React.ReactElement {
         />
       }
     />
+      {/* New session dialog triggered from title bar */}
+      <NewSessionDialog
+        open={newSessionDialogOpen}
+        onClose={() => setNewSessionDialogOpen(false)}
+        onSessionCreated={() => {}}
+        onTerminalCreated={() => {}}
+        repoPath={activeRepoPath ?? undefined}
+        repoName={repoName}
+      />
     </>
   );
 }

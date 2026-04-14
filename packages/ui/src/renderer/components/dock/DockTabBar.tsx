@@ -104,11 +104,12 @@ export const DockTabBar = React.memo(function DockTabBar({
 
   return (
     <div
+      className="dock-tab-bar-no-scrollbar"
       style={{
         display: "flex",
         borderBottom: variant === "center" ? `1px solid ${colors.border}` : "none",
         borderTop: variant === "bottom" ? `1px solid ${colors.border}` : "none",
-        background: colors.bgPanel,
+        background: "transparent",
         padding: "0 4px",
         overflowX: "auto",
         flexShrink: 0,

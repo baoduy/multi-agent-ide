@@ -53,7 +53,7 @@ export class ScanQueue {
   }
 
   private async runSingleRepoReload(repoPath: string): Promise<void> {
-    console.log(`[scan-queue] Force reloading single repo: ${repoPath}`);
+    console.log(`[scan-queue] Refresh single repo: ${repoPath}`);
 
     const scanTimestamp = Date.now();
     const { results } = await this.scanner.scan([repoPath], () => {});

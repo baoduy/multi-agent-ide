@@ -57,7 +57,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
 
   // Force reload: rescan repo + refresh spec info
   ctxItems.push({
-    label: "Force Reload",
+    label: "Refresh",
     Icon: RefreshCw,
     separator: true,
     action: () => {

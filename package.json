@@ -32,7 +32,7 @@
     "test:e2e:headed": "pnpm build && pnpm -C packages/e2e test:headed",
     "test:e2e:debug": "pnpm build && pnpm -C packages/e2e test:debug",
     "debug:launch": "pnpm build && pnpm -C packages/e2e debug:launch",
-    "update": "npx npm-check-updates -u && pnpm install",
+    "update": "npx npm-check-updates -u && pnpm install && sh ./update-packages.sh",
     "pack": "pnpm build && pnpm exec electron-builder --dir",
     "dist": "pnpm build && pnpm exec electron-builder",
     "dist:mac": "pnpm build && pnpm exec electron-builder --mac",

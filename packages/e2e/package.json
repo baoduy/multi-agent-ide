@@ -15,14 +15,15 @@
     "debug:stop": "tsx scripts/stop.ts",
     "typecheck": "tsc --noEmit",
     "build": "echo 'no build — e2e package runs via tsx'",
-    "lint": "echo 'No linter configured'"
+    "lint": "echo 'No linter configured'",
+    "update": "npx npm-check-updates -u && pnpm install"
   },
   "devDependencies": {
-    "@playwright/test": "^1.48.0",
+    "@playwright/test": "^1.59.1",
     "@types/node": "*",
     "electron": "*",
-    "playwright": "^1.48.0",
-    "tsx": "^4.19.0",
+    "playwright": "^1.59.1",
+    "tsx": "^4.21.0",
     "typescript": "*"
   }
 }

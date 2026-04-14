@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Sun, Moon, Monitor, List, Workflow, GitBranch, Bot } from "lucide-react";
+import { Sun, Moon, Monitor, List, Workflow, GitBranch, Bot, Plus } from "lucide-react";
 
 import type { ActiveTab, BuiltinTabId } from "../main/TabBar";
 import {
@@ -8,6 +8,8 @@ import {
   useBackgroundJobs,
 } from "./BackgroundJobsPopover";
 import { useTheme } from "../../theme/ThemeProvider";
+import { Button } from "../ui/button";
+import { ButtonGroup, ButtonGroupSeparator } from "../ui/button-group";
 
 /* ── Types ── */
 
@@ -23,6 +25,8 @@ type TitleBarProps = {
   onGoForward: () => void;
   activeTab: ActiveTab;
   onSelectBuiltinTab: (id: BuiltinTabId) => void;
+  /** Optional callback shown as a "+" button next to the AI tab when AI tab is active */
+  onNewSession?: () => void;
 };
 
 /* ── Built-in tab definitions ── */
@@ -81,51 +85,58 @@ function ToolbarButton({
   );
 }
 
-/* ── Built-in tab button in title bar ── */
+/* ── Title bar tab button group (shadcn ButtonGroup) ── */
 
-function TitleBarTab({
-  label,
-  icon,
-  isActive,
-  onClick,
-}: {
-  label: string;
-  icon?: React.ReactNode;
-  isActive: boolean;
-  onClick: () => void;
-}): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
+const noDrag = {
+  appRegion: "no-drag",
+  WebkitAppRegion: "no-drag",
+} as React.CSSProperties;
 
+type TitleBarTabGroupProps = {
+  tabs: typeof builtinTabs;
+  activeTab: ActiveTab;
+  onSelectTab: (id: BuiltinTabId) => void;
+  onPlus?: () => void;
+};
+
+function TitleBarTabGroup({
+  tabs,
+  activeTab,
+  onSelectTab,
+  onPlus,
+}: TitleBarTabGroupProps): React.ReactElement {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "6px 14px",
-        fontSize: 12,
-        fontWeight: isActive ? 600 : 400,
-        cursor: "pointer",
-        border: "none",
-        borderRadius: 6,
-        background: isActive ? "var(--accent)" : hovered ? "var(--accent)" : "transparent",
-        color: isActive ? "var(--foreground)" : hovered ? "var(--foreground)" : "var(--muted-foreground)",
-        transition: "background 0.12s, color 0.12s",
-        flexShrink: 0,
-        whiteSpace: "nowrap",
-        lineHeight: 1,
-        // Must be no-drag so clicks register
-        appRegion: "no-drag",
-        WebkitAppRegion: "no-drag",
-      } as React.CSSProperties}
-    >
-      {icon && <span style={{ display: "inline-flex", alignItems: "center" }}>{icon}</span>}
-      {label}
-    </button>
+    <ButtonGroup style={noDrag}>
+      {tabs.map((tab) => {
+        const isActive = activeTab.kind === "builtin" && activeTab.id === tab.id;
+        return (
+          <Button
+            key={tab.id}
+            variant={isActive ? "default" : "outline"}
+            size="lg"
+            onClick={() => onSelectTab(tab.id)}
+            style={{ ...noDrag, paddingLeft: 20, paddingRight: 20 }}
+          >
+            {tab.icon}
+            {tab.label}
+          </Button>
+        );
+      })}
+      {onPlus && (
+        <>
+          <ButtonGroupSeparator />
+          <Button
+            size="icon-lg"
+            variant="outline"
+            onClick={onPlus}
+            title="New AI Session"
+            style={noDrag}
+          >
+            <Plus />
+          </Button>
+        </>
+      )}
+    </ButtonGroup>
   );
 }
 
@@ -196,6 +207,7 @@ export function TitleBar({
   onGoForward,
   activeTab,
   onSelectBuiltinTab,
+  onNewSession,
 }: TitleBarProps): React.ReactElement {
   const { jobs, runningCount, failedCount, totalCount, clearCompleted } = useBackgroundJobs();
   const [jobsOpen, setJobsOpen] = useState(false);
@@ -285,27 +297,22 @@ export function TitleBar({
         </ToolbarButton>
       </div>
 
-      {/* Center: Built-in tabs — inherits drag from parent;
-           individual TitleBarTab buttons are no-drag so clicks still register */}
+      {/* Center: Built-in tab button group */}
       <div
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 2,
           overflow: "hidden",
         }}
       >
-        {builtinTabs.map((tab) => (
-          <TitleBarTab
-            key={tab.id}
-            label={tab.label}
-            icon={tab.icon}
-            isActive={activeTab.kind === "builtin" && activeTab.id === tab.id}
-            onClick={() => onSelectBuiltinTab(tab.id)}
-          />
-        ))}
+        <TitleBarTabGroup
+          tabs={builtinTabs}
+          activeTab={activeTab}
+          onSelectTab={onSelectBuiltinTab}
+          onPlus={onNewSession}
+        />
       </div>
 
       {/* Right section: notifications + activity panel toggle */}

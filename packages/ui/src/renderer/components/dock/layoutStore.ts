@@ -14,6 +14,7 @@ import type {
   SectionState,
   TabState,
   DockRegion,
+  ActivityBarGroup,
 } from "./types";
 
 /* ── Default Layout ── */
@@ -31,8 +32,8 @@ export const DEFAULT_LAYOUT: LayoutTree = {
     width: 260,
     collapsed: false,
     sections: [
-      { viewId: "repo-changes", expanded: true, size: 200 },
       { viewId: "spec-files", expanded: true, size: 200 },
+      { viewId: "repo-changes", expanded: true, size: 200 },
     ],
   },
   bottom: {
@@ -49,8 +50,15 @@ export const DEFAULT_LAYOUT: LayoutTree = {
   },
   activityBar: {
     visible: true,
-    primaryItems: ["repos", "specs", "repo-changes", "spec-files"],
-    activeItem: "repos",
+    groups: [
+      {
+        id: "explorer",
+        title: "Explorer",
+        iconViewId: "repos",
+        viewIds: ["repos", "specs"],
+      },
+    ],
+    activeGroupId: "explorer",
   },
 };
 
@@ -82,7 +90,7 @@ type LayoutStoreState = {
   moveView: (viewId: string, fromRegion: DockRegion, toRegion: DockRegion, index?: number) => void;
 
   // ── Activity bar ──
-  setActiveActivityItem: (viewId: string | null) => void;
+  setActiveGroup: (groupId: string | null) => void;
 
   // ── Persistence ──
   setLayout: (layout: LayoutTree) => void;
@@ -301,11 +309,11 @@ export const useLayoutStore = create<LayoutStoreState>((set) => ({
       return { layout: newLayout };
     }),
 
-  setActiveActivityItem: (viewId) =>
+  setActiveGroup: (groupId) =>
     set((state) => ({
       layout: {
         ...state.layout,
-        activityBar: { ...state.layout.activityBar, activeItem: viewId },
+        activityBar: { ...state.layout.activityBar, activeGroupId: groupId },
       },
     })),
 
@@ -384,22 +392,42 @@ function loadPersistedLayout(): LayoutTree | null {
       parsed.right.sections = rightSections
         .filter((s: SectionState) => s.viewId !== "activity")
         .concat([
-          { viewId: "repo-changes", expanded: true, size: 200 },
           { viewId: "spec-files", expanded: true, size: 200 },
+          { viewId: "repo-changes", expanded: true, size: 200 },
         ]);
     }
 
-    // ── Migration: update activity bar to reference new view IDs ──
-    if (parsed.activityBar?.primaryItems) {
-      const items = parsed.activityBar.primaryItems;
+    // ── Migration: update activity bar to reference new view IDs (legacy flat format) ──
+    const legacyBar = parsed.activityBar as any;
+    if (legacyBar?.primaryItems) {
+      const items: string[] = legacyBar.primaryItems;
       const activityIdx = items.indexOf("activity");
       if (activityIdx !== -1) {
         items.splice(activityIdx, 1, "repo-changes", "spec-files");
-        parsed.activityBar.primaryItems = items;
+        legacyBar.primaryItems = items;
       }
-      if (parsed.activityBar.activeItem === "activity") {
-        parsed.activityBar.activeItem = "repo-changes";
+      if (legacyBar.activeItem === "activity") {
+        legacyBar.activeItem = "repo-changes";
       }
+    }
+
+    // ── Migration: convert flat primaryItems to view groups ──
+    if (!(parsed.activityBar as any).groups) {
+      const leftViewIds = (parsed.left?.sections ?? []).map(
+        (s: SectionState) => s.viewId
+      );
+      parsed.activityBar = {
+        visible: parsed.activityBar?.visible ?? true,
+        groups: [
+          {
+            id: "explorer",
+            title: "Explorer",
+            iconViewId: leftViewIds[0] ?? "repos",
+            viewIds: leftViewIds.length > 0 ? leftViewIds : ["repos", "specs"],
+          },
+        ],
+        activeGroupId: "explorer",
+      };
     }
 
     return parsed;

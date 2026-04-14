@@ -1,8 +1,13 @@
 /**
  * ActivityBar — thin icon rail on the far left (VS Code style).
  *
- * Each icon toggles visibility of its associated sidebar section.
- * Primary items at the top, secondary items at the bottom.
+ * Each icon represents a **view group** — a bundle of left-sidebar
+ * sections shown together. Clicking the active group's icon toggles
+ * the left sidebar collapse; clicking a different group switches which
+ * sections are visible in the left sidebar.
+ *
+ * Currently there is one group ("Explorer" → repos + specs).
+ * More groups can be added by extending DEFAULT_LAYOUT.activityBar.groups.
  */
 
 import React, { useCallback, useState } from "react";
@@ -10,6 +15,7 @@ import { useLayoutStore } from "./layoutStore";
 import { viewRegistry } from "./ViewRegistry";
 import { colors } from "../../utils/colors";
 import { Settings } from "lucide-react";
+import type { ActivityBarGroup } from "./types";
 
 type ActivityBarProps = {
   onSettingsClick?: () => void;
@@ -19,23 +25,23 @@ export const ActivityBar = React.memo(function ActivityBar({
   onSettingsClick,
 }: ActivityBarProps): React.ReactElement | null {
   const activityBar = useLayoutStore((s) => s.layout.activityBar);
-  const setActiveItem = useLayoutStore((s) => s.setActiveActivityItem);
+  const setActiveGroup = useLayoutStore((s) => s.setActiveGroup);
   const toggleLeft = useLayoutStore((s) => s.toggleRegionCollapse);
   const leftCollapsed = useLayoutStore((s) => s.layout.left.collapsed);
 
-  const handleItemClick = useCallback(
-    (viewId: string) => {
-      if (activityBar.activeItem === viewId) {
+  const handleGroupClick = useCallback(
+    (groupId: string) => {
+      if (activityBar.activeGroupId === groupId) {
         // Toggle sidebar collapse
         toggleLeft("left");
       } else {
-        setActiveItem(viewId);
+        setActiveGroup(groupId);
         if (leftCollapsed) {
           toggleLeft("left");
         }
       }
     },
-    [activityBar.activeItem, setActiveItem, toggleLeft, leftCollapsed]
+    [activityBar.activeGroupId, setActiveGroup, toggleLeft, leftCollapsed]
   );
 
   if (!activityBar.visible) return null;
@@ -54,7 +60,7 @@ export const ActivityBar = React.memo(function ActivityBar({
         flexShrink: 0,
       }}
     >
-      {/* Primary items (top) */}
+      {/* View group icons (top) */}
       <div
         style={{
           display: "flex",
@@ -64,18 +70,17 @@ export const ActivityBar = React.memo(function ActivityBar({
           flex: 1,
         }}
       >
-        {activityBar.primaryItems.map((viewId) => {
-          const descriptor = viewRegistry.get(viewId);
+        {activityBar.groups.map((group: ActivityBarGroup) => {
+          const descriptor = viewRegistry.get(group.iconViewId);
           if (!descriptor) return null;
 
           return (
             <ActivityBarItem
-              key={viewId}
-              viewId={viewId}
+              key={group.id}
               icon={descriptor.icon}
-              title={descriptor.title}
-              isActive={activityBar.activeItem === viewId && !leftCollapsed}
-              onClick={() => handleItemClick(viewId)}
+              title={group.title}
+              isActive={activityBar.activeGroupId === group.id && !leftCollapsed}
+              onClick={() => handleGroupClick(group.id)}
             />
           );
         })}
@@ -93,7 +98,6 @@ export const ActivityBar = React.memo(function ActivityBar({
       >
         {onSettingsClick && (
           <ActivityBarItem
-            viewId="settings"
             icon={<Settings size={20} strokeWidth={1.5} />}
             title="Settings"
             isActive={false}
@@ -113,7 +117,6 @@ const ActivityBarItem = React.memo(function ActivityBarItem({
   isActive,
   onClick,
 }: {
-  viewId: string;
   icon: React.ReactNode;
   title: string;
   isActive: boolean;

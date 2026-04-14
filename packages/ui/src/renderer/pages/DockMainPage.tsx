@@ -24,6 +24,7 @@ import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
 import { SettingsDialog } from "../components/settings/SettingsDialog";
+import { NewSessionDialog } from "../components/dialogs/NewSessionDialog";
 
 import type { ActiveTab, BuiltinTabId } from "../types/tabs";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
@@ -141,6 +142,7 @@ export function DockMainPage(): React.ReactElement {
   const mainViewId = useLayoutStore((s) => s.layout.center.tabs[0]?.viewId ?? "specs-list");
 
   const [showSettings, setShowSettings] = useState(false);
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
   // Navigation
   const nav = useNavHistory();
@@ -342,6 +344,10 @@ export function DockMainPage(): React.ReactElement {
     // no-op — let spec:sync:complete handle the refresh
   }, []);
 
+  const handleNewSession = useCallback(() => {
+    setNewSessionDialogOpen(true);
+  }, []);
+
   const handleToggleSidebar = useCallback(() => {
     toggleRegionCollapse("left");
   }, [toggleRegionCollapse]);
@@ -376,6 +382,24 @@ export function DockMainPage(): React.ReactElement {
     }
   }, [nav, setMainView, handleOpenFile]);
 
+  // Derive the active terminal's worktree path (if any)
+  // NOTE: these hooks MUST be before the early returns to keep hook order stable.
+  const activeTerminalCwd = useMemo(() => {
+    if (!centerActiveTabId) return null;
+    const tab = centerTabs.find((t) => t.tabId === centerActiveTabId);
+    if (!tab) return null;
+    if (tab.viewId === "agent-session" || tab.viewId === "terminal-session") {
+      return (tab.props?.cwd as string) ?? null;
+    }
+    return null;
+  }, [centerActiveTabId, centerTabs]);
+
+  // If the terminal cwd differs from the repo root, it's a worktree
+  const worktreePathForChanges = useMemo(() => {
+    if (!activeTerminalCwd || !activeRepoPath) return null;
+    return activeTerminalCwd !== activeRepoPath ? activeTerminalCwd : null;
+  }, [activeTerminalCwd, activeRepoPath]);
+
   // ── Loading / Welcome gates ──
 
   if (!sessionInitialized || isLoading) {
@@ -393,9 +417,13 @@ export function DockMainPage(): React.ReactElement {
   const repoName = activeRepo?.name ?? null;
 
   const viewProps: Record<string, Record<string, unknown>> = {
-    activity: {
+    "repo-changes": {
+      repoPath: activeRepoPath ?? undefined,
+      worktreePath: worktreePathForChanges,
       onOpenFile: handleOpenFile,
-      activeBuiltinTab: activeTab.kind === "builtin" ? activeTab.id : null,
+    },
+    "spec-files": {
+      onOpenFile: handleOpenFile,
     },
     "specs-list": {
       specs,
@@ -426,6 +454,14 @@ export function DockMainPage(): React.ReactElement {
     <>
       <OnboardDialogManager />
       <SettingsDialog isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <NewSessionDialog
+        open={newSessionDialogOpen}
+        onClose={() => setNewSessionDialogOpen(false)}
+        onSessionCreated={handleOpenAgentSession}
+        onTerminalCreated={handleOpenTerminalSession}
+        repoPath={activeRepoPath ?? undefined}
+        repoName={repoName}
+      />
       <DockManager
         titleBar={
           <TitleBar
@@ -440,6 +476,7 @@ export function DockMainPage(): React.ReactElement {
             onGoForward={handleGoForward}
             activeTab={activeTab}
             onSelectBuiltinTab={handleSelectBuiltinTab}
+            onNewSession={handleNewSession}
           />
         }
         viewProps={viewProps}

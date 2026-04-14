@@ -90,13 +90,31 @@ export type CenterState = {
   tabs: TabState[];
 };
 
+/**
+ * A view group bundles related left-sidebar sections under a single
+ * activity-bar icon (like VS Code's Explorer, Search, Source Control, etc.).
+ */
+export type ActivityBarGroup = {
+  /** Unique group id, e.g. "explorer" */
+  id: string;
+  /** Human-readable title shown as tooltip */
+  title: string;
+  /**
+   * ViewId whose registered icon represents this group in the activity bar.
+   * Looked up from ViewRegistry at render time.
+   */
+  iconViewId: string;
+  /** Left-sidebar section viewIds that belong to this group */
+  viewIds: string[];
+};
+
 export type ActivityBarState = {
   /** Whether the activity bar is visible */
   visible: boolean;
-  /** Ordered view ids that appear as icons */
-  primaryItems: string[];
-  /** Currently active (highlighted) item */
-  activeItem: string | null;
+  /** Ordered groups that appear as icons in the activity bar */
+  groups: ActivityBarGroup[];
+  /** Currently active (highlighted) group id */
+  activeGroupId: string | null;
 };
 
 export type LayoutTree = {

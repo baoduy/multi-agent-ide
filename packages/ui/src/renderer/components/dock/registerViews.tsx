@@ -23,9 +23,12 @@ import { viewRegistry } from "./ViewRegistry";
 
 // Existing panel components (lazy references — imported at registration time)
 import { Sidebar } from "../sidebar/Sidebar";
+import { SpecTree } from "../sidebar/SpecTree";
 import { SpecFileList } from "../activity/SpecFileList";
 import { RepoFileChanges } from "../activity/RepoFileChanges";
 import { SpecsListView } from "../main/SpecsListView";
+import { useRepoStore } from "../../store/repoStore";
+import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { WorktreesView } from "../main/WorktreesView";
 import { WorkflowView } from "../main/WorkflowView";
 import { FileViewer } from "../main/FileViewer";
@@ -39,10 +42,39 @@ import { colors } from "../../utils/colors";
  * These receive props via the viewProps mechanism in DockManager.
  */
 
-// Sidebar already has its own internal layout (repos + specs accordion)
-// For now we register it as a single view; later we can split it.
+// Sidebar renders just the repo list + search (specs split into own view)
 function ReposSidebarView(): React.ReactElement {
   return <Sidebar />;
+}
+
+/* ── Left Sidebar: Specs Tree ── */
+
+function SpecsSidebarView(): React.ReactElement {
+  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
+  const specs = useSpecStore((state) => state.specs);
+  const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
+  const isLoading = useSpecStore((state) => state.isLoading);
+
+  const handleSelectSpec = React.useCallback((specPath: string) => {
+    SessionCoordinator.selectSpec(specPath);
+  }, []);
+
+  if (!activeRepoPath) {
+    return (
+      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+        Select a repository to see specs.
+      </div>
+    );
+  }
+
+  return (
+    <SpecTree
+      specs={specs}
+      isLoading={isLoading}
+      selectedSpecPath={selectedSpecPath}
+      onSelectSpec={handleSelectSpec}
+    />
+  );
 }
 
 /* ── Right Sidebar: Repo File Changes ── */
@@ -245,6 +277,18 @@ export function registerAllViews(): void {
     keepAlive: true,
     activityGroup: "primary",
     activityOrder: 1,
+  });
+
+  viewRegistry.register({
+    id: "specs",
+    title: "Specs",
+    icon: <FileText size={14} strokeWidth={1.5} />,
+    component: SpecsSidebarView,
+    defaultLocation: "left",
+    closable: false,
+    keepAlive: true,
+    activityGroup: "primary",
+    activityOrder: 2,
   });
 
   // ── Right Sidebar Views ──

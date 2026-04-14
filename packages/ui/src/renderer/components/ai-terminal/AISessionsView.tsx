@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
@@ -166,53 +165,6 @@ export function AISessionsView({
         height: "100%",
       }}
     >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "16px 20px",
-          background: "transparent",
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 14,
-            fontWeight: 600,
-            color: colors.text,
-          }}
-        >
-          Sessions
-        </span>
-        <button
-          type="button"
-          onClick={handleNewSession}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "6px 12px",
-            borderRadius: 6,
-            border: "none",
-            outline: "none",
-            boxShadow: "none",
-            background: colors.primary,
-            color: colors.textWhite,
-            cursor: "pointer",
-            fontSize: 12,
-            fontWeight: 500,
-            transition: "opacity 0.12s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
-        >
-          <Plus size={14} strokeWidth={2} />
-          New Session
-        </button>
-      </div>
-
       {/* Unified session tree grouped by repo/directory */}
       <div
         style={{

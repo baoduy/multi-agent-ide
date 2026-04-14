@@ -76,6 +76,7 @@ export const ResizeHandle = React.memo(function ResizeHandle({
         position: "relative",
         flexShrink: 0,
         zIndex: 10,
+        background: isVertical ? colors.bgPanelSoft : "transparent",
         [isVertical ? "borderRight" : "borderTop"]: `1px solid ${colors.border}`,
       }}
     >

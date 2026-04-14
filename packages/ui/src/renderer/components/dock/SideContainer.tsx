@@ -10,7 +10,7 @@ import React, { useMemo, useCallback, createElement } from "react";
 import { useLayoutStore } from "./layoutStore";
 import { viewRegistry } from "./ViewRegistry";
 import { AccordionSection } from "./AccordionSection";
-import type { SideContainerState, SectionState } from "./types";
+import type { SideContainerState, SectionState, ActivityBarGroup } from "./types";
 
 type SideContainerProps = {
   region: "left" | "right";
@@ -27,7 +27,17 @@ export const SideContainer = React.memo(function SideContainer({
   );
   const toggleSection = useLayoutStore((s) => s.toggleSection);
 
-  const sections = container.sections;
+  // For the left sidebar, filter sections to only those in the active group
+  const activeGroupId = useLayoutStore((s) => s.layout.activityBar.activeGroupId);
+  const groups = useLayoutStore((s) => s.layout.activityBar.groups);
+
+  const sections = useMemo(() => {
+    if (region !== "left") return container.sections;
+    const activeGroup = groups.find((g: ActivityBarGroup) => g.id === activeGroupId);
+    if (!activeGroup) return container.sections;
+    const allowedIds = new Set(activeGroup.viewIds);
+    return container.sections.filter((s: SectionState) => allowedIds.has(s.viewId));
+  }, [region, container.sections, activeGroupId, groups]);
 
   const expandedCount = useMemo(
     () => sections.filter((s: SectionState) => s.expanded).length,
@@ -63,12 +73,11 @@ export const SideContainer = React.memo(function SideContainer({
           <div
             key={section.viewId}
             style={{
-              flex: section.expanded ? section.size : 0,
-              flexBasis: section.expanded ? 0 : "auto",
               flexGrow: section.expanded
                 ? section.size / (expandedCount || 1)
                 : 0,
               flexShrink: section.expanded ? 1 : 0,
+              flexBasis: section.expanded ? 0 : "auto",
               minHeight: section.expanded ? 80 : 0,
               display: "flex",
               flexDirection: "column",

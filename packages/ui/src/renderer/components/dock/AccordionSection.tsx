@@ -87,8 +87,9 @@ export const AccordionSection = React.memo(function AccordionSection({
       style={{
         display: "flex",
         flexDirection: "column",
+        flex: 1,
         overflow: "hidden",
-        borderBottom: `1px solid ${colors.border}`,
+        borderTop: `1px solid ${colors.border}`,
         opacity: isBeingDragged ? 0.4 : 1,
         transition: "opacity 0.15s",
         ...(isDragOver

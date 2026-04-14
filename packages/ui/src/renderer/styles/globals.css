@@ -7,11 +7,11 @@
 /*
  * Magenta IDE — shadcn/ui theme
  *
- * Lime + Neutral palette (radix-mira style) using oklch color space.
+ * Amber + Orange palette (radix-mira style) using oklch color space.
  * Maps inline-style color constants (colors.ts) to shadcn CSS variables
  * so new shadcn components blend with existing hand-styled UI.
  *
- * Preset: Mira style, Lime theme, Neutral base, JetBrains Mono, Small radius
+ * Preset: Mira style, Amber theme, Neutral base, JetBrains Mono, Small radius
  */
 
 /* Dark mode: activated by adding `.dark` to <html> via ThemeProvider. */
@@ -74,7 +74,7 @@
   --font-sans: 'JetBrains Mono', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace;
 
-  /* ── Core: Lime primary + Neutral base (oklch) ── */
+  /* ── Core: Amber primary + Warm neutral base (oklch) ── */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -82,40 +82,40 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
 
-  --primary: oklch(0.841 0.238 128.85);
-  --primary-foreground: oklch(0.405 0.101 131.063);
+  --primary: oklch(0.673 0.179 47.2);
+  --primary-foreground: oklch(0.985 0.01 95);
 
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --secondary: oklch(0.977 0.012 85);
+  --secondary-foreground: oklch(0.31 0.03 48);
+  --muted: oklch(0.972 0.008 85);
+  --muted-foreground: oklch(0.556 0.018 55);
 
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --accent: oklch(0.965 0.016 78);
+  --accent-foreground: oklch(0.27 0.03 45);
 
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.985 0 0);
 
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.841 0.238 128.85);
+  --border: oklch(0.922 0.008 82);
+  --input: oklch(0.922 0.008 82);
+  --ring: oklch(0.673 0.179 47.2);
 
-  /* ── Charts (Lime scale) ── */
-  --chart-1: oklch(0.897 0.196 126.665);
-  --chart-2: oklch(0.768 0.233 130.85);
-  --chart-3: oklch(0.648 0.2 131.684);
-  --chart-4: oklch(0.532 0.157 131.589);
-  --chart-5: oklch(0.453 0.124 130.933);
+  /* ── Charts (amber -> orange scale) ── */
+  --chart-1: oklch(0.84 0.148 77);
+  --chart-2: oklch(0.758 0.17 63);
+  --chart-3: oklch(0.673 0.179 47.2);
+  --chart-4: oklch(0.604 0.165 38);
+  --chart-5: oklch(0.53 0.137 28);
 
   /* ── Sidebar ── */
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.648 0.2 131.684);
-  --sidebar-primary-foreground: oklch(0.986 0.031 120.757);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.841 0.238 128.85);
+  --sidebar-primary: oklch(0.673 0.179 47.2);
+  --sidebar-primary-foreground: oklch(0.985 0.01 95);
+  --sidebar-accent: oklch(0.965 0.016 78);
+  --sidebar-accent-foreground: oklch(0.27 0.03 45);
+  --sidebar-border: oklch(0.922 0.008 82);
+  --sidebar-ring: oklch(0.758 0.17 63);
 
   /* ── Tab bar ── */
   --tabbar-bg: oklch(0.97 0 0);
@@ -130,12 +130,12 @@
   --flow-node-bg: oklch(1 0 0);
   --flow-node-border: oklch(0.922 0 0);
   --flow-node-text: oklch(0.145 0 0);
-  --flow-status-pending-bg: #dbeafe;
-  --flow-status-pending-border: #3b82f6;
-  --flow-status-pending-text: #1e40af;
-  --flow-status-review-bg: #fef3c7;
-  --flow-status-review-border: #fde68a;
-  --flow-status-review-text: #92400e;
+  --flow-status-pending-bg: #fff1db;
+  --flow-status-pending-border: #f59e0b;
+  --flow-status-pending-text: #b45309;
+  --flow-status-review-bg: #ffedd5;
+  --flow-status-review-border: #fb923c;
+  --flow-status-review-text: #9a3412;
   --flow-status-approved-bg: #dcfce7;
   --flow-status-approved-border: #16a34a;
   --flow-status-approved-text: #166534;
@@ -163,24 +163,24 @@
   --success-text: #166534;
 
   /* ── Status: warning ── */
-  --warning-soft: #fef3c7;
-  --warning-text: #7c6a3e;
-  --warning-border: #fde68a;
+  --warning-soft: #fff1db;
+  --warning-text: #9a6b21;
+  --warning-border: #fcd34d;
   --warning-text-strong: #92400e;
   --warning-text-deep: #9a3412;
-  --warning-border-soft: #fed7aa;
+  --warning-border-soft: #fdba74;
 
   /* ── Status: info ── */
-  --info-soft: #dbeafe;
-  --info-text: #1e40af;
-  --info-border: #bfdbfe;
-  --info: #3b82f6;
-  --accent-purple: #7C3AED;
+  --info-soft: #ffedd5;
+  --info-text: #b45309;
+  --info-border: #fdba74;
+  --info: #ea580c;
+  --accent-purple: #c2410c;
 
   /* ── Status: progress ── */
-  --progress-soft: #fce4ec;
-  --progress-text: #9f1239;
-  --progress-border: #fda4af;
+  --progress-soft: #fff7ed;
+  --progress-text: #c2410c;
+  --progress-border: #fdba74;
 
   /* ── Status: error ── */
   --error-soft: #fef2f2;
@@ -212,15 +212,15 @@
   --popover: oklch(0.269 0 0);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.768 0.233 130.85);
-  --primary-foreground: oklch(0.405 0.101 131.063);
+  --primary: oklch(0.758 0.17 63);
+  --primary-foreground: oklch(0.29 0.03 40);
 
-  --secondary: oklch(0.274 0.006 286.033);
+  --secondary: oklch(0.29 0.015 70);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted: oklch(0.275 0.012 70);
+  --muted-foreground: oklch(0.74 0.018 75);
 
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(0.302 0.018 64);
   --accent-foreground: oklch(0.985 0 0);
 
   --destructive: oklch(0.704 0.191 22.216);
@@ -228,24 +228,24 @@
 
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.405 0.101 131.063);
+  --ring: oklch(0.758 0.17 63);
 
-  /* ── Charts (Lime scale — same in dark) ── */
-  --chart-1: oklch(0.897 0.196 126.665);
-  --chart-2: oklch(0.768 0.233 130.85);
-  --chart-3: oklch(0.648 0.2 131.684);
-  --chart-4: oklch(0.532 0.157 131.589);
-  --chart-5: oklch(0.453 0.124 130.933);
+  /* ── Charts (amber -> orange scale — same in dark) ── */
+  --chart-1: oklch(0.84 0.148 77);
+  --chart-2: oklch(0.758 0.17 63);
+  --chart-3: oklch(0.673 0.179 47.2);
+  --chart-4: oklch(0.604 0.165 38);
+  --chart-5: oklch(0.53 0.137 28);
 
   /* ── Sidebar (dark) ── */
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.768 0.233 130.85);
-  --sidebar-primary-foreground: oklch(0.274 0.072 132.109);
-  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-primary: oklch(0.758 0.17 63);
+  --sidebar-primary-foreground: oklch(0.29 0.03 40);
+  --sidebar-accent: oklch(0.302 0.018 64);
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.405 0.101 131.063);
+  --sidebar-ring: oklch(0.758 0.17 63);
 
   /* ── Tab bar (dark) ── */
   --tabbar-bg: oklch(0.18 0 0);
@@ -260,12 +260,12 @@
   --flow-node-bg: oklch(0.269 0 0);
   --flow-node-border: oklch(0.32 0 0);
   --flow-node-text: oklch(0.985 0 0);
-  --flow-status-pending-bg: rgba(59, 130, 246, 0.18);
-  --flow-status-pending-border: #60a5fa;
-  --flow-status-pending-text: #93c5fd;
-  --flow-status-review-bg: rgba(245, 158, 11, 0.18);
-  --flow-status-review-border: #fbbf24;
-  --flow-status-review-text: #fcd34d;
+  --flow-status-pending-bg: rgba(245, 158, 11, 0.18);
+  --flow-status-pending-border: #fbbf24;
+  --flow-status-pending-text: #fcd34d;
+  --flow-status-review-bg: rgba(249, 115, 22, 0.18);
+  --flow-status-review-border: #fb923c;
+  --flow-status-review-text: #fdba74;
   --flow-status-approved-bg: rgba(22, 163, 74, 0.18);
   --flow-status-approved-border: #4ade80;
   --flow-status-approved-text: #86efac;
@@ -292,23 +292,23 @@
 
   /* ── Status: warning (dark) ── */
   --warning-soft: rgba(245, 158, 11, 0.15);
-  --warning-text: #fcd34d;
-  --warning-border: rgba(251, 191, 35, 0.3);
+  --warning-text: #fde68a;
+  --warning-border: rgba(251, 191, 35, 0.35);
   --warning-text-strong: #fbbf24;
   --warning-text-deep: #f59e0b;
-  --warning-border-soft: rgba(253, 186, 116, 0.3);
+  --warning-border-soft: rgba(253, 186, 116, 0.35);
 
   /* ── Status: info (dark) ── */
-  --info-soft: rgba(59, 130, 246, 0.15);
-  --info-text: #93c5fd;
-  --info-border: rgba(59, 130, 246, 0.3);
-  --info: #60a5fa;
-  --accent-purple: #a78bfa;
+  --info-soft: rgba(249, 115, 22, 0.15);
+  --info-text: #fdba74;
+  --info-border: rgba(251, 146, 60, 0.3);
+  --info: #fb923c;
+  --accent-purple: #fdba74;
 
   /* ── Status: progress (dark) ── */
-  --progress-soft: rgba(159, 18, 57, 0.15);
-  --progress-text: #fda4af;
-  --progress-border: rgba(253, 164, 175, 0.3);
+  --progress-soft: rgba(251, 146, 60, 0.15);
+  --progress-text: #fdba74;
+  --progress-border: rgba(251, 191, 36, 0.3);
 
   /* ── Status: error (dark) ── */
   --error-soft: rgba(239, 68, 68, 0.15);
@@ -685,4 +685,13 @@
   .dark .md-viewer {
     background-color: transparent;
   }
+}
+
+/* Hide scrollbar on dock tab bars while keeping scroll functionality */
+.dock-tab-bar-no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+.dock-tab-bar-no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome / Safari / Electron */
 }

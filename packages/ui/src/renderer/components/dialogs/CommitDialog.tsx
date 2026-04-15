@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitCommit, Upload } from "lucide-react";
+import { GitCommit, Upload, ChevronDown, Loader2 } from "lucide-react";
 
 import type { GitFileStatus } from "@magenta/shared/ipc";
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useRepoStore } from "../../store/repoStore";
 import { BaseDialog } from "../common/BaseDialog";
-import { CancelButton, PrimaryButton } from "../common/DialogButtons";
+import { CancelButton } from "../common/DialogButtons";
 import { FormLabel, FormTextarea, FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
 
@@ -72,10 +72,25 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
   const [loadError, setLoadError] = useState<string | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
   const messageRef = useRef<HTMLTextAreaElement>(null);
-  /** Tracks which primary button the user clicked so only that one shows a spinner. */
-  const pushIntent = useRef(false);
+  /** Tracks which primary action the user triggered so only that one shows a spinner. */
+  const pushIntent = useRef(true); // default to push — it's the primary action
+  /** Secondary-action dropdown (opens the "Commit only" option). */
+  const [menuOpen, setMenuOpen] = useState(false);
+  const splitRef = useRef<HTMLDivElement>(null);
 
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
+
+  /* ── Close dropdown on outside click ── */
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (splitRef.current && !splitRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    const t = setTimeout(() => document.addEventListener("mousedown", handler), 0);
+    return () => { clearTimeout(t); document.removeEventListener("mousedown", handler); };
+  }, [menuOpen]);
 
   /* ── Load status on mount ── */
   useEffect(() => {
@@ -150,28 +165,37 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
     }
   }, [message, selected, files, repoPath, fetchRepos, onClose]);
 
-  /* ── Footer ── */
+  /* ── Footer: split button (primary = Commit & Push, dropdown = Commit only) ── */
+  const primaryDisabled = !message.trim() || selected.size === 0 || isLoading || isCommitting;
+
   const footer = (
     <>
       <CancelButton onClick={onClose} />
-      <PrimaryButton
-        onClick={() => void doCommit(false)}
-        disabled={!message.trim() || selected.size === 0 || isLoading}
-        loading={isCommitting && !pushIntent.current}
-        loadingText="Committing..."
-      >
-        <GitCommit size={12} strokeWidth={2.2} />
-        Commit
-      </PrimaryButton>
-      <PrimaryButton
-        onClick={() => void doCommit(true)}
-        disabled={!message.trim() || selected.size === 0 || isLoading}
-        loading={isCommitting && pushIntent.current}
-        loadingText="Committing & pushing..."
-      >
-        <Upload size={12} strokeWidth={2.2} />
-        Commit & Push
-      </PrimaryButton>
+      <SplitButton
+        containerRef={splitRef}
+        disabled={primaryDisabled}
+        primaryLabel={
+          isCommitting && pushIntent.current
+            ? "Committing & pushing..."
+            : "Commit & Push"
+        }
+        primaryIcon={
+          isCommitting && pushIntent.current
+            ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+            : <Upload size={12} strokeWidth={2.2} />
+        }
+        onPrimary={() => void doCommit(true)}
+        menuOpen={menuOpen}
+        onToggleMenu={() => setMenuOpen((o) => !o)}
+        menuItem={{
+          label: isCommitting && !pushIntent.current ? "Committing..." : "Commit only",
+          icon: isCommitting && !pushIntent.current
+            ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+            : <GitCommit size={12} strokeWidth={2.2} />,
+          onSelect: () => { setMenuOpen(false); void doCommit(false); },
+          disabled: primaryDisabled,
+        }}
+      />
     </>
   );
 
@@ -325,5 +349,155 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
         </>
       )}
     </BaseDialog>
+  );
+}
+
+/* ══════════════════════════════════════════
+ * SplitButton — primary action + dropdown chevron for alternate actions.
+ *
+ * Layout: [ primary action | ▾ ]  with a subtle divider between halves.
+ * Visual language matches PrimaryButton so it reads as one unit.
+ * ══════════════════════════════════════════ */
+
+type SplitButtonProps = {
+  /** Ref on the outer container — used by the parent for click-outside handling. */
+  containerRef: React.Ref<HTMLDivElement>;
+  primaryLabel: React.ReactNode;
+  primaryIcon?: React.ReactNode;
+  onPrimary: () => void;
+  disabled: boolean;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
+  menuItem: {
+    label: React.ReactNode;
+    icon?: React.ReactNode;
+    onSelect: () => void;
+    disabled?: boolean;
+  };
+};
+
+function SplitButton({
+  containerRef,
+  primaryLabel,
+  primaryIcon,
+  onPrimary,
+  disabled,
+  menuOpen,
+  onToggleMenu,
+  menuItem,
+}: SplitButtonProps): React.ReactElement {
+  const baseBg = disabled ? colors.textTertiary : colors.primary;
+  const cursor = disabled ? "default" : "pointer";
+
+  return (
+    <div ref={containerRef} style={{ position: "relative", display: "inline-flex" }}>
+      {/* Primary half */}
+      <button
+        type="button"
+        onClick={() => { if (!disabled) onPrimary(); }}
+        disabled={disabled}
+        style={{
+          padding: "7px 14px",
+          fontSize: 12,
+          fontWeight: 600,
+          color: colors.textWhite,
+          background: baseBg,
+          border: "none",
+          borderTopLeftRadius: 6,
+          borderBottomLeftRadius: 6,
+          cursor,
+          fontFamily: "inherit",
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+        }}
+      >
+        {primaryIcon}
+        {primaryLabel}
+      </button>
+
+      {/* Divider */}
+      <div
+        aria-hidden
+        style={{
+          width: 1,
+          background: "rgba(255,255,255,0.25)",
+          alignSelf: "stretch",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Chevron half */}
+      <button
+        type="button"
+        onClick={() => { if (!disabled) onToggleMenu(); }}
+        disabled={disabled}
+        aria-label="More commit options"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        style={{
+          padding: "7px 8px",
+          background: baseBg,
+          border: "none",
+          borderTopRightRadius: 6,
+          borderBottomRightRadius: 6,
+          cursor,
+          color: colors.textWhite,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <ChevronDown size={14} strokeWidth={2.2} />
+      </button>
+
+      {/* Menu */}
+      {menuOpen && (
+        <div
+          role="menu"
+          style={{
+            position: "absolute",
+            bottom: "calc(100% + 6px)",
+            right: 0,
+            minWidth: 180,
+            background: colors.bgSurface,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 6,
+            boxShadow: colors.shadowPopover,
+            padding: 4,
+            zIndex: 10000,
+          }}
+        >
+          <button
+            type="button"
+            role="menuitem"
+            onClick={menuItem.onSelect}
+            disabled={menuItem.disabled}
+            style={{
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "8px 10px",
+              fontSize: 12,
+              fontWeight: 500,
+              color: colors.text,
+              background: "transparent",
+              border: "none",
+              borderRadius: 4,
+              cursor: menuItem.disabled ? "default" : "pointer",
+              textAlign: "left",
+              fontFamily: "inherit",
+              opacity: menuItem.disabled ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => { if (!menuItem.disabled) e.currentTarget.style.background = colors.bgHover; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+          >
+            {menuItem.icon}
+            {menuItem.label}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

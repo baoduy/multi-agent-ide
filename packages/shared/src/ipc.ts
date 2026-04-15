@@ -108,7 +108,22 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("git:fetch"), repoPath: z.string(), remote: z.string().optional() }),
   z.object({ type: z.literal("git:pull"), repoPath: z.string(), remote: z.string().optional(), branch: z.string().optional() }),
   z.object({ type: z.literal("git:push"), repoPath: z.string(), remote: z.string().optional(), branch: z.string().optional(), force: z.boolean().optional() }),
+  z.object({ type: z.literal("git:status"), repoPath: z.string() }),
+  z.object({
+    type: z.literal("git:commit"),
+    repoPath: z.string(),
+    message: z.string(),
+    files: z.array(z.string()),
+    push: z.boolean().optional(),
+  }),
 ]);
+
+export const GitFileStatusSchema = z.object({
+  path: z.string(),
+  status: z.enum(["modified", "added", "deleted", "renamed", "untracked", "conflicted"]),
+  staged: z.boolean(),
+  oldPath: z.string().optional(),
+});
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:list:result"), repos: z.array(RepositorySchema) }),
@@ -224,7 +239,25 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("git:fetch:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
   z.object({ type: z.literal("git:pull:result"), repoPath: z.string(), success: z.boolean(), message: z.string(), conflicts: z.array(z.string()).optional() }),
   z.object({ type: z.literal("git:push:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({
+    type: z.literal("git:status:result"),
+    repoPath: z.string(),
+    files: z.array(GitFileStatusSchema),
+    branch: z.string(),
+    ahead: z.number().int().nonnegative(),
+    behind: z.number().int().nonnegative(),
+    hasUpstream: z.boolean(),
+  }),
+  z.object({
+    type: z.literal("git:commit:result"),
+    repoPath: z.string(),
+    commitSha: z.string(),
+    pushed: z.boolean(),
+    message: z.string(),
+  }),
 ]);
+
+export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;
 
 export type IpcRequest = z.infer<typeof IpcRequestSchema>;
 export type IpcResponse = z.infer<typeof IpcResponseSchema>;

@@ -63,6 +63,8 @@ type ResponseForRequest = {
   "git:fetch": Extract<IpcResponse, { type: "git:fetch:result" }>;
   "git:pull": Extract<IpcResponse, { type: "git:pull:result" }>;
   "git:push": Extract<IpcResponse, { type: "git:push:result" }>;
+  "git:status": Extract<IpcResponse, { type: "git:status:result" }>;
+  "git:commit": Extract<IpcResponse, { type: "git:commit:result" }>;
 };
 
 /**

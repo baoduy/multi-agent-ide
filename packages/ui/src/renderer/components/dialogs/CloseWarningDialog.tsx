@@ -34,7 +34,7 @@ export function CloseWarningDialog({
             onClick={onForceQuit}
             icon={<AlertTriangle size={12} />}
           >
-            Force Quit
+            Quit
           </DangerButton>
         </>
       }

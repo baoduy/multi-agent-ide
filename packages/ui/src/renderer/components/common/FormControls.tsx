@@ -81,6 +81,66 @@ export function FormInput({
   );
 }
 
+type FormTextareaProps = {
+  id?: string;
+  value: string;
+  onChange: (value: string) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  placeholder?: string;
+  error?: boolean;
+  rows?: number;
+  /** If true, uses a monospace font (good for commit messages / paths). */
+  mono?: boolean;
+  textareaRef?: React.Ref<HTMLTextAreaElement>;
+};
+
+/** Styled multi-line textarea with the same visual language as FormInput. */
+export function FormTextarea({
+  id,
+  value,
+  onChange,
+  onKeyDown,
+  placeholder,
+  error = false,
+  rows = 4,
+  mono = false,
+  textareaRef,
+}: FormTextareaProps): React.ReactElement {
+  return (
+    <textarea
+      ref={textareaRef}
+      id={id}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={onKeyDown}
+      placeholder={placeholder}
+      rows={rows}
+      style={{
+        width: "100%",
+        padding: "8px 12px",
+        fontSize: 13,
+        border: `1px solid ${error ? colors.error : colors.border}`,
+        borderRadius: 6,
+        outline: "none",
+        background: colors.bgSurface,
+        color: colors.text,
+        fontFamily: mono ? "var(--font-mono)" : "inherit",
+        boxSizing: "border-box",
+        transition: "border-color 0.15s",
+        resize: "vertical",
+        minHeight: 80,
+        lineHeight: 1.5,
+      }}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = error ? colors.error : colors.primary;
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = error ? colors.error : colors.border;
+      }}
+    />
+  );
+}
+
 type SectionHeaderProps = {
   children: React.ReactNode;
   style?: React.CSSProperties;

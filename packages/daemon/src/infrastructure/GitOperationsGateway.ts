@@ -1,5 +1,15 @@
 import path from "node:path";
+import type { GitFileStatus } from "@magenta/shared/ipc";
 import { createGit } from "./utils/createGit";
+
+/** Result of reading the working tree status. */
+export type GitStatusResult = {
+  files: GitFileStatus[];
+  branch: string;
+  ahead: number;
+  behind: number;
+  hasUpstream: boolean;
+};
 
 /**
  * GitOperationsGateway wraps general git operations (branch, fetch, pull, push).
@@ -62,5 +72,109 @@ export class GitOperationsGateway {
     if (force) args.push("--force-with-lease");
     await git.push(args);
     return { message: `Pushed to ${remote}${branch ? `/${branch}` : ""} successfully.` };
+  }
+
+  /**
+   * Push the current branch, setting upstream if it hasn't been published yet.
+   * Returns the remote/branch it pushed to so callers can report it.
+   */
+  async pushCurrent(repoPath: string): Promise<{ message: string; branch: string }> {
+    const git = createGit(path.resolve(repoPath));
+    const status = await git.status();
+    const branch = status.current;
+    if (!branch) throw new Error("Detached HEAD — cannot push.");
+
+    const remotes = await git.getRemotes();
+    if (remotes.length === 0) throw new Error("No git remote configured.");
+    const remote = remotes.find((r) => r.name === "origin")?.name ?? remotes[0]!.name;
+
+    if (status.tracking) {
+      await git.push([remote, branch]);
+    } else {
+      // First-time push — set upstream.
+      await git.push(["--set-upstream", remote, branch]);
+    }
+    return { message: `Pushed to ${remote}/${branch}.`, branch };
+  }
+
+  /**
+   * Read the porcelain status of the working tree.
+   * Staged + unstaged entries for the same path both appear (with `staged` flag).
+   */
+  async status(repoPath: string): Promise<GitStatusResult> {
+    const git = createGit(path.resolve(repoPath));
+    const s = await git.status();
+
+    const files: GitFileStatus[] = [];
+
+    // Staged entries: created/modified/deleted/renamed
+    for (const f of s.created) files.push({ path: f, status: "added", staged: true });
+    for (const f of s.staged) {
+      // `staged` in simple-git is staged-modified; skip if already captured as created
+      if (!s.created.includes(f)) files.push({ path: f, status: "modified", staged: true });
+    }
+    for (const f of s.deleted) {
+      // simple-git lumps staged-deleted + unstaged-deleted; we split below using raw file list.
+      files.push({ path: f, status: "deleted", staged: true });
+    }
+    for (const r of s.renamed) {
+      files.push({ path: r.to, oldPath: r.from, status: "renamed", staged: true });
+    }
+
+    // Unstaged modifications (staged list comes from `s.staged` above; `s.modified` is working-tree diff).
+    for (const f of s.modified) {
+      // Avoid double-listing: if this path is already present (staged), mark an additional unstaged row.
+      files.push({ path: f, status: "modified", staged: false });
+    }
+
+    // Conflicted
+    for (const f of s.conflicted) {
+      files.push({ path: f, status: "conflicted", staged: false });
+    }
+
+    // Untracked
+    for (const f of s.not_added) {
+      files.push({ path: f, status: "untracked", staged: false });
+    }
+
+    return {
+      files,
+      branch: s.current ?? "",
+      ahead: s.ahead ?? 0,
+      behind: s.behind ?? 0,
+      hasUpstream: Boolean(s.tracking),
+    };
+  }
+
+  /**
+   * Reset the index so that only explicitly-selected files end up staged for the commit.
+   * Uses `git reset HEAD -- .` (unstage everything) rather than the destructive `--hard`.
+   */
+  async resetIndex(repoPath: string): Promise<void> {
+    const git = createGit(path.resolve(repoPath));
+    // If the repo has no commits yet, `git reset HEAD` fails — skip in that case.
+    try {
+      await git.raw(["reset", "HEAD", "--", "."]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("ambiguous argument 'HEAD'") || msg.includes("unknown revision")) {
+        return; // empty repo — nothing staged yet
+      }
+      throw err;
+    }
+  }
+
+  /** Stage the given paths. Handles deletions too (`git add -A <path>`). */
+  async stageFiles(repoPath: string, files: string[]): Promise<void> {
+    if (files.length === 0) return;
+    const git = createGit(path.resolve(repoPath));
+    await git.raw(["add", "-A", "--", ...files]);
+  }
+
+  /** Commit staged changes. Returns the new commit SHA. */
+  async commit(repoPath: string, message: string): Promise<{ sha: string }> {
+    const git = createGit(path.resolve(repoPath));
+    const result = await git.commit(message);
+    return { sha: result.commit };
   }
 }

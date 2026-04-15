@@ -29,4 +29,30 @@ export function registerGitOperationHandlers({ bridge, gitService }: GitOperatio
     const result = await gitService.push(msg.repoPath, msg.remote, msg.branch, msg.force);
     return { type: "git:push:result", repoPath: msg.repoPath, ...result };
   });
+
+  safeHandle(bridge, "git:status", async (msg) => {
+    const result = await gitService.status(msg.repoPath);
+    return {
+      type: "git:status:result",
+      repoPath: msg.repoPath,
+      files: result.files,
+      branch: result.branch,
+      ahead: result.ahead,
+      behind: result.behind,
+      hasUpstream: result.hasUpstream,
+    };
+  });
+
+  safeHandle(bridge, "git:commit", async (msg) => {
+    const result = await gitService.commit(msg.repoPath, msg.message, msg.files, msg.push);
+    // Refresh repo state after commit — ahead/behind count and branch tip both change.
+    bridge.emit({ type: "repo:force-reload:started", repoPath: msg.repoPath });
+    return {
+      type: "git:commit:result",
+      repoPath: msg.repoPath,
+      commitSha: result.commitSha,
+      pushed: result.pushed,
+      message: result.message,
+    };
+  });
 }

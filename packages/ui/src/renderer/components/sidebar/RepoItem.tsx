@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 import {
   Star, FolderOpen, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork,
-  GitBranch, ArrowDown, ArrowUp, Download,
+  GitBranch, ArrowDown, ArrowUp, Download, GitCommit,
 } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
@@ -14,6 +14,7 @@ import { useOnboardStore } from "../../store/onboardStore";
 import { useRepoStore } from "../../store/repoStore";
 import { BranchSwitcherDialog } from "../dialogs/BranchSwitcherDialog";
 import { CreateBranchOrWorktreeDialog, type CreateKind } from "../dialogs/CreateBranchOrWorktreeDialog";
+import { CommitDialog } from "../dialogs/CommitDialog";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { colors } from "../../utils/colors";
 
@@ -31,6 +32,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
   const badge = getRepoBadge(repo);
   const [hovered, setHovered] = useState(false);
   const [showBranchSwitcher, setShowBranchSwitcher] = useState(false);
+  const [showCommitDialog, setShowCommitDialog] = useState(false);
   /** Unified create dialog — null means hidden; otherwise the mode. */
   const [createDialogKind, setCreateDialogKind] = useState<CreateKind | null>(null);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
@@ -60,8 +62,14 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
   // "Create Worktree" sits next to "Create Branch" because they're both create-new actions.
   const gitSubmenu: ContextMenuAction[] = [
     {
+      label: "Commit...",
+      Icon: GitCommit,
+      action: () => setShowCommitDialog(true),
+    },
+    {
       label: "Switch Branch...",
       Icon: GitBranch,
+      separator: true,
       action: () => setShowBranchSwitcher(true),
     },
     {
@@ -260,6 +268,13 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           repoPath={repo.path}
           currentBranch={repo.branch}
           onClose={() => setCreateDialogKind(null)}
+        />
+      )}
+      {showCommitDialog && (
+        <CommitDialog
+          repoPath={repo.path}
+          currentBranch={repo.branch}
+          onClose={() => setShowCommitDialog(false)}
         />
       )}
     </div>

@@ -36,3 +36,11 @@ Class-first OOP for all daemon services. Zustand stores own state only — cross
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
+
+<claude-mem-context>
+# claude-mem: Cross-Session Memory
+
+*No context yet. Complete your first session and context will appear here.*
+
+Use claude-mem's MCP search tools for manual memory queries.
+</claude-mem-context>

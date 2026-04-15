@@ -184,6 +184,7 @@ export function CreateBranchOrWorktreeDialog({
       title={titleText}
       icon={<HeaderIcon size={16} color={colors.primary} strokeWidth={2} />}
       width={440}
+      minHeight={360}
       onClose={onClose}
       footer={
         <>

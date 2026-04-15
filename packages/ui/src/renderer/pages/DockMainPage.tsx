@@ -30,6 +30,7 @@ import { useAISessionStore } from "../store/aiSessionStore";
 
 import type { ActiveTab, BuiltinTabId } from "../types/tabs";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
+import type { SavedDockTab } from "../hooks/usePersistedSnapshots";
 
 /* ── Register views once at module load ── */
 registerAllViews();
@@ -138,6 +139,8 @@ export function DockMainPage(): React.ReactElement {
   const rightCollapsed = useLayoutStore((s) => s.layout.right.collapsed);
   const toggleRegionCollapse = useLayoutStore((s) => s.toggleRegionCollapse);
   const openTab = useLayoutStore((s) => s.openTab);
+  const closeTab = useLayoutStore((s) => s.closeTab);
+  const setActiveTab = useLayoutStore((s) => s.setActiveTab);
   const setMainView = useLayoutStore((s) => s.setMainView);
   const centerActiveTabId = useLayoutStore((s) => s.layout.center.activeTabId);
   const centerTabs = useLayoutStore((s) => s.layout.center.tabs);
@@ -155,6 +158,63 @@ export function DockMainPage(): React.ReactElement {
   // Track previous repo+spec for snapshots
   const prevRepoPath = useRef<string | null>(null);
   const prevSpecPath = useRef<string | null>(null);
+
+  // Active repo's branch — needed to close diff tabs when the branch changes
+  const activeRepoBranch = useRepoStore((s) => {
+    if (!s.activeRepoPath) return null;
+    return s.repos.find((r) => r.path === s.activeRepoPath)?.branch ?? null;
+  });
+
+  // ── Helpers for per-spec dock file tab persistence ──
+
+  /** Collect file tabs (tabId starting with "file-") from the current center region. */
+  const collectFileTabs = useCallback((): { fileTabs: SavedDockTab[]; activeFileTabId: string | null } => {
+    const layout = useLayoutStore.getState().layout;
+    const fileTabs = layout.center.tabs
+      .filter((t) => t.tabId.startsWith("file-"))
+      .map<SavedDockTab>((t) => ({
+        tabId: t.tabId,
+        viewId: t.viewId,
+        props: t.props,
+        title: t.title,
+      }));
+    const active = layout.center.activeTabId;
+    const activeFileTabId = active && active.startsWith("file-") ? active : null;
+    return { fileTabs, activeFileTabId };
+  }, []);
+
+  /** Close every tab in the center region whose tabId begins with the given prefix. */
+  const closeTabsByPrefix = useCallback(
+    (prefix: string) => {
+      const layout = useLayoutStore.getState().layout;
+      const toClose = layout.center.tabs
+        .filter((t) => t.tabId.startsWith(prefix))
+        .map((t) => t.tabId);
+      for (const id of toClose) closeTab("center", id);
+    },
+    [closeTab]
+  );
+
+  /** Restore a saved set of file tabs into the dock (does not disturb the main/builtin tab). */
+  const restoreFileTabs = useCallback(
+    (saved: SavedDockTab[], activeFileTabId: string | null) => {
+      for (const tab of saved) {
+        openTab("center", {
+          tabId: tab.tabId,
+          viewId: tab.viewId,
+          props: tab.props,
+          title: tab.title,
+        });
+      }
+      // Keep the built-in main tab active after restore so the title bar tab
+      // stays as-is. Caller can override if desired.
+      if (activeFileTabId) {
+        // The last openTab() call made that tab active — reactivate the saved one.
+        setActiveTab("center", activeFileTabId);
+      }
+    },
+    [openTab, setActiveTab]
+  );
 
   // ── Derive active tab from dock layout ──
   const activeTab = useMemo((): ActiveTab => {
@@ -192,7 +252,8 @@ export function DockMainPage(): React.ReactElement {
   // ── Snapshot persistence on repo switch ──
   // Per-repo memory intentionally excludes the title bar tab — the active
   // builtin view (specs/workflow/worktrees/ai) stays wherever the user has it
-  // when switching repos. Only the selected spec is restored per repo.
+  // when switching repos. Only the selected spec and open file tabs are restored.
+  // Diff tabs are closed (not restored) on repo switch.
   useEffect(() => {
     const prevRepo = prevRepoPath.current;
     if (prevRepo === activeRepoPath) {
@@ -200,19 +261,31 @@ export function DockMainPage(): React.ReactElement {
       return;
     }
 
+    // Save state for the repo we're leaving
     if (prevRepo) {
       snapshots.saveRepoSnapshot(prevRepo, {
         selectedSpecPath,
         mainTab: activeTab,
       });
+      // Capture the file tabs open for (prevRepo, prevSpec) before closing them
+      const captured = collectFileTabs();
+      snapshots.saveSpecDockTabs(prevRepo, prevSpecPath.current, captured);
     }
 
+    // Close all file tabs and all diff tabs — they belong to the old context
+    closeTabsByPrefix("file-");
+    closeTabsByPrefix("diff-");
+
+    // Restore state for the repo we're entering
     if (activeRepoPath) {
       const repoSnap = snapshots.getRepoSnapshot(activeRepoPath);
-      if (repoSnap) {
-        setSelectedSpecPath(repoSnap.selectedSpecPath);
-      } else {
-        setSelectedSpecPath(null);
+      const nextSpec = repoSnap ? repoSnap.selectedSpecPath : null;
+      setSelectedSpecPath(nextSpec);
+
+      // Restore saved file tabs for the new (repo, spec) context
+      const savedTabs = snapshots.getSpecDockTabs(activeRepoPath, nextSpec);
+      if (savedTabs && savedTabs.fileTabs.length > 0) {
+        restoreFileTabs(savedTabs.fileTabs, savedTabs.activeFileTabId);
       }
       // Note: intentionally do NOT call setMainView() here — keep current tab.
     }
@@ -225,7 +298,9 @@ export function DockMainPage(): React.ReactElement {
   }, [activeRepoPath]);
 
   // ── Snapshot persistence on spec switch ──
-  // Spec selection changes within a repo should NOT change the title bar tab.
+  // Spec selection changes within a repo should NOT change the title bar tab,
+  // but file tabs are per-spec: close the old spec's file tabs and restore the
+  // new spec's saved file tabs (if any).
   useEffect(() => {
     const prevSpec = prevSpecPath.current;
     if (prevRepoPath.current !== activeRepoPath) return;
@@ -234,17 +309,59 @@ export function DockMainPage(): React.ReactElement {
       return;
     }
 
+    // Save current file tabs under (activeRepo, prevSpec) before closing
+    const captured = collectFileTabs();
+    snapshots.saveSpecDockTabs(activeRepoPath, prevSpec, captured);
     snapshots.saveTabSnapshot(activeRepoPath, prevSpec, {
       openFiles: [],
       activeTab,
     });
 
-    // Note: intentionally do NOT call setMainView() here — the title bar tab
-    // stays as-is across spec switches.
+    // Close the old spec's file tabs (and any stale diff tabs)
+    closeTabsByPrefix("file-");
+
+    // Restore the new spec's file tabs (if any were previously saved).
+    // If nothing was saved, switch the title bar tab to "Specs" so the user
+    // lands on a sensible default for a fresh spec.
+    const savedTabs = snapshots.getSpecDockTabs(activeRepoPath, selectedSpecPath);
+    if (savedTabs && savedTabs.fileTabs.length > 0) {
+      restoreFileTabs(savedTabs.fileTabs, savedTabs.activeFileTabId);
+    } else {
+      setMainView("specs-list");
+    }
 
     prevSpecPath.current = selectedSpecPath;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSpecPath]);
+
+  // ── Close diff tabs on branch switch ──
+  // Diff tabs show comparisons specific to the active repo's current branch.
+  // When the branch changes, close them all — they don't need to be reopened.
+  const prevBranch = useRef<string | null>(activeRepoBranch);
+  useEffect(() => {
+    if (prevBranch.current === activeRepoBranch) return;
+    if (prevBranch.current !== null) {
+      closeTabsByPrefix("diff-");
+    }
+    prevBranch.current = activeRepoBranch;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRepoBranch]);
+
+  // ── Close diff tabs when the focused worktree changes ──
+  // The Worktrees view tracks which worktree the user is focused on via
+  // `expandedWorktreePath`. When it changes, any open diff tabs are stale.
+  const expandedWorktreePath = useWorktreeStore((s) => s.expandedWorktreePath);
+  const prevExpandedWorktree = useRef<string | null>(expandedWorktreePath);
+  useEffect(() => {
+    if (prevExpandedWorktree.current === expandedWorktreePath) return;
+    // Close diffs on any transition between worktrees (including to/from null)
+    // once we've seen at least one non-null value.
+    if (prevExpandedWorktree.current !== null || expandedWorktreePath !== null) {
+      closeTabsByPrefix("diff-");
+    }
+    prevExpandedWorktree.current = expandedWorktreePath;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expandedWorktreePath]);
 
   // Navigation history
   useEffect(() => {
@@ -269,13 +386,22 @@ export function DockMainPage(): React.ReactElement {
   }, []);
 
   useEffect(() => {
-    const handleBeforeUnload = () => snapshots.flush();
+    const handleBeforeUnload = () => {
+      // Capture current file tabs under the active (repo, spec) so they can be
+      // restored on next launch. Without this, files opened after the last
+      // spec/repo switch wouldn't be in the per-spec snapshot.
+      if (activeRepoPath) {
+        const captured = collectFileTabs();
+        snapshots.saveSpecDockTabs(activeRepoPath, selectedSpecPath, captured);
+      }
+      snapshots.flush();
+    };
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       snapshots.flush();
     };
-  }, [snapshots]);
+  }, [snapshots, activeRepoPath, selectedSpecPath, collectFileTabs]);
 
   // ── Handlers ──
 
@@ -499,7 +625,6 @@ export function DockMainPage(): React.ReactElement {
         open={newSessionDialogOpen}
         onClose={() => setNewSessionDialogOpen(false)}
         onSessionCreated={handleOpenAgentSession}
-        onTerminalCreated={handleOpenTerminalSession}
         repoPath={activeRepoPath ?? undefined}
         repoName={repoName}
       />

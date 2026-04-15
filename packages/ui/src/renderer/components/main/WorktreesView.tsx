@@ -6,6 +6,7 @@ import { useRepoStore } from "../../store/repoStore";
 import { ScrollableText } from "../common/ScrollableText";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
+import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { colors } from "../../utils/colors";
 
 type WorktreesViewProps = {
@@ -356,13 +357,18 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
     });
   }, [byRepo, activeRepoPath, repoNameByPath]);
 
-  if (!repoName) {
-    return (
-      <div style={{ padding: 20, color: colors.textTertiary, fontSize: 13 }}>
-        Select a repository to view worktrees.
-      </div>
-    );
-  }
+  // Sort repos for the fallback list: active first, then alphabetical by name.
+  const sortedRepos = useMemo(() => {
+    return [...repos].sort((a, b) => {
+      if (a.path === activeRepoPath) return -1;
+      if (b.path === activeRepoPath) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [repos, activeRepoPath]);
+
+  const handleSelectRepo = useCallback((path: string) => {
+    SessionCoordinator.selectRepo(path);
+  }, []);
 
   return (
     <div style={{ padding: 20 }}>
@@ -377,19 +383,113 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
           marginBottom: 16,
         }}
       >
-        Worktrees by repository
+        {allWorktrees.length === 0 ? "Repositories" : "Worktrees by repository"}
       </div>
 
       {allWorktrees.length === 0 ? (
-        <div
-          style={{
-            color: colors.textTertiary,
-            fontSize: 13,
-            padding: "16px 0",
-          }}
-        >
-          No worktrees yet. Approve a file from a remote branch to create one.
-        </div>
+        repos.length === 0 ? (
+          <div
+            style={{
+              color: colors.textTertiary,
+              fontSize: 13,
+              padding: "16px 0",
+            }}
+          >
+            No repositories added yet. Add a repository to get started.
+          </div>
+        ) : (
+          <>
+            <div
+              style={{
+                color: colors.textTertiary,
+                fontSize: 13,
+                marginBottom: 12,
+              }}
+            >
+              No worktrees yet. Approve a file from a remote branch to create one.
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {sortedRepos.map((r) => {
+                const isActive = r.path === activeRepoPath;
+                return (
+                  <button
+                    key={r.path}
+                    type="button"
+                    onClick={() => handleSelectRepo(r.path)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      width: "100%",
+                      padding: "10px 12px",
+                      border: "1px solid",
+                      borderColor: isActive ? colors.errorSoftBorder : colors.border,
+                      borderRadius: 8,
+                      background: isActive ? colors.bgPanelSoft : colors.bgWhite,
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      textAlign: "left",
+                      transition: "background 0.12s, border-color 0.12s",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: 6,
+                        background: isActive ? colors.errorSoft : colors.bgHover,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <FolderOpen size={14} color={colors.primary} strokeWidth={1.8} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <RepoLabel
+                        name={r.name}
+                        size="sm"
+                        style={{
+                          color: isActive ? colors.primary : colors.textStrong,
+                          fontWeight: 600,
+                        }}
+                      />
+                      <ScrollableText
+                        title={r.path}
+                        style={{
+                          fontSize: 10,
+                          color: colors.textTertiary,
+                          fontFamily: "var(--font-mono)",
+                          marginTop: 2,
+                        }}
+                      >
+                        {r.path}
+                      </ScrollableText>
+                    </div>
+                    {isActive && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 600,
+                          color: colors.primary,
+                          background: colors.bgPanelSoft,
+                          padding: "2px 6px",
+                          borderRadius: 4,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.06em",
+                          flexShrink: 0,
+                        }}
+                      >
+                        Active
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )
       ) : (
         sortedEntries.map(([repoPath, wts]) => {
           const name = repoNameByPath.get(repoPath) ?? repoPath.split("/").pop() ?? repoPath;

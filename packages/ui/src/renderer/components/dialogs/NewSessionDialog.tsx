@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitBranch, GitFork, FolderPlus, Loader2, Bot, Terminal, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
+import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -23,8 +23,6 @@ import type { AIPermissionMode, AIProvider, AISessionRecord } from "@magenta/sha
 
 /* ── Types ── */
 
-export type SessionType = "agent" | "terminal";
-
 type WorkspaceTarget = "branch" | "existing-worktree" | "new-worktree";
 
 /** Simplified permission modes exposed in the UI (mapped to AIPermissionMode). */
@@ -38,53 +36,7 @@ type NewSessionDialogProps = {
   repoName?: string | null;
   /** Called with the newly created AI session when creation succeeds. */
   onSessionCreated?: (session: AISessionRecord) => void;
-  /** Called with cwd when a terminal session is requested. */
-  onTerminalCreated?: (cwd: string) => void;
-  /** Pre-select session type. */
-  defaultSessionType?: SessionType;
 };
-
-/* ── Static option configs ── */
-
-/* ── Card-style picker button ── */
-
-type PickerButtonProps = {
-  selected: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  /** Border color when selected. Defaults to primary. */
-  selectedColor?: string;
-};
-
-function PickerButton({ selected, onClick, icon, label, selectedColor = colors.primary }: PickerButtonProps): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        padding: "10px 12px",
-        borderRadius: 6,
-        border: selected ? `1.5px solid ${selectedColor}` : `1px solid ${colors.border}`,
-        background: selected ? `${selectedColor}08` : colors.bgWhite,
-        cursor: "pointer",
-        fontSize: 12,
-        fontWeight: 500,
-        color: selected ? colors.text : colors.textSecondary,
-        transition: "all 0.12s",
-        fontFamily: "inherit",
-      }}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 
 /* ── Dialog ── */
 
@@ -94,8 +46,6 @@ export function NewSessionDialog({
   repoPath: initialRepoPath,
   repoName: _initialRepoName,
   onSessionCreated,
-  onTerminalCreated,
-  defaultSessionType = "agent",
 }: NewSessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
   const repos = useRepoStore((s) => s.repos);
@@ -103,7 +53,6 @@ export function NewSessionDialog({
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
   /* ── Form state ── */
-  const [sessionType, setSessionType] = useState<SessionType>(defaultSessionType);
   const [provider, setProvider] = useState<AIProvider>("claude");
   const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("auto");
 
@@ -249,22 +198,22 @@ export function NewSessionDialog({
     if (workspaceTarget === "branch" && !selectedBranch) return false;
     if (workspaceTarget === "existing-worktree" && !selectedWorktreePath) return false;
     if (workspaceTarget === "new-worktree" && !selectedBranch) return false;
-    if (sessionType === "agent" && !provider) return false;
+    if (!provider) return false;
     return true;
-  }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, sessionType, provider]);
+  }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, provider]);
 
   type SpecifyBannerKind = "none" | "not-onboarded";
 
   /** Body banner — only used for "not onboarded". Agent-mismatch now lives in the footer. */
   const specifyBanner = useMemo((): { kind: SpecifyBannerKind; currentAgent: string | null } => {
-    if (sessionType !== "agent" || !specifyStatus || isLoadingSpecifyStatus) {
+    if (!specifyStatus || isLoadingSpecifyStatus) {
       return { kind: "none", currentAgent: null };
     }
     if (!specifyStatus.hasSpecs) {
       return { kind: "not-onboarded", currentAgent: null };
     }
     return { kind: "none", currentAgent: null };
-  }, [sessionType, specifyStatus, isLoadingSpecifyStatus]);
+  }, [specifyStatus, isLoadingSpecifyStatus]);
 
   /* ── Effects ── */
 
@@ -272,7 +221,6 @@ export function NewSessionDialog({
   useEffect(() => {
     if (open) {
       setSelectedRepoPath(initialRepoPath ?? null);
-      setSessionType(defaultSessionType);
       setProvider("claude");
       setPermissionMode("auto");
       setWorkspaceTarget("branch");
@@ -284,7 +232,7 @@ export function NewSessionDialog({
       setSpecifyStatus(null);
       setIsLoadingSpecifyStatus(false);
     }
-  }, [open, initialRepoPath, defaultSessionType]);
+  }, [open, initialRepoPath]);
 
   // Load branches when repo changes
   useEffect(() => {
@@ -319,7 +267,7 @@ export function NewSessionDialog({
   // Check Specify onboard status whenever the effective path changes
   // (repo switch, worktree selection, or branch change).
   useEffect(() => {
-    if (!open || !effectiveSpecifyPath || sessionType !== "agent") {
+    if (!open || !effectiveSpecifyPath) {
       setSpecifyStatus(null);
       return;
     }
@@ -341,7 +289,7 @@ export function NewSessionDialog({
       });
 
     return () => { cancelled = true; };
-  }, [open, effectiveSpecifyPath, sessionType]);
+  }, [open, effectiveSpecifyPath]);
 
   // Load worktrees for selected repo
   useEffect(() => {
@@ -415,7 +363,6 @@ export function NewSessionDialog({
 
       let worktreePathToUse: string | undefined;
       let branchToUse: string | undefined;
-      let cwdToUse: string = selectedRepoPath;
 
       if (workspaceTarget === "branch") {
         branchToUse = selectedBranch;
@@ -428,7 +375,6 @@ export function NewSessionDialog({
         }
         worktreePathToUse = wt.worktreePath;
         branchToUse = wt.branch;
-        cwdToUse = wt.worktreePath;
       } else if (workspaceTarget === "new-worktree") {
         const wtName = worktreeCustomName.trim()
           ? `${providerPrefix}${worktreeCustomName.trim()}`
@@ -442,28 +388,22 @@ export function NewSessionDialog({
         });
         worktreePathToUse = result.worktreePath;
         branchToUse = result.branch;
-        cwdToUse = result.worktreePath;
       }
 
-      /* ── Create the session ── */
+      /* ── Create the agent session ── */
 
-      if (sessionType === "agent") {
-        const session = await createSession(
-          {
-            provider,
-            repoPath: selectedRepoPath,
-            branch: branchToUse,
-            worktreePath: worktreePathToUse,
-            permissionMode: permissionMode as AIPermissionMode,
-          },
-          80,
-          24,
-        );
-        onSessionCreated?.(session);
-      } else {
-        // Terminal session — pass cwd; MagentaTerminal will spawn its own PTY
-        onTerminalCreated?.(cwdToUse);
-      }
+      const session = await createSession(
+        {
+          provider,
+          repoPath: selectedRepoPath,
+          branch: branchToUse,
+          worktreePath: worktreePathToUse,
+          permissionMode: permissionMode as AIPermissionMode,
+        },
+        80,
+        24,
+      );
+      onSessionCreated?.(session);
 
       onClose();
     } catch (err) {
@@ -471,7 +411,6 @@ export function NewSessionDialog({
       setIsCreating(false);
     }
   }, [
-    sessionType,
     provider,
     permissionMode,
     selectedRepoPath,
@@ -483,7 +422,6 @@ export function NewSessionDialog({
     repoWorktrees,
     createSession,
     onSessionCreated,
-    onTerminalCreated,
     onClose,
   ]);
 
@@ -514,7 +452,7 @@ export function NewSessionDialog({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           {/* Left: Specify integration status + switch */}
           <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-            {sessionType === "agent" && specifyStatus && specifyStatus.hasSpecs && effectiveSpecifyPath && (
+            {specifyStatus && specifyStatus.hasSpecs && effectiveSpecifyPath && (
               <SpecifyFooterStatus
                 currentAgent={specifyStatus.currentAgent}
                 selectedProvider={provider}
@@ -539,55 +477,34 @@ export function NewSessionDialog({
               loading={isCreating}
               loadingText="Creating..."
             >
-              {sessionType === "agent" ? "Create Agent Session" : "Open Terminal"}
+              Create Agent Session
             </PrimaryButton>
           </div>
         </div>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* ─── Session Type ─── */}
-        <div>
-          <FormLabel>Session Type</FormLabel>
-          <div style={{ display: "flex", gap: 8 }}>
-            <PickerButton
-              selected={sessionType === "agent"}
-              onClick={() => setSessionType("agent")}
-              icon={<Bot size={15} strokeWidth={1.8} />}
-              label="AI Agent"
-            />
-            <PickerButton
-              selected={sessionType === "terminal"}
-              onClick={() => setSessionType("terminal")}
-              icon={<Terminal size={15} strokeWidth={1.8} />}
-              label="Terminal"
-            />
-          </div>
-        </div>
-
         {/* ─── Agent + Workspace on one row ─── */}
         <div style={{ display: "flex", gap: 16 }}>
-          {sessionType === "agent" && (
-            <div style={{ flex: "1 1 0", minWidth: 0 }}>
-              <FormLabel>Agent</FormLabel>
-              <DoublePicker<AIProvider, SimplifiedPermission>
-                left={{
-                  options: providerOptions,
-                  value: provider,
-                  onChange: setProvider,
-                  placeholder: "Provider",
-                  minPanelWidth: 180,
-                }}
-                right={{
-                  options: permissionOptions,
-                  value: permissionMode,
-                  onChange: setPermissionMode,
-                  placeholder: "Permission",
-                  minPanelWidth: 220,
-                }}
-              />
-            </div>
-          )}
+          <div style={{ flex: "1 1 0", minWidth: 0 }}>
+            <FormLabel>Agent</FormLabel>
+            <DoublePicker<AIProvider, SimplifiedPermission>
+              left={{
+                options: providerOptions,
+                value: provider,
+                onChange: setProvider,
+                placeholder: "Provider",
+                minPanelWidth: 180,
+              }}
+              right={{
+                options: permissionOptions,
+                value: permissionMode,
+                onChange: setPermissionMode,
+                placeholder: "Permission",
+                minPanelWidth: 220,
+              }}
+            />
+          </div>
 
           <div style={{ flex: "1 1 0", minWidth: 0 }}>
             <FormLabel>Workspace</FormLabel>
@@ -676,24 +593,22 @@ export function NewSessionDialog({
                 <div>
                   <FormLabel>Worktree Name</FormLabel>
                   <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                    {sessionType === "agent" && (
-                      <div
-                        style={{
-                          padding: "8px 6px 8px 12px",
-                          fontSize: 13,
-                          fontFamily: "var(--font-mono)",
-                          color: colors.textTertiary,
-                          background: colors.bgMuted,
-                          border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
-                          borderRight: "none",
-                          borderRadius: "6px 0 0 6px",
-                          whiteSpace: "nowrap",
-                          lineHeight: "1.35",
-                        }}
-                      >
-                        {providerPrefix}
-                      </div>
-                    )}
+                    <div
+                      style={{
+                        padding: "8px 6px 8px 12px",
+                        fontSize: 13,
+                        fontFamily: "var(--font-mono)",
+                        color: colors.textTertiary,
+                        background: colors.bgMuted,
+                        border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
+                        borderRight: "none",
+                        borderRadius: "6px 0 0 6px",
+                        whiteSpace: "nowrap",
+                        lineHeight: "1.35",
+                      }}
+                    >
+                      {providerPrefix}
+                    </div>
                     <input
                       ref={worktreeNameInputRef}
                       type="text"
@@ -710,7 +625,7 @@ export function NewSessionDialog({
                         padding: "8px 12px",
                         fontSize: 13,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
-                        borderRadius: sessionType === "agent" ? "0 6px 6px 0" : "6px",
+                        borderRadius: "0 6px 6px 0",
                         outline: "none",
                         background: colors.bgSurface,
                         color: colors.text,

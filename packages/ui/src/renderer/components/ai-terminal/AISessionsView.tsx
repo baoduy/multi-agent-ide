@@ -77,13 +77,6 @@ export function AISessionsView({
     [onOpenAgentSession],
   );
 
-  const handleTerminalCreated = useCallback(
-    (cwd: string) => {
-      onOpenTerminalSession?.(cwd);
-    },
-    [onOpenTerminalSession],
-  );
-
   const handleSelectSession = useCallback(
     (sessionId: string) => {
       const session = sessions.find((s) => s.id === sessionId);
@@ -230,7 +223,6 @@ export function AISessionsView({
         open={newSessionDialogOpen}
         onClose={handleCloseDialog}
         onSessionCreated={handleSessionCreated}
-        onTerminalCreated={handleTerminalCreated}
         repoPath={repoPath}
         repoName={repoName}
       />

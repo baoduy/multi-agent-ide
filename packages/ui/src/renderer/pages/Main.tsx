@@ -465,7 +465,6 @@ export function MainPage(): React.ReactElement {
         open={newSessionDialogOpen}
         onClose={() => setNewSessionDialogOpen(false)}
         onSessionCreated={() => {}}
-        onTerminalCreated={() => {}}
         repoPath={activeRepoPath ?? undefined}
         repoName={repoName}
       />

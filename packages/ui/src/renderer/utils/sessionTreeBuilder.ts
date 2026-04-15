@@ -26,7 +26,7 @@ export interface SessionGroupNode {
 }
 
 /** Normalise path for matching (strip trailing slash) */
-export function normalisePath(p: string): string {
+function normalisePath(p: string): string {
   return p.replace(/\/+$/, "");
 }
 
@@ -36,7 +36,7 @@ export function normalisePath(p: string): string {
  *   "-Users-steven--CODE-GIT-project" -> "/Users/steven/_CODE/GIT/project"
  * This is approximate -- we match by trailing folder name.
  */
-export function resolveHyphenatedPath(hyphenated: string): string {
+function resolveHyphenatedPath(hyphenated: string): string {
   if (!hyphenated.startsWith("-")) return hyphenated;
   return "/" + hyphenated.slice(1).replace(/--/g, "/").replace(/-/g, "/");
 }

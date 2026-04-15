@@ -40,13 +40,6 @@ export class SessionSyncGateway {
   }
 
   /**
-   * Returns the default Copilot CLI session-state directory.
-   */
-  getCopilotSessionStateDir(): string {
-    return path.join(os.homedir(), ".copilot", "session-state");
-  }
-
-  /**
    * Scans the Claude Code projects directory and returns all main session files.
    * Main sessions are JSONL files directly inside each project directory
    * (not inside subagents/ subdirectories).
@@ -104,47 +97,6 @@ export class SessionSyncGateway {
       }
     } catch (err) {
       throw new AppError("SESSION_SYNC_ERROR", `Failed to scan Claude projects: ${String(err)}`);
-    }
-
-    return entries;
-  }
-
-  /**
-   * Scans the Copilot CLI session-state directory and returns all session files.
-   */
-  listCopilotSessionFiles(sessionStateDir: string): SessionFileEntry[] {
-    if (!fs.existsSync(sessionStateDir)) {
-      console.log(`${TAG} Copilot session-state dir not found: ${sessionStateDir}`);
-      return [];
-    }
-
-    const entries: SessionFileEntry[] = [];
-
-    try {
-      const files = fs.readdirSync(sessionStateDir, { withFileTypes: true });
-
-      for (const file of files) {
-        if (!file.isFile() || !file.name.endsWith(".jsonl")) continue;
-
-        const filePath = path.join(sessionStateDir, file.name);
-        const sessionId = file.name.replace(".jsonl", "");
-
-        try {
-          const stat = fs.statSync(filePath);
-          entries.push({
-            filePath,
-            sessionId,
-            projectDir: null,
-            mtime: stat.mtimeMs,
-            size: stat.size,
-            subagentCount: 0,
-          });
-        } catch {
-          // Skip files we can't stat
-        }
-      }
-    } catch (err) {
-      throw new AppError("SESSION_SYNC_ERROR", `Failed to scan Copilot sessions: ${String(err)}`);
     }
 
     return entries;

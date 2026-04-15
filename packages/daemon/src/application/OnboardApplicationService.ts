@@ -321,7 +321,7 @@ export class OnboardApplicationService {
   /**
    * Reads the AI agent from .specify/init-options.json if it exists.
    */
-  readInitOptionsAgent(repoPath: string): string | null {
+  private readInitOptionsAgent(repoPath: string): string | null {
     const optionsPath = join(repoPath, ".specify", "init-options.json");
     try {
       if (existsSync(optionsPath)) {

@@ -160,21 +160,3 @@ function extractTitleFromContent(content: string): string | null {
   }
   return firstLine || null;
 }
-
-/**
- * Resolves the original filesystem path from a Claude Code project directory name.
- * Claude Code stores projects under hashed directory names like:
- *   -Users-steven--CODE-GIT-multi-agent-ide
- * This converts it back to: /Users/steven/_CODE/GIT/multi-agent-ide
- *
- * Note: This is best-effort. Double hyphens (--) represent path separators
- * and single hyphens (-) represent directory name hyphens OR separators.
- * The cwd field from inside the JSONL is more reliable.
- */
-export function resolveProjectPathFromDirName(dirName: string): string {
-  // Replace leading hyphen with /
-  // Double hyphens are path separators
-  return dirName
-    .replace(/^-/, "/")
-    .replace(/--/g, "/");
-}

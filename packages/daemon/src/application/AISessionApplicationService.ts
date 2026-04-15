@@ -141,13 +141,6 @@ export class AISessionApplicationService {
     });
   }
 
-  /**
-   * Check if a session currently has a live PTY process.
-   */
-  private isSessionLive(sessionId: string): boolean {
-    return this.liveSessions.has(sessionId);
-  }
-
   deleteSession(sessionId: string): void {
     // Kill live session if active
     this.stop(sessionId);

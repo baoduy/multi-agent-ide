@@ -4,7 +4,6 @@ export const SYNCED_SESSION_PROVIDERS = ["claude-code", "copilot"] as const;
 export type SyncedSessionProvider = (typeof SYNCED_SESSION_PROVIDERS)[number];
 
 export const SYNCED_SESSION_STATUSES = ["active", "completed"] as const;
-export type SyncedSessionStatus = (typeof SYNCED_SESSION_STATUSES)[number];
 
 export const TokenUsageSchema = z.object({
   inputTokens: z.number().nonnegative().default(0),

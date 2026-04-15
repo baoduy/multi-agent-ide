@@ -649,18 +649,24 @@ function ApproveButton({
     );
   }
 
-  /** Build the new content with the approval line inserted. */
+  /** Build the new content with the approval line inserted and status promoted. */
   const buildApprovedContent = (original: string): string => {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
     const approvalLine = `**Approved by:** ${gitUserName || "Unknown"} | **Date:** ${dateStr}`;
 
+    let result: string;
     const headingMatch = original.match(/^(#[^\n]*\n)/);
     if (headingMatch) {
       const idx = (headingMatch.index ?? 0) + headingMatch[0].length;
-      return original.slice(0, idx) + "\n" + approvalLine + "\n" + original.slice(idx);
+      result = original.slice(0, idx) + "\n" + approvalLine + "\n" + original.slice(idx);
+    } else {
+      result = approvalLine + "\n\n" + original;
     }
-    return approvalLine + "\n\n" + original;
+
+    // Promote Draft status to Ready on approval
+    result = result.replace(/(\*\*Status\*\*:\s*)Draft/i, "$1Ready");
+    return result;
   };
 
   /** Approve a local (current-branch) file directly. */

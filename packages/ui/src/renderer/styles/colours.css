@@ -282,9 +282,9 @@
   --flow-status-review-bg: rgba(249, 115, 22, 0.18);
   --flow-status-review-border: #fb923c;
   --flow-status-review-text: #fdba74;
-  --flow-status-approved-bg: rgba(22, 163, 74, 0.18);
-  --flow-status-approved-border: #4ade80;
-  --flow-status-approved-text: #86efac;
+  --flow-status-approved-bg: rgba(22, 163, 74, 0.12);
+  --flow-status-approved-border: #22c55e;
+  --flow-status-approved-text: #4ade80;
 
   --panel: oklch(0.24 0 0);
   --panel-soft: oklch(0.27 0 0);
@@ -295,12 +295,12 @@
   --text-strong: oklch(0.985 0 0);
   --text-on-primary: oklch(1 0 0);
 
-  --success: #4ade80;
-  --success-hover: #22c55e;
-  --success-soft: rgba(22, 163, 74, 0.15);
-  --success-soft-border: rgba(22, 163, 74, 0.3);
-  --success-muted: #166534;
-  --success-text: #86efac;
+  --success: #22c55e;
+  --success-hover: #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.10);
+  --success-soft-border: rgba(22, 163, 74, 0.20);
+  --success-muted: #14532d;
+  --success-text: #4ade80;
 
   --warning-soft: rgba(245, 158, 11, 0.15);
   --warning-text: #fde68a;

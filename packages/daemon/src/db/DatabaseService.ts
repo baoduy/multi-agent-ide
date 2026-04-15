@@ -86,11 +86,16 @@ export class DatabaseService {
 
   /**
    * Run a function inside a transaction.
+   *
+   * Note: no explicit `save()` here. Every transaction used to force a
+   * full `db.export()` + `writeFileSync`, which is wasted work for minor
+   * writes (lastActiveAt updates, status flips). The 5-second auto-save
+   * timer in the constructor covers durability, and callers that need a
+   * synchronous flush can still call `flush()` explicitly.
    */
   transaction<T>(run: () => T): T {
     const wrapped = this.sqlite.transaction(run);
     const result = wrapped();
-    this.sqlite.save();
     return result as T;
   }
 

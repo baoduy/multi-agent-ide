@@ -11,6 +11,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import { ChevronRight, ChevronDown, GripVertical } from "lucide-react";
 import { colors } from "../../utils/colors";
+import { ScrollableText } from "../common/ScrollableText";
 import { useDockDrag } from "./useDockDrag";
 import type { DockRegion } from "./types";
 
@@ -153,9 +154,9 @@ export const AccordionSection = React.memo(function AccordionSection({
         </span>
 
         {/* Title */}
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <ScrollableText style={{ flex: 1 }}>
           {title}
-        </span>
+        </ScrollableText>
       </button>
 
       {/* Body — collapse via height */}

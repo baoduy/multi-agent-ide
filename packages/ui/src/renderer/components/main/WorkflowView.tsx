@@ -76,16 +76,22 @@ export function WorkflowView({
     const dateStr = now.toISOString().split("T")[0];
     const approvalLine = `**Approved by:** ${gitUserName || "Unknown"} | **Date:** ${dateStr}`;
 
+    let result: string;
     if (/^\*\*Approved by:\*\*/.test(existing) || /\n\*\*Approved by:\*\*/.test(existing)) {
-      return existing.replace(/\*\*Approved by:\*\*.*$/m, approvalLine);
+      result = existing.replace(/\*\*Approved by:\*\*.*$/m, approvalLine);
+    } else {
+      const headingMatch = existing.match(/^(#[^\n]*\n)/);
+      if (headingMatch) {
+        const idx = (headingMatch.index ?? 0) + headingMatch[0].length;
+        result = existing.slice(0, idx) + "\n" + approvalLine + "\n" + existing.slice(idx);
+      } else {
+        result = approvalLine + "\n\n" + existing;
+      }
     }
 
-    const headingMatch = existing.match(/^(#[^\n]*\n)/);
-    if (headingMatch) {
-      const idx = (headingMatch.index ?? 0) + headingMatch[0].length;
-      return existing.slice(0, idx) + "\n" + approvalLine + "\n" + existing.slice(idx);
-    }
-    return approvalLine + "\n\n" + existing;
+    // Promote Draft status to Ready on approval
+    result = result.replace(/(\*\*Status\*\*:\s*)Draft/i, "$1Ready");
+    return result;
   };
 
   /** Direct approve for current-branch files. */

@@ -25,23 +25,13 @@ export const AI_PERMISSION_MODES = [
 ] as const;
 export type AIPermissionMode = (typeof AI_PERMISSION_MODES)[number];
 
-/** Human-readable labels for each permission mode. */
-export const PERMISSION_MODE_LABELS: Record<AIPermissionMode, string> = {
-  default: "Default",
-  acceptEdits: "Accept Edits",
-  plan: "Plan",
-  auto: "Auto",
-  dontAsk: "Don't Ask",
-  bypassPermissions: "Bypass Permissions",
-};
-
 /** Which permission modes each provider supports. */
 export const PROVIDER_PERMISSION_MODES: Record<AIProvider, readonly AIPermissionMode[]> = {
   claude: ["default", "acceptEdits", "plan", "auto", "dontAsk", "bypassPermissions"],
   copilot: ["default", "auto", "bypassPermissions"],
 };
 
-export const SLASH_COMMAND_CATEGORIES = [
+const SLASH_COMMAND_CATEGORIES = [
   "session", "context", "model", "permissions",
   "mcp", "agents", "output", "git", "navigation", "info",
 ] as const;
@@ -74,13 +64,26 @@ export interface AISessionConfig {
   worktreePath?: string;
   /** Permission mode to start the session with (defaults to "auto"). */
   permissionMode?: AIPermissionMode;
-  args?: string[];
   env?: Record<string, string>;
+  /**
+   * Optional explicit agent session UUID, present when the caller is
+   * resuming a session that was previously synced from disk.
+   *
+   * - Claude:  the daemon invokes the CLI with `--resume <id>` (no
+   *   `--session-id` — it would require `--fork-session` alongside
+   *   `--resume`, which forks the conversation instead of continuing it).
+   * - Copilot: the daemon invokes the CLI with `--resume=<id>`.
+   *
+   * Leave undefined for brand-new sessions. Both CLIs generate their own
+   * UUID on disk and the background sync job reconciles the live record's
+   * `providerSessionId` once the JSONL/state-dir appears.
+   */
+  providerSessionId?: string;
 }
 
-export type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];
+type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];
 
-export const SlashCommandSchema = z.object({
+const SlashCommandSchema = z.object({
   command: z.string(),
   aliases: z.array(z.string()).optional(),
   description: z.string(),
@@ -91,7 +94,7 @@ export const SlashCommandSchema = z.object({
 
 export type SlashCommand = z.infer<typeof SlashCommandSchema>;
 
-export const CliFlagSchema = z.object({
+const CliFlagSchema = z.object({
   flag: z.string(),
   short: z.string().optional(),
   aliases: z.array(z.string()).optional(),
@@ -102,6 +105,7 @@ export const CliFlagSchema = z.object({
 });
 
 export type CliFlag = z.infer<typeof CliFlagSchema>;
+
 
 export const ProviderMetaSchema = z.object({
   name: z.string(),

@@ -1,14 +1,17 @@
 import { EventEmitter } from "node:events";
-import { spawn as ptySpawn } from "node-pty";
-import type { IPty } from "node-pty";
 import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AISessionStatus } from "@magenta/shared/aiTerminal";
 
+import { SessionCore } from "../terminal/SessionCore";
+import type { AttachResult } from "../terminal/RingBuffer";
+
 export interface AISessionEvents {
-  data: (data: string) => void;
+  /** Terminal data with monotonic seq (for attach/replay + UI ack). */
+  data: (payload: { data: string; seq: number }) => void;
   status: (status: AISessionStatus) => void;
   exit: (exitCode: number) => void;
+  heartbeat: (payload: { headSeq: number; alive: boolean }) => void;
 }
 
 /**
@@ -62,7 +65,6 @@ function buildEnrichedPath(): string {
  */
 function shellQuote(arg: string): string {
   if (arg === "") return "''";
-  // If the arg is "safe" (alnum + limited punctuation) no quoting needed
   if (/^[a-zA-Z0-9_\-./:=@%+,]+$/.test(arg)) return arg;
   return `'${arg.replace(/'/g, `'\\''`)}'`;
 }
@@ -77,12 +79,7 @@ function shellQuote(arg: string): string {
  * and none of the shell's init env (nvm, pyenv, homebrew shellenv,
  * asdf, etc.). Without running through the login shell, `claude` /
  * `copilot` (which are usually Node CLI shebangs installed under nvm
- * or a user-local prefix) cannot be resolved. `exec` replaces the
- * shell process with the target binary so the TTY, signals, and
- * exit code pass through cleanly — the shell is just a bootstrap.
- *
- * On Windows we don't have a cross-shell `-l -c` equivalent, so we
- * fall back to direct spawn with an enriched PATH.
+ * or a user-local prefix) cannot be resolved.
  */
 function buildSpawnArgv(
   binaryName: string,
@@ -95,12 +92,8 @@ function buildSpawnArgv(
   }
 
   const userShell = process.env.SHELL || "/bin/bash";
-  // Compose: exec <binary> <quoted args...>
   const quoted = [binaryName, ...binaryArgs].map(shellQuote).join(" ");
   const script = `exec ${quoted}`;
-  // -l: login shell (loads /etc/profile + ~/.zprofile or ~/.profile)
-  // -i: interactive (loads ~/.zshrc or ~/.bashrc for nvm, etc.)
-  // -c: run the script and exit
   return {
     command: userShell,
     args: ["-l", "-i", "-c", script],
@@ -108,16 +101,26 @@ function buildSpawnArgv(
   };
 }
 
+/**
+ * BaseAISession composes a SessionCore (PTY + ring buffer + batching +
+ * heartbeat) with provider-specific status detection. Subclasses only
+ * implement `getBinaryName()` and `detectStatus()`.
+ *
+ * Output is seq-numbered and replayable: the UI can reattach after a
+ * reload without the PTY noticing.
+ */
 export abstract class BaseAISession extends EventEmitter {
   readonly id: string;
   readonly provider: AIProvider;
-  private pty: IPty | null = null;
+  private readonly core: SessionCore;
   private currentStatus: AISessionStatus = "idle";
 
   constructor(id: string, provider: AIProvider) {
     super();
     this.id = id;
     this.provider = provider;
+    this.core = new SessionCore(id);
+    this.wireCore();
   }
 
   protected abstract getBinaryName(): string;
@@ -135,15 +138,14 @@ export abstract class BaseAISession extends EventEmitter {
     );
 
     try {
-      this.pty = ptySpawn(command, spawnArgs, {
-        name: "xterm-256color",
+      this.core.start({
+        command,
+        args: spawnArgs,
         cwd,
         cols,
         rows,
         env: {
           ...process.env,
-          // Enriched PATH used both by the login shell (as its starting
-          // PATH before rc files extend it) and as a Windows fallback.
           PATH: enrichedPath,
           TERM: "xterm-256color",
           COLORTERM: "truecolor",
@@ -157,61 +159,83 @@ export abstract class BaseAISession extends EventEmitter {
         : `\r\n\x1b[31mFailed to start '${binaryName}': ${message}\x1b[0m\r\n` +
           `\x1b[33mMake sure '${binaryName}' is installed and on your PATH.\x1b[0m\r\n`;
       setImmediate(() => {
-        this.emit("data", hint);
-        this.setStatus("exited");
+        this.core.injectOutput(hint);
+        // Spawn itself threw — the binary couldn't be started at all.
+        // Mirror the post-exit non-zero path: terminal "error" status.
+        this.setStatus("error");
         this.emit("exit", 127);
       });
       return;
     }
 
     this.setStatus("active");
+  }
 
-    this.pty.onData((data: string) => {
-      this.emit("data", data);
+  sendInput(text: string): void {
+    this.core.write(text);
+  }
 
-      // Attempt status detection
+  resize(cols: number, rows: number): void {
+    this.core.resize(cols, rows);
+  }
+
+  stop(): void {
+    this.core.kill();
+  }
+
+  dispose(): void {
+    this.core.dispose();
+    this.removeAllListeners();
+  }
+
+  getStatus(): AISessionStatus {
+    return this.currentStatus;
+  }
+
+  /** Return chunks newer than fromSeq (or snapshot on cold attach). */
+  attach(fromSeq = 0): AttachResult & { alive: boolean; status: AISessionStatus } {
+    return {
+      ...this.core.attach(fromSeq),
+      alive: this.core.isAlive,
+      status: this.currentStatus,
+    };
+  }
+
+  // ─── Internals ────────────────────────────────────────────────
+
+  private wireCore(): void {
+    this.core.on("chunk", ({ data, seq }) => {
+      // Status detection operates on the latest chunk string
       const newStatus = this.detectStatus(data, this.currentStatus);
       if (newStatus !== null && newStatus !== this.currentStatus) {
         this.setStatus(newStatus);
       }
+      this.emit("data", { data, seq });
     });
 
-    this.pty.onExit(({ exitCode }) => {
-      this.pty = null;
-      // Exit code 127 from a login shell means "command not found" —
-      // surface a friendlier hint so the user knows to check their PATH.
-      if (viaLoginShell && exitCode === 127) {
-        this.emit(
-          "data",
+    this.core.on("exit", ({ exitCode }) => {
+      const binaryName = this.getBinaryName();
+      if (exitCode === 127) {
+        this.core.injectOutput(
           `\r\n\x1b[31m'${binaryName}' was not found in your shell PATH.\x1b[0m\r\n` +
             `\x1b[33mOpen a terminal and run '${binaryName} --version' to verify it's installed. ` +
             `If you use nvm/volta/asdf, make sure your rc file (~/.zshrc or ~/.bashrc) ` +
             `activates the right node version.\x1b[0m\r\n`,
         );
       }
-      this.setStatus("exited");
-      this.emit("exit", exitCode ?? 0);
+      // `"error"` is a terminal status set only when the PTY child exits
+      // with a non-zero code. A clean exit (code 0) is `"exited"`. This is
+      // the only reliable error signal — text-based detection of "Error:"
+      // in PTY output produced rampant false positives and was removed.
+      // See packages/daemon/src/domain/statusDetection.ts for context.
+      const finalStatus: AISessionStatus = exitCode === 0 ? "exited" : "error";
+      this.setStatus(finalStatus);
+      this.emit("exit", exitCode);
     });
-  }
 
-  sendInput(text: string): void {
-    if (!this.pty) return;
-    this.pty.write(text);
-  }
-
-  resize(cols: number, rows: number): void {
-    if (!this.pty) return;
-    this.pty.resize(cols, rows);
-  }
-
-  stop(): void {
-    if (!this.pty) return;
-    this.pty.kill();
-    this.pty = null;
-  }
-
-  getStatus(): AISessionStatus {
-    return this.currentStatus;
+    this.core.on("heartbeat", (payload) => {
+      this.emit("heartbeat", payload);
+    });
   }
 
   private setStatus(status: AISessionStatus): void {

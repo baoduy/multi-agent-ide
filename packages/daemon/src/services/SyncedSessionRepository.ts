@@ -18,8 +18,8 @@ export class SyncedSessionRepository {
       .getSqlite()
       .prepare(
         `SELECT id, provider, session_id, project_dir, cwd, git_branch, model,
-                token_usage_json, message_count, subagent_count, status, slug,
-                version, entrypoint, title, started_at, ended_at, created_at
+                token_usage_json, message_count, subagent_count, status, activity,
+                slug, version, entrypoint, title, started_at, ended_at, created_at
          FROM synced_sessions
          ORDER BY started_at DESC`
       )
@@ -36,8 +36,8 @@ export class SyncedSessionRepository {
       .getSqlite()
       .prepare(
         `SELECT id, provider, session_id, project_dir, cwd, git_branch, model,
-                token_usage_json, message_count, subagent_count, status, slug,
-                version, entrypoint, title, started_at, ended_at, created_at
+                token_usage_json, message_count, subagent_count, status, activity,
+                slug, version, entrypoint, title, started_at, ended_at, created_at
          FROM synced_sessions
          WHERE provider = ?
          ORDER BY started_at DESC`
@@ -80,13 +80,13 @@ export class SyncedSessionRepository {
       .prepare(
         `INSERT OR REPLACE INTO synced_sessions (
            id, provider, session_id, project_dir, cwd, git_branch, model,
-           token_usage_json, message_count, subagent_count, status, slug,
-           version, entrypoint, title, synced_file_path, synced_file_mtime,
+           token_usage_json, message_count, subagent_count, status, activity,
+           slug, version, entrypoint, title, synced_file_path, synced_file_mtime,
            synced_file_size, started_at, ended_at, last_synced_at, created_at
          ) VALUES (
            @id, @provider, @session_id, @project_dir, @cwd, @git_branch, @model,
-           @token_usage_json, @message_count, @subagent_count, @status, @slug,
-           @version, @entrypoint, @title, @synced_file_path, @synced_file_mtime,
+           @token_usage_json, @message_count, @subagent_count, @status, @activity,
+           @slug, @version, @entrypoint, @title, @synced_file_path, @synced_file_mtime,
            @synced_file_size, @started_at, @ended_at, @last_synced_at, @created_at
          )`
       )
@@ -119,18 +119,22 @@ export class SyncedSessionRepository {
   }
 
   /**
-   * Delete synced sessions whose cwd does not match any of the given known paths.
-   * A session matches if its cwd equals or is a subdirectory of any known path.
-   * Sessions with null cwd are also removed (e.g. orphaned Copilot sessions).
+   * Delete Claude Code synced sessions whose cwd does not match any of the
+   * given known paths. A session matches if its cwd equals or is a subdirectory
+   * of any known path. Sessions with null cwd are also removed.
+   *
+   * Copilot sessions are intentionally excluded — their inclusion is governed
+   * by workspace.yaml presence on disk rather than knownPaths membership.
+   *
    * Returns the number of deleted rows.
    */
-  deleteWhereNotMatchingPaths(knownPaths: readonly string[]): number {
+  deleteClaudeWhereNotMatchingPaths(knownPaths: readonly string[]): number {
     if (knownPaths.length === 0) return 0;
 
-    // Fetch all sessions with their cwd
+    // Fetch only Claude Code rows
     const rows = this.databaseService
       .getSqlite()
-      .prepare(`SELECT id, cwd FROM synced_sessions`)
+      .prepare(`SELECT id, cwd FROM synced_sessions WHERE provider = 'claude-code'`)
       .all() as Array<{ id: string; cwd: string | null }>;
 
     const normalizedKnownPaths = knownPaths.map((p) => path.normalize(p));

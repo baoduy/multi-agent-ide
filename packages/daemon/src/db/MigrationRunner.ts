@@ -14,6 +14,8 @@ import { run as run0009 } from "./migrations/0009_drop_ai_session_status";
 import { run as run0010 } from "./migrations/0010_add_ai_session_title";
 import { run as run0011 } from "./migrations/0011_add_ai_session_permission_mode";
 import { run as run0012 } from "./migrations/0012_add_synced_sessions";
+import { run as run0013 } from "./migrations/0013_add_spec_created_at";
+import { run as run0014 } from "./migrations/0014_add_synced_session_activity";
 
 /**
  * Migration definition: a version number and a function that applies the migration.
@@ -44,6 +46,8 @@ const MIGRATIONS: Migration[] = [
   { version: 10, name: "add_ai_session_title", run: run0010 },
   { version: 11, name: "add_ai_session_permission_mode", run: run0011 },
   { version: 12, name: "add_synced_sessions", run: run0012 },
+  { version: 13, name: "add_spec_created_at", run: run0013 },
+  { version: 14, name: "add_synced_session_activity", run: run0014 },
 ];
 
 /**

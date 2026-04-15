@@ -4,7 +4,18 @@ export const SYNCED_SESSION_PROVIDERS = ["claude-code", "copilot"] as const;
 export type SyncedSessionProvider = (typeof SYNCED_SESSION_PROVIDERS)[number];
 
 export const SYNCED_SESSION_STATUSES = ["active", "completed"] as const;
-export type SyncedSessionStatus = (typeof SYNCED_SESSION_STATUSES)[number];
+
+/**
+ * Live activity for a synced session.
+ * - `processing` — the agent is currently producing output (an assistant turn or tool execution is in flight).
+ * - `idle`       — the session is alive but waiting for the next user input.
+ * - `completed`  — the session has been shut down or otherwise finished.
+ *
+ * `activity` is a refinement of `status`: any session with `status === "completed"`
+ * also has `activity === "completed"`. Active sessions split into `processing` vs `idle`.
+ */
+export const SYNCED_SESSION_ACTIVITIES = ["processing", "idle", "completed"] as const;
+export type SyncedSessionActivity = (typeof SYNCED_SESSION_ACTIVITIES)[number];
 
 export const TokenUsageSchema = z.object({
   inputTokens: z.number().nonnegative().default(0),
@@ -27,6 +38,7 @@ export const SyncedSessionRecordSchema = z.object({
   messageCount: z.number().int().nonnegative(),
   subagentCount: z.number().int().nonnegative(),
   status: z.enum(SYNCED_SESSION_STATUSES),
+  activity: z.enum(SYNCED_SESSION_ACTIVITIES),
   slug: z.string().nullable(),
   version: z.string().nullable(),
   entrypoint: z.string().nullable(),

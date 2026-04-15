@@ -13,11 +13,14 @@ import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
 import { AISessionApplicationService } from "./application/AISessionApplicationService";
-import { AISessionRepository } from "./services/AISessionRepository";
 import { SessionSyncApplicationService } from "./application/SessionSyncApplicationService";
 import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
+import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
+import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
+import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
+import { SpecReader } from "./services/SpecReader";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -43,12 +46,15 @@ export class DaemonContainer {
   readonly specSyncService: SpecSyncService;
   readonly dirWatcher: DirWatcher;
   readonly terminalService: TerminalApplicationService;
-  readonly aiSessionRepository: AISessionRepository;
   readonly aiSessionService: AISessionApplicationService;
   readonly gitGateway: GitGateway;
   readonly sessionSyncGateway: SessionSyncGateway;
   readonly syncedSessionRepository: SyncedSessionRepository;
   readonly sessionSyncService: SessionSyncApplicationService;
+  readonly sessionFileWatcher: SessionFileWatcher;
+  readonly fileSystemGateway: FileSystemGateway;
+  readonly specGitGateway: SpecGitGateway;
+  readonly specReader: SpecReader;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -74,7 +80,8 @@ export class DaemonContainer {
       this.specRepository,
       this.repoRepository,
       this.bridge,
-      this.jobManager
+      this.jobManager,
+      this.configManager,
     );
 
     // Wire spec sync into scan queue (avoids circular dep at construction)
@@ -86,14 +93,22 @@ export class DaemonContainer {
     // Terminal PTY service
     this.terminalService = new TerminalApplicationService(this.bridge);
 
-    // AI Session service
-    this.aiSessionRepository = new AISessionRepository(databaseService);
-    this.aiSessionService = new AISessionApplicationService(this.bridge, this.aiSessionRepository);
+    // AI Session service — purely in-memory; the disk-backed sync layer is
+    // the source of truth for session history.
+    this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager);
 
     // Git gateway (shared across services that need git operations)
     this.gitGateway = new GitGateway();
 
-    // Session sync (scans Claude Code JSONL files from disk, filtered by known paths)
+    // Read-side gateways shared across handler registrations. Keeping a
+    // single instance here prevents duplicate construction in
+    // registerHandlers and ensures the FileSystemGateway has a single
+    // authoritative allowlist provider.
+    this.fileSystemGateway = new FileSystemGateway(this.configManager);
+    this.specGitGateway = new SpecGitGateway();
+    this.specReader = new SpecReader();
+
+    // Session sync (scans Claude Code + Copilot JSONL files from disk)
     this.sessionSyncGateway = new SessionSyncGateway();
     this.syncedSessionRepository = new SyncedSessionRepository(databaseService);
     this.sessionSyncService = new SessionSyncApplicationService(
@@ -104,6 +119,14 @@ export class DaemonContainer {
       this.repoRepository,
       this.configManager,
       this.gitGateway,
+    );
+
+    // Live activity watcher — watches both provider directories and pushes
+    // single-file re-syncs when JSONL files are appended.
+    this.sessionFileWatcher = new SessionFileWatcher(
+      this.sessionSyncService,
+      this.sessionSyncGateway.getClaudeProjectsDir(),
+      this.sessionSyncGateway.getCopilotSessionStateDir(),
     );
   }
 
@@ -126,10 +149,14 @@ export class DaemonContainer {
       jobManager: this.jobManager,
       repoRepository: this.repoRepository,
       scanQueue: this.scanQueue,
+      scanner: this.scanner,
       terminalService: this.terminalService,
       aiSessionService: this.aiSessionService,
       sessionSyncService: this.sessionSyncService,
       gitGateway: this.gitGateway,
+      fileSystemGateway: this.fileSystemGateway,
+      specGitGateway: this.specGitGateway,
+      specReader: this.specReader,
     });
   }
 
@@ -141,6 +168,8 @@ export class DaemonContainer {
     this.aiSessionService.destroyAll();
     this.terminalService.closeAll();
     this.dirWatcher.unwatchAll();
+    this.sessionFileWatcher.stop();
+    this.sessionSyncService.stop();
   }
 
   /**

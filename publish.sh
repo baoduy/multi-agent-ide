@@ -1,3 +1,3 @@
 #!/bin/bash
 
-pnpm install && pnpm run pack
+pnpm install && pnpm typecheck && pnpm run pack

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitBranch, GitFork, FolderPlus, Loader2, Bot, Terminal, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
+import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
 
 import { sendOrThrow } from "../../services/ipcClient";
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -12,15 +12,16 @@ import { FormLabel, FormError } from "../common/FormControls";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { ButtonGroup, type ButtonGroupOption } from "../common/ButtonGroup";
 import { DoublePicker, type DoublePickerOption } from "../common/DoublePicker";
+import { InlineLoadingRow } from "../common/InlineLoadingRow";
 import { BranchLabel } from "../common/RepoLabel";
+import { ScrollableText } from "../common/ScrollableText";
 import { colors } from "../../utils/colors";
 import { getProviderName } from "../common/providerConfig";
 import { SpecifyOnboardBanner } from "./SpecifyOnboardBanner";
+import { SpecifyFooterStatus } from "./SpecifyFooterStatus";
 import type { AIPermissionMode, AIProvider, AISessionRecord } from "@magenta/shared/aiTerminal";
 
 /* ── Types ── */
-
-export type SessionType = "agent" | "terminal";
 
 type WorkspaceTarget = "branch" | "existing-worktree" | "new-worktree";
 
@@ -35,53 +36,7 @@ type NewSessionDialogProps = {
   repoName?: string | null;
   /** Called with the newly created AI session when creation succeeds. */
   onSessionCreated?: (session: AISessionRecord) => void;
-  /** Called with cwd when a terminal session is requested. */
-  onTerminalCreated?: (cwd: string) => void;
-  /** Pre-select session type. */
-  defaultSessionType?: SessionType;
 };
-
-/* ── Static option configs ── */
-
-/* ── Card-style picker button ── */
-
-type PickerButtonProps = {
-  selected: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  /** Border color when selected. Defaults to primary. */
-  selectedColor?: string;
-};
-
-function PickerButton({ selected, onClick, icon, label, selectedColor = colors.primary }: PickerButtonProps): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 8,
-        padding: "10px 12px",
-        borderRadius: 6,
-        border: selected ? `1.5px solid ${selectedColor}` : `1px solid ${colors.border}`,
-        background: selected ? `${selectedColor}08` : colors.bgWhite,
-        cursor: "pointer",
-        fontSize: 12,
-        fontWeight: 500,
-        color: selected ? colors.text : colors.textSecondary,
-        transition: "all 0.12s",
-        fontFamily: "inherit",
-      }}
-    >
-      {icon}
-      {label}
-    </button>
-  );
-}
 
 /* ── Dialog ── */
 
@@ -91,8 +46,6 @@ export function NewSessionDialog({
   repoPath: initialRepoPath,
   repoName: _initialRepoName,
   onSessionCreated,
-  onTerminalCreated,
-  defaultSessionType = "agent",
 }: NewSessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
   const repos = useRepoStore((s) => s.repos);
@@ -100,9 +53,8 @@ export function NewSessionDialog({
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
   /* ── Form state ── */
-  const [sessionType, setSessionType] = useState<SessionType>(defaultSessionType);
   const [provider, setProvider] = useState<AIProvider>("claude");
-  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("default");
+  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("auto");
 
   // Workspace
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(initialRepoPath ?? null);
@@ -228,29 +180,40 @@ export function NewSessionDialog({
     [repoWorktrees.length],
   );
 
+  /**
+   * The path we should check for Specify status.
+   * For existing worktrees, use the worktree path (its own .specify/ may differ).
+   * Otherwise fall back to the repo root.
+   */
+  const effectiveSpecifyPath = useMemo((): string | null => {
+    if (!selectedRepoPath) return null;
+    if (workspaceTarget === "existing-worktree" && selectedWorktreePath) {
+      return selectedWorktreePath;
+    }
+    return selectedRepoPath;
+  }, [selectedRepoPath, workspaceTarget, selectedWorktreePath]);
+
   const canCreate = useMemo(() => {
     if (!selectedRepoPath) return false;
     if (workspaceTarget === "branch" && !selectedBranch) return false;
     if (workspaceTarget === "existing-worktree" && !selectedWorktreePath) return false;
     if (workspaceTarget === "new-worktree" && !selectedBranch) return false;
-    if (sessionType === "agent" && !provider) return false;
+    if (!provider) return false;
     return true;
-  }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, sessionType, provider]);
+  }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, provider]);
 
-  type SpecifyBannerKind = "none" | "not-onboarded" | "agent-mismatch";
+  type SpecifyBannerKind = "none" | "not-onboarded";
 
+  /** Body banner — only used for "not onboarded". Agent-mismatch now lives in the footer. */
   const specifyBanner = useMemo((): { kind: SpecifyBannerKind; currentAgent: string | null } => {
-    if (sessionType !== "agent" || !specifyStatus || isLoadingSpecifyStatus) {
+    if (!specifyStatus || isLoadingSpecifyStatus) {
       return { kind: "none", currentAgent: null };
     }
     if (!specifyStatus.hasSpecs) {
       return { kind: "not-onboarded", currentAgent: null };
     }
-    if (specifyStatus.currentAgent && specifyStatus.currentAgent !== provider) {
-      return { kind: "agent-mismatch", currentAgent: specifyStatus.currentAgent };
-    }
     return { kind: "none", currentAgent: null };
-  }, [sessionType, specifyStatus, isLoadingSpecifyStatus, provider]);
+  }, [specifyStatus, isLoadingSpecifyStatus]);
 
   /* ── Effects ── */
 
@@ -258,9 +221,8 @@ export function NewSessionDialog({
   useEffect(() => {
     if (open) {
       setSelectedRepoPath(initialRepoPath ?? null);
-      setSessionType(defaultSessionType);
       setProvider("claude");
-      setPermissionMode("default");
+      setPermissionMode("auto");
       setWorkspaceTarget("branch");
       setSelectedWorktreePath(null);
       setWorktreeCustomName("");
@@ -270,7 +232,7 @@ export function NewSessionDialog({
       setSpecifyStatus(null);
       setIsLoadingSpecifyStatus(false);
     }
-  }, [open, initialRepoPath, defaultSessionType]);
+  }, [open, initialRepoPath]);
 
   // Load branches when repo changes
   useEffect(() => {
@@ -302,9 +264,10 @@ export function NewSessionDialog({
     };
   }, [open, selectedRepoPath]);
 
-  // Check Specify onboard status when repo changes
+  // Check Specify onboard status whenever the effective path changes
+  // (repo switch, worktree selection, or branch change).
   useEffect(() => {
-    if (!open || !selectedRepoPath || sessionType !== "agent") {
+    if (!open || !effectiveSpecifyPath) {
       setSpecifyStatus(null);
       return;
     }
@@ -312,7 +275,7 @@ export function NewSessionDialog({
     let cancelled = false;
     setIsLoadingSpecifyStatus(true);
 
-    sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath })
+    sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
       .then((res) => {
         if (cancelled) return;
         setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent });
@@ -326,7 +289,7 @@ export function NewSessionDialog({
       });
 
     return () => { cancelled = true; };
-  }, [open, selectedRepoPath, sessionType]);
+  }, [open, effectiveSpecifyPath]);
 
   // Load worktrees for selected repo
   useEffect(() => {
@@ -400,7 +363,6 @@ export function NewSessionDialog({
 
       let worktreePathToUse: string | undefined;
       let branchToUse: string | undefined;
-      let cwdToUse: string = selectedRepoPath;
 
       if (workspaceTarget === "branch") {
         branchToUse = selectedBranch;
@@ -413,7 +375,6 @@ export function NewSessionDialog({
         }
         worktreePathToUse = wt.worktreePath;
         branchToUse = wt.branch;
-        cwdToUse = wt.worktreePath;
       } else if (workspaceTarget === "new-worktree") {
         const wtName = worktreeCustomName.trim()
           ? `${providerPrefix}${worktreeCustomName.trim()}`
@@ -427,28 +388,22 @@ export function NewSessionDialog({
         });
         worktreePathToUse = result.worktreePath;
         branchToUse = result.branch;
-        cwdToUse = result.worktreePath;
       }
 
-      /* ── Create the session ── */
+      /* ── Create the agent session ── */
 
-      if (sessionType === "agent") {
-        const session = await createSession(
-          {
-            provider,
-            repoPath: selectedRepoPath,
-            branch: branchToUse,
-            worktreePath: worktreePathToUse,
-            permissionMode: permissionMode as AIPermissionMode,
-          },
-          80,
-          24,
-        );
-        onSessionCreated?.(session);
-      } else {
-        // Terminal session — pass cwd; MagentaTerminal will spawn its own PTY
-        onTerminalCreated?.(cwdToUse);
-      }
+      const session = await createSession(
+        {
+          provider,
+          repoPath: selectedRepoPath,
+          branch: branchToUse,
+          worktreePath: worktreePathToUse,
+          permissionMode: permissionMode as AIPermissionMode,
+        },
+        80,
+        24,
+      );
+      onSessionCreated?.(session);
 
       onClose();
     } catch (err) {
@@ -456,7 +411,6 @@ export function NewSessionDialog({
       setIsCreating(false);
     }
   }, [
-    sessionType,
     provider,
     permissionMode,
     selectedRepoPath,
@@ -468,7 +422,6 @@ export function NewSessionDialog({
     repoWorktrees,
     createSession,
     onSessionCreated,
-    onTerminalCreated,
     onClose,
   ]);
 
@@ -496,64 +449,64 @@ export function NewSessionDialog({
       maxHeight="90vh"
       onClose={onClose}
       footer={
-        <>
-          <CancelButton onClick={onClose} />
-          <PrimaryButton
-            onClick={() => void handleConfirm()}
-            disabled={!canCreate}
-            loading={isCreating}
-            loadingText="Creating..."
-          >
-            {sessionType === "agent" ? "Create Agent Session" : "Open Terminal"}
-          </PrimaryButton>
-        </>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          {/* Left: Specify integration status + switch */}
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+            {specifyStatus && specifyStatus.hasSpecs && effectiveSpecifyPath && (
+              <SpecifyFooterStatus
+                currentAgent={specifyStatus.currentAgent}
+                selectedProvider={provider}
+                hasSpecs={specifyStatus.hasSpecs}
+                repoPath={effectiveSpecifyPath}
+                onSwitchComplete={() => {
+                  setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
+                  sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
+                    .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
+                    .catch(() => {});
+                }}
+              />
+            )}
+          </div>
+
+          {/* Right: action buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <CancelButton onClick={onClose} />
+            <PrimaryButton
+              onClick={() => void handleConfirm()}
+              disabled={!canCreate}
+              loading={isCreating}
+              loadingText="Creating..."
+            >
+              Create Agent Session
+            </PrimaryButton>
+          </div>
+        </div>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {/* ─── Session Type ─── */}
-        <div>
-          <FormLabel>Session Type</FormLabel>
-          <div style={{ display: "flex", gap: 8 }}>
-            <PickerButton
-              selected={sessionType === "agent"}
-              onClick={() => setSessionType("agent")}
-              icon={<Bot size={15} strokeWidth={1.8} />}
-              label="AI Agent"
-            />
-            <PickerButton
-              selected={sessionType === "terminal"}
-              onClick={() => setSessionType("terminal")}
-              icon={<Terminal size={15} strokeWidth={1.8} />}
-              label="Terminal"
+        {/* ─── Agent + Workspace on one row ─── */}
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ flex: "1 1 0", minWidth: 0 }}>
+            <FormLabel>Agent</FormLabel>
+            <DoublePicker<AIProvider, SimplifiedPermission>
+              left={{
+                options: providerOptions,
+                value: provider,
+                onChange: setProvider,
+                placeholder: "Provider",
+                minPanelWidth: 180,
+              }}
+              right={{
+                options: permissionOptions,
+                value: permissionMode,
+                onChange: setPermissionMode,
+                placeholder: "Permission",
+                minPanelWidth: 220,
+              }}
             />
           </div>
-        </div>
 
-        {/* ─── Agent + Workspace on one row ─── */}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-          {sessionType === "agent" && (
-            <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-              <FormLabel>Agent</FormLabel>
-              <DoublePicker<AIProvider, SimplifiedPermission>
-                left={{
-                  options: providerOptions,
-                  value: provider,
-                  onChange: setProvider,
-                  placeholder: "Provider",
-                  minPanelWidth: 180,
-                }}
-                right={{
-                  options: permissionOptions,
-                  value: permissionMode,
-                  onChange: setPermissionMode,
-                  placeholder: "Permission",
-                  minPanelWidth: 220,
-                }}
-              />
-            </div>
-          )}
-
-          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+          <div style={{ flex: "1 1 0", minWidth: 0 }}>
             <FormLabel>Workspace</FormLabel>
             <DoublePicker<string, string>
               left={{
@@ -584,29 +537,26 @@ export function NewSessionDialog({
 
         {/* ─── Loading branches indicator ─── */}
         {hasRepo && isLoadingBranches && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
-            <Loader2
-              size={14}
-              color={colors.textTertiary}
-              style={{ animation: "spin 1s linear infinite" }}
-            />
-            <span style={{ fontSize: 12, color: colors.textSecondary }}>Loading branches...</span>
-          </div>
+          <InlineLoadingRow
+            label="Loading branches..."
+            padding="4px 0"
+            color={colors.textSecondary}
+          />
         )}
 
         {/* ─── Specify Onboard Notice ─── */}
-        {specifyBanner.kind !== "none" && branchesReady && (
+        {specifyBanner.kind !== "none" && branchesReady && effectiveSpecifyPath && (
           <SpecifyOnboardBanner
             kind={specifyBanner.kind}
             currentAgent={specifyBanner.currentAgent}
             selectedProvider={provider}
-            repoPath={selectedRepoPath!}
+            repoPath={effectiveSpecifyPath}
             repoName={repos.find((r) => r.path === selectedRepoPath)?.name ?? ""}
             onComplete={() => {
               // Optimistically update to hide banner immediately
               setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
               // Also re-fetch from daemon for accuracy
-              sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath! })
+              sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
                 .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
                 .catch(() => {});
             }}
@@ -643,24 +593,22 @@ export function NewSessionDialog({
                 <div>
                   <FormLabel>Worktree Name</FormLabel>
                   <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-                    {sessionType === "agent" && (
-                      <div
-                        style={{
-                          padding: "8px 6px 8px 12px",
-                          fontSize: 13,
-                          fontFamily: "var(--font-mono)",
-                          color: colors.textTertiary,
-                          background: colors.bgMuted,
-                          border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
-                          borderRight: "none",
-                          borderRadius: "6px 0 0 6px",
-                          whiteSpace: "nowrap",
-                          lineHeight: "1.35",
-                        }}
-                      >
-                        {providerPrefix}
-                      </div>
-                    )}
+                    <div
+                      style={{
+                        padding: "8px 6px 8px 12px",
+                        fontSize: 13,
+                        fontFamily: "var(--font-mono)",
+                        color: colors.textTertiary,
+                        background: colors.bgMuted,
+                        border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
+                        borderRight: "none",
+                        borderRadius: "6px 0 0 6px",
+                        whiteSpace: "nowrap",
+                        lineHeight: "1.35",
+                      }}
+                    >
+                      {providerPrefix}
+                    </div>
                     <input
                       ref={worktreeNameInputRef}
                       type="text"
@@ -677,7 +625,7 @@ export function NewSessionDialog({
                         padding: "8px 12px",
                         fontSize: 13,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
-                        borderRadius: sessionType === "agent" ? "0 6px 6px 0" : "6px",
+                        borderRadius: "0 6px 6px 0",
                         outline: "none",
                         background: colors.bgSurface,
                         color: colors.text,
@@ -791,18 +739,15 @@ function WorktreeList({
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
+              <ScrollableText
                 style={{
                   fontSize: 12,
                   fontWeight: 500,
                   color: colors.text,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
                 }}
               >
                 {wt.name}
-              </div>
+              </ScrollableText>
               <div style={{ marginTop: 2 }}>
                 <BranchLabel name={wt.branch} size="xs" />
               </div>

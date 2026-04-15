@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(pnpm --filter @magenta/ui add cmdk)",
-      "Bash(pnpm -C packages/e2e add -D playwright-bdd@^8)"
+      "Bash(pnpm -C packages/e2e add -D playwright-bdd@^8)",
+      "Bash(npm run:*)",
+      "Bash(npm start:*)",
+      "Bash(node -e \"console.log\\(require\\('electron/package.json'\\).version\\)\")",
+      "Bash(pnpm run:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(grep -rn '\"yaml\"' /Users/steven/_CODE/GIT/multi-agent-ide/package.json /Users/steven/_CODE/GIT/multi-agent-ide/packages/*/package.json)"
     ]
   }
 }

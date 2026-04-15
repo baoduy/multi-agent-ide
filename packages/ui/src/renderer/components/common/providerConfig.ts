@@ -7,14 +7,14 @@ import { colors } from "../../utils/colors";
 
 export type ProviderVariant = "claude" | "copilot";
 
-export type ProviderConfig = {
+type ProviderConfig = {
   /** Human-readable display name */
   displayName: string;
   /** Brand color (hex) */
   color: string;
 };
 
-export const PROVIDER_CONFIG: Record<ProviderVariant, ProviderConfig> = {
+const PROVIDER_CONFIG: Record<ProviderVariant, ProviderConfig> = {
   claude: {
     displayName: "Claude Code",
     color: colors.info,

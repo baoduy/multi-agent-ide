@@ -15,6 +15,7 @@
 import { ConfigManager } from "./config/ConfigManager";
 import { DatabaseService } from "./db/DatabaseService";
 import { IPCBridge } from "./ipc/IPCBridge";
+import type { IpcResponse } from "@magenta/shared/ipc";
 import { registerHandlers } from "./ipc/registerHandlers";
 import { BackgroundJobManager } from "./services/BackgroundJobManager";
 import { DirWatcher } from "./services/DirWatcher";
@@ -26,16 +27,21 @@ import { SpecRepository } from "./services/SpecRepository";
 import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
 import { AISessionApplicationService } from "./application/AISessionApplicationService";
-import { AISessionRepository } from "./services/AISessionRepository";
 import { SessionSyncApplicationService } from "./application/SessionSyncApplicationService";
 import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
+import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
+import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
+import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
+import { SpecReader } from "./services/SpecReader";
 
 // Track services for graceful shutdown
 let shutdownServices: {
   dirWatcher?: DirWatcher;
   specSyncService?: SpecSyncService;
+  sessionSyncService?: SessionSyncApplicationService;
+  sessionFileWatcher?: SessionFileWatcher;
   databaseService?: DatabaseService;
   terminalService?: TerminalApplicationService;
   aiSessionService?: AISessionApplicationService;
@@ -75,6 +81,18 @@ async function gracefulShutdown(reason: string): Promise<void> {
     if (shutdownServices.specSyncService) {
       console.log("[daemon-worker] Stopping spec sync service...");
       shutdownServices.specSyncService.stop();
+    }
+
+    // 2b. Stop session sync interval
+    if (shutdownServices.sessionSyncService) {
+      console.log("[daemon-worker] Stopping session sync service...");
+      shutdownServices.sessionSyncService.stop();
+    }
+
+    // 2c. Stop session file watcher
+    if (shutdownServices.sessionFileWatcher) {
+      console.log("[daemon-worker] Stopping session file watcher...");
+      shutdownServices.sessionFileWatcher.stop();
     }
 
     // 3. Flush and close database
@@ -126,6 +144,7 @@ async function main() {
       repoRepository,
       ipcBridge,
       jobManager,
+      configManager,
     );
 
     // Wire spec sync into scan queue so repo scans trigger spec sync
@@ -138,14 +157,20 @@ async function main() {
     // Terminal PTY service
     const terminalService = new TerminalApplicationService(ipcBridge);
 
-    // AI Terminal session service
-    const aiSessionRepository = new AISessionRepository(databaseService);
-    const aiSessionService = new AISessionApplicationService(ipcBridge, aiSessionRepository);
+    // AI Terminal session service — in-memory only; the sync layer owns history.
+    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager);
 
     // Git gateway (shared across services)
     const gitGateway = new GitGateway();
 
-    // Session sync service (scans Claude Code JSONL from disk, filtered by known paths)
+    // Read-side gateways — constructed once and threaded through
+    // registerHandlers. Previously registerHandlers built its own copies,
+    // which produced e.g. a duplicate RepoScanner instance.
+    const fileSystemGateway = new FileSystemGateway(configManager);
+    const specGitGateway = new SpecGitGateway();
+    const specReader = new SpecReader();
+
+    // Session sync service (scans Claude Code + Copilot JSONL from disk)
     const sessionSyncGateway = new SessionSyncGateway();
     const syncedSessionRepository = new SyncedSessionRepository(databaseService);
     const sessionSyncService = new SessionSyncApplicationService(
@@ -158,8 +183,15 @@ async function main() {
       gitGateway,
     );
 
+    // Live activity watcher — pushes single-file re-syncs on JSONL append.
+    const sessionFileWatcher = new SessionFileWatcher(
+      sessionSyncService,
+      sessionSyncGateway.getClaudeProjectsDir(),
+      sessionSyncGateway.getCopilotSessionStateDir(),
+    );
+
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, databaseService, terminalService, aiSessionService };
+    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, databaseService, terminalService, aiSessionService };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -168,18 +200,23 @@ async function main() {
       jobManager,
       repoRepository,
       scanQueue,
+      scanner,
       terminalService,
       aiSessionService,
       sessionSyncService,
       gitGateway,
+      fileSystemGateway,
+      specGitGateway,
+      specReader,
     });
     console.log("[daemon-worker] All handlers registered");
 
     // Forward push events from the bridge to the parent process
-    const pushEventTypes = [
+    const pushEventTypes: Array<IpcResponse["type"]> = [
       "repo:scan:started",
       "repo:scan:progress",
       "repo:scan:complete",
+      "repo:force-reload:started",
       "spec:sync:started",
       "spec:sync:complete",
       "config:updated",
@@ -193,11 +230,12 @@ async function main() {
       "ai-session:data",
       "ai-session:status",
       "ai-session:exited",
+      "ai-session:updated",
       "synced-session:sync:complete",
     ];
 
     for (const eventType of pushEventTypes) {
-      (ipcBridge as any).on(eventType, (payload: unknown) => {
+      ipcBridge.on(eventType, (payload) => {
         console.log(`[daemon-worker] Emitting event: ${eventType}`);
         if (process.send) {
           process.send({ kind: "event", payload });
@@ -261,13 +299,30 @@ async function main() {
       void scanQueue.requestScan(workingDirs);
     }
 
-    // 3. Start the 5-minute spec sync schedule (runs immediately on first call).
-    //    Because the repo scan was enqueued first, the initial "spec-sync-all"
-    //    will see any newly discovered repos.
+    // 3. Start the recurring spec sync interval (configurable, default 15 min).
+    //    The initial sync is triggered by the repo-scan job when it completes
+    //    (via scanQueue → specSyncService), so start() only sets up the timer.
     specSyncService.start();
 
-    // 3. Trigger one-time session sync (scans ~/.claude + ~/.copilot)
-    sessionSyncService.triggerSync();
+    // 4. Session sync is gated on the AI title-bar tab being active. The
+    //    renderer sends a "ui:ai-tab-active" IPC on boot and whenever the
+    //    active top-level tab changes; sessionSyncService.setAITabActive()
+    //    triggers an immediate sync and schedules the recurring interval
+    //    (configurable, default 15 min) when the AI tab is shown, and pauses
+    //    the sweep when it is hidden. Nothing is scheduled here at startup —
+    //    this avoids wasted disk scans when the user never visits the AI tab.
+
+    // 4b. Start the file watcher so live activity (processing/idle/completed)
+    //     reflects within ~300ms of any JSONL append. Additive to the recurring
+    //     sync — fs.watch is best-effort on some volumes.
+    sessionFileWatcher.start();
+
+    // 5. Reconfigure both sync services whenever config changes so users can
+    //    change the interval from the Settings dialog without restarting the app.
+    ipcBridge.on("config:updated", () => {
+      specSyncService.reconfigureFromConfig();
+      sessionSyncService.reconfigureFromConfig();
+    });
 
     // Tell parent we're ready
     if (process.send) {

@@ -1,7 +1,11 @@
 import { create } from "zustand";
 
 import type { MagentaConfig } from "@magenta/shared/config";
-import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
+import {
+  DEFAULT_SPECIFY_COMMAND,
+  DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
+  DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
+} from "@magenta/shared/config";
 import { ipc } from "../utils/ipc";
 import { sendOrThrow } from "../services/ipcClient";
 import { createAsyncAction } from "../services/createStoreAction";
@@ -10,12 +14,16 @@ import { createSubscriptionInitializer } from "../services/createSubscriptionIni
 type ConfigStoreState = {
   workingDirs: string[];
   specifyCommand: string;
+  specSyncIntervalMinutes: number;
+  sessionSyncIntervalMinutes: number;
   isLoading: boolean;
   error: string | null;
   subscriptionsReady: boolean;
   addWorkingDir: (path: string) => Promise<void>;
   removeWorkingDir: (path: string) => Promise<void>;
   updateSpecifyCommand: (command: string) => Promise<void>;
+  updateSpecSyncInterval: (minutes: number) => Promise<void>;
+  updateSessionSyncInterval: (minutes: number) => Promise<void>;
   fetchConfig: () => Promise<void>;
   initializeSubscriptions: () => void;
 };
@@ -24,12 +32,18 @@ function applyConfig(config: MagentaConfig): Partial<ConfigStoreState> {
   return {
     workingDirs: config.workingDirs,
     specifyCommand: config.specifyCommand ?? DEFAULT_SPECIFY_COMMAND,
+    specSyncIntervalMinutes:
+      config.specSyncIntervalMinutes ?? DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
+    sessionSyncIntervalMinutes:
+      config.sessionSyncIntervalMinutes ?? DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
   };
 }
 
 export const useConfigStore = create<ConfigStoreState>((set, get) => ({
   workingDirs: [],
   specifyCommand: DEFAULT_SPECIFY_COMMAND,
+  specSyncIntervalMinutes: DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
+  sessionSyncIntervalMinutes: DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
   isLoading: false,
   error: null,
   subscriptionsReady: false,
@@ -60,6 +74,30 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
     return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
       set,
       action: () => sendOrThrow({ type: "config:update", config: { specifyCommand: command } }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
+  },
+
+  updateSpecSyncInterval(minutes: number) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () =>
+        sendOrThrow({
+          type: "config:update",
+          config: { specSyncIntervalMinutes: minutes },
+        }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
+  },
+
+  updateSessionSyncInterval(minutes: number) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () =>
+        sendOrThrow({
+          type: "config:update",
+          config: { sessionSyncIntervalMinutes: minutes },
+        }),
       onSuccess: (response) => applyConfig(response.config),
     })();
   },

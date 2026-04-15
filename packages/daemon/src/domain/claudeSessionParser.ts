@@ -1,4 +1,4 @@
-import type { TokenUsage } from "@magenta/shared/syncedSession";
+import type { TokenUsage, SyncedSessionActivity } from "@magenta/shared/syncedSession";
 
 /**
  * Metadata extracted from a Claude Code JSONL session file.
@@ -12,6 +12,13 @@ export interface ClaudeSessionMetadata {
   tokenUsage: TokenUsage;
   messageCount: number;
   status: "active" | "completed";
+  /**
+   * Live activity derived from the last events in the JSONL stream.
+   * - `processing`: last entry is a user message, or an assistant tool_use that has no following tool_result
+   * - `idle`: last entry is an assistant text message and no pending tool calls
+   * - `completed`: a `last-prompt` event (or equivalent shutdown marker) was seen
+   */
+  activity: SyncedSessionActivity;
   startTimestamp: number | null;
   endTimestamp: number | null;
   slug: string | null;
@@ -49,6 +56,13 @@ export function parseClaudeSessionLines(lines: string[]): ClaudeSessionMetadata 
   let userCount = 0;
   let assistantCount = 0;
 
+  // Activity tracking — walk in order; the last meaningful event determines activity.
+  // - "user" event:        lastMeaningful = "user"
+  // - "assistant" event:   lastMeaningful = "assistant" (or "assistant-tool" if it contains tool_use blocks)
+  // - tool_result inside a "user" event: clears the pending tool from outstandingToolIds
+  let lastMeaningful: "user" | "assistant" | "assistant-tool" = "user";
+  const outstandingToolIds = new Set<string>();
+
   for (const line of lines) {
     if (!line.trim()) continue;
 
@@ -78,6 +92,7 @@ export function parseClaudeSessionLines(lines: string[]): ClaudeSessionMetadata 
 
     if (type === "user") {
       userCount++;
+      lastMeaningful = "user";
       // Extract cwd, gitBranch, version, entrypoint, slug from first user event
       if (!cwd && event.cwd) cwd = event.cwd as string;
       if (!gitBranch && event.gitBranch) gitBranch = event.gitBranch as string;
@@ -95,11 +110,23 @@ export function parseClaudeSessionLines(lines: string[]): ClaudeSessionMetadata 
           }
         }
       }
+
+      // A "user" event may carry tool_result blocks (responses to prior tool_use).
+      // Clear any matching outstanding tool ids so we know the assistant turn can resume.
+      const message = event.message as Record<string, unknown> | undefined;
+      if (message && Array.isArray(message.content)) {
+        for (const block of message.content as Array<Record<string, unknown>>) {
+          if (block && block.type === "tool_result" && typeof block.tool_use_id === "string") {
+            outstandingToolIds.delete(block.tool_use_id);
+          }
+        }
+      }
     }
 
     if (type === "assistant") {
       assistantCount++;
       const message = event.message as Record<string, unknown> | undefined;
+      let hasToolUse = false;
       if (message) {
         // Extract model from first assistant message
         if (!model && message.model) {
@@ -114,12 +141,39 @@ export function parseClaudeSessionLines(lines: string[]): ClaudeSessionMetadata 
           tokenUsage.cacheCreationInputTokens += (usage.cache_creation_input_tokens as number) || 0;
           tokenUsage.cacheReadInputTokens += (usage.cache_read_input_tokens as number) || 0;
         }
+
+        // Track tool_use blocks — they create outstanding tool calls.
+        if (Array.isArray(message.content)) {
+          for (const block of message.content as Array<Record<string, unknown>>) {
+            if (block && block.type === "tool_use" && typeof block.id === "string") {
+              outstandingToolIds.add(block.id);
+              hasToolUse = true;
+            }
+          }
+        }
       }
+      lastMeaningful = hasToolUse ? "assistant-tool" : "assistant";
     }
 
     if (type === "last-prompt") {
       status = "completed";
     }
+  }
+
+  // Derive activity from the trailing event sequence.
+  // Order matters: completed wins over processing/idle.
+  let activity: SyncedSessionActivity;
+  if (status === "completed") {
+    activity = "completed";
+  } else if (lastMeaningful === "user") {
+    // User just sent a turn, assistant hasn't responded yet.
+    activity = "processing";
+  } else if (outstandingToolIds.size > 0) {
+    // Assistant invoked tools that have not been resolved yet.
+    activity = "processing";
+  } else {
+    // Last meaningful event was an assistant text message with no pending tools.
+    activity = "idle";
   }
 
   return {
@@ -130,6 +184,7 @@ export function parseClaudeSessionLines(lines: string[]): ClaudeSessionMetadata 
     tokenUsage,
     messageCount: userCount + assistantCount,
     status,
+    activity,
     startTimestamp,
     endTimestamp,
     slug,
@@ -159,22 +214,4 @@ function extractTitleFromContent(content: string): string | null {
     return firstLine.slice(0, 77) + "...";
   }
   return firstLine || null;
-}
-
-/**
- * Resolves the original filesystem path from a Claude Code project directory name.
- * Claude Code stores projects under hashed directory names like:
- *   -Users-steven--CODE-GIT-multi-agent-ide
- * This converts it back to: /Users/steven/_CODE/GIT/multi-agent-ide
- *
- * Note: This is best-effort. Double hyphens (--) represent path separators
- * and single hyphens (-) represent directory name hyphens OR separators.
- * The cwd field from inside the JSONL is more reliable.
- */
-export function resolveProjectPathFromDirName(dirName: string): string {
-  // Replace leading hyphen with /
-  // Double hyphens are path separators
-  return dirName
-    .replace(/^-/, "/")
-    .replace(/--/g, "/");
 }

@@ -9,7 +9,7 @@ type WorktreeHandlerContext = {
 
 export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHandlerContext): void {
   safeHandle(bridge, "worktree:list", async (msg) => {
-    const worktrees = worktreeService.listWorktrees(msg.repoPath);
+    const worktrees = await worktreeService.listWorktrees(msg.repoPath);
     return {
       type: "worktree:list:result",
       worktrees,
@@ -17,7 +17,7 @@ export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHa
   });
 
   safeHandle(bridge, "worktree:create", async (msg) => {
-    const { worktreePath } = worktreeService.createWorktree(msg.repoPath, msg.branch, msg.name);
+    const { worktreePath } = await worktreeService.createWorktree(msg.repoPath, msg.branch, msg.name);
 
     // Emit an event so the UI can refresh its worktree list
     bridge.emit({
@@ -35,7 +35,7 @@ export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHa
   });
 
   safeHandle(bridge, "worktree:status", async (msg) => {
-    const { files, ahead, behind } = worktreeService.getWorktreeStatus(msg.repoPath, msg.worktreePath);
+    const { files, ahead, behind } = await worktreeService.getWorktreeStatus(msg.repoPath, msg.worktreePath);
     return {
       type: "worktree:status:result" as const,
       worktreePath: msg.worktreePath,
@@ -46,7 +46,7 @@ export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHa
   });
 
   safeHandle(bridge, "worktree:merge", async (msg) => {
-    const result = worktreeService.mergeWorktree(
+    const result = await worktreeService.mergeWorktree(
       msg.repoPath,
       msg.worktreePath,
       msg.worktreeBranch,
@@ -60,7 +60,7 @@ export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHa
   });
 
   safeHandle(bridge, "worktree:delete", async (msg) => {
-    const result = worktreeService.deleteWorktree(msg.repoPath, msg.worktreePath);
+    const result = await worktreeService.deleteWorktree(msg.repoPath, msg.worktreePath);
 
     // Emit refresh signal so the UI can update worktree list
     bridge.emit({
@@ -76,7 +76,7 @@ export function registerWorktreeHandlers({ bridge, worktreeService }: WorktreeHa
   });
 
   safeHandle(bridge, "worktree:branches", async (msg) => {
-    const { branches, current } = worktreeService.listLocalBranches(msg.repoPath);
+    const { branches, current } = await worktreeService.listLocalBranches(msg.repoPath);
     return {
       type: "worktree:branches:result" as const,
       repoPath: msg.repoPath,

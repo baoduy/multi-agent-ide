@@ -19,51 +19,65 @@ export class SpecRepository {
 
     const repoId = repoRow.id as string;
 
-    const specRows = this.databaseService
+    // Single query with LEFT JOIN — previously this did N+1 queries,
+    // issuing one extra SELECT per spec to load its stages. `spec:list` is
+    // called on tab switches / repo selection / every sync completion, so
+    // even a small N amplifies. Rows are then grouped by spec id in-app.
+    const rows = this.databaseService
       .getSqlite()
       .prepare(
-        `SELECT id, name, path, branch, is_current_branch as isCurrentBranch, files_json as filesJson, synced_at as syncedAt
-         FROM specs
-         WHERE repo_id = @repoId
-         ORDER BY is_current_branch DESC, name ASC`
+        `SELECT s.id as specId,
+                s.name as specName,
+                s.path as specPath,
+                s.branch as specBranch,
+                s.is_current_branch as isCurrentBranch,
+                s.files_json as filesJson,
+                s.created_at as specCreatedAt,
+                st.name as stageName,
+                st.status as stageStatus,
+                st.file_path as stageFilePath,
+                st.metadata_json as stageMetadataJson
+         FROM specs s
+         LEFT JOIN spec_stages st ON st.spec_id = s.id
+         WHERE s.repo_id = @repoId
+         ORDER BY s.is_current_branch DESC, s.name ASC, st.rowid ASC`
       )
       .all({ repoId }) as Array<Record<string, unknown>>;
 
-    const specs: SpecFolder[] = [];
-
-    for (const specRow of specRows) {
-      const specId = specRow.id as string;
-
-      const stageRows = this.databaseService
-        .getSqlite()
-        .prepare(
-          `SELECT name, status, file_path as filePath, metadata_json as metadataJson
-           FROM spec_stages
-           WHERE spec_id = @specId`
-        )
-        .all({ specId }) as Array<Record<string, unknown>>;
-
-      const stages = stageRows.map((s) => ({
-        name: s.name as PipelineStageName,
-        status: s.status as StageStatus,
-        filePath: (s.filePath as string | null) ?? null,
-        metadata: s.metadataJson ? JSON.parse(s.metadataJson as string) : undefined,
-      }));
-
-      specs.push({
-        id: specId,
-        repoPath,
-        name: specRow.name as string,
-        path: specRow.path as string,
-        branch: specRow.branch as string,
-        isCurrentBranch: Boolean(specRow.isCurrentBranch),
-        stages,
-        files: JSON.parse((specRow.filesJson as string) || "[]"),
-        createdAt: specRow.syncedAt as number,
-      });
+    const specsById = new Map<string, SpecFolder>();
+    for (const row of rows) {
+      const specId = row.specId as string;
+      let spec = specsById.get(specId);
+      if (!spec) {
+        spec = {
+          id: specId,
+          repoPath,
+          name: row.specName as string,
+          path: row.specPath as string,
+          branch: row.specBranch as string,
+          isCurrentBranch: Boolean(row.isCurrentBranch),
+          stages: [],
+          files: JSON.parse((row.filesJson as string) || "[]"),
+          createdAt: row.specCreatedAt as number,
+        };
+        specsById.set(specId, spec);
+      }
+      // LEFT JOIN produces a row with null stage columns for specs that
+      // have no stage rows; skip those rather than materializing a bogus
+      // stage entry.
+      if (row.stageName !== null && row.stageName !== undefined) {
+        spec.stages.push({
+          name: row.stageName as PipelineStageName,
+          status: row.stageStatus as StageStatus,
+          filePath: (row.stageFilePath as string | null) ?? null,
+          metadata: row.stageMetadataJson
+            ? JSON.parse(row.stageMetadataJson as string)
+            : undefined,
+        });
+      }
     }
 
-    return specs;
+    return [...specsById.values()];
   }
 
   syncSpecs(
@@ -105,7 +119,8 @@ export class SpecRepository {
                SET path = @path,
                    is_current_branch = @isCurrentBranch,
                    files_json = @filesJson,
-                   synced_at = @syncedAt
+                   synced_at = @syncedAt,
+                   created_at = @createdAt
                WHERE id = @specId`
             )
             .run({
@@ -114,6 +129,7 @@ export class SpecRepository {
               isCurrentBranch: spec.isCurrentBranch ? 1 : 0,
               filesJson: JSON.stringify(spec.files),
               syncedAt,
+              createdAt: spec.createdAt,
             });
 
           sqlite.prepare(`DELETE FROM spec_stages WHERE spec_id = @specId`).run({ specId });
@@ -140,8 +156,8 @@ export class SpecRepository {
 
           sqlite
             .prepare(
-              `INSERT INTO specs (id, repo_id, name, path, branch, is_current_branch, files_json, synced_at)
-               VALUES (@id, @repoId, @name, @path, @branch, @isCurrentBranch, @filesJson, @syncedAt)`
+              `INSERT INTO specs (id, repo_id, name, path, branch, is_current_branch, files_json, synced_at, created_at)
+               VALUES (@id, @repoId, @name, @path, @branch, @isCurrentBranch, @filesJson, @syncedAt, @createdAt)`
             )
             .run({
               id: specId,
@@ -152,6 +168,7 @@ export class SpecRepository {
               isCurrentBranch: spec.isCurrentBranch ? 1 : 0,
               filesJson: JSON.stringify(spec.files),
               syncedAt,
+              createdAt: spec.createdAt,
             });
 
           for (const stage of spec.stages) {

@@ -53,6 +53,26 @@ const api = {
   async readLog(): Promise<{ content: string; path: string }> {
     return ipcRenderer.invoke("magenta:read-log") as Promise<{ content: string; path: string }>;
   },
+
+  /**
+   * Register a callback for the before-close event from the main process.
+   * The renderer should check for running sessions and call confirmClose() or cancelClose().
+   */
+  onBeforeClose(callback: () => void): () => void {
+    const handler = () => callback();
+    ipcRenderer.on("magenta:before-close", handler);
+    return () => ipcRenderer.off("magenta:before-close", handler);
+  },
+
+  /** Tell main process to proceed with closing the window. */
+  confirmClose(): void {
+    ipcRenderer.send("magenta:confirm-close");
+  },
+
+  /** Tell main process to cancel the close. */
+  cancelClose(): void {
+    ipcRenderer.send("magenta:cancel-close");
+  },
 };
 
 contextBridge.exposeInMainWorld("magentaIpc", api);

@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useCallback, useMemo } from "react";
-import { RotateCcw, Terminal, ScrollText } from "lucide-react";
+import { RotateCcw, Terminal, ScrollText, Bot } from "lucide-react";
 import { useLayoutStore } from "./layoutStore";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useRepoStore } from "../../store/repoStore";
@@ -29,7 +29,11 @@ function formatStatus(status: AISessionRecord["status"]): string {
   }
 }
 
-export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
+export const StatusBar = React.memo(function StatusBar({
+  onShowRunningSessions,
+}: {
+  onShowRunningSessions?: () => void;
+}): React.ReactElement {
   const bottomTabs = useLayoutStore((s) => s.layout.bottom.tabs);
   const bottomCollapsed = useLayoutStore((s) => s.layout.bottom.collapsed);
   const openTab = useLayoutStore((s) => s.openTab);
@@ -68,6 +72,13 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
   const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
   const agentRepoPath = session?.repoPath ?? null;
   const resolvedTerminalCwd = activeRepoPath ?? agentRepoPath ?? terminalCwd;
+
+  // ── Running AI sessions count ──
+  const runningCount = useAISessionStore(
+    useCallback((s) => s.sessions.filter(
+      (sess) => sess.status === "active" || sess.status === "waiting-input"
+    ).length, []),
+  );
 
   const hasTerminal = bottomTabs.some((t: TabState) => t.viewId === "terminal-session");
   const hasLog = bottomTabs.some((t: TabState) => t.viewId === "log-viewer");
@@ -124,7 +135,7 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           active={false}
           onClick={resetLayout}
         />
-        <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />
+        <VerticalDivider />
 
         {/* ── Active agent session info ── */}
         {session && (
@@ -182,6 +193,7 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
 
       {/* Right section — view toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <VerticalDivider />
         <StatusBarButton
           icon={<Terminal size={12} />}
           label="Terminal"
@@ -189,16 +201,55 @@ export const StatusBar = React.memo(function StatusBar(): React.ReactElement {
           disabled={!resolvedTerminalCwd}
           onClick={toggleTerminal}
         />
+        <VerticalDivider />
         <StatusBarButton
           icon={<ScrollText size={12} />}
           label="Log"
           active={hasLog && !bottomCollapsed}
           onClick={toggleLog}
         />
+        {runningCount > 0 && (<>
+          <VerticalDivider />
+          <StatusBarButton
+            icon={
+              <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                <Bot size={12} />
+                <span
+                  style={{
+                    position: "absolute",
+                    top: -4,
+                    right: -6,
+                    minWidth: 12,
+                    height: 12,
+                    borderRadius: 6,
+                    background: colors.primary,
+                    color: colors.textWhite,
+                    fontSize: 8,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "0 2px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {runningCount}
+                </span>
+              </span>
+            }
+            label=""
+            active={false}
+            onClick={() => onShowRunningSessions?.()}
+          />
+        </>)}
       </div>
     </div>
   );
 });
+
+function VerticalDivider(): React.ReactElement {
+  return <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />;
+}
 
 /* ── Dot separator ── */
 

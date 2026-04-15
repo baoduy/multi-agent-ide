@@ -46,17 +46,30 @@ type ResponseForRequest = {
   "terminal:input": Extract<IpcResponse, { type: "terminal:input:ack" }>;
   "terminal:resize": Extract<IpcResponse, { type: "terminal:resize:ack" }>;
   "terminal:close": Extract<IpcResponse, { type: "terminal:close:ack" }>;
+  "terminal:attach": Extract<IpcResponse, { type: "terminal:attach:result" }>;
+  "terminal:ack": Extract<IpcResponse, { type: "terminal:ack:ack" }>;
   "ai-session:create": Extract<IpcResponse, { type: "ai-session:created" }>;
   "ai-session:resume": Extract<IpcResponse, { type: "ai-session:resumed" }>;
   "ai-session:input": Extract<IpcResponse, { type: "ai-session:input:ack" }>;
   "ai-session:resize": Extract<IpcResponse, { type: "ai-session:resize:ack" }>;
   "ai-session:stop": Extract<IpcResponse, { type: "ai-session:stop:ack" }>;
+  "ai-session:attach": Extract<IpcResponse, { type: "ai-session:attach:result" }>;
+  "ai-session:ack": Extract<IpcResponse, { type: "ai-session:ack:ack" }>;
   "ai-session:list": Extract<IpcResponse, { type: "ai-session:list:result" }>;
   "ai-session:delete": Extract<IpcResponse, { type: "ai-session:deleted" }>;
   "ai-session:providers": Extract<IpcResponse, { type: "ai-session:providers:result" }>;
   "ai-session:set-permission-mode": Extract<IpcResponse, { type: "ai-session:permission-mode:ack" }>;
+  "ai-session:running-count": Extract<IpcResponse, { type: "ai-session:running-count:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
   "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
+  "ui:ai-tab-active": Extract<IpcResponse, { type: "ui:ai-tab-active:ack" }>;
+  // Git operations
+  "branch:create": Extract<IpcResponse, { type: "branch:create:result" }>;
+  "git:fetch": Extract<IpcResponse, { type: "git:fetch:result" }>;
+  "git:pull": Extract<IpcResponse, { type: "git:pull:result" }>;
+  "git:push": Extract<IpcResponse, { type: "git:push:result" }>;
+  "git:status": Extract<IpcResponse, { type: "git:status:result" }>;
+  "git:commit": Extract<IpcResponse, { type: "git:commit:result" }>;
 };
 
 /**

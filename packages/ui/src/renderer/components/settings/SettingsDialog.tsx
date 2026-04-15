@@ -4,6 +4,7 @@ import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
 import { AddWorkingDirButton } from "./AddWorkingDirButton";
 import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
+import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton } from "../common/DialogButtons";
@@ -48,6 +49,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
 
       <div style={{ marginBottom: 24, borderTop: `1px solid ${colors.border}`, paddingTop: 20 }}>
         <SpecifyCommandSetting />
+      </div>
+
+      <div style={{ marginBottom: 24, borderTop: `1px solid ${colors.border}`, paddingTop: 20 }}>
+        <SyncIntervalSettings />
       </div>
 
       {error && (

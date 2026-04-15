@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { colors } from "../../utils/colors";
 import { ipc } from "../../utils/ipc";
+import { ActionButton } from "../common/ActionButton";
 import { ScrollableText } from "../common/ScrollableText";
 import { useOnboardStore } from "../../store/onboardStore";
 import type { OnboardProcess } from "../../store/onboardStore";
@@ -202,7 +203,6 @@ function OnboardJobRow({
   process: OnboardProcess;
   onViewOutput: () => void;
 }): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
   const label =
     process.kind === "onboard"
       ? `Onboard: ${process.repoName}`
@@ -265,26 +265,19 @@ function OnboardJobRow({
       </div>
 
       {/* View output button */}
-      <button
-        type="button"
+      <ActionButton
         onClick={onViewOutput}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        variant="ghost"
+        padding="2px 8px"
+        fontSize={11}
+        color={colors.textTertiary}
+        borderColor="transparent"
         style={{
-          fontSize: 11,
-          color: hovered ? colors.primary : colors.textTertiary,
-          background: hovered ? colors.bgHover : "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "2px 8px",
-          borderRadius: 4,
           flexShrink: 0,
-          fontFamily: "inherit",
-          transition: "color 0.12s, background 0.12s",
         }}
       >
         View
-      </button>
+      </ActionButton>
     </div>
   );
 }

@@ -79,6 +79,7 @@ let daemonReady = false;
 let daemonError: string | null = null;
 /** True when the app is in the process of quitting (before-quit fired). */
 let isQuitting = false;
+let daemonStoppedIntentionally = false;
 
 // Pending IPC requests waiting for daemon response
 let requestIdCounter = 0;
@@ -194,7 +195,30 @@ function createWindow() {
     writeLog("CRASH", "renderer", msg);
   });
 
+  // ── Intercept close to warn about running AI sessions ──
+  let closeConfirmed = false;
+
+  mainWindow.on("close", (e) => {
+    if (closeConfirmed || isQuitting) return;
+
+    // Prevent the default close and ask the renderer to check
+    e.preventDefault();
+    mainWindow?.webContents.send("magenta:before-close");
+  });
+
+  ipcMain.on("magenta:confirm-close", () => {
+    closeConfirmed = true;
+    mainWindow?.close();
+  });
+
+  ipcMain.on("magenta:cancel-close", () => {
+    // No-op — the close was already prevented
+  });
+
   mainWindow.on("closed", () => {
+    // Clean up IPC listeners for this window
+    ipcMain.removeAllListeners("magenta:confirm-close");
+    ipcMain.removeAllListeners("magenta:cancel-close");
     mainWindow = null;
   });
 }
@@ -251,17 +275,52 @@ function registerIpcHandler() {
     }
   });
 
-  // Read today's application log file
+  // Read today's application log file.
+  //
+  // The log is exposed to the renderer for the in-app diagnostics view. It
+  // can contain full filesystem paths (including home directory), IPC
+  // request types, and daemon stderr — all of which are useful to the user
+  // for self-diagnosis but undesirable to leak wholesale to any renderer
+  // code that might be compromised (e.g. via XSS in rendered markdown).
+  //
+  // Mitigations:
+  //   1. Only return the tail (last 256 KB) — older history is truncated.
+  //   2. Redact the home directory from file paths so shared diagnostic
+  //      exports do not carry the system username.
   ipcMain.handle("magenta:read-log", async () => {
+    const MAX_LOG_BYTES = 256 * 1024;
+    const homeDir = os.homedir();
+    const redact = (text: string): string =>
+      homeDir && homeDir.length > 1 ? text.split(homeDir).join("~") : text;
     try {
       const logPath = getLogFilePath();
       if (!fs.existsSync(logPath)) {
-        return { content: "", path: logPath };
+        return { content: "", path: redact(logPath) };
       }
-      const content = fs.readFileSync(logPath, "utf-8");
-      return { content, path: logPath };
+      const stat = fs.statSync(logPath);
+      if (stat.size <= MAX_LOG_BYTES) {
+        const content = fs.readFileSync(logPath, "utf-8");
+        return { content: redact(content), path: redact(logPath) };
+      }
+      // Read only the tail of the file to keep payload size bounded.
+      const fd = fs.openSync(logPath, "r");
+      try {
+        const buf = Buffer.alloc(MAX_LOG_BYTES);
+        fs.readSync(fd, buf, 0, MAX_LOG_BYTES, stat.size - MAX_LOG_BYTES);
+        // Drop the first (likely partial) line so the first visible entry
+        // is well-formed.
+        const raw = buf.toString("utf-8");
+        const firstNewline = raw.indexOf("\n");
+        const truncated = firstNewline >= 0 ? raw.slice(firstNewline + 1) : raw;
+        return {
+          content: `…[log truncated to last ${MAX_LOG_BYTES / 1024}KB]…\n` + redact(truncated),
+          path: redact(logPath),
+        };
+      } finally {
+        fs.closeSync(fd);
+      }
     } catch {
-      return { content: "", path: getLogFilePath() };
+      return { content: "", path: redact(getLogFilePath()) };
     }
   });
 
@@ -308,15 +367,17 @@ function registerIpcHandler() {
       console.log(`[main] Forwarding request #${id} (${requestType}) to daemon`);
       daemonProcess!.send({ kind: "request", id, payload: request });
 
-      // Timeout after 10 seconds
+      // Timeout after 30 seconds — gives the daemon enough headroom for
+      // legitimately slow operations (large repo git commands, first-time
+      // spec sync) without masking real hangs.
       setTimeout(() => {
         if (pendingRequests.has(id)) {
           pendingRequests.delete(id);
-          console.warn(`[main] Request #${id} (${requestType}) timed out after 10s`);
-          writeLog("WARN", "main", `IPC request #${id} (${requestType}) timed out after 10s`);
+          console.warn(`[main] Request #${id} (${requestType}) timed out after 30s`);
+          writeLog("WARN", "main", `IPC request #${id} (${requestType}) timed out after 30s`);
           resolve({ type: "error", message: "Daemon request timed out" });
         }
-      }, 10_000);
+      }, 30_000);
     });
   });
 }
@@ -325,6 +386,8 @@ function registerIpcHandler() {
  * Start the daemon as a forked child process.
  */
 function startDaemon() {
+  daemonStoppedIntentionally = false;
+
   const daemonEntryPath = path.resolve(
     __dirname,
     "..",
@@ -473,7 +536,7 @@ function startDaemon() {
       daemonReady = false;
       daemonProcess = null;
 
-      const wasExpected = isQuitting || (signal === "SIGTERM" && isQuitting);
+      const wasExpected = isQuitting || daemonStoppedIntentionally;
 
       if (!daemonError) {
         if (signal) {
@@ -567,6 +630,8 @@ function restartDaemon(): void {
  * Gracefully stop the daemon, giving it time to clean up.
  */
 function stopDaemon(): Promise<void> {
+  daemonStoppedIntentionally = true;
+
   return new Promise((resolve) => {
     if (!daemonProcess) {
       resolve();

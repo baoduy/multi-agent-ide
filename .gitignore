@@ -150,3 +150,5 @@ Thumbs.db
 _tmp_*
 .claude/worktrees
 **/worktrees/**
+
+.worktrees/

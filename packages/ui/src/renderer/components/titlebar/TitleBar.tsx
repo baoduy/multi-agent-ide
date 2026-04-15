@@ -190,7 +190,7 @@ function ChevronRightIcon(): React.ReactElement {
 
 /* ── Title Bar ── */
 
-export const TITLE_BAR_HEIGHT = 40;
+const TITLE_BAR_HEIGHT = 40;
 
 export function TitleBar({
   sidebarCollapsed,

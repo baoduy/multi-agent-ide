@@ -47,8 +47,12 @@ if (require.main === module) {
       }
       result.specSyncService.start();
 
-      // Trigger one-time session sync (scans ~/.claude + ~/.copilot)
-      result.container.sessionSyncService.triggerSync();
+      // Session sync is gated on the AI title-bar tab being active in the
+      // renderer — see SessionSyncApplicationService.setAITabActive() and the
+      // "ui:ai-tab-active" IPC handler. Nothing is triggered here at boot.
+
+      // Start watcher for live activity updates
+      result.container.sessionFileWatcher.start();
 
       console.log("Daemon listening...");
     })

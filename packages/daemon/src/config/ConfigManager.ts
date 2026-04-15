@@ -36,6 +36,15 @@ export class ConfigManager {
   }
 
   /**
+   * Implements `PathAllowlistProvider` — the user's configured working
+   * directories are the roots within which all IPC-facing filesystem,
+   * terminal, and AI-session operations are allowed to resolve.
+   */
+  getAllowedRoots(): readonly string[] {
+    return [...this.config.workingDirs];
+  }
+
+  /**
    * Merges partial config updates into the current config and persists.
    */
   updateConfig(partial: Partial<MagentaConfig>): MagentaConfig {

@@ -18,4 +18,12 @@ export function registerSyncedSessionHandlers({
     sessionSyncService.triggerSync();
     return { type: "synced-session:sync:triggered" as const };
   });
+
+  // Renderer tells us whether the AI title-bar tab is currently visible. The
+  // recurring session sync sweep only runs while this is `true`; it pauses
+  // when the user switches to another top-level tab.
+  safeHandle(bridge, "ui:ai-tab-active", async (msg) => {
+    sessionSyncService.setAITabActive(msg.active);
+    return { type: "ui:ai-tab-active:ack" as const, active: msg.active };
+  });
 }

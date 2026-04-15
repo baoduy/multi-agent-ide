@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { gitExecSync } from "../infrastructure/utils/safeExecSync";
+import { createGit } from "../infrastructure/utils/createGit";
 import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { join, basename, resolve } from "node:path";
 import type { IPCBridge } from "../ipc/IPCBridge";
@@ -53,7 +53,7 @@ export class OnboardApplicationService {
 
     if (useWorktree) {
       try {
-        targetPath = this.createOnboardWorktree(repoPath);
+        targetPath = await this.createOnboardWorktree(repoPath);
         this.bridge.emit({
           type: "repo:onboard:output",
           repoPath,
@@ -75,7 +75,7 @@ export class OnboardApplicationService {
     console.log(`[onboard-service] Starting onboard for ${targetPath} with agent ${aiAgent} (worktree: ${useWorktree ?? false})`);
     this.bridge.emit({ type: "repo:onboard:started", repoPath });
 
-    const { command, args, fullCommand } = this.buildCommand(aiAgent);
+    const fullCommand = this.buildCommand(aiAgent);
 
     this.bridge.emit({
       type: "repo:onboard:output",
@@ -86,8 +86,7 @@ export class OnboardApplicationService {
     await this.runCommand(
       repoPath,
       targetPath,
-      command,
-      args,
+      fullCommand,
       "repo:onboard:output",
       "repo:onboard:complete",
     );
@@ -108,7 +107,7 @@ export class OnboardApplicationService {
     console.log(`[onboard-service] Starting upgrade for ${repoPath} (agent: ${aiAgent})`);
     this.bridge.emit({ type: "repo:upgrade-specify:started", repoPath });
 
-    const { command, args, fullCommand } = this.buildCommand(aiAgent);
+    const fullCommand = this.buildCommand(aiAgent);
 
     this.bridge.emit({
       type: "repo:upgrade-specify:output",
@@ -119,8 +118,7 @@ export class OnboardApplicationService {
     await this.runCommand(
       repoPath,
       repoPath,
-      command,
-      args,
+      fullCommand,
       "repo:upgrade-specify:output",
       "repo:upgrade-specify:complete",
     );
@@ -143,7 +141,7 @@ export class OnboardApplicationService {
     console.log(`[onboard-service] Switching integration for ${repoPath} to ${aiAgent}`);
     this.bridge.emit({ type: "repo:onboard:started", repoPath });
 
-    const { command, args, fullCommand } = this.buildSwitchCommand(aiAgent);
+    const fullCommand = this.buildSwitchCommand(aiAgent);
 
     this.bridge.emit({
       type: "repo:onboard:output",
@@ -154,8 +152,7 @@ export class OnboardApplicationService {
     await this.runCommand(
       repoPath,
       repoPath,
-      command,
-      args,
+      fullCommand,
       "repo:onboard:output",
       "repo:onboard:complete",
     );
@@ -191,19 +188,13 @@ export class OnboardApplicationService {
    * Builds a shell command from the configured template by replacing {agent}.
    * Returns the first token as the command and the rest as args for spawn().
    */
-  private buildCommand(agent: string): { command: string; args: string[]; fullCommand: string } {
+  private buildCommand(agent: string): string {
     const template = this.configManager.getConfig().specifyCommand || DEFAULT_SPECIFY_COMMAND;
 
-    const fullCommand = template
+    return template
       .replace(/\{agent\}/g, agent)
       .replace(/\s+/g, " ")
       .trim();
-
-    const parts = fullCommand.split(" ");
-    const command = parts[0];
-    const args = parts.slice(1);
-
-    return { command, args, fullCommand };
   }
 
   /**
@@ -212,7 +203,7 @@ export class OnboardApplicationService {
    * E.g. if template is "uvx --from ... specify init --here --ai {agent} --force"
    * we extract "uvx --from ... specify" and append "integration switch {agent}".
    */
-  private buildSwitchCommand(agent: string): { command: string; args: string[]; fullCommand: string } {
+  private buildSwitchCommand(agent: string): string {
     const template = this.configManager.getConfig().specifyCommand || DEFAULT_SPECIFY_COMMAND;
 
     // Find the "specify" token in the template and take everything up to and including it
@@ -220,10 +211,7 @@ export class OnboardApplicationService {
     const specifyIdx = tokens.indexOf("specify");
     const prefix = specifyIdx >= 0 ? tokens.slice(0, specifyIdx + 1) : tokens.slice(0, 1);
 
-    const fullCommand = [...prefix, "integration", "switch", agent].join(" ");
-    const parts = fullCommand.split(" ");
-
-    return { command: parts[0], args: parts.slice(1), fullCommand };
+    return [...prefix, "integration", "switch", agent].join(" ");
   }
 
   /**
@@ -231,19 +219,33 @@ export class OnboardApplicationService {
    * `specify-init-<branch>-<timestamp>` under the `.worktrees/` directory.
    * Returns the absolute path of the created worktree.
    */
-  private createOnboardWorktree(repoPath: string): string {
+  private async createOnboardWorktree(repoPath: string): Promise<string> {
     const resolved = resolve(repoPath);
+    const git = createGit(resolved);
 
     // Get the current branch name
     let currentBranch = "main";
     try {
-      currentBranch = gitExecSync("git rev-parse --abbrev-ref HEAD", resolved).trim();
+      currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
     } catch {
       // fallback to "main"
     }
 
-    // Sanitize branch name for use in directory/branch name
-    const safeBranch = sanitizeName(currentBranch);
+    // Sanitize branch name for use in directory/branch name.
+    // `sanitizeName` returns "" for an input made entirely of special chars
+    // (e.g. a branch literally named "!@#$"). Without this guard the resulting
+    // worktree path and branch would be malformed and the subsequent git
+    // checkout would fail with a cryptic error. WorktreeApplicationService
+    // already guards the user-facing flow; keep the same guard here for the
+    // onboarding-only path.
+    const rawSafeBranch = sanitizeName(currentBranch);
+    if (!rawSafeBranch) {
+      throw new AppError(
+        "WORKTREE_CONFLICT",
+        `Cannot derive a worktree name from branch "${currentBranch}" — it contains no usable characters.`,
+      );
+    }
+    const safeBranch = rawSafeBranch;
     const timestamp = Math.floor(Date.now() / 1000);
     const worktreeName = `specify-init-${safeBranch}-${timestamp}`;
     const newBranch = `specify-init/${safeBranch}`;
@@ -260,23 +262,14 @@ export class OnboardApplicationService {
 
     // Create the worktree with a new branch from current HEAD
     try {
-      gitExecSync(
-        `git worktree add "${worktreePath}" -b "${newBranch}"`,
-        resolved,
-      );
+      await git.raw(["worktree", "add", worktreePath, "-b", newBranch]);
     } catch {
       // Branch may already exist — try without -b
       try {
-        gitExecSync(
-          `git worktree add "${worktreePath}" "${newBranch}"`,
-          resolved,
-        );
+        await git.raw(["worktree", "add", worktreePath, newBranch]);
       } catch (err2) {
         // Last resort: detach from HEAD
-        gitExecSync(
-          `git worktree add --detach "${worktreePath}"`,
-          resolved,
-        );
+        await git.raw(["worktree", "add", "--detach", worktreePath]);
       }
     }
 
@@ -341,7 +334,7 @@ export class OnboardApplicationService {
   /**
    * Reads the AI agent from .specify/init-options.json if it exists.
    */
-  readInitOptionsAgent(repoPath: string): string | null {
+  private readInitOptionsAgent(repoPath: string): string | null {
     const optionsPath = join(repoPath, ".specify", "init-options.json");
     try {
       if (existsSync(optionsPath)) {
@@ -367,18 +360,63 @@ export class OnboardApplicationService {
    * @param completeEvent - If provided, emits this event on close/error. When
    *   omitted the caller is responsible for signalling completion.
    */
+  /**
+   * Shell-metacharacter allowlist for command tokens. Anything outside this
+   * set is rejected: semicolons, pipes, backticks, `$()`, redirections,
+   * quoting, globs — the usual cast of shell-injection enablers. URLs,
+   * version specifiers, typical CLI flags, and simple identifiers are all
+   * fine. The `{agent}` placeholder has already been substituted by the
+   * time we reach here, so literal `{}` is also disallowed.
+   */
+  private static readonly SAFE_TOKEN = /^[A-Za-z0-9_@:/.\-+=~,%]+$/;
+
+  private tokenizeSafely(command: string): string[] {
+    const tokens = command
+      .trim()
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+    for (const token of tokens) {
+      if (!OnboardApplicationService.SAFE_TOKEN.test(token)) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `Onboard command contains unsafe characters: ${JSON.stringify(token)}`,
+        );
+      }
+    }
+    if (tokens.length === 0) {
+      throw new AppError("VALIDATION_ERROR", "Onboard command is empty");
+    }
+    return tokens;
+  }
+
   private runCommand(
     repoPath: string,
     cwd: string,
-    command: string,
-    args: string[],
+    fullCommand: string,
     outputEvent: "repo:onboard:output" | "repo:upgrade-specify:output",
     completeEvent?: "repo:onboard:complete" | "repo:upgrade-specify:complete",
   ): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
+      // Tokenize + validate, then spawn with `shell: false` so none of the
+      // tokens pass through a shell interpreter. This is the primary defense
+      // against injection via the configurable `specifyCommand` template.
+      let argv: string[];
+      try {
+        argv = this.tokenizeSafely(fullCommand);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (completeEvent) {
+          this.bridge.emit({ type: completeEvent, repoPath, success: false, error: message });
+          resolve(false);
+        } else {
+          reject(err);
+        }
+        return;
+      }
+      const [command, ...args] = argv;
       const child = spawn(command, args, {
         cwd,
-        shell: true,
+        shell: false,
         env: { ...process.env },
         stdio: ["ignore", "pipe", "pipe"],
       });
@@ -423,7 +461,7 @@ export class OnboardApplicationService {
           });
           resolve(false);
         } else {
-          reject(new AppError("INTERNAL_ERROR", `Failed to start ${command}: ${err.message}`));
+          reject(new AppError("INTERNAL_ERROR", `Failed to start command: ${err.message}`));
         }
       });
     });

@@ -9,6 +9,9 @@ declare global {
       selectFolder(): Promise<string | null>;
       openInFileManager(dirPath: string): Promise<void>;
       readLog(): Promise<{ content: string; path: string }>;
+      onBeforeClose(callback: () => void): () => void;
+      confirmClose(): void;
+      cancelClose(): void;
     };
   }
 }

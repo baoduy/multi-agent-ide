@@ -13,6 +13,7 @@ import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime, formatTokens } from "../../utils/formatters";
+import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import type { SessionGroupNode } from "../../utils/sessionTreeBuilder";
 export { buildUnifiedGroups, type SessionGroupNode } from "../../utils/sessionTreeBuilder";
@@ -172,19 +173,16 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
       <Folder size={14} color={colors.textSecondary} style={{ flexShrink: 0 }} />
 
       {/* Name */}
-      <span
+      <ScrollableText
         style={{
           flex: 1,
           fontSize: 12,
           fontWeight: 600,
           color: colors.text,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
         }}
       >
         {name}
-      </span>
+      </ScrollableText>
 
       {/* Active indicator */}
       {activeCount > 0 && (
@@ -226,6 +224,55 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
         </span>
       )}
     </button>
+  );
+});
+
+/* ── Activity badge for synced sessions ── */
+
+type ActivityBadgeProps = {
+  activity: SyncedSessionRecord["activity"];
+};
+
+const ActivityBadge = React.memo(function ActivityBadge({
+  activity,
+}: ActivityBadgeProps): React.ReactElement | null {
+  // Only surface the badge when the agent is actively producing output.
+  // `idle` and `completed` are both resting states from the user's
+  // perspective — no badge avoids the row turning into a wall of yellow
+  // pills for every historic conversation.
+  if (activity !== "processing") return null;
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 9,
+        fontWeight: 600,
+        color: colors.success,
+        padding: "1px 6px",
+        borderRadius: 3,
+        background: colors.successSoft,
+        border: `1px solid ${colors.successSoftBorder}`,
+        flexShrink: 0,
+      }}
+      title="Agent is currently producing output"
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: colors.success,
+          // Pulse the dot while processing for a clear "live" cue.
+          // Reuses the existing provider-pulse @keyframes from globals.css.
+          animation: "provider-pulse 1.2s ease-in-out infinite",
+        }}
+      />
+      Processing
+    </span>
   );
 });
 
@@ -281,84 +328,27 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       {/* Provider badge */}
       <ProviderBadge provider={provider} iconSize={12} fontSize={11} color={colors.textSecondary} />
 
-      {/* Session info */}
-      <div
+      {/* Branch badge */}
+      {session.gitBranch && <BranchLabel name={session.gitBranch} size="xs" />}
+
+      {/* Separator */}
+      <span style={{ color: colors.textTertiary, fontSize: 11, flexShrink: 0 }}>·</span>
+
+      {/* Title or slug */}
+      <ScrollableText
         style={{
           flex: 1,
           minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
+          fontSize: 12,
+          color: colors.text,
         }}
       >
-        {/* Title or slug */}
-        <span
-          style={{
-            fontSize: 12,
-            color: colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {session.title || session.slug || session.sessionId.slice(0, 8)}
-        </span>
+        {session.title || session.slug || session.sessionId.slice(0, 8)}
+      </ScrollableText>
 
-        {/* Meta row: model + branch + messages */}
-        <span
-          style={{
-            fontSize: 10,
-            color: colors.textTertiary,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {session.model && <span>{session.model}</span>}
-          {session.gitBranch && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{session.gitBranch}</span>
-            </>
-          )}
-          {session.messageCount > 0 && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{session.messageCount} msgs</span>
-            </>
-          )}
-          {session.subagentCount > 0 && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{session.subagentCount} agents</span>
-            </>
-          )}
-          {tokenDisplay && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{tokenDisplay} tokens</span>
-            </>
-          )}
-        </span>
-      </div>
+      {/* Live activity badge — processing / idle. Completed sessions show no badge. */}
+      <ActivityBadge activity={session.activity} />
 
-      {/* Status */}
-      {session.status === "active" && (
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 600,
-            color: colors.success,
-            padding: "1px 6px",
-            borderRadius: 3,
-            background: colors.successSoft,
-            border: `1px solid ${colors.successSoftBorder}`,
-            flexShrink: 0,
-          }}
-        >
-          Active
-        </span>
-      )}
 
       {/* Time */}
       <span
@@ -424,8 +414,8 @@ function SessionGroupNodeComponent({
     setExpanded((prev) => !prev);
   }, []);
 
-  const hasLive = node.liveSessions.length > 0;
-  const hasSynced = node.syncedSessions.length > 0;
+  const hasActive = node.activeLiveSessions.length > 0;
+  const hasHistory = node.history.length > 0;
 
   return (
     <div ref={rootRef}>
@@ -449,11 +439,10 @@ function SessionGroupNodeComponent({
         />
       )}
 
-      {/* Expanded children */}
+      {/* Expanded children — currently-running sessions first, then HISTORY */}
       {expanded && (
         <>
-          {/* Live sessions first */}
-          {hasLive && node.liveSessions.map((session) => (
+          {hasActive && node.activeLiveSessions.map((session) => (
             <div key={session.id} style={{ paddingLeft: 16 }}>
               <AISessionListItem
                 session={session}
@@ -464,8 +453,8 @@ function SessionGroupNodeComponent({
             </div>
           ))}
 
-          {/* Divider between live and synced if both exist */}
-          {hasLive && hasSynced && (
+          {/* HISTORY divider — always shown when there's any history to report. */}
+          {hasHistory && (
             <div
               style={{
                 padding: "4px 16px 4px 54px",
@@ -481,10 +470,30 @@ function SessionGroupNodeComponent({
             </div>
           )}
 
-          {/* Synced sessions */}
-          {hasSynced && node.syncedSessions.map((session) => (
-            <SyncedSessionRow key={session.id} session={session} onResume={onResumeSyncedSession} />
-          ))}
+          {/* Unified history list — idle live sessions + synced-from-disk rows,
+              sorted by timestamp DESC, each rendered with the component that
+              matches its kind. */}
+          {hasHistory && node.history.map((item) => {
+            if (item.kind === "live") {
+              return (
+                <div key={`live:${item.session.id}`} style={{ paddingLeft: 16 }}>
+                  <AISessionListItem
+                    session={item.session}
+                    onSelect={onSelectSession}
+                    onResume={onResumeSession}
+                    onDelete={onDeleteSession}
+                  />
+                </div>
+              );
+            }
+            return (
+              <SyncedSessionRow
+                key={`synced:${item.session.id}`}
+                session={item.session}
+                onResume={onResumeSyncedSession}
+              />
+            );
+          })}
         </>
       )}
     </div>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Entitlements for the hardened-runtime signed macOS build of Magenta IDE.
+      See https://developer.apple.com/documentation/security/hardened_runtime
+      for the full list of protections hardened runtime enforces.
+
+      The entitlements below are the minimum set required for the Electron
+      runtime and node-pty native addon to function. Every one is scoped to
+      a specific technical requirement; do not add broader entitlements
+      without a concrete reason.
+    -->
+
+    <!-- Electron/V8 JIT: generates executable code at runtime. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Electron + native addons (node-pty) load unsigned dynamic code. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- node-pty spawns child processes that may not be signed. -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <!-- Electron needs to disable library validation to load Node modules. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

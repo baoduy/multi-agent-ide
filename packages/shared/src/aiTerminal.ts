@@ -66,18 +66,17 @@ export interface AISessionConfig {
   permissionMode?: AIPermissionMode;
   env?: Record<string, string>;
   /**
-   * Optional explicit agent session UUID.
+   * Optional explicit agent session UUID, present when the caller is
+   * resuming a session that was previously synced from disk.
    *
-   * - When set on a fresh Claude session, the daemon passes `--session-id <id>`
-   *   to the CLI so Claude writes its JSONL under that exact UUID. This also
-   *   becomes the live session's `id`, so live and synced rows merge naturally.
+   * - Claude:  the daemon invokes the CLI with `--resume <id>` (no
+   *   `--session-id` — it would require `--fork-session` alongside
+   *   `--resume`, which forks the conversation instead of continuing it).
+   * - Copilot: the daemon invokes the CLI with `--resume=<id>`.
    *
-   * - When resuming a synced Copilot session, this carries the synced
-   *   sessionId so the new live record can store it as `providerSessionId`
-   *   immediately (the CLI is also told to `--resume=<id>`).
-   *
-   * Leave undefined for a brand-new Copilot session — the daemon will
-   * reconcile the agent-generated UUID after spawn.
+   * Leave undefined for brand-new sessions. Both CLIs generate their own
+   * UUID on disk and the background sync job reconciles the live record's
+   * `providerSessionId` once the JSONL/state-dir appears.
    */
   providerSessionId?: string;
 }

@@ -275,17 +275,52 @@ function registerIpcHandler() {
     }
   });
 
-  // Read today's application log file
+  // Read today's application log file.
+  //
+  // The log is exposed to the renderer for the in-app diagnostics view. It
+  // can contain full filesystem paths (including home directory), IPC
+  // request types, and daemon stderr — all of which are useful to the user
+  // for self-diagnosis but undesirable to leak wholesale to any renderer
+  // code that might be compromised (e.g. via XSS in rendered markdown).
+  //
+  // Mitigations:
+  //   1. Only return the tail (last 256 KB) — older history is truncated.
+  //   2. Redact the home directory from file paths so shared diagnostic
+  //      exports do not carry the system username.
   ipcMain.handle("magenta:read-log", async () => {
+    const MAX_LOG_BYTES = 256 * 1024;
+    const homeDir = os.homedir();
+    const redact = (text: string): string =>
+      homeDir && homeDir.length > 1 ? text.split(homeDir).join("~") : text;
     try {
       const logPath = getLogFilePath();
       if (!fs.existsSync(logPath)) {
-        return { content: "", path: logPath };
+        return { content: "", path: redact(logPath) };
       }
-      const content = fs.readFileSync(logPath, "utf-8");
-      return { content, path: logPath };
+      const stat = fs.statSync(logPath);
+      if (stat.size <= MAX_LOG_BYTES) {
+        const content = fs.readFileSync(logPath, "utf-8");
+        return { content: redact(content), path: redact(logPath) };
+      }
+      // Read only the tail of the file to keep payload size bounded.
+      const fd = fs.openSync(logPath, "r");
+      try {
+        const buf = Buffer.alloc(MAX_LOG_BYTES);
+        fs.readSync(fd, buf, 0, MAX_LOG_BYTES, stat.size - MAX_LOG_BYTES);
+        // Drop the first (likely partial) line so the first visible entry
+        // is well-formed.
+        const raw = buf.toString("utf-8");
+        const firstNewline = raw.indexOf("\n");
+        const truncated = firstNewline >= 0 ? raw.slice(firstNewline + 1) : raw;
+        return {
+          content: `…[log truncated to last ${MAX_LOG_BYTES / 1024}KB]…\n` + redact(truncated),
+          path: redact(logPath),
+        };
+      } finally {
+        fs.closeSync(fd);
+      }
     } catch {
-      return { content: "", path: getLogFilePath() };
+      return { content: "", path: redact(getLogFilePath()) };
     }
   });
 

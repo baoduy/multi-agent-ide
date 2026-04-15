@@ -143,21 +143,54 @@ type ScopedStoreOptions<T> = {
   validate?: (raw: unknown) => T | undefined;
 };
 
+/**
+ * Soft cap on the number of live `LocalStore` instances a single
+ * `scopedStore` can hold. A user with many repos/specs used to accumulate
+ * an unbounded number of these in memory for the app's lifetime — not a
+ * big leak (each holds a ref to a small cached value) but unbounded growth
+ * all the same. When the cap is exceeded we evict the least-recently-used
+ * entry after flushing it.
+ */
+const SCOPED_STORE_LRU_LIMIT = 64;
+
 export function scopedStore<T>(opts: ScopedStoreOptions<T>): ScopedStore<T> {
   const { prefix, fallback, debounceMs = 300, validate } = opts;
+  // `Map` preserves insertion order; re-setting a key after `get` pushes it
+  // to the tail, which lets us implement LRU in O(1) without a separate
+  // tracking structure.
   const stores = new Map<string, LocalStore<T>>();
 
-  function getOrCreate(scopeKey: string): LocalStore<T> {
-    let store = stores.get(scopeKey);
-    if (!store) {
-      store = localStore<T>({
-        key: `${prefix}:${scopeKey}`,
-        fallback,
-        debounceMs,
-        validate,
-      });
-      stores.set(scopeKey, store);
+  function touch(scopeKey: string, store: LocalStore<T>): void {
+    stores.delete(scopeKey);
+    stores.set(scopeKey, store);
+  }
+
+  function evictIfNeeded(): void {
+    while (stores.size > SCOPED_STORE_LRU_LIMIT) {
+      const oldest = stores.keys().next().value;
+      if (!oldest) break;
+      const victim = stores.get(oldest);
+      if (victim) {
+        victim.flush();
+      }
+      stores.delete(oldest);
     }
+  }
+
+  function getOrCreate(scopeKey: string): LocalStore<T> {
+    const existing = stores.get(scopeKey);
+    if (existing) {
+      touch(scopeKey, existing);
+      return existing;
+    }
+    const store = localStore<T>({
+      key: `${prefix}:${scopeKey}`,
+      fallback,
+      debounceMs,
+      validate,
+    });
+    stores.set(scopeKey, store);
+    evictIfNeeded();
     return store;
   }
 

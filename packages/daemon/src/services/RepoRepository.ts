@@ -110,19 +110,25 @@ export class RepoRepository {
 
   markMissingAbsentPaths(activePaths: Set<string>, scannedAt: number): number {
     const existing = this.listAll();
-    let changed = 0;
-
-    for (const repo of existing) {
-      if (activePaths.has(repo.path) || repo.status === "missing") {
-        continue;
-      }
-
-      this.databaseService
-        .getSqlite()
-        .prepare(`UPDATE repos SET status = 'missing', scanned_at = ? WHERE path = ?`)
-        .run(scannedAt, repo.path);
-      changed += 1;
+    const missing = existing.filter(
+      (repo) => !activePaths.has(repo.path) && repo.status !== "missing",
+    );
+    if (missing.length === 0) {
+      return 0;
     }
+
+    // Batched single-UPDATE — previously this issued one UPDATE per missing
+    // repo, which on large workspaces meant dozens of sequential sql.js
+    // round-trips and a matching number of auto-save wakeups.
+    const placeholders = missing.map(() => "?").join(", ");
+    const params = [scannedAt, ...missing.map((r) => r.path)];
+    this.databaseService
+      .getSqlite()
+      .prepare(
+        `UPDATE repos SET status = 'missing', scanned_at = ? WHERE path IN (${placeholders})`,
+      )
+      .run(...params);
+    const changed = missing.length;
 
     return changed;
   }

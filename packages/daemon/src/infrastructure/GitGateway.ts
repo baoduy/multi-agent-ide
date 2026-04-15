@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createGit } from "./utils/createGit";
+import { AppError } from "../errors/AppError";
 
 /**
  * Info about a single git worktree discovered on disk.
@@ -198,6 +199,19 @@ export class GitGateway {
     try {
       // Save current branch to restore later
       const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
+
+      // Refuse to merge if the working tree has uncommitted changes — the
+      // subsequent `checkout(targetBranch)` would either fail with a
+      // confusing git error or silently carry the dirty state onto the
+      // target branch. Surfacing a clear WORKTREE_CONFLICT lets the UI
+      // prompt the user to commit or stash first.
+      const status = await git.status();
+      if (!status.isClean()) {
+        throw new AppError(
+          "WORKTREE_CONFLICT",
+          "Cannot merge: the repository has uncommitted changes. Commit or stash them first.",
+        );
+      }
 
       // Checkout target branch
       await git.checkout(targetBranch);

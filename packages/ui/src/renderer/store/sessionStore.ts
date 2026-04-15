@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { SessionState } from "@magenta/shared/models";
+import { SessionStateSchema } from "@magenta/shared/ipc";
 import type { MainTab } from "@magenta/shared/constants";
 import { MAIN_TABS } from "@magenta/shared/constants";
 import { localStore } from "../services/localStorage";
@@ -10,13 +11,24 @@ import { localStore } from "../services/localStorage";
 const STORAGE_KEY = "magenta:session";
 
 function validateSession(raw: unknown): SessionState | undefined {
+  // Run the stored blob through Zod so every field (not just mainTab) is
+  // type-checked. A corrupted localStorage entry where e.g. sidebarWidth is
+  // "hello" used to flow straight into the renderer and break layout
+  // calculations; .safeParse() rejects those and lets the fallback kick in.
   if (!raw || typeof raw !== "object") return undefined;
-  const obj = raw as Record<string, unknown>;
-  // Validate mainTab is a known value
-  if (obj.mainTab && !MAIN_TABS.includes(obj.mainTab as MainTab)) {
-    obj.mainTab = "specs";
+  const parsed = SessionStateSchema.safeParse(raw);
+  if (!parsed.success) {
+    // Attempt partial recovery: keep whatever validates and default the
+    // rest. This is preferable to discarding a mostly-valid state blob
+    // because of one stray field.
+    const obj = raw as Record<string, unknown>;
+    if (obj.mainTab && !MAIN_TABS.includes(obj.mainTab as MainTab)) {
+      obj.mainTab = "specs";
+    }
+    const partial = SessionStateSchema.partial().safeParse(obj);
+    return partial.success ? ({ ...DEFAULT_SESSION, ...partial.data } as SessionState) : undefined;
   }
-  return obj as unknown as SessionState;
+  return parsed.data as SessionState;
 }
 
 const DEFAULT_SESSION: SessionState = {

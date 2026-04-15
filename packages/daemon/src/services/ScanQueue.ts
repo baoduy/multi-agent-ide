@@ -1,4 +1,4 @@
-import type { IPCBridge } from "../ipc/IPCBridge";
+import type { IpcEventSink } from "./IpcEventSink";
 import type { BackgroundJobManager } from "./BackgroundJobManager";
 
 import type { RepoRepository } from "./RepoRepository";
@@ -28,7 +28,7 @@ export class ScanQueue {
   constructor(
     private readonly scanner: RepoScanner,
     private readonly repoRepository: RepoRepository,
-    private readonly bridge: IPCBridge,
+    private readonly bridge: IpcEventSink,
     private readonly jobManager: BackgroundJobManager,
   ) {}
 

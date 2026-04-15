@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
@@ -44,7 +45,10 @@ export function AISessionsView({
   const syncedGroups = useSyncedSessionStore((s) => s.groups);
   const syncedIsLoading = useSyncedSessionStore((s) => s.isLoading);
   const fetchSyncedSessions = useSyncedSessionStore((s) => s.fetchSessions);
+  const triggerSync = useSyncedSessionStore((s) => s.triggerSync);
   const initSyncedSubscriptions = useSyncedSessionStore((s) => s.initializeSubscriptions);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Repos from the database (for matching session dirs to repos)
   const repos = useRepoStore((s) => s.repos);
@@ -59,6 +63,30 @@ export function AISessionsView({
     void fetchSessions();
     void fetchSyncedSessions();
   }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions]);
+
+  // Clear the refreshing spinner once the synced loading cycle completes.
+  // triggerSync is fire-and-forget; the syncedSessionStore auto-fetches
+  // when the daemon emits synced-session:sync:complete, which in turn
+  // toggles syncedIsLoading. We use that (plus a minimum spin time) to
+  // drive the UI state.
+  useEffect(() => {
+    if (!isRefreshing) return;
+    if (syncedIsLoading) return;
+    // Wait one tick to avoid flashing when the sync completes very fast
+    const timeout = setTimeout(() => setIsRefreshing(false), 300);
+    return () => clearTimeout(timeout);
+  }, [isRefreshing, syncedIsLoading]);
+
+  const handleRefresh = useCallback(async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    try {
+      await Promise.all([triggerSync(), fetchSessions(), fetchSyncedSessions()]);
+    } catch (err) {
+      console.error("[AISessionsView] Refresh failed:", err);
+      setIsRefreshing(false);
+    }
+  }, [isRefreshing, triggerSync, fetchSessions, fetchSyncedSessions]);
 
   // ── Handlers ────────────────────────────────────────────────
 
@@ -140,9 +168,9 @@ export function AISessionsView({
         return;
       }
       // Pass providerSessionId so the daemon reuses the synced agent UUID:
-      //   - Claude:  --session-id <id> --resume <id> (live.id === synced.sessionId)
-      //   - Copilot: --resume=<id> (live.providerSessionId === synced.sessionId)
-      // Either way, the tree dedup will collapse live + synced into one row.
+      //   - Claude:  --resume <id>  (live.providerSessionId === synced.sessionId)
+      //   - Copilot: --resume=<id>  (live.providerSessionId === synced.sessionId)
+      // The tree dedup collapses live + synced into one row via providerSessionId.
       void createSession(
         {
           provider,
@@ -177,6 +205,45 @@ export function AISessionsView({
         height: "100%",
       }}
     >
+      {/* Toolbar — refresh re-syncs Claude + Copilot sessions from disk */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          padding: "6px 8px",
+          borderBottom: `1px solid ${colors.border}`,
+          flexShrink: 0,
+        }}
+      >
+        <button
+          type="button"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          title="Re-sync AI sessions from disk"
+          aria-label="Refresh AI sessions"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "4px 8px",
+            fontSize: 11,
+            color: isRefreshing ? colors.textTertiary : colors.textSecondary,
+            background: "transparent",
+            border: `1px solid ${colors.border}`,
+            borderRadius: 4,
+            cursor: isRefreshing ? "default" : "pointer",
+          }}
+        >
+          <RefreshCw
+            size={12}
+            style={{
+              animation: isRefreshing ? "spin 1s linear infinite" : undefined,
+            }}
+          />
+          {isRefreshing ? "Syncing…" : "Refresh"}
+        </button>
+      </div>
       {/* Unified session tree grouped by repo/directory */}
       <div
         style={{

@@ -1,6 +1,8 @@
 /**
  * CloseWarningDialog — shown when the user tries to close the app
- * while AI sessions are still running.
+ * while AI sessions are still actively processing (status === "active").
+ * Idle / waiting-input sessions are allowed to quit silently since
+ * there's no in-progress work to lose.
  */
 
 import React from "react";
@@ -23,7 +25,7 @@ export function CloseWarningDialog({
 }: CloseWarningDialogProps): React.ReactElement {
   return (
     <BaseDialog
-      title="Running AI Sessions"
+      title="AI Sessions In Progress"
       icon={<AlertTriangle size={16} color={colors.warningText} />}
       width={420}
       onClose={onCancel}
@@ -41,9 +43,9 @@ export function CloseWarningDialog({
     >
       <p style={{ margin: 0, fontSize: 13, color: colors.text, lineHeight: 1.5 }}>
         {runningCount === 1
-          ? "1 AI session is still running."
-          : `${runningCount} AI sessions are still running.`}
-        {" "}Closing the app will stop all active sessions and any in-progress work will be lost.
+          ? "1 AI session is actively processing."
+          : `${runningCount} AI sessions are actively processing.`}
+        {" "}Closing the app will interrupt them and any in-progress work will be lost.
       </p>
     </BaseDialog>
   );

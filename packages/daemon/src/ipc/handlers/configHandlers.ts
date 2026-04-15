@@ -30,7 +30,7 @@ export function registerConfigHandlers({ bridge, configManager }: ConfigHandlerC
   });
 
   safeHandle(bridge, "config:update", async (msg) => {
-    const config = configManager.updateConfig(msg.config as Record<string, unknown>);
+    const config = configManager.updateConfig(msg.config);
 
     bridge.emit({ type: "config:updated", config });
 

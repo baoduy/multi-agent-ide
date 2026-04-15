@@ -236,14 +236,11 @@ type ActivityBadgeProps = {
 const ActivityBadge = React.memo(function ActivityBadge({
   activity,
 }: ActivityBadgeProps): React.ReactElement | null {
-  if (activity === "completed") return null;
-
-  const isProcessing = activity === "processing";
-  const label = isProcessing ? "Processing" : "Idle";
-  const color = isProcessing ? colors.success : colors.warningTextStrong;
-  const background = isProcessing ? colors.successSoft : colors.warningSoft;
-  const border = isProcessing ? colors.successSoftBorder : colors.warningBorder;
-  const dotColor = isProcessing ? colors.success : colors.warningTextStrong;
+  // Only surface the badge when the agent is actively producing output.
+  // `idle` and `completed` are both resting states from the user's
+  // perspective — no badge avoids the row turning into a wall of yellow
+  // pills for every historic conversation.
+  if (activity !== "processing") return null;
 
   return (
     <span
@@ -253,14 +250,14 @@ const ActivityBadge = React.memo(function ActivityBadge({
         gap: 4,
         fontSize: 9,
         fontWeight: 600,
-        color,
+        color: colors.success,
         padding: "1px 6px",
         borderRadius: 3,
-        background,
-        border: `1px solid ${border}`,
+        background: colors.successSoft,
+        border: `1px solid ${colors.successSoftBorder}`,
         flexShrink: 0,
       }}
-      title={isProcessing ? "Agent is currently producing output" : "Waiting for next user input"}
+      title="Agent is currently producing output"
     >
       <span
         aria-hidden
@@ -268,13 +265,13 @@ const ActivityBadge = React.memo(function ActivityBadge({
           width: 6,
           height: 6,
           borderRadius: "50%",
-          background: dotColor,
+          background: colors.success,
           // Pulse the dot while processing for a clear "live" cue.
           // Reuses the existing provider-pulse @keyframes from globals.css.
-          animation: isProcessing ? "provider-pulse 1.2s ease-in-out infinite" : undefined,
+          animation: "provider-pulse 1.2s ease-in-out infinite",
         }}
       />
-      {label}
+      Processing
     </span>
   );
 });

@@ -18,6 +18,7 @@ import { registerOnboardHandlers } from "./handlers/onboardHandlers";
 import { registerTerminalHandlers } from "./handlers/terminalHandlers";
 import { registerAISessionHandlers } from "./handlers/aiSessionHandlers";
 import { registerSyncedSessionHandlers } from "./handlers/syncedSessionHandlers";
+import { registerGitOperationHandlers } from "./handlers/gitOperationHandlers";
 
 import { RepoApplicationService } from "../application/RepoApplicationService";
 import { SpecApplicationService } from "../application/SpecApplicationService";
@@ -25,6 +26,8 @@ import { WorktreeApplicationService } from "../application/WorktreeApplicationSe
 import { OnboardApplicationService } from "../application/OnboardApplicationService";
 
 import type { GitGateway } from "../infrastructure/GitGateway";
+import { GitOperationsGateway } from "../infrastructure/GitOperationsGateway";
+import { GitApplicationService } from "../application/GitApplicationService";
 import { SpecGitGateway } from "../infrastructure/SpecGitGateway";
 import { FileSystemGateway } from "../infrastructure/FileSystemGateway";
 import { SpecReader } from "../services/SpecReader";
@@ -76,4 +79,8 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerAISessionHandlers({ bridge, aiSessionService: context.aiSessionService });
 
   registerSyncedSessionHandlers({ bridge, sessionSyncService: context.sessionSyncService });
+
+  const gitOpsGateway = new GitOperationsGateway();
+  const gitService = new GitApplicationService(gitOpsGateway);
+  registerGitOperationHandlers({ bridge, gitService });
 }

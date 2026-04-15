@@ -1,4 +1,5 @@
 import type { SyncedSessionRecord, SyncedSessionProvider } from "@magenta/shared/syncedSession";
+import { DEFAULT_SESSION_SYNC_INTERVAL_MINUTES } from "@magenta/shared/config";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import type { BackgroundJobManager } from "../services/BackgroundJobManager";
 import type { SyncedSessionRepository } from "../services/SyncedSessionRepository";
@@ -22,6 +23,9 @@ const JOB_NAME = "session-sync";
  * Runs automatically on app startup via BackgroundJobManager.
  */
 export class SessionSyncApplicationService {
+  private intervalHandle: ReturnType<typeof setInterval> | null = null;
+  private currentIntervalMs: number | null = null;
+
   constructor(
     private readonly repository: SyncedSessionRepository,
     private readonly gateway: SessionSyncGateway,
@@ -41,6 +45,57 @@ export class SessionSyncApplicationService {
     this.jobManager.enqueue(JOB_NAME, async () => {
       await this.executeSyncAll();
     });
+  }
+
+  /**
+   * Start the recurring session sync interval. The first sync is triggered
+   * separately via triggerSync() at app startup; this only schedules the
+   * recurring timer.
+   */
+  start(): void {
+    this.scheduleInterval(this.resolveIntervalMs());
+  }
+
+  /**
+   * Stop the recurring interval. Does not cancel any in-flight job.
+   */
+  stop(): void {
+    if (this.intervalHandle !== null) {
+      clearInterval(this.intervalHandle);
+      this.intervalHandle = null;
+      this.currentIntervalMs = null;
+    }
+  }
+
+  /**
+   * Called when the user updates the session sync interval from the UI.
+   * Reschedules the timer with the new value if it has actually changed.
+   */
+  reconfigureFromConfig(): void {
+    const nextMs = this.resolveIntervalMs();
+    if (this.intervalHandle === null) {
+      return;
+    }
+    if (nextMs === this.currentIntervalMs) {
+      return;
+    }
+    this.scheduleInterval(nextMs);
+  }
+
+  private resolveIntervalMs(): number {
+    const minutes =
+      this.configManager.getConfig().sessionSyncIntervalMinutes ??
+      DEFAULT_SESSION_SYNC_INTERVAL_MINUTES;
+    return minutes * 60 * 1000;
+  }
+
+  private scheduleInterval(intervalMs: number): void {
+    if (this.intervalHandle !== null) {
+      clearInterval(this.intervalHandle);
+    }
+    this.intervalHandle = setInterval(() => this.triggerSync(), intervalMs);
+    this.currentIntervalMs = intervalMs;
+    console.log(`${TAG} Scheduled session sync every ${Math.round(intervalMs / 60000)} minutes`);
   }
 
   /**

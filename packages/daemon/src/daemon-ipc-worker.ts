@@ -36,6 +36,7 @@ import { GitGateway } from "./infrastructure/GitGateway";
 let shutdownServices: {
   dirWatcher?: DirWatcher;
   specSyncService?: SpecSyncService;
+  sessionSyncService?: SessionSyncApplicationService;
   databaseService?: DatabaseService;
   terminalService?: TerminalApplicationService;
   aiSessionService?: AISessionApplicationService;
@@ -75,6 +76,12 @@ async function gracefulShutdown(reason: string): Promise<void> {
     if (shutdownServices.specSyncService) {
       console.log("[daemon-worker] Stopping spec sync service...");
       shutdownServices.specSyncService.stop();
+    }
+
+    // 2b. Stop session sync interval
+    if (shutdownServices.sessionSyncService) {
+      console.log("[daemon-worker] Stopping session sync service...");
+      shutdownServices.sessionSyncService.stop();
     }
 
     // 3. Flush and close database
@@ -126,6 +133,7 @@ async function main() {
       repoRepository,
       ipcBridge,
       jobManager,
+      configManager,
     );
 
     // Wire spec sync into scan queue so repo scans trigger spec sync
@@ -159,7 +167,7 @@ async function main() {
     );
 
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, databaseService, terminalService, aiSessionService };
+    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, databaseService, terminalService, aiSessionService };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -261,13 +269,22 @@ async function main() {
       void scanQueue.requestScan(workingDirs);
     }
 
-    // 3. Start the 5-minute spec sync interval. The initial sync is triggered
-    //    by the repo-scan job when it completes (via scanQueue → specSyncService),
-    //    so start() only sets up the recurring timer.
+    // 3. Start the recurring spec sync interval (configurable, default 15 min).
+    //    The initial sync is triggered by the repo-scan job when it completes
+    //    (via scanQueue → specSyncService), so start() only sets up the timer.
     specSyncService.start();
 
-    // 3. Trigger one-time session sync (scans ~/.claude + ~/.copilot)
+    // 4. Trigger one-time session sync immediately (scans ~/.claude + ~/.copilot)
+    //    and start the recurring session-sync interval (configurable, default 15 min).
     sessionSyncService.triggerSync();
+    sessionSyncService.start();
+
+    // 5. Reconfigure both sync services whenever config changes so users can
+    //    change the interval from the Settings dialog without restarting the app.
+    ipcBridge.on("config:updated", () => {
+      specSyncService.reconfigureFromConfig();
+      sessionSyncService.reconfigureFromConfig();
+    });
 
     // Tell parent we're ready
     if (process.send) {

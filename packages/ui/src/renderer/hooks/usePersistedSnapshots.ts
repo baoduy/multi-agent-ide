@@ -5,8 +5,9 @@
  * so that open file tabs, active tab, and selected spec survive app restarts.
  *
  * Storage layout:
- *   magenta:repo-snapshot:{repoPath}       → RepoSnapshotData
- *   magenta:tab-snapshot:{repoPath::spec}   → TabSnapshotData
+ *   magenta:repo-snapshot:{repoPath}          → RepoSnapshotData
+ *   magenta:tab-snapshot:{repoPath::spec}      → TabSnapshotData (legacy)
+ *   magenta:spec-dock-tabs:{repoPath::spec}    → SpecDockTabsData (dock file tabs)
  */
 
 import { useCallback, useRef } from "react";
@@ -25,6 +26,21 @@ export type RepoSnapshotData = {
   mainTab: ActiveTab;
 };
 
+/** A dock tab saved to localStorage — mirrors TabState but JSON-safe. */
+export type SavedDockTab = {
+  tabId: string;
+  viewId: string;
+  props?: Record<string, unknown>;
+  title?: string;
+};
+
+export type SpecDockTabsData = {
+  /** File tabs that were open for this (repo, spec) context */
+  fileTabs: SavedDockTab[];
+  /** Which file tab was active (null if a builtin tab was active) */
+  activeFileTabId: string | null;
+};
+
 /* ── Scoped stores ── */
 
 const repoSnapshotStore = scopedStore<RepoSnapshotData>({
@@ -36,6 +52,12 @@ const repoSnapshotStore = scopedStore<RepoSnapshotData>({
 const tabSnapshotStore = scopedStore<TabSnapshotData>({
   prefix: "magenta:tab-snapshot",
   fallback: { openFiles: [], activeTab: { kind: "builtin", id: "specs" } },
+  debounceMs: 500,
+});
+
+const specDockTabsStore = scopedStore<SpecDockTabsData>({
+  prefix: "magenta:spec-dock-tabs",
+  fallback: { fileTabs: [], activeFileTabId: null },
   debounceMs: 500,
 });
 
@@ -57,6 +79,10 @@ export type PersistedSnapshots = {
   saveTabSnapshot: (repoPath: string | null, specPath: string | null, data: TabSnapshotData) => void;
   /** Restore per-spec tab state. */
   getTabSnapshot: (repoPath: string | null, specPath: string | null) => TabSnapshotData | null;
+  /** Save per-spec dock file tabs (dock layout only). */
+  saveSpecDockTabs: (repoPath: string | null, specPath: string | null, data: SpecDockTabsData) => void;
+  /** Restore per-spec dock file tabs (returns null if never saved). */
+  getSpecDockTabs: (repoPath: string | null, specPath: string | null) => SpecDockTabsData | null;
   /** Flush all pending writes immediately (call on shutdown). */
   flush: () => void;
 };
@@ -111,10 +137,44 @@ export function usePersistedSnapshots(): PersistedSnapshots {
     return null;
   }, []);
 
+  const saveSpecDockTabs = useCallback(
+    (repoPath: string | null, specPath: string | null, data: SpecDockTabsData) => {
+      const key = tabKey(repoPath, specPath);
+      if (key) specDockTabsStore.set(key, data);
+    },
+    []
+  );
+
+  const getSpecDockTabs = useCallback(
+    (repoPath: string | null, specPath: string | null): SpecDockTabsData | null => {
+      const key = tabKey(repoPath, specPath);
+      if (!key) return null;
+      try {
+        const raw = globalThis.localStorage?.getItem(`magenta:spec-dock-tabs:${key}`);
+        if (raw !== null) {
+          return specDockTabsStore.get(key);
+        }
+      } catch {
+        /* ignore */
+      }
+      return null;
+    },
+    []
+  );
+
   const flush = useCallback(() => {
     repoSnapshotStore.flush();
     tabSnapshotStore.flush();
+    specDockTabsStore.flush();
   }, []);
 
-  return { saveRepoSnapshot, getRepoSnapshot, saveTabSnapshot, getTabSnapshot, flush };
+  return {
+    saveRepoSnapshot,
+    getRepoSnapshot,
+    saveTabSnapshot,
+    getTabSnapshot,
+    saveSpecDockTabs,
+    getSpecDockTabs,
+    flush,
+  };
 }

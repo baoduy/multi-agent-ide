@@ -58,6 +58,11 @@ type ResponseForRequest = {
   "ai-session:running-count": Extract<IpcResponse, { type: "ai-session:running-count:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
   "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
+  // Git operations
+  "branch:create": Extract<IpcResponse, { type: "branch:create:result" }>;
+  "git:fetch": Extract<IpcResponse, { type: "git:fetch:result" }>;
+  "git:pull": Extract<IpcResponse, { type: "git:pull:result" }>;
+  "git:push": Extract<IpcResponse, { type: "git:push:result" }>;
 };
 
 /**

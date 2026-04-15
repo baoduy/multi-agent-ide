@@ -115,8 +115,6 @@ export function MainPage(): React.ReactElement {
   const setSelectedSpecPath = useSpecStore((state) => state.setSelectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
   const fetchWorktreesForAll = useWorktreeStore((state) => state.fetchWorktreesForAll);
-  const fetchWorktreesIfNeeded = useWorktreeStore((state) => state.fetchWorktreesIfNeeded);
-  const pinnedPaths = useRepoStore((state) => state.pinnedPaths);
 
   // Sidebar collapse state
   const sidebarCollapsed = useSessionStore((state) => state.sidebarCollapsed);
@@ -129,22 +127,12 @@ export function MainPage(): React.ReactElement {
     setNewSessionDialogOpen(true);
   }, []);
 
-  // ── Fetch worktrees for pinned repos + active repo once repos are loaded ──
+  // ── Fetch worktrees for ALL repos once repos are loaded ──
   useEffect(() => {
     if (repos.length === 0) return;
-    const paths = new Set(pinnedPaths);
-    if (activeRepoPath) paths.add(activeRepoPath);
-    if (paths.size > 0) {
-      void fetchWorktreesForAll([...paths]);
-    }
-  }, [repos, pinnedPaths, activeRepoPath, fetchWorktreesForAll]);
-
-  // ── Incrementally fetch worktrees when the active repo changes ──
-  useEffect(() => {
-    if (activeRepoPath) {
-      void fetchWorktreesIfNeeded(activeRepoPath);
-    }
-  }, [activeRepoPath, fetchWorktreesIfNeeded]);
+    const allPaths = repos.map((r) => r.path);
+    void fetchWorktreesForAll(allPaths);
+  }, [repos, fetchWorktreesForAll]);
 
   // ── Save / restore per-repo state when the active repo changes ──
   useEffect(() => {
@@ -168,29 +156,41 @@ export function MainPage(): React.ReactElement {
       });
     }
 
-    // Restore snapshot for the repo we're entering (or reset)
+    // Restore snapshot for the repo we're entering (or reset).
+    // The title bar tab (builtin: specs/workflow/worktrees/ai) stays as-is —
+    // only open files and selected spec are restored per repo.
     if (activeRepoPath) {
       const repoSnap = snapshots.getRepoSnapshot(activeRepoPath);
       if (repoSnap) {
         // Restore the selected spec
         setSelectedSpecPath(repoSnap.selectedSpecPath);
 
-        // Restore the active tab / screen
-        setActiveTab(repoSnap.mainTab);
-
         // Restore the open files for the current spec context
         const tabSnap = snapshots.getTabSnapshot(activeRepoPath, repoSnap.selectedSpecPath);
         if (tabSnap) {
           setOpenFiles(tabSnap.openFiles);
-          setActiveTab(tabSnap.activeTab);
+          // If currently on a file tab, try to keep it if the file exists in the restored set;
+          // otherwise fall back to the current builtin tab or default to "specs".
+          if (activeTab.kind === "file") {
+            const fileStillOpen = tabSnap.openFiles.some((f) => f.filePath === activeTab.filePath);
+            if (!fileStillOpen) {
+              setActiveTab({ kind: "builtin", id: "specs" });
+            }
+          }
         } else {
           setOpenFiles([]);
+          // If on a file tab with no restored files, fall back to builtin
+          if (activeTab.kind === "file") {
+            setActiveTab({ kind: "builtin", id: "specs" });
+          }
         }
       } else {
-        // First visit to this repo — clear everything
+        // First visit to this repo — clear file tabs only
         setSelectedSpecPath(null);
         setOpenFiles([]);
-        setActiveTab({ kind: "builtin", id: "specs" });
+        if (activeTab.kind === "file") {
+          setActiveTab({ kind: "builtin", id: "specs" });
+        }
       }
     }
 
@@ -218,15 +218,24 @@ export function MainPage(): React.ReactElement {
       activeTab,
     });
 
-    // Restore snapshot for the spec we're entering (or reset)
+    // Restore open files for the spec we're entering (or reset).
+    // The title bar tab stays as-is — only open files are restored per spec.
     const tabSnap = snapshots.getTabSnapshot(activeRepoPath, selectedSpecPath);
     if (tabSnap) {
       setOpenFiles(tabSnap.openFiles);
-      setActiveTab(tabSnap.activeTab);
+      // If currently on a file tab that no longer exists in the restored set, fall back
+      if (activeTab.kind === "file") {
+        const fileStillOpen = tabSnap.openFiles.some((f) => f.filePath === activeTab.filePath);
+        if (!fileStillOpen) {
+          setActiveTab({ kind: "builtin", id: "specs" });
+        }
+      }
     } else {
-      // First visit — clear file tabs, go back to specs
+      // First visit — clear file tabs; fall back if on a file tab
       setOpenFiles([]);
-      setActiveTab({ kind: "builtin", id: "specs" });
+      if (activeTab.kind === "file") {
+        setActiveTab({ kind: "builtin", id: "specs" });
+      }
     }
 
     prevSpecPath.current = selectedSpecPath;

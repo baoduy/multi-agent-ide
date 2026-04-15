@@ -74,7 +74,8 @@ export class DaemonContainer {
       this.specRepository,
       this.repoRepository,
       this.bridge,
-      this.jobManager
+      this.jobManager,
+      this.configManager,
     );
 
     // Wire spec sync into scan queue (avoids circular dep at construction)

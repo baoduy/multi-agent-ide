@@ -15,6 +15,7 @@ import { useWorktreeStore } from "../../store/worktreeStore";
 import { ActionButton } from "../common/ActionButton";
 import { ScrollableText } from "../common/ScrollableText";
 import { BranchLabel } from "../common/RepoLabel";
+import { BranchRow } from "../common/BranchRow";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 import { SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
@@ -396,35 +397,15 @@ export function WorktreeInlinePanel({
                       {branches
                         .filter((b) => b !== worktree.branch)
                         .map((b) => (
-                          <button
+                          <BranchRow
                             key={b}
-                            type="button"
-                            onClick={() => {
-                              setTargetBranch(b);
+                            name={b}
+                            isSelected={b === targetBranch}
+                            onSelect={(name) => {
+                              setTargetBranch(name);
                               setShowBranchPicker(false);
                             }}
-                            style={{
-                              display: "block",
-                              width: "100%",
-                              padding: "8px 12px",
-                              fontSize: 12,
-                              color: b === targetBranch ? colors.primary : colors.text,
-                              fontWeight: b === targetBranch ? 600 : 400,
-                              background: b === targetBranch ? colors.bgPanelSoft : "transparent",
-                              border: "none",
-                              textAlign: "left",
-                              cursor: "pointer",
-                              fontFamily: "inherit",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (b !== targetBranch) e.currentTarget.style.background = colors.bgSurface;
-                            }}
-                            onMouseLeave={(e) => {
-                              if (b !== targetBranch) e.currentTarget.style.background = "transparent";
-                            }}
-                          >
-                            {b}
-                          </button>
+                          />
                         ))}
                     </div>
                   )}

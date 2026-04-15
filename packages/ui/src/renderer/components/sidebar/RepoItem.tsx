@@ -1,5 +1,8 @@
-import React, { useState } from "react";
-import { Star, FolderOpen, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork } from "lucide-react";
+import React, { useCallback, useState } from "react";
+import {
+  Star, FolderOpen, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork,
+  GitBranch, ArrowDown, ArrowUp, Download,
+} from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
@@ -8,7 +11,9 @@ import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { openInFileManager } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
-import { AddWorktreeDialog } from "../dialogs/AddWorktreeDialog";
+import { useRepoStore } from "../../store/repoStore";
+import { BranchSwitcherDialog } from "../dialogs/BranchSwitcherDialog";
+import { CreateBranchOrWorktreeDialog, type CreateKind } from "../dialogs/CreateBranchOrWorktreeDialog";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { colors } from "../../utils/colors";
 
@@ -25,12 +30,67 @@ type RepoItemProps = {
 export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoItemProps): React.ReactElement {
   const badge = getRepoBadge(repo);
   const [hovered, setHovered] = useState(false);
-  const [showAddWorktree, setShowAddWorktree] = useState(false);
+  const [showBranchSwitcher, setShowBranchSwitcher] = useState(false);
+  /** Unified create dialog — null means hidden; otherwise the mode. */
+  const [createDialogKind, setCreateDialogKind] = useState<CreateKind | null>(null);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
   const startProcess = useOnboardStore((s) => s.startProcess);
   const setDialogOpen = useOnboardStore((s) => s.setDialogOpen);
   const existingProcess = useOnboardStore((s) => s.processes[repo.path]);
+  const fetchRepos = useRepoStore((s) => s.fetchRepos);
+
+  /** Fire-and-forget git action with post-action repo refresh. */
+  const gitAction = useCallback(async (
+    request: { type: "git:fetch"; repoPath: string; remote?: string }
+      | { type: "git:pull"; repoPath: string; remote?: string; branch?: string }
+      | { type: "git:push"; repoPath: string; remote?: string; branch?: string; force?: boolean },
+  ) => {
+    try {
+      await sendOrThrow(request);
+      await fetchRepos();
+    } catch (err) {
+      // Surface errors via console — the daemon already normalises them via AppError.
+      // A future iteration can use a toast/notification system.
+      console.error(`[git] ${request.type} failed:`, err instanceof Error ? err.message : err);
+    }
+  }, [fetchRepos]);
+
+  // Git submenu — branch management, worktree, and sync operations grouped together.
+  // "Create Worktree" sits next to "Create Branch" because they're both create-new actions.
+  const gitSubmenu: ContextMenuAction[] = [
+    {
+      label: "Switch Branch...",
+      Icon: GitBranch,
+      action: () => setShowBranchSwitcher(true),
+    },
+    {
+      label: "Create Branch...",
+      Icon: GitBranch,
+      action: () => setCreateDialogKind("branch"),
+    },
+    {
+      label: "Create Worktree...",
+      Icon: GitFork,
+      action: () => setCreateDialogKind("worktree"),
+    },
+    {
+      label: "Pull",
+      Icon: ArrowDown,
+      separator: true,
+      action: () => void gitAction({ type: "git:pull", repoPath: repo.path }),
+    },
+    {
+      label: "Push",
+      Icon: ArrowUp,
+      action: () => void gitAction({ type: "git:push", repoPath: repo.path }),
+    },
+    {
+      label: "Fetch",
+      Icon: Download,
+      action: () => void gitAction({ type: "git:fetch", repoPath: repo.path }),
+    },
+  ];
 
   const ctxItems: ContextMenuAction[] = [
     {
@@ -49,9 +109,10 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       action: () => void navigator.clipboard.writeText(repo.path),
     },
     {
-      label: "Add Worktree",
-      Icon: GitFork,
-      action: () => setShowAddWorktree(true),
+      label: "Git",
+      Icon: GitBranch,
+      separator: true,
+      submenu: gitSubmenu,
     },
   ];
 
@@ -185,12 +246,20 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
         <ContextMenu position={contextMenu} items={ctxItems} onClose={closeContextMenu} />
       )}
 
-      {/* Add Worktree dialog */}
-      {showAddWorktree && (
-        <AddWorktreeDialog
+      {/* Dialogs */}
+      {showBranchSwitcher && (
+        <BranchSwitcherDialog
           repoPath={repo.path}
-          onCreated={() => setShowAddWorktree(false)}
-          onCancel={() => setShowAddWorktree(false)}
+          currentBranch={repo.branch}
+          onClose={() => setShowBranchSwitcher(false)}
+        />
+      )}
+      {createDialogKind && (
+        <CreateBranchOrWorktreeDialog
+          kind={createDialogKind}
+          repoPath={repo.path}
+          currentBranch={repo.branch}
+          onClose={() => setCreateDialogKind(null)}
         />
       )}
     </div>

@@ -103,6 +103,11 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   z.object({ type: z.literal("synced-session:trigger-sync") }),
+  // Git operations
+  z.object({ type: z.literal("branch:create"), repoPath: z.string(), branchName: z.string(), startPoint: z.string().optional() }),
+  z.object({ type: z.literal("git:fetch"), repoPath: z.string(), remote: z.string().optional() }),
+  z.object({ type: z.literal("git:pull"), repoPath: z.string(), remote: z.string().optional(), branch: z.string().optional() }),
+  z.object({ type: z.literal("git:push"), repoPath: z.string(), remote: z.string().optional(), branch: z.string().optional(), force: z.boolean().optional() }),
 ]);
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
@@ -214,6 +219,11 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("synced-session:sync:triggered") }),
   z.object({ type: z.literal("synced-session:sync:complete"), claudeCount: z.number().int().nonnegative(), copilotCount: z.number().int().nonnegative() }),
   z.object({ type: z.literal("error"), message: z.string() }),
+  // Git operation responses
+  z.object({ type: z.literal("branch:create:result"), repoPath: z.string(), branchName: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("git:fetch:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({ type: z.literal("git:pull:result"), repoPath: z.string(), success: z.boolean(), message: z.string(), conflicts: z.array(z.string()).optional() }),
+  z.object({ type: z.literal("git:push:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
 ]);
 
 export type IpcRequest = z.infer<typeof IpcRequestSchema>;

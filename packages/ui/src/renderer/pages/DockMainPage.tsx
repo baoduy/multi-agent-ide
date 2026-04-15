@@ -190,6 +190,9 @@ export function DockMainPage(): React.ReactElement {
   }, [activeRepoPath, fetchWorktreesIfNeeded]);
 
   // ── Snapshot persistence on repo switch ──
+  // Per-repo memory intentionally excludes the title bar tab — the active
+  // builtin view (specs/workflow/worktrees/ai) stays wherever the user has it
+  // when switching repos. Only the selected spec is restored per repo.
   useEffect(() => {
     const prevRepo = prevRepoPath.current;
     if (prevRepo === activeRepoPath) {
@@ -208,15 +211,10 @@ export function DockMainPage(): React.ReactElement {
       const repoSnap = snapshots.getRepoSnapshot(activeRepoPath);
       if (repoSnap) {
         setSelectedSpecPath(repoSnap.selectedSpecPath);
-        // Restore active builtin view in dock layout
-        if (repoSnap.mainTab.kind === "builtin") {
-          const viewId = BUILTIN_VIEW_MAP[repoSnap.mainTab.id];
-          if (viewId) setMainView(viewId);
-        }
       } else {
         setSelectedSpecPath(null);
-        setMainView("specs-list");
       }
+      // Note: intentionally do NOT call setMainView() here — keep current tab.
     }
 
     prevRepoPath.current = activeRepoPath;
@@ -227,6 +225,7 @@ export function DockMainPage(): React.ReactElement {
   }, [activeRepoPath]);
 
   // ── Snapshot persistence on spec switch ──
+  // Spec selection changes within a repo should NOT change the title bar tab.
   useEffect(() => {
     const prevSpec = prevSpecPath.current;
     if (prevRepoPath.current !== activeRepoPath) return;
@@ -240,15 +239,8 @@ export function DockMainPage(): React.ReactElement {
       activeTab,
     });
 
-    const tabSnap = snapshots.getTabSnapshot(activeRepoPath, selectedSpecPath);
-    if (tabSnap) {
-      if (tabSnap.activeTab.kind === "builtin") {
-        const viewId = BUILTIN_VIEW_MAP[tabSnap.activeTab.id];
-        if (viewId) setMainView(viewId);
-      }
-    } else {
-      setMainView("specs-list");
-    }
+    // Note: intentionally do NOT call setMainView() here — the title bar tab
+    // stays as-is across spec switches.
 
     prevSpecPath.current = selectedSpecPath;
     // eslint-disable-next-line react-hooks/exhaustive-deps

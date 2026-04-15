@@ -1,23 +1,26 @@
 import type { SpecFolder } from "@magenta/shared/models";
+import { DEFAULT_SPEC_SYNC_INTERVAL_MINUTES } from "@magenta/shared/config";
 
+import type { ConfigManager } from "../config/ConfigManager";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import type { BackgroundJobManager } from "./BackgroundJobManager";
 import type { RepoRepository } from "./RepoRepository";
 import type { SpecRepository } from "./SpecRepository";
 import { SpecReader } from "./SpecReader";
 
-const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 const TAG = "[SpecSync]";
 
 export class SpecSyncService {
   private readonly specReader: SpecReader;
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
+  private currentIntervalMs: number | null = null;
 
   constructor(
     private readonly specRepository: SpecRepository,
     private readonly repoRepository: RepoRepository,
     private readonly bridge: IPCBridge,
     private readonly jobManager: BackgroundJobManager,
+    private readonly configManager: ConfigManager | null = null,
   ) {
     this.specReader = new SpecReader();
   }
@@ -25,15 +28,47 @@ export class SpecSyncService {
   start(): void {
     // Don't run immediately — the initial repo scan triggers syncAllRepos()
     // when it completes. Only set up the recurring interval here.
-    this.intervalHandle = setInterval(() => this.syncAllRepos(), SYNC_INTERVAL_MS);
-    console.log(`${TAG} Scheduled spec sync every 5 minutes`);
+    this.scheduleInterval(this.resolveIntervalMs());
   }
 
   stop(): void {
     if (this.intervalHandle !== null) {
       clearInterval(this.intervalHandle);
       this.intervalHandle = null;
+      this.currentIntervalMs = null;
     }
+  }
+
+  /**
+   * Called when config changes so the timer can pick up the new interval
+   * without requiring an app restart. No-op if the interval value hasn't
+   * actually changed.
+   */
+  reconfigureFromConfig(): void {
+    const nextMs = this.resolveIntervalMs();
+    if (this.intervalHandle === null) {
+      // Not started yet — nothing to do; start() will pick up the new value.
+      return;
+    }
+    if (nextMs === this.currentIntervalMs) {
+      return;
+    }
+    this.scheduleInterval(nextMs);
+  }
+
+  private resolveIntervalMs(): number {
+    const minutes =
+      this.configManager?.getConfig().specSyncIntervalMinutes ?? DEFAULT_SPEC_SYNC_INTERVAL_MINUTES;
+    return minutes * 60 * 1000;
+  }
+
+  private scheduleInterval(intervalMs: number): void {
+    if (this.intervalHandle !== null) {
+      clearInterval(this.intervalHandle);
+    }
+    this.intervalHandle = setInterval(() => this.syncAllRepos(), intervalMs);
+    this.currentIntervalMs = intervalMs;
+    console.log(`${TAG} Scheduled spec sync every ${Math.round(intervalMs / 60000)} minutes`);
   }
 
   syncAllRepos(): void {

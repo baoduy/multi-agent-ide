@@ -10,6 +10,7 @@ import { WorkflowView } from "../components/main/WorkflowView";
 import { FileViewer } from "../components/main/FileViewer";
 import { ActivityPanel } from "../components/activity/ActivityPanel";
 import { useSpecStore } from "../store/specStore";
+import { sendCommand } from "../services/ipcClient";
 import { useSessionRestoration } from "../hooks/useSessionRestoration";
 import { usePersistedSnapshots } from "../hooks/usePersistedSnapshots";
 import { LoadingSpinner } from "../components/common/LoadingSpinner";
@@ -250,6 +251,18 @@ export function MainPage(): React.ReactElement {
     isNavAction.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // Notify the daemon whenever the AI title-bar tab becomes (or stops being)
+  // the active top-level tab. The session sync job on the daemon side is
+  // gated on this signal — it only runs while the AI tab is visible. We send
+  // this on mount too (covers the `activeTab === "ai"` on-boot case, and
+  // ensures the daemon knows to stay paused when booting into any other tab).
+  const aiTabActive = activeTab.kind === "builtin" && activeTab.id === "ai";
+  useEffect(() => {
+    void sendCommand({ type: "ui:ai-tab-active", active: aiTabActive }).catch((err) => {
+      console.error("[Main] Failed to send ui:ai-tab-active:", err);
+    });
+  }, [aiTabActive]);
 
   // Flush pending localStorage writes on unmount / page unload
   useEffect(() => {

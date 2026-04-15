@@ -1,13 +1,23 @@
+import fs from "node:fs";
+import path from "node:path";
 import type { SyncedSessionRecord, SyncedSessionProvider } from "@magenta/shared/syncedSession";
 import { DEFAULT_SESSION_SYNC_INTERVAL_MINUTES } from "@magenta/shared/config";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import type { BackgroundJobManager } from "../services/BackgroundJobManager";
 import type { SyncedSessionRepository } from "../services/SyncedSessionRepository";
-import type { SessionSyncGateway, SessionFileEntry } from "../infrastructure/SessionSyncGateway";
+import type {
+  SessionSyncGateway,
+  SessionFileEntry,
+  CopilotSessionFileEntry,
+} from "../infrastructure/SessionSyncGateway";
 import type { RepoRepository } from "../services/RepoRepository";
 import type { ConfigManager } from "../config/ConfigManager";
 import type { GitGateway } from "../infrastructure/GitGateway";
 import { parseClaudeSessionLines } from "../domain/claudeSessionParser";
+import {
+  parseWorkspaceYaml,
+  parseCopilotEventLines,
+} from "../domain/copilotSessionParser";
 import { isSessionPathRelevant, collectKnownPaths } from "../domain/sessionPathMatcher";
 
 const TAG = "[SessionSync]";
@@ -25,6 +35,16 @@ const JOB_NAME = "session-sync";
 export class SessionSyncApplicationService {
   private intervalHandle: ReturnType<typeof setInterval> | null = null;
   private currentIntervalMs: number | null = null;
+  /**
+   * Tracks whether the AI title-bar tab is currently the active top-level tab
+   * in the renderer. The recurring session sync sweep only runs while this is
+   * `true` — switching away from the AI tab pauses the timer. Manual syncs
+   * (via the "synced-session:trigger-sync" IPC handler) still work regardless.
+   *
+   * Starts `false` so the daemon does not sweep until the renderer has
+   * explicitly told us the AI tab is active.
+   */
+  private aiTabActive = false;
 
   constructor(
     private readonly repository: SyncedSessionRepository,
@@ -48,11 +68,15 @@ export class SessionSyncApplicationService {
   }
 
   /**
-   * Start the recurring session sync interval. The first sync is triggered
-   * separately via triggerSync() at app startup; this only schedules the
-   * recurring timer.
+   * Start the recurring session sync interval — but only if the AI tab is
+   * currently active. When the AI tab is not active, this is a no-op; the
+   * renderer will call {@link setAITabActive} when the tab becomes visible.
    */
   start(): void {
+    if (!this.aiTabActive) {
+      console.log(`${TAG} start() called but AI tab is not active — deferring interval`);
+      return;
+    }
     this.scheduleInterval(this.resolveIntervalMs());
   }
 
@@ -70,6 +94,8 @@ export class SessionSyncApplicationService {
   /**
    * Called when the user updates the session sync interval from the UI.
    * Reschedules the timer with the new value if it has actually changed.
+   * If the interval is currently paused (AI tab not active) this is a no-op —
+   * the new value will be picked up next time the interval is (re)started.
    */
   reconfigureFromConfig(): void {
     const nextMs = this.resolveIntervalMs();
@@ -80,6 +106,33 @@ export class SessionSyncApplicationService {
       return;
     }
     this.scheduleInterval(nextMs);
+  }
+
+  /**
+   * Called from the renderer whenever the AI title-bar tab becomes the
+   * active top-level tab (or stops being). While the AI tab is active we
+   * schedule the recurring sweep (every `sessionSyncIntervalMinutes`, default
+   * 15m) and trigger an immediate sync so the panel populates right away.
+   * While it is inactive we pause the timer.
+   *
+   * Manual `triggerSync()` calls (e.g. the "Sync now" button) continue to
+   * work regardless of tab state.
+   */
+  setAITabActive(active: boolean): void {
+    if (active === this.aiTabActive) {
+      return;
+    }
+    this.aiTabActive = active;
+    if (active) {
+      console.log(`${TAG} AI tab became active — starting session sync`);
+      // Kick off an immediate sync so the UI has fresh data as soon as the
+      // user lands on the AI tab, then schedule the recurring sweep.
+      this.triggerSync();
+      this.scheduleInterval(this.resolveIntervalMs());
+    } else {
+      console.log(`${TAG} AI tab became inactive — pausing session sync`);
+      this.stop();
+    }
   }
 
   private resolveIntervalMs(): number {
@@ -132,6 +185,7 @@ export class SessionSyncApplicationService {
     }
 
     let claudeCount = 0;
+    let copilotCount = 0;
 
     try {
       claudeCount = await this.syncClaudeSessions(knownPaths);
@@ -139,11 +193,21 @@ export class SessionSyncApplicationService {
       console.error(`${TAG} Claude sync failed:`, err);
     }
 
-    // Clean up stale sessions whose cwd no longer matches any known path
     try {
-      const removed = this.cleanupStaleSessions(knownPaths);
+      // Per product decision: every Copilot session that has a workspace.yaml
+      // is synced regardless of whether its git_root matches a registered repo.
+      copilotCount = await this.syncCopilotSessions();
+    } catch (err) {
+      console.error(`${TAG} Copilot sync failed:`, err);
+    }
+
+    // Clean up stale Claude sessions whose cwd no longer matches any known path.
+    // Copilot sessions are NOT subject to this cleanup — they are gated by
+    // workspace.yaml presence on disk, not by knownPaths membership.
+    try {
+      const removed = this.cleanupStaleClaudeSessions(knownPaths);
       if (removed > 0) {
-        console.log(`${TAG} Removed ${removed} stale synced sessions`);
+        console.log(`${TAG} Removed ${removed} stale Claude sessions`);
       }
     } catch (err) {
       console.error(`${TAG} Stale session cleanup failed:`, err);
@@ -152,14 +216,136 @@ export class SessionSyncApplicationService {
     this.repository.flush();
 
     const elapsed = Date.now() - startTime;
-    console.log(`${TAG} Sync complete in ${elapsed}ms — Claude: ${claudeCount}`);
+    console.log(
+      `${TAG} Sync complete in ${elapsed}ms — Claude: ${claudeCount}, Copilot: ${copilotCount}`,
+    );
 
     // Push event to UI
     this.bridge.emit({
       type: "synced-session:sync:complete",
       claudeCount,
-      copilotCount: 0,
+      copilotCount,
     });
+  }
+
+  /**
+   * Re-parse a single session file and upsert. Used by SessionFileWatcher
+   * to push live activity changes to the UI without doing a full sweep.
+   *
+   * `absPath` may point at:
+   *   - a Claude Code JSONL: `<claudeProjectsDir>/<projectDir>/<sessionId>.jsonl`
+   *   - a Copilot events.jsonl: `<copilotStateDir>/<sessionId>/events.jsonl`
+   *   - a Copilot workspace.yaml — handled by re-syncing the parent dir's events.jsonl
+   *
+   * Anything else is ignored (e.g. write events on subagent files we don't track at this level).
+   */
+  async syncSingleFile(absPath: string): Promise<void> {
+    const claudeDir = this.gateway.getClaudeProjectsDir();
+    const copilotDir = this.gateway.getCopilotSessionStateDir();
+
+    try {
+      if (absPath.startsWith(claudeDir)) {
+        await this.handleClaudeFileChange(absPath);
+        this.repository.flush();
+        this.bridge.emit({
+          type: "synced-session:sync:complete",
+          claudeCount: 1,
+          copilotCount: 0,
+        });
+        return;
+      }
+
+      if (absPath.startsWith(copilotDir)) {
+        await this.handleCopilotFileChange(absPath);
+        this.repository.flush();
+        this.bridge.emit({
+          type: "synced-session:sync:complete",
+          claudeCount: 0,
+          copilotCount: 1,
+        });
+        return;
+      }
+    } catch (err) {
+      console.error(`${TAG} Single-file sync failed for ${absPath}:`, err);
+    }
+  }
+
+  private async handleClaudeFileChange(absPath: string): Promise<void> {
+    if (!absPath.endsWith(".jsonl")) return;
+    // Skip subagent files: they live under .../<sessionId>/subagents/*.jsonl
+    if (absPath.includes(`${path.sep}subagents${path.sep}`)) return;
+
+    const fileName = path.basename(absPath, ".jsonl");
+    const projectDir = path.basename(path.dirname(absPath));
+
+    let mtime = 0;
+    let size = 0;
+    try {
+      const stat = fs.statSync(absPath);
+      mtime = stat.mtimeMs;
+      size = stat.size;
+    } catch {
+      // File may have been deleted between event and read — nothing to do.
+      return;
+    }
+
+    const subagentDir = path.join(path.dirname(absPath), fileName, "subagents");
+    let subagentCount = 0;
+    if (fs.existsSync(subagentDir)) {
+      try {
+        subagentCount = fs.readdirSync(subagentDir).filter((f) => f.endsWith(".jsonl")).length;
+      } catch {
+        subagentCount = 0;
+      }
+    }
+
+    const knownPaths = await this.collectApplicationPaths();
+    const entry: SessionFileEntry = {
+      filePath: absPath,
+      sessionId: fileName,
+      projectDir,
+      mtime,
+      size,
+      subagentCount,
+    };
+    await this.syncClaudeSessionIfRelevant(entry, knownPaths);
+  }
+
+  private async handleCopilotFileChange(absPath: string): Promise<void> {
+    // Resolve the session directory (events.jsonl or workspace.yaml both live one level deep).
+    const sessionDir = path.dirname(absPath);
+    const stateDir = this.gateway.getCopilotSessionStateDir();
+    if (path.dirname(sessionDir) !== stateDir) {
+      // Event from a nested subdir (checkpoints/, files/, …) — ignore.
+      return;
+    }
+
+    const workspaceYamlPath = path.join(sessionDir, "workspace.yaml");
+    const eventsJsonlPath = path.join(sessionDir, "events.jsonl");
+
+    if (!fs.existsSync(workspaceYamlPath) || !fs.existsSync(eventsJsonlPath)) {
+      return;
+    }
+
+    let mtime = 0;
+    let size = 0;
+    try {
+      const stat = fs.statSync(eventsJsonlPath);
+      mtime = stat.mtimeMs;
+      size = stat.size;
+    } catch {
+      return;
+    }
+
+    const entry: CopilotSessionFileEntry = {
+      sessionId: path.basename(sessionDir),
+      sessionDir,
+      workspaceYamlPath,
+      eventsJsonlPath,
+      mtime,
+      size,
+    };
+    await this.syncCopilotSession(entry);
   }
 
   /**
@@ -269,6 +455,7 @@ export class SessionSyncApplicationService {
       messageCount: metadata.messageCount,
       subagentCount: entry.subagentCount,
       status: metadata.status,
+      activity: this.refineActivityWithMtime(metadata.activity, entry.mtime),
       slug: metadata.slug,
       version: metadata.version,
       entrypoint: metadata.entrypoint,
@@ -286,12 +473,111 @@ export class SessionSyncApplicationService {
   }
 
   /**
-   * Removes synced sessions whose cwd no longer matches any known application path.
-   * This handles the case where a repo is unregistered or a working dir is removed.
-   * Returns the number of deleted sessions.
+   * Scans and syncs Copilot CLI sessions. Every session that has both a
+   * `workspace.yaml` and an `events.jsonl` is synced — there is no
+   * knownPaths filter (per product decision).
    */
-  private cleanupStaleSessions(knownPaths: string[]): number {
-    return this.repository.deleteWhereNotMatchingPaths(knownPaths);
+  private async syncCopilotSessions(): Promise<number> {
+    const stateDir = this.gateway.getCopilotSessionStateDir();
+    const entries = this.gateway.listCopilotSessionFiles(stateDir);
+
+    console.log(`${TAG} Found ${entries.length} Copilot session files`);
+
+    let synced = 0;
+
+    for (const entry of entries) {
+      try {
+        const changed = this.hasCopilotFileChanged(entry);
+        if (!changed) {
+          if (this.repository.getFileSync(entry.eventsJsonlPath)) {
+            synced++;
+          }
+          continue;
+        }
+
+        await this.syncCopilotSession(entry);
+        synced++;
+      } catch (err) {
+        console.error(`${TAG} Failed to sync Copilot session ${entry.sessionId}:`, err);
+      }
+    }
+
+    return synced;
+  }
+
+  /**
+   * Parse a single Copilot session and upsert it.
+   */
+  private async syncCopilotSession(entry: CopilotSessionFileEntry): Promise<void> {
+    const yamlContent = this.gateway.readCopilotWorkspaceYaml(entry.workspaceYamlPath);
+    const workspace = parseWorkspaceYaml(yamlContent);
+
+    const lines = await this.gateway.readJsonlLines(entry.eventsJsonlPath);
+    const metadata = parseCopilotEventLines(lines, workspace);
+
+    const sessionId = metadata.sessionId || entry.sessionId;
+    const now = Date.now();
+
+    this.repository.upsert({
+      id: `copilot:${sessionId}`,
+      provider: "copilot",
+      sessionId,
+      // Copilot sessions are not grouped under a project_dir like Claude — we leave
+      // this null and let the renderer group by cwd.
+      projectDir: null,
+      cwd: metadata.cwd,
+      gitBranch: metadata.gitBranch,
+      model: metadata.model,
+      tokenUsage: metadata.tokenUsage,
+      messageCount: metadata.messageCount,
+      subagentCount: 0,
+      status: metadata.status,
+      activity: this.refineActivityWithMtime(metadata.activity, entry.mtime),
+      slug: null,
+      version: metadata.version,
+      entrypoint: null,
+      title: metadata.title,
+      startedAt: metadata.startTimestamp ?? now,
+      endedAt: metadata.endTimestamp,
+      createdAt: metadata.startTimestamp ?? now,
+      syncedFilePath: entry.eventsJsonlPath,
+      syncedFileMtime: entry.mtime,
+      syncedFileSize: entry.size,
+      lastSyncedAt: now,
+    });
+  }
+
+  /**
+   * Removes Claude Code synced sessions whose cwd no longer matches any known path.
+   * Copilot sessions are excluded from this cleanup because their inclusion is
+   * gated by workspace.yaml presence on disk, not knownPaths membership.
+   */
+  private cleanupStaleClaudeSessions(knownPaths: string[]): number {
+    return this.repository.deleteClaudeWhereNotMatchingPaths(knownPaths);
+  }
+
+  /**
+   * If the file was just written to (mtime within ~3 s), bias an `idle` activity
+   * toward `processing` — the parser may have observed a paired turn_end that the
+   * agent is about to follow up on. `completed` is never overridden.
+   */
+  private refineActivityWithMtime(
+    activity: SyncedSessionRecord["activity"],
+    mtime: number,
+  ): SyncedSessionRecord["activity"] {
+    if (activity === "completed" || activity === "processing") return activity;
+    const ageMs = Date.now() - mtime;
+    if (ageMs >= 0 && ageMs < 3000) return "processing";
+    return activity;
+  }
+
+  /**
+   * Checks whether a Copilot events.jsonl file has changed since last sync.
+   */
+  private hasCopilotFileChanged(entry: CopilotSessionFileEntry): boolean {
+    const existing = this.repository.getFileSync(entry.eventsJsonlPath);
+    if (!existing) return true;
+    return existing.mtime !== entry.mtime || existing.size !== entry.size;
   }
 
   /**

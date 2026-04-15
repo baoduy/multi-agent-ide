@@ -154,7 +154,18 @@ export class SqliteCompat {
 
     const data = this.db.export();
     const buffer = Buffer.from(data);
-    fs.writeFileSync(this.filePath, buffer);
+    // Atomic write: stage to a tmp file in the same directory, fsync, then
+    // rename. `rename(2)` is atomic on POSIX, so a crash mid-write cannot
+    // leave the on-disk DB file torn or truncated.
+    const tmpPath = `${this.filePath}.tmp`;
+    const fd = fs.openSync(tmpPath, "w");
+    try {
+      fs.writeSync(fd, buffer, 0, buffer.length, 0);
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+    fs.renameSync(tmpPath, this.filePath);
     this.dirty = false;
   }
 

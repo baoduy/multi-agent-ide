@@ -50,7 +50,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   // Use shared infrastructure gateways
   const gitGateway = context.gitGateway;
   const specGitGateway = new SpecGitGateway();
-  const fileSystemGateway = new FileSystemGateway();
+  const fileSystemGateway = new FileSystemGateway(context.configManager);
   const specReader = new SpecReader();
   const repoScanner = new RepoScanner(3);
 
@@ -74,7 +74,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   const onboardService = new OnboardApplicationService(bridge, context.configManager);
   registerOnboardHandlers({ bridge, onboardService });
 
-  registerTerminalHandlers({ bridge, terminalService: context.terminalService });
+  registerTerminalHandlers({ bridge, terminalService: context.terminalService, allowlistProvider: context.configManager });
 
   registerAISessionHandlers({ bridge, aiSessionService: context.aiSessionService });
 

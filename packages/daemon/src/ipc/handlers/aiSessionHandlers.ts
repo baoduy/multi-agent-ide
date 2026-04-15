@@ -16,7 +16,7 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
         branch: msg.branch,
         worktreePath: msg.worktreePath,
         permissionMode: msg.permissionMode,
-        args: msg.args,
+        providerSessionId: msg.providerSessionId,
       },
       msg.cols,
       msg.rows,

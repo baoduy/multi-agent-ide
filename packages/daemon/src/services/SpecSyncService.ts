@@ -97,10 +97,11 @@ export class SpecSyncService {
         `${TAG} Synced ${repoPath}: inserted=${result.inserted}, updated=${result.updated}, deleted=${result.deleted}`,
       );
 
-      this.bridge.emit({ type: "spec:sync:complete" as const, repoPath });
+      this.bridge.emit({ type: "spec:sync:complete" as const, repoPath, success: true });
     } catch (error) {
       console.error(`${TAG} Failed to sync specs for ${repoPath}:`, error);
-      this.bridge.emit({ type: "spec:sync:complete" as const, repoPath });
+      const message = error instanceof Error ? error.message : String(error);
+      this.bridge.emit({ type: "spec:sync:complete" as const, repoPath, success: false, error: message });
     }
   }
 

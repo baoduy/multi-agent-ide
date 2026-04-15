@@ -227,6 +227,58 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
   );
 });
 
+/* ── Activity badge for synced sessions ── */
+
+type ActivityBadgeProps = {
+  activity: SyncedSessionRecord["activity"];
+};
+
+const ActivityBadge = React.memo(function ActivityBadge({
+  activity,
+}: ActivityBadgeProps): React.ReactElement | null {
+  if (activity === "completed") return null;
+
+  const isProcessing = activity === "processing";
+  const label = isProcessing ? "Processing" : "Idle";
+  const color = isProcessing ? colors.success : colors.warningTextStrong;
+  const background = isProcessing ? colors.successSoft : colors.warningSoft;
+  const border = isProcessing ? colors.successSoftBorder : colors.warningBorder;
+  const dotColor = isProcessing ? colors.success : colors.warningTextStrong;
+
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        fontSize: 9,
+        fontWeight: 600,
+        color,
+        padding: "1px 6px",
+        borderRadius: 3,
+        background,
+        border: `1px solid ${border}`,
+        flexShrink: 0,
+      }}
+      title={isProcessing ? "Agent is currently producing output" : "Waiting for next user input"}
+    >
+      <span
+        aria-hidden
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: dotColor,
+          // Pulse the dot while processing for a clear "live" cue.
+          // Reuses the existing provider-pulse @keyframes from globals.css.
+          animation: isProcessing ? "provider-pulse 1.2s ease-in-out infinite" : undefined,
+        }}
+      />
+      {label}
+    </span>
+  );
+});
+
 /* ── Synced session row (compact, clickable, inside a group) ── */
 
 type SyncedSessionRowProps = {
@@ -297,23 +349,9 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         {session.title || session.slug || session.sessionId.slice(0, 8)}
       </ScrollableText>
 
-      {/* Status */}
-      {session.status === "active" && (
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 600,
-            color: colors.success,
-            padding: "1px 6px",
-            borderRadius: 3,
-            background: colors.successSoft,
-            border: `1px solid ${colors.successSoftBorder}`,
-            flexShrink: 0,
-          }}
-        >
-          Active
-        </span>
-      )}
+      {/* Live activity badge — processing / idle. Completed sessions show no badge. */}
+      <ActivityBadge activity={session.activity} />
+
 
       {/* Time */}
       <span
@@ -379,8 +417,8 @@ function SessionGroupNodeComponent({
     setExpanded((prev) => !prev);
   }, []);
 
-  const hasLive = node.liveSessions.length > 0;
-  const hasSynced = node.syncedSessions.length > 0;
+  const hasActive = node.activeLiveSessions.length > 0;
+  const hasHistory = node.history.length > 0;
 
   return (
     <div ref={rootRef}>
@@ -404,11 +442,10 @@ function SessionGroupNodeComponent({
         />
       )}
 
-      {/* Expanded children */}
+      {/* Expanded children — currently-running sessions first, then HISTORY */}
       {expanded && (
         <>
-          {/* Live sessions first */}
-          {hasLive && node.liveSessions.map((session) => (
+          {hasActive && node.activeLiveSessions.map((session) => (
             <div key={session.id} style={{ paddingLeft: 16 }}>
               <AISessionListItem
                 session={session}
@@ -419,8 +456,8 @@ function SessionGroupNodeComponent({
             </div>
           ))}
 
-          {/* Divider between live and synced if both exist */}
-          {hasLive && hasSynced && (
+          {/* HISTORY divider — always shown when there's any history to report. */}
+          {hasHistory && (
             <div
               style={{
                 padding: "4px 16px 4px 54px",
@@ -436,10 +473,30 @@ function SessionGroupNodeComponent({
             </div>
           )}
 
-          {/* Synced sessions */}
-          {hasSynced && node.syncedSessions.map((session) => (
-            <SyncedSessionRow key={session.id} session={session} onResume={onResumeSyncedSession} />
-          ))}
+          {/* Unified history list — idle live sessions + synced-from-disk rows,
+              sorted by timestamp DESC, each rendered with the component that
+              matches its kind. */}
+          {hasHistory && node.history.map((item) => {
+            if (item.kind === "live") {
+              return (
+                <div key={`live:${item.session.id}`} style={{ paddingLeft: 16 }}>
+                  <AISessionListItem
+                    session={item.session}
+                    onSelect={onSelectSession}
+                    onResume={onResumeSession}
+                    onDelete={onDeleteSession}
+                  />
+                </div>
+              );
+            }
+            return (
+              <SyncedSessionRow
+                key={`synced:${item.session.id}`}
+                session={item.session}
+                onResume={onResumeSyncedSession}
+              />
+            );
+          })}
         </>
       )}
     </div>

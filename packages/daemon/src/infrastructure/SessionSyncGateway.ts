@@ -28,6 +28,25 @@ export interface SessionFileEntry {
 }
 
 /**
+ * A Copilot CLI session on disk. Only sessions that have BOTH a `workspace.yaml`
+ * (binding the session to a repo) AND an `events.jsonl` (event stream) are returned.
+ */
+export interface CopilotSessionFileEntry {
+  /** Session UUID — matches the directory name */
+  sessionId: string;
+  /** Absolute path to the session directory (~/.copilot/session-state/{sessionId}) */
+  sessionDir: string;
+  /** Absolute path to the workspace.yaml file */
+  workspaceYamlPath: string;
+  /** Absolute path to events.jsonl */
+  eventsJsonlPath: string;
+  /** events.jsonl mtime (ms) — drives change detection */
+  mtime: number;
+  /** events.jsonl size (bytes) — drives change detection */
+  size: number;
+}
+
+/**
  * Infrastructure gateway that wraps all filesystem I/O
  * for scanning Claude Code and Copilot session directories.
  */
@@ -100,6 +119,72 @@ export class SessionSyncGateway {
     }
 
     return entries;
+  }
+
+  /**
+   * Returns the default GitHub Copilot CLI session-state directory.
+   */
+  getCopilotSessionStateDir(): string {
+    return path.join(os.homedir(), ".copilot", "session-state");
+  }
+
+  /**
+   * Scans the Copilot CLI session-state directory and returns every session
+   * that has BOTH a `workspace.yaml` and an `events.jsonl`.
+   *
+   * Skips:
+   *   - flat `{sessionId}.jsonl` files (legacy / VSCode extension exports)
+   *   - directories that only contain `vscode.metadata.json` (VSCode-only stubs)
+   */
+  listCopilotSessionFiles(stateDir: string): CopilotSessionFileEntry[] {
+    if (!fs.existsSync(stateDir)) {
+      console.log(`${TAG} Copilot session-state dir not found: ${stateDir}`);
+      return [];
+    }
+
+    const entries: CopilotSessionFileEntry[] = [];
+
+    try {
+      const dirEntries = fs.readdirSync(stateDir, { withFileTypes: true })
+        .filter((d) => d.isDirectory());
+
+      for (const dir of dirEntries) {
+        const sessionDir = path.join(stateDir, dir.name);
+        const workspaceYamlPath = path.join(sessionDir, "workspace.yaml");
+        const eventsJsonlPath = path.join(sessionDir, "events.jsonl");
+
+        if (!fs.existsSync(workspaceYamlPath)) continue;
+        if (!fs.existsSync(eventsJsonlPath)) continue;
+
+        try {
+          const stat = fs.statSync(eventsJsonlPath);
+          entries.push({
+            sessionId: dir.name,
+            sessionDir,
+            workspaceYamlPath,
+            eventsJsonlPath,
+            mtime: stat.mtimeMs,
+            size: stat.size,
+          });
+        } catch {
+          // Skip sessions we can't stat
+        }
+      }
+    } catch (err) {
+      throw new AppError("SESSION_SYNC_ERROR", `Failed to scan Copilot session-state: ${String(err)}`);
+    }
+
+    return entries;
+  }
+
+  /**
+   * Reads workspace.yaml content as a UTF-8 string.
+   */
+  readCopilotWorkspaceYaml(workspaceYamlPath: string): string {
+    if (!fs.existsSync(workspaceYamlPath)) {
+      throw new AppError("FILE_NOT_FOUND", `workspace.yaml not found: ${workspaceYamlPath}`);
+    }
+    return fs.readFileSync(workspaceYamlPath, "utf-8");
   }
 
   /**

@@ -64,8 +64,22 @@ export interface AISessionConfig {
   worktreePath?: string;
   /** Permission mode to start the session with (defaults to "auto"). */
   permissionMode?: AIPermissionMode;
-  args?: string[];
   env?: Record<string, string>;
+  /**
+   * Optional explicit agent session UUID.
+   *
+   * - When set on a fresh Claude session, the daemon passes `--session-id <id>`
+   *   to the CLI so Claude writes its JSONL under that exact UUID. This also
+   *   becomes the live session's `id`, so live and synced rows merge naturally.
+   *
+   * - When resuming a synced Copilot session, this carries the synced
+   *   sessionId so the new live record can store it as `providerSessionId`
+   *   immediately (the CLI is also told to `--resume=<id>`).
+   *
+   * Leave undefined for a brand-new Copilot session — the daemon will
+   * reconcile the agent-generated UUID after spawn.
+   */
+  providerSessionId?: string;
 }
 
 type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];

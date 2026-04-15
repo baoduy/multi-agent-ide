@@ -1,22 +1,47 @@
 import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 import type { AIProvider, AISessionRecord, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
+import { parseWorkspaceYaml } from "../domain/copilotSessionParser";
 import type { IPCBridge } from "../ipc/IPCBridge";
-import type { AISessionRepository } from "../services/AISessionRepository";
+import { buildAllowlist, resolveAndAssert, type PathAllowlistProvider } from "../domain/pathGuard";
 import { resolveSessionCwd } from "../domain/sessionCwdResolver";
 import { getAllProviderMeta, getProviderMeta, getPermissionModeArgs } from "../domain/providerRegistry";
 import { getSessionFactory } from "../infrastructure/sessions";
 import type { BaseAISession } from "../infrastructure/sessions";
 import { AppError } from "../errors/AppError";
 
+/**
+ * AISessionApplicationService is the in-memory home for live AI sessions.
+ *
+ * Design note — we intentionally do NOT persist session records to SQLite.
+ * The authoritative record of every session lives on disk (Claude Code under
+ * ~/.claude/projects/, Copilot under ~/.copilot/session-state/) and is picked
+ * up by SessionSyncApplicationService within ~300 ms of any JSONL append (via
+ * fs.watch). On app restart every live PTY dies, so there's no live state
+ * worth persisting: the sync job reconstructs the full list from disk, which
+ * is the single source of truth.
+ *
+ * The only state we hold is the in-memory records + their running PTYs,
+ * keyed by the agent's session UUID (Claude: --session-id; Copilot: captured
+ * post-spawn). That UUID is the same one the sync layer writes into
+ * synced_sessions.session_id, so live ↔ synced rows join by id.
+ */
 export class AISessionApplicationService {
+  private readonly records = new Map<string, AISessionRecord>();
   private readonly liveSessions = new Map<string, BaseAISession>();
 
   constructor(
     private readonly bridge: IPCBridge,
-    private readonly sessionRepo: AISessionRepository,
+    /**
+     * Allowlist provider for repo/worktree paths. ai-session:create spawns a
+     * long-running AI CLI under the selected cwd; without containment the
+     * renderer could spawn those processes anywhere on disk.
+     */
+    private readonly allowlistProvider: PathAllowlistProvider,
   ) {}
 
   async createSession(
@@ -24,25 +49,66 @@ export class AISessionApplicationService {
     cols: number,
     rows: number,
   ): Promise<AISessionRecord> {
-    const id = randomUUID();
     const provider = config.provider;
     const providerMeta = getProviderMeta(provider);
     const permissionMode: AIPermissionMode = config.permissionMode ?? "auto";
 
-    // Resolve working directory
-    const cwd = resolveSessionCwd({
+    // Resolve working directory and enforce containment. The guard must
+    // run on the *resolved* cwd (which may be a worktree path derived from
+    // repoPath) — not on the raw config fields, because worktree paths can
+    // legitimately sit outside the repoPath itself but must still live under
+    // one of the user's declared working directories.
+    const rawCwd = resolveSessionCwd({
       repoPath: config.repoPath,
       worktreePath: config.worktreePath,
     });
+    const cwd = resolveAndAssert(rawCwd, buildAllowlist(this.allowlistProvider));
 
     // Ensure directory exists
     await fs.mkdir(cwd, { recursive: true });
 
-    // Derive repo name from path
+    // Derive repo / worktree names from path
     const repoName = config.repoPath ? path.basename(config.repoPath) : null;
-
-    // Derive worktree name from path
     const worktreeName = config.worktreePath ? path.basename(config.worktreePath) : null;
+
+    // ── Resolve agent session ID strategy ────────────────────────────────
+    //
+    // Claude Code supports `--session-id <uuid>` to force a specific UUID
+    // for the on-disk JSONL. We use this so the live record's `id` and the
+    // synced session's `sessionId` are always equal — no post-spawn
+    // reconciliation needed. Resuming a synced session passes the synced
+    // sessionId via config.providerSessionId so the new live record reuses it.
+    //
+    // Copilot CLI doesn't expose a session-id flag — it always generates its
+    // own UUID. We capture it later via post-spawn reconciliation that
+    // watches ~/.copilot/session-state/ for the new dir.
+    const explicitId = config.providerSessionId;
+    const id = explicitId && provider === "claude" ? explicitId : randomUUID();
+    const initialProviderSessionId =
+      provider === "claude" ? id : explicitId ?? null;
+
+    // Build CLI args — permission mode flags first, then provider defaults,
+    // then any --session-id we own. Arbitrary caller-supplied args are not
+    // forwarded: see ai-session:create schema rationale in packages/shared.
+    const permissionArgs = getPermissionModeArgs(provider, permissionMode);
+    const idArgs: string[] = [];
+    if (provider === "claude") {
+      // Brand-new session: --session-id <id>.
+      // Resume of a synced session: --session-id matches the synced UUID
+      // AND --resume <id> tells Claude to continue that conversation.
+      idArgs.push("--session-id", id);
+      if (explicitId) {
+        idArgs.push("--resume", explicitId);
+      }
+    } else if (provider === "copilot" && explicitId) {
+      // Copilot resume of a synced session.
+      idArgs.push(`--resume=${explicitId}`);
+    }
+    const args = [
+      ...permissionArgs,
+      ...providerMeta.defaultArgs,
+      ...idArgs,
+    ];
 
     // Create DB record (status is NOT persisted)
     const now = Date.now();
@@ -55,18 +121,14 @@ export class AISessionApplicationService {
       worktreePath: config.worktreePath ?? null,
       worktreeName,
       cwd,
-      providerSessionId: null,
+      providerSessionId: initialProviderSessionId,
       status: "active", // Runtime status — not persisted
       permissionMode,
       title: null,
       createdAt: now,
       lastActiveAt: now,
     };
-    this.sessionRepo.create(record);
-
-    // Build CLI args — permission mode flags first, then provider defaults, then overrides
-    const permissionArgs = getPermissionModeArgs(provider, permissionMode);
-    const args = [...permissionArgs, ...providerMeta.defaultArgs, ...(config.args ?? [])];
+    this.records.set(id, record);
 
     // Spawn PTY session via factory
     const factory = getSessionFactory(provider);
@@ -78,6 +140,12 @@ export class AISessionApplicationService {
     session.start(cwd, args, cols, rows);
     this.liveSessions.set(id, session);
 
+    // Schedule post-spawn reconciliation for Copilot only when we don't
+    // already know the agent's session id (i.e. brand-new sessions).
+    if (provider === "copilot" && !initialProviderSessionId) {
+      this.scheduleCopilotReconciliation(id, cwd, now);
+    }
+
     return record;
   }
 
@@ -86,7 +154,7 @@ export class AISessionApplicationService {
     cols: number,
     rows: number,
   ): Promise<AISessionRecord> {
-    const record = this.sessionRepo.getById(sessionId);
+    const record = this.records.get(sessionId);
     if (!record) {
       throw new AppError("NOT_FOUND", `AI session not found: ${sessionId}`);
     }
@@ -102,11 +170,37 @@ export class AISessionApplicationService {
 
     const providerMeta = getProviderMeta(record.provider);
 
-    // Build args for resume — use provider's --resume or --continue flag
+    // Build args for resume.
+    //
+    // Claude: prefer --session-id <id> --resume <id> (so the JSONL keeps the
+    //   same UUID and live↔synced join still works). Falls back to --continue
+    //   for legacy records whose providerSessionId was never captured.
+    // Copilot: --resume=<id> if known, else --continue.
     const args = [...providerMeta.defaultArgs];
-    if (record.providerSessionId) {
-      args.push("--resume", record.providerSessionId);
-    } else {
+    const resumeId = record.providerSessionId;
+    if (record.provider === "claude") {
+      if (resumeId) {
+        args.push("--session-id", resumeId, "--resume", resumeId);
+      } else {
+        // Legacy record: Claude has no session id stored. Use --continue and
+        // assign a fresh --session-id so future syncs can still merge.
+        args.push("--session-id", record.id, "--continue");
+      }
+    } else if (record.provider === "copilot") {
+      if (resumeId) {
+        args.push(`--resume=${resumeId}`);
+      } else {
+        args.push("--continue");
+      }
+    }
+
+    // Remove the legacy Claude --session-id-with-continue path: --continue
+    // resumes the agent's most recent conversation under its own UUID, so
+    // pinning a different --session-id alongside it would either fail or
+    // start a fresh empty session. For legacy records without a captured
+    // providerSessionId, fall back to a plain --continue.
+    if (record.provider === "claude" && !resumeId) {
+      args.length = providerMeta.defaultArgs.length;
       args.push("--continue");
     }
 
@@ -119,20 +213,22 @@ export class AISessionApplicationService {
     session.start(record.cwd, args, cols, rows);
     this.liveSessions.set(sessionId, session);
 
-    // Update lastActiveAt
+    // Update lastActiveAt (in-memory)
     const now = Date.now();
-    this.sessionRepo.update(sessionId, { lastActiveAt: now });
+    const updated: AISessionRecord = { ...record, lastActiveAt: now };
+    this.records.set(sessionId, updated);
 
-    return { ...record, permissionMode: record.permissionMode ?? "default", status: "active", lastActiveAt: now };
+    return { ...updated, permissionMode: updated.permissionMode ?? "default", status: "active" };
   }
 
   /**
-   * List all sessions, enriching each with real-time status from the
-   * live PTY process map. Sessions without a live process get "idle".
+   * List all live sessions with their real-time PTY status.
+   * Note: this only returns sessions that were created (or resumed) in the
+   * current daemon process. Historical sessions live in synced_sessions —
+   * the renderer merges both lists on the UI side.
    */
   listSessions(): AISessionRecord[] {
-    const records = this.sessionRepo.list();
-    return records.map((record) => {
+    return [...this.records.values()].map((record) => {
       const liveSession = this.liveSessions.get(record.id);
       return {
         ...record,
@@ -142,9 +238,9 @@ export class AISessionApplicationService {
   }
 
   deleteSession(sessionId: string): void {
-    // Kill live session if active
+    // Kill live session if active, then drop from memory.
     this.stop(sessionId);
-    this.sessionRepo.delete(sessionId);
+    this.records.delete(sessionId);
   }
 
   sendInput(sessionId: string, data: string): void {
@@ -176,7 +272,7 @@ export class AISessionApplicationService {
    * The escape sequence for Shift+Tab is \x1b[Z.
    */
   setPermissionMode(sessionId: string, mode: AIPermissionMode): void {
-    const record = this.sessionRepo.getById(sessionId);
+    const record = this.records.get(sessionId);
     if (!record) {
       throw new AppError("NOT_FOUND", `AI session not found: ${sessionId}`);
     }
@@ -186,8 +282,8 @@ export class AISessionApplicationService {
       throw new AppError("NOT_FOUND", `AI session is not live: ${sessionId}`);
     }
 
-    // Update persisted record
-    this.sessionRepo.update(sessionId, { permissionMode: mode });
+    // Update in-memory record
+    this.records.set(sessionId, { ...record, permissionMode: mode });
 
     // Emit push event so the UI updates
     this.bridge.emit({
@@ -219,9 +315,117 @@ export class AISessionApplicationService {
   }
 
   /**
+   * Post-spawn reconciliation for a brand-new Copilot session.
+   *
+   * Copilot CLI doesn't accept a `--session-id` flag — it generates its own
+   * UUID and writes everything under ~/.copilot/session-state/<uuid>/. To
+   * link the live `ai_sessions` row to the synced row, we poll that
+   * directory for a freshly-created session whose `workspace.yaml` cwd
+   * matches our spawn cwd.
+   *
+   * Strategy: poll every 500 ms for up to 30 s. The first matching
+   * directory wins (Copilot creates it within ~1–2 s of spawn). On match,
+   * patch `providerSessionId` on the live record and emit `ai-session:updated`
+   * so the UI tree dedup picks it up.
+   */
+  private scheduleCopilotReconciliation(
+    liveId: string,
+    cwd: string,
+    spawnedAt: number,
+  ): void {
+    const stateDir = path.join(os.homedir(), ".copilot", "session-state");
+    const POLL_INTERVAL_MS = 500;
+    const TIMEOUT_MS = 30_000;
+    // Allow a small clock-skew tolerance so a workspace.yaml whose
+    // created_at sits a few hundred ms earlier than spawnedAt still matches.
+    const SKEW_TOLERANCE_MS = 1_500;
+    const deadline = spawnedAt + TIMEOUT_MS;
+    const normalizedCwd = path.normalize(cwd);
+
+    const tryReconcile = (): void => {
+      // Bail out if the session was already reconciled (e.g. via a manual
+      // path or a concurrent run) or has been deleted.
+      const current = this.records.get(liveId);
+      if (!current) return;
+      if (current.providerSessionId) return;
+
+      let match: { sessionId: string } | null = null;
+
+      try {
+        if (existsSync(stateDir)) {
+          const dirs = readdirSync(stateDir, { withFileTypes: true });
+          for (const dir of dirs) {
+            if (!dir.isDirectory()) continue;
+            const sessionDir = path.join(stateDir, dir.name);
+            const yamlPath = path.join(sessionDir, "workspace.yaml");
+            if (!existsSync(yamlPath)) continue;
+
+            // Quick mtime gate before parsing — skip dirs created before
+            // we spawned (with a small tolerance for clock skew).
+            try {
+              const stat = statSync(yamlPath);
+              if (stat.mtimeMs < spawnedAt - SKEW_TOLERANCE_MS) continue;
+            } catch {
+              continue;
+            }
+
+            try {
+              const content = readFileSync(yamlPath, "utf-8");
+              const ws = parseWorkspaceYaml(content);
+              if (!ws.cwd) continue;
+              if (path.normalize(ws.cwd) !== normalizedCwd) continue;
+              match = { sessionId: dir.name };
+              break;
+            } catch {
+              // Skip unreadable / malformed yaml
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[AISession] Copilot reconcile scan failed:`, err);
+      }
+
+      if (match) {
+        const updated: AISessionRecord = { ...current, providerSessionId: match.sessionId };
+        this.records.set(liveId, updated);
+        // Mirror the live runtime status onto the broadcast record so the
+        // UI doesn't briefly flip back to "idle" after the dedup runs.
+        const liveRuntime = this.liveSessions.get(liveId);
+        this.bridge.emit({
+          type: "ai-session:updated",
+          session: { ...updated, status: liveRuntime ? liveRuntime.getStatus() : updated.status },
+        });
+        return;
+      }
+
+      if (Date.now() >= deadline) {
+        console.log(
+          `[AISession] Copilot reconcile timed out for live id=${liveId} cwd=${cwd}`,
+        );
+        return;
+      }
+
+      setTimeout(tryReconcile, POLL_INTERVAL_MS);
+    };
+
+    // First attempt slightly delayed — Copilot needs a moment to write its
+    // workspace.yaml after spawn.
+    setTimeout(tryReconcile, POLL_INTERVAL_MS);
+  }
+
+  /**
+   * Update the in-memory record's lastActiveAt. No-op if the record was
+   * already dropped (e.g. deleteSession ran concurrently).
+   */
+  private touchLastActive(sessionId: string): void {
+    const record = this.records.get(sessionId);
+    if (!record) return;
+    this.records.set(sessionId, { ...record, lastActiveAt: Date.now() });
+  }
+
+  /**
    * Wire PTY session events to IPC bridge push events.
    * Status changes and exit events are broadcast to the UI in real time.
-   * Only lastActiveAt is persisted to DB — status is NOT persisted.
    */
   private wireSessionEvents(sessionId: string, session: BaseAISession): void {
     session.on("data", (payload: { data: string; seq: number }) => {
@@ -233,13 +437,12 @@ export class AISessionApplicationService {
         sessionId,
         status: status as AISessionRecord["status"],
       });
-      // Only update lastActiveAt — status is runtime-only
-      this.sessionRepo.update(sessionId, { lastActiveAt: Date.now() });
+      this.touchLastActive(sessionId);
     });
     session.on("exit", (exitCode: number) => {
       this.liveSessions.delete(sessionId);
       this.bridge.emit({ type: "ai-session:exited", sessionId, exitCode });
-      this.sessionRepo.update(sessionId, { lastActiveAt: Date.now() });
+      this.touchLastActive(sessionId);
     });
     session.on("heartbeat", (payload: { headSeq: number; alive: boolean }) => {
       this.bridge.emit({

@@ -24,7 +24,8 @@ type AISessionStoreState = {
     branch?: string;
     worktreePath?: string;
     permissionMode?: AIPermissionMode;
-    args?: string[];
+    /** Reuse an existing agent session UUID (resume of a synced session). */
+    providerSessionId?: string;
   }, cols: number, rows: number) => Promise<AISessionRecord>;
   resumeSession: (sessionId: string, cols: number, rows: number) => Promise<AISessionRecord>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -70,7 +71,7 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
       branch: config.branch,
       worktreePath: config.worktreePath,
       permissionMode: config.permissionMode,
-      args: config.args,
+      providerSessionId: config.providerSessionId,
       cols,
       rows,
     });
@@ -193,6 +194,17 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
 
     onEvent("ai-session:exited", (event) => {
       get().setExited(event.sessionId, event.exitCode);
+    });
+
+    // A session record was mutated daemon-side (e.g. Copilot's providerSessionId
+    // was reconciled after spawn). Replace the store record so the tree dedup
+    // in buildUnifiedGroups picks up the new identity immediately.
+    onEvent("ai-session:updated", (event) => {
+      set((state) => ({
+        sessions: state.sessions.some((s) => s.id === event.session.id)
+          ? state.sessions.map((s) => (s.id === event.session.id ? event.session : s))
+          : [event.session, ...state.sessions],
+      }));
     });
   }),
 }));

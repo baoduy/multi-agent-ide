@@ -347,6 +347,35 @@ export class OnboardApplicationService {
    * @param completeEvent - If provided, emits this event on close/error. When
    *   omitted the caller is responsible for signalling completion.
    */
+  /**
+   * Shell-metacharacter allowlist for command tokens. Anything outside this
+   * set is rejected: semicolons, pipes, backticks, `$()`, redirections,
+   * quoting, globs — the usual cast of shell-injection enablers. URLs,
+   * version specifiers, typical CLI flags, and simple identifiers are all
+   * fine. The `{agent}` placeholder has already been substituted by the
+   * time we reach here, so literal `{}` is also disallowed.
+   */
+  private static readonly SAFE_TOKEN = /^[A-Za-z0-9_@:/.\-+=~,%]+$/;
+
+  private tokenizeSafely(command: string): string[] {
+    const tokens = command
+      .trim()
+      .split(/\s+/)
+      .filter((t) => t.length > 0);
+    for (const token of tokens) {
+      if (!OnboardApplicationService.SAFE_TOKEN.test(token)) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `Onboard command contains unsafe characters: ${JSON.stringify(token)}`,
+        );
+      }
+    }
+    if (tokens.length === 0) {
+      throw new AppError("VALIDATION_ERROR", "Onboard command is empty");
+    }
+    return tokens;
+  }
+
   private runCommand(
     repoPath: string,
     cwd: string,
@@ -355,9 +384,26 @@ export class OnboardApplicationService {
     completeEvent?: "repo:onboard:complete" | "repo:upgrade-specify:complete",
   ): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
-      const child = spawn(fullCommand, {
+      // Tokenize + validate, then spawn with `shell: false` so none of the
+      // tokens pass through a shell interpreter. This is the primary defense
+      // against injection via the configurable `specifyCommand` template.
+      let argv: string[];
+      try {
+        argv = this.tokenizeSafely(fullCommand);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (completeEvent) {
+          this.bridge.emit({ type: completeEvent, repoPath, success: false, error: message });
+          resolve(false);
+        } else {
+          reject(err);
+        }
+        return;
+      }
+      const [command, ...args] = argv;
+      const child = spawn(command, args, {
         cwd,
-        shell: true,
+        shell: false,
         env: { ...process.env },
         stdio: ["ignore", "pipe", "pipe"],
       });

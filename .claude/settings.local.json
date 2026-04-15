@@ -8,7 +8,8 @@
       "Bash(node -e \"console.log\\(require\\('electron/package.json'\\).version\\)\")",
       "Bash(pnpm run:*)",
       "Bash(pnpm install:*)",
-      "Bash(pnpm typecheck:*)"
+      "Bash(pnpm typecheck:*)",
+      "Bash(grep -rn '\"yaml\"' /Users/steven/_CODE/GIT/multi-agent-ide/package.json /Users/steven/_CODE/GIT/multi-agent-ide/packages/*/package.json)"
     ]
   }
 }

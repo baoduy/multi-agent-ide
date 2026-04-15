@@ -2,16 +2,24 @@ import type { IPCBridge } from "../IPCBridge";
 import type { TerminalApplicationService } from "../../application/TerminalApplicationService";
 import { safeHandle } from "../createHandler";
 import { ulid } from "ulid";
+import { buildAllowlist, resolveAndAssert, type PathAllowlistProvider } from "../../domain/pathGuard";
 
 type TerminalHandlerContext = {
   bridge: IPCBridge;
   terminalService: TerminalApplicationService;
+  /**
+   * Source of the filesystem allowlist. `terminal:spawn` accepts a cwd from
+   * the renderer; without containment any renderer code could spawn a shell
+   * inside `/etc` or anywhere else on disk.
+   */
+  allowlistProvider: PathAllowlistProvider;
 };
 
-export function registerTerminalHandlers({ bridge, terminalService }: TerminalHandlerContext): void {
+export function registerTerminalHandlers({ bridge, terminalService, allowlistProvider }: TerminalHandlerContext): void {
   safeHandle(bridge, "terminal:spawn", async (msg) => {
     const sessionId = ulid();
-    terminalService.spawn(sessionId, msg.cwd, msg.cols, msg.rows);
+    const cwd = resolveAndAssert(msg.cwd, buildAllowlist(allowlistProvider));
+    terminalService.spawn(sessionId, cwd, msg.cols, msg.rows);
     return { type: "terminal:spawned", sessionId };
   });
 

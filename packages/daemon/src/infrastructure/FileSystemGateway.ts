@@ -1,18 +1,35 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AppError } from "../errors/AppError";
+import {
+  buildAllowlist,
+  resolveAndAssert,
+  type PathAllowlistProvider,
+} from "../domain/pathGuard";
 
 /**
  * FileSystemGateway wraps all filesystem operations.
  * Encapsulates file I/O with consistent error handling.
+ *
+ * Every public method runs the supplied path through the PathGuard allowlist
+ * (user-configured working directories + a small set of system-safe roots).
+ * Requests that resolve outside that set are rejected with VALIDATION_ERROR
+ * before any I/O happens. This is the primary defense against path traversal
+ * at the IPC boundary.
  */
 export class FileSystemGateway {
+  constructor(private readonly allowlistProvider: PathAllowlistProvider) {}
+
+  private resolveAllowed(filePath: string): string {
+    return resolveAndAssert(filePath, buildAllowlist(this.allowlistProvider));
+  }
+
   /**
    * Read a file from disk with size and type validation.
    * @returns Object with content string and resolved absolute path
    */
   readFile(filePath: string): { content: string; resolvedPath: string } {
-    const resolved = path.resolve(filePath);
+    const resolved = this.resolveAllowed(filePath);
 
     if (!fs.existsSync(resolved)) {
       throw new AppError("FILE_NOT_FOUND", `File not found: ${resolved}`);
@@ -39,7 +56,7 @@ export class FileSystemGateway {
    * @returns The resolved absolute path
    */
   writeFile(filePath: string, content: string): string {
-    const resolved = path.resolve(filePath);
+    const resolved = this.resolveAllowed(filePath);
     fs.writeFileSync(resolved, content, "utf-8");
     return resolved;
   }
@@ -49,7 +66,7 @@ export class FileSystemGateway {
    * Sorted with directories first, then alphabetically.
    */
   listDirectory(dirPath: string): { name: string; path: string; isDirectory: boolean }[] {
-    const resolved = path.resolve(dirPath);
+    const resolved = this.resolveAllowed(dirPath);
 
     if (!fs.existsSync(resolved)) {
       throw new AppError("FILE_NOT_FOUND", `Directory not found: ${resolved}`);
@@ -74,5 +91,4 @@ export class FileSystemGateway {
         return a.name.localeCompare(b.name);
       });
   }
-
 }

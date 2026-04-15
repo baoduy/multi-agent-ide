@@ -124,18 +124,37 @@ export function AISessionsView({
       if (cwd) {
         SessionCoordinator.selectRepo(cwd);
       }
+      // If a live session already mirrors this synced row (same agent UUID),
+      // open it instead of creating a duplicate.
+      const existingLive = sessions.find(
+        (s) => s.id === syncedSession.sessionId || s.providerSessionId === syncedSession.sessionId,
+      );
+      if (existingLive) {
+        if (existingLive.status === "idle") {
+          void resumeSession(existingLive.id, 80, 24)
+            .then((s) => onOpenAgentSession?.(s))
+            .catch(console.error);
+        } else {
+          onOpenAgentSession?.(existingLive);
+        }
+        return;
+      }
+      // Pass providerSessionId so the daemon reuses the synced agent UUID:
+      //   - Claude:  --session-id <id> --resume <id> (live.id === synced.sessionId)
+      //   - Copilot: --resume=<id> (live.providerSessionId === synced.sessionId)
+      // Either way, the tree dedup will collapse live + synced into one row.
       void createSession(
         {
           provider,
           repoPath: cwd,
           branch: syncedSession.gitBranch ?? undefined,
-          args: ["--resume", syncedSession.sessionId],
+          providerSessionId: syncedSession.sessionId,
         },
         80,
         24,
       ).then((s) => onOpenAgentSession?.(s)).catch(console.error);
     },
-    [createSession, onOpenAgentSession],
+    [createSession, resumeSession, onOpenAgentSession, sessions],
   );
 
   // Build unified groups: merge live sessions + synced history, grouped by repo/dir.

@@ -69,15 +69,40 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("config:get") }),
   z.object({ type: z.literal("config:add-working-dir"), path: z.string() }),
   z.object({ type: z.literal("config:remove-working-dir"), path: z.string() }),
-  z.object({ type: z.literal("config:update"), config: z.record(z.string(), z.unknown()) }),
+  // Only known, validated config keys may be updated. Using `.partial()` on
+  // the canonical schema prevents callers from smuggling arbitrary keys into
+  // the persisted config file via the IPC boundary.
+  z.object({ type: z.literal("config:update"), config: MagentaConfigSchema.partial() }),
   z.object({ type: z.literal("branch:list"), repoPath: z.string() }),
   z.object({ type: z.literal("branch:checkout"), repoPath: z.string(), branch: z.string() }),
-  z.object({ type: z.literal("gitfile:read"), repoPath: z.string(), ref: z.string(), relativePath: z.string() }),
+  // `ref` is passed directly to `git show` — restrict it to characters that
+  // can appear in a branch/tag/commit name. `relativePath` must stay inside
+  // the repo tree, so reject anything starting with `/`, containing `..`
+  // segments, or containing a NUL byte.
+  z.object({
+    type: z.literal("gitfile:read"),
+    repoPath: z.string(),
+    ref: z
+      .string()
+      .min(1)
+      .max(200)
+      .regex(/^[A-Za-z0-9._/\-]+$/, "ref contains invalid characters"),
+    relativePath: z
+      .string()
+      .min(1)
+      .max(1024)
+      .refine(
+        (p) => !p.startsWith("/") && !p.includes("\0") && !p.split(/[\\/]/).includes(".."),
+        "relativePath must be a repo-relative path without .. segments",
+      ),
+  }),
   z.object({ type: z.literal("worktree:create"), repoPath: z.string(), branch: z.string(), name: z.string() }),
   z.object({ type: z.literal("worktree:list"), repoPath: z.string().optional() }),
-  z.object({ type: z.literal("repo:onboard"), repoPath: z.string(), aiAgent: z.string(), useWorktree: z.boolean().optional() }),
+  // `aiAgent` is templated into a shell-free spawn command below; restrict
+  // it to simple identifiers so no shell metacharacters can be smuggled in.
+  z.object({ type: z.literal("repo:onboard"), repoPath: z.string(), aiAgent: z.string().regex(/^[a-z0-9_-]+$/, "aiAgent must be a simple identifier"), useWorktree: z.boolean().optional() }),
   z.object({ type: z.literal("repo:specify-status"), repoPath: z.string() }),
-  z.object({ type: z.literal("repo:specify-switch"), repoPath: z.string(), aiAgent: z.string() }),
+  z.object({ type: z.literal("repo:specify-switch"), repoPath: z.string(), aiAgent: z.string().regex(/^[a-z0-9_-]+$/, "aiAgent must be a simple identifier") }),
   z.object({ type: z.literal("repo:upgrade-specify"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:onboard:cancel"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:force-reload"), repoPath: z.string() }),
@@ -92,7 +117,11 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("terminal:close"), sessionId: z.string() }),
   z.object({ type: z.literal("terminal:attach"), sessionId: z.string(), fromSeq: z.number().int().nonnegative().optional() }),
   z.object({ type: z.literal("terminal:ack"), sessionId: z.string(), seq: z.number().int().nonnegative() }),
-  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), permissionMode: z.enum(AI_PERMISSION_MODES).optional(), args: z.array(z.string()).optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  // `args` passthrough removed — any dangerous flag (e.g. Claude's
+  // `--dangerously-skip-permissions`) could be smuggled through this vector.
+  // Permission controls now go exclusively through `permissionMode`, and the
+  // session UUID handoff goes through `providerSessionId`.
+  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), permissionMode: z.enum(AI_PERMISSION_MODES).optional(), providerSessionId: z.string().optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:resume"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:input"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("ai-session:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
@@ -107,6 +136,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   z.object({ type: z.literal("synced-session:trigger-sync") }),
+  // UI visibility signal — the renderer tells the daemon whether the AI title-bar
+  // tab is currently the active top-level tab. The session sync job only runs
+  // while the AI tab is active; switching away pauses the recurring sweep.
+  z.object({ type: z.literal("ui:ai-tab-active"), active: z.boolean() }),
   // Git operations
   z.object({ type: z.literal("branch:create"), repoPath: z.string(), branchName: z.string(), startPoint: z.string().optional() }),
   z.object({ type: z.literal("git:fetch"), repoPath: z.string(), remote: z.string().optional() }),
@@ -147,7 +180,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("spec:list:result"), repoPath: z.string(), specs: z.array(SpecFolderSchema) }),
   z.object({ type: z.literal("spec:sync:started"), repoPath: z.string() }),
-  z.object({ type: z.literal("spec:sync:complete"), repoPath: z.string() }),
+  z.object({ type: z.literal("spec:sync:complete"), repoPath: z.string(), success: z.boolean(), error: z.string().optional() }),
   // NOTE: session:response / session:updated removed — session state now in localStorage
   z.object({ type: z.literal("config:response"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("config:updated"), config: MagentaConfigSchema }),
@@ -230,6 +263,8 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("terminal:heartbeat"), sessionId: z.string(), headSeq: z.number().int().nonnegative(), alive: z.boolean() }),
   z.object({ type: z.literal("ai-session:created"), session: AISessionRecordSchema }),
   z.object({ type: z.literal("ai-session:resumed"), session: AISessionRecordSchema }),
+  /** Push event: a session record changed on the daemon side (e.g. providerSessionId reconciled). */
+  z.object({ type: z.literal("ai-session:updated"), session: AISessionRecordSchema }),
   z.object({ type: z.literal("ai-session:input:ack") }),
   z.object({ type: z.literal("ai-session:resize:ack") }),
   z.object({ type: z.literal("ai-session:stop:ack") }),
@@ -258,6 +293,8 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("synced-session:list:result"), sessions: z.array(SyncedSessionRecordSchema) }),
   z.object({ type: z.literal("synced-session:sync:triggered") }),
   z.object({ type: z.literal("synced-session:sync:complete"), claudeCount: z.number().int().nonnegative(), copilotCount: z.number().int().nonnegative() }),
+  // UI visibility ack for the AI-tab-active signal.
+  z.object({ type: z.literal("ui:ai-tab-active:ack"), active: z.boolean() }),
   z.object({ type: z.literal("error"), message: z.string() }),
   // Git operation responses
   z.object({ type: z.literal("branch:create:result"), repoPath: z.string(), branchName: z.string(), success: z.boolean() }),

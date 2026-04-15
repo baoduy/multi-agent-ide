@@ -3,6 +3,14 @@ import type { SyncedSessionRecord, SyncedSessionGroup } from "@magenta/shared/sy
 import type { Repository } from "@magenta/shared/models";
 import { extractDisplayName } from "./formatters";
 
+/**
+ * One row under the "HISTORY" section. Discriminated so the renderer knows
+ * which component to render (live PTY row vs synced disk row).
+ */
+export type HistoryItem =
+  | { kind: "live"; session: AISessionRecord; timestamp: number }
+  | { kind: "synced"; session: SyncedSessionRecord; timestamp: number };
+
 /** A unified group node in the session tree */
 export interface SessionGroupNode {
   /** Unique key for React */
@@ -13,15 +21,23 @@ export interface SessionGroupNode {
   path: string;
   /** Whether this maps to a registered repo in the DB */
   repo: Repository | null;
-  /** Live sessions (from Magenta PTY) */
-  liveSessions: AISessionRecord[];
-  /** Synced sessions (from disk history) */
-  syncedSessions: SyncedSessionRecord[];
-  /** Total session count */
+  /**
+   * Currently-running PTY sessions (status "active" or "waiting-input").
+   * Rendered above the HISTORY divider. Always sorted by lastActiveAt DESC.
+   */
+  activeLiveSessions: AISessionRecord[];
+  /**
+   * Everything else: idle/exited live sessions + all synced sessions,
+   * merged and sorted by timestamp DESC. Synced rows are deduped against
+   * live rows via agent session UUID (live.id or live.providerSessionId ===
+   * synced.sessionId).
+   */
+  history: HistoryItem[];
+  /** Total session count (active + history, post-dedup) */
   totalCount: number;
-  /** Active live session count */
+  /** Count of rows above the divider */
   activeCount: number;
-  /** Most recent activity timestamp across all sessions */
+  /** Most recent activity timestamp across all rows */
   latestTimestamp: number;
 }
 
@@ -60,32 +76,29 @@ export function buildUnifiedGroups(
     repoByName.set(repo.name.toLowerCase(), repo);
   }
 
-  // Track which group keys we've already created
-  const groupMap = new Map<string, SessionGroupNode>();
+  /** Accumulator: live + synced buckets per group, pre-sort. */
+  type GroupAcc = {
+    key: string;
+    name: string;
+    path: string;
+    repo: Repository | null;
+    live: AISessionRecord[];
+    synced: SyncedSessionRecord[];
+  };
+  const groupAcc = new Map<string, GroupAcc>();
 
-  // Helper to get or create a group node
-  function getOrCreateGroup(
+  function getOrCreateAcc(
     key: string,
     path: string,
     name: string,
     repo: Repository | null,
-  ): SessionGroupNode {
-    let node = groupMap.get(key);
-    if (!node) {
-      node = {
-        key,
-        name,
-        path,
-        repo,
-        liveSessions: [],
-        syncedSessions: [],
-        totalCount: 0,
-        activeCount: 0,
-        latestTimestamp: 0,
-      };
-      groupMap.set(key, node);
+  ): GroupAcc {
+    let acc = groupAcc.get(key);
+    if (!acc) {
+      acc = { key, name, path, repo, live: [], synced: [] };
+      groupAcc.set(key, acc);
     }
-    return node;
+    return acc;
   }
 
   // 1) Group live sessions by repoPath or cwd
@@ -93,19 +106,17 @@ export function buildUnifiedGroups(
     const dirPath = normalisePath(session.repoPath || session.cwd || "/Workspace");
     const repo = repoByPath.get(dirPath) ?? null;
     const name = repo?.name ?? extractDisplayName(dirPath);
-    const group = getOrCreateGroup(dirPath, dirPath, name, repo);
-    group.liveSessions.push(session);
+    const acc = getOrCreateAcc(dirPath, dirPath, name, repo);
+    acc.live.push(session);
   }
 
-  // 2) Merge synced session groups
+  // 2) Merge synced session groups, matching to repos where possible.
   for (const syncedGroup of syncedGroups) {
     const syncedPath = normalisePath(syncedGroup.path);
 
-    // Try direct path match to a repo
     let matchedRepo = repoByPath.get(syncedPath) ?? null;
     let groupKey = syncedPath;
 
-    // If not found, try resolving hyphenated Claude Code paths
     if (!matchedRepo && syncedPath.startsWith("-")) {
       const resolved = resolveHyphenatedPath(syncedPath);
       matchedRepo = repoByPath.get(normalisePath(resolved)) ?? null;
@@ -114,7 +125,6 @@ export function buildUnifiedGroups(
       }
     }
 
-    // Fuzzy match by folder name as last resort
     if (!matchedRepo) {
       const folderName = extractDisplayName(syncedPath).toLowerCase();
       matchedRepo = repoByName.get(folderName) ?? null;
@@ -124,39 +134,65 @@ export function buildUnifiedGroups(
     }
 
     const name = matchedRepo?.name ?? syncedGroup.name;
-    const group = getOrCreateGroup(groupKey, matchedRepo?.path ?? syncedPath, name, matchedRepo);
-
-    // Append synced sessions
+    const acc = getOrCreateAcc(groupKey, matchedRepo?.path ?? syncedPath, name, matchedRepo);
     for (const s of syncedGroup.sessions) {
-      group.syncedSessions.push(s);
+      acc.synced.push(s);
     }
   }
 
-  // 3) Compute aggregate stats for each group
-  for (const group of groupMap.values()) {
-    // Sort live sessions: active first, then by lastActiveAt DESC
-    group.liveSessions.sort((a, b) => {
-      const aActive = a.status === "active" || a.status === "waiting-input" ? 1 : 0;
-      const bActive = b.status === "active" || b.status === "waiting-input" ? 1 : 0;
-      if (aActive !== bActive) return bActive - aActive;
-      return b.lastActiveAt - a.lastActiveAt;
-    });
-    // Sort synced sessions: active first, then by startedAt DESC
-    group.syncedSessions.sort((a, b) => {
-      const aActive = a.status === "active" ? 1 : 0;
-      const bActive = b.status === "active" ? 1 : 0;
-      if (aActive !== bActive) return bActive - aActive;
-      return b.startedAt - a.startedAt;
-    });
+  // 3) For each group, split live into running vs idle, dedup synced
+  //    against live by agent session UUID, then merge idle-live + synced
+  //    into a single history list sorted DESC.
+  const isRunning = (s: AISessionRecord): boolean =>
+    s.status === "active" || s.status === "waiting-input";
 
-    group.totalCount = group.liveSessions.length + group.syncedSessions.length;
-    group.activeCount = group.liveSessions.filter(
-      (s) => s.status === "active" || s.status === "waiting-input",
-    ).length;
+  const groupMap = new Map<string, SessionGroupNode>();
+  for (const acc of groupAcc.values()) {
+    // Collect all known live session UUIDs (live.id + live.providerSessionId)
+    // so we can drop duplicates that also appear in the synced list.
+    const liveIds = new Set<string>();
+    for (const s of acc.live) {
+      liveIds.add(s.id);
+      if (s.providerSessionId) liveIds.add(s.providerSessionId);
+    }
+    const dedupedSynced = acc.synced.filter((s) => !liveIds.has(s.sessionId));
 
-    const latestLive = group.liveSessions[0]?.lastActiveAt ?? 0;
-    const latestSynced = group.syncedSessions[0]?.startedAt ?? 0;
-    group.latestTimestamp = Math.max(latestLive, latestSynced);
+    // Active rows (top section). Sort by lastActiveAt DESC.
+    const activeLiveSessions = acc.live
+      .filter(isRunning)
+      .sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+
+    // History rows: idle live + synced, tagged, then sorted DESC.
+    const history: HistoryItem[] = [];
+    for (const s of acc.live) {
+      if (isRunning(s)) continue;
+      history.push({ kind: "live", session: s, timestamp: s.lastActiveAt });
+    }
+    for (const s of dedupedSynced) {
+      // Prefer endedAt (last activity) over startedAt when available.
+      const timestamp = s.endedAt ?? s.startedAt;
+      history.push({ kind: "synced", session: s, timestamp });
+    }
+    history.sort((a, b) => b.timestamp - a.timestamp);
+
+    const totalCount = activeLiveSessions.length + history.length;
+    const activeCount = activeLiveSessions.length;
+    const latestTimestamp = Math.max(
+      activeLiveSessions[0]?.lastActiveAt ?? 0,
+      history[0]?.timestamp ?? 0,
+    );
+
+    groupMap.set(acc.key, {
+      key: acc.key,
+      name: acc.name,
+      path: acc.path,
+      repo: acc.repo,
+      activeLiveSessions,
+      history,
+      totalCount,
+      activeCount,
+      latestTimestamp,
+    });
   }
 
   // 4) Sort groups: repos first (alphabetical), then non-repos (by latest timestamp)

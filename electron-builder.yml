@@ -3,6 +3,7 @@
 
 appId: com.magenta.ide
 productName: Magenta IDE
+electronVersion: "41.2.0"
 
 # ── Directories ──────────────────────────────────────────────────────────────
 directories:

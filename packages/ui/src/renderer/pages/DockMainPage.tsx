@@ -25,6 +25,8 @@ import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
 import { SettingsDialog } from "../components/settings/SettingsDialog";
 import { NewSessionDialog } from "../components/dialogs/NewSessionDialog";
+import { CloseWarningDialog } from "../components/dialogs/CloseWarningDialog";
+import { useAISessionStore } from "../store/aiSessionStore";
 
 import type { ActiveTab, BuiltinTabId } from "../types/tabs";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
@@ -143,6 +145,7 @@ export function DockMainPage(): React.ReactElement {
 
   const [showSettings, setShowSettings] = useState(false);
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+  const [closeWarningCount, setCloseWarningCount] = useState(0);
 
   // Navigation
   const nav = useNavHistory();
@@ -254,6 +257,19 @@ export function DockMainPage(): React.ReactElement {
     isNavAction.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // ── Close warning for running AI sessions ──
+  useEffect(() => {
+    const cleanup = window.magentaIpc.onBeforeClose(() => {
+      const count = useAISessionStore.getState().getRunningSessionCount();
+      if (count > 0) {
+        setCloseWarningCount(count);
+      } else {
+        window.magentaIpc.confirmClose();
+      }
+    });
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     const handleBeforeUnload = () => snapshots.flush();
@@ -468,6 +484,19 @@ export function DockMainPage(): React.ReactElement {
   return (
     <>
       <OnboardDialogManager />
+      {closeWarningCount > 0 && (
+        <CloseWarningDialog
+          runningCount={closeWarningCount}
+          onCancel={() => {
+            setCloseWarningCount(0);
+            window.magentaIpc.cancelClose();
+          }}
+          onForceQuit={() => {
+            setCloseWarningCount(0);
+            window.magentaIpc.confirmClose();
+          }}
+        />
+      )}
       <SettingsDialog isOpen={showSettings} onClose={() => setShowSettings(false)} />
       <NewSessionDialog
         open={newSessionDialogOpen}
@@ -496,7 +525,7 @@ export function DockMainPage(): React.ReactElement {
         }
         viewProps={viewProps}
         onSettingsClick={() => setShowSettings(true)}
-        statusBar={<StatusBar />}
+        statusBar={<StatusBar onShowRunningSessions={() => { setMainView("ai-sessions"); handleSelectBuiltinTab("ai"); }} />}
       />
     </>
   );

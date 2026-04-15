@@ -58,6 +58,10 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
     return { type: "ai-session:providers:result", providers: aiSessionService.getProviders() };
   });
 
+  safeHandle(bridge, "ai-session:running-count", async () => {
+    return { type: "ai-session:running-count:result", count: aiSessionService.getRunningCount() };
+  });
+
   safeHandle(bridge, "ai-session:set-permission-mode", async (msg) => {
     aiSessionService.setPermissionMode(msg.sessionId, msg.permissionMode);
     return { type: "ai-session:permission-mode:ack", sessionId: msg.sessionId, permissionMode: msg.permissionMode };

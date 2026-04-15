@@ -195,7 +195,30 @@ function createWindow() {
     writeLog("CRASH", "renderer", msg);
   });
 
+  // ── Intercept close to warn about running AI sessions ──
+  let closeConfirmed = false;
+
+  mainWindow.on("close", (e) => {
+    if (closeConfirmed || isQuitting) return;
+
+    // Prevent the default close and ask the renderer to check
+    e.preventDefault();
+    mainWindow?.webContents.send("magenta:before-close");
+  });
+
+  ipcMain.on("magenta:confirm-close", () => {
+    closeConfirmed = true;
+    mainWindow?.close();
+  });
+
+  ipcMain.on("magenta:cancel-close", () => {
+    // No-op — the close was already prevented
+  });
+
   mainWindow.on("closed", () => {
+    // Clean up IPC listeners for this window
+    ipcMain.removeAllListeners("magenta:confirm-close");
+    ipcMain.removeAllListeners("magenta:cancel-close");
     mainWindow = null;
   });
 }

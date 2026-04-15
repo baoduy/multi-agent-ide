@@ -16,6 +16,7 @@ import { BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { getProviderName } from "../common/providerConfig";
 import { SpecifyOnboardBanner } from "./SpecifyOnboardBanner";
+import { SpecifyFooterStatus } from "./SpecifyFooterStatus";
 import type { AIPermissionMode, AIProvider, AISessionRecord } from "@magenta/shared/aiTerminal";
 
 /* ── Types ── */
@@ -102,7 +103,7 @@ export function NewSessionDialog({
   /* ── Form state ── */
   const [sessionType, setSessionType] = useState<SessionType>(defaultSessionType);
   const [provider, setProvider] = useState<AIProvider>("claude");
-  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("default");
+  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("auto");
 
   // Workspace
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(initialRepoPath ?? null);
@@ -228,6 +229,19 @@ export function NewSessionDialog({
     [repoWorktrees.length],
   );
 
+  /**
+   * The path we should check for Specify status.
+   * For existing worktrees, use the worktree path (its own .specify/ may differ).
+   * Otherwise fall back to the repo root.
+   */
+  const effectiveSpecifyPath = useMemo((): string | null => {
+    if (!selectedRepoPath) return null;
+    if (workspaceTarget === "existing-worktree" && selectedWorktreePath) {
+      return selectedWorktreePath;
+    }
+    return selectedRepoPath;
+  }, [selectedRepoPath, workspaceTarget, selectedWorktreePath]);
+
   const canCreate = useMemo(() => {
     if (!selectedRepoPath) return false;
     if (workspaceTarget === "branch" && !selectedBranch) return false;
@@ -237,8 +251,9 @@ export function NewSessionDialog({
     return true;
   }, [selectedRepoPath, workspaceTarget, selectedBranch, selectedWorktreePath, sessionType, provider]);
 
-  type SpecifyBannerKind = "none" | "not-onboarded" | "agent-mismatch";
+  type SpecifyBannerKind = "none" | "not-onboarded";
 
+  /** Body banner — only used for "not onboarded". Agent-mismatch now lives in the footer. */
   const specifyBanner = useMemo((): { kind: SpecifyBannerKind; currentAgent: string | null } => {
     if (sessionType !== "agent" || !specifyStatus || isLoadingSpecifyStatus) {
       return { kind: "none", currentAgent: null };
@@ -246,11 +261,8 @@ export function NewSessionDialog({
     if (!specifyStatus.hasSpecs) {
       return { kind: "not-onboarded", currentAgent: null };
     }
-    if (specifyStatus.currentAgent && specifyStatus.currentAgent !== provider) {
-      return { kind: "agent-mismatch", currentAgent: specifyStatus.currentAgent };
-    }
     return { kind: "none", currentAgent: null };
-  }, [sessionType, specifyStatus, isLoadingSpecifyStatus, provider]);
+  }, [sessionType, specifyStatus, isLoadingSpecifyStatus]);
 
   /* ── Effects ── */
 
@@ -260,7 +272,7 @@ export function NewSessionDialog({
       setSelectedRepoPath(initialRepoPath ?? null);
       setSessionType(defaultSessionType);
       setProvider("claude");
-      setPermissionMode("default");
+      setPermissionMode("auto");
       setWorkspaceTarget("branch");
       setSelectedWorktreePath(null);
       setWorktreeCustomName("");
@@ -302,9 +314,10 @@ export function NewSessionDialog({
     };
   }, [open, selectedRepoPath]);
 
-  // Check Specify onboard status when repo changes
+  // Check Specify onboard status whenever the effective path changes
+  // (repo switch, worktree selection, or branch change).
   useEffect(() => {
-    if (!open || !selectedRepoPath || sessionType !== "agent") {
+    if (!open || !effectiveSpecifyPath || sessionType !== "agent") {
       setSpecifyStatus(null);
       return;
     }
@@ -312,7 +325,7 @@ export function NewSessionDialog({
     let cancelled = false;
     setIsLoadingSpecifyStatus(true);
 
-    sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath })
+    sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
       .then((res) => {
         if (cancelled) return;
         setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent });
@@ -326,7 +339,7 @@ export function NewSessionDialog({
       });
 
     return () => { cancelled = true; };
-  }, [open, selectedRepoPath, sessionType]);
+  }, [open, effectiveSpecifyPath, sessionType]);
 
   // Load worktrees for selected repo
   useEffect(() => {
@@ -496,17 +509,38 @@ export function NewSessionDialog({
       maxHeight="90vh"
       onClose={onClose}
       footer={
-        <>
-          <CancelButton onClick={onClose} />
-          <PrimaryButton
-            onClick={() => void handleConfirm()}
-            disabled={!canCreate}
-            loading={isCreating}
-            loadingText="Creating..."
-          >
-            {sessionType === "agent" ? "Create Agent Session" : "Open Terminal"}
-          </PrimaryButton>
-        </>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          {/* Left: Specify integration status + switch */}
+          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+            {sessionType === "agent" && specifyStatus && specifyStatus.hasSpecs && effectiveSpecifyPath && (
+              <SpecifyFooterStatus
+                currentAgent={specifyStatus.currentAgent}
+                selectedProvider={provider}
+                hasSpecs={specifyStatus.hasSpecs}
+                repoPath={effectiveSpecifyPath}
+                onSwitchComplete={() => {
+                  setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
+                  sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
+                    .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
+                    .catch(() => {});
+                }}
+              />
+            )}
+          </div>
+
+          {/* Right: action buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            <CancelButton onClick={onClose} />
+            <PrimaryButton
+              onClick={() => void handleConfirm()}
+              disabled={!canCreate}
+              loading={isCreating}
+              loadingText="Creating..."
+            >
+              {sessionType === "agent" ? "Create Agent Session" : "Open Terminal"}
+            </PrimaryButton>
+          </div>
+        </div>
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -530,9 +564,9 @@ export function NewSessionDialog({
         </div>
 
         {/* ─── Agent + Workspace on one row ─── */}
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 16 }}>
           {sessionType === "agent" && (
-            <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+            <div style={{ flex: "1 1 0", minWidth: 0 }}>
               <FormLabel>Agent</FormLabel>
               <DoublePicker<AIProvider, SimplifiedPermission>
                 left={{
@@ -553,7 +587,7 @@ export function NewSessionDialog({
             </div>
           )}
 
-          <div style={{ flex: "1 1 auto", minWidth: 0 }}>
+          <div style={{ flex: "1 1 0", minWidth: 0 }}>
             <FormLabel>Workspace</FormLabel>
             <DoublePicker<string, string>
               left={{
@@ -595,18 +629,18 @@ export function NewSessionDialog({
         )}
 
         {/* ─── Specify Onboard Notice ─── */}
-        {specifyBanner.kind !== "none" && branchesReady && (
+        {specifyBanner.kind !== "none" && branchesReady && effectiveSpecifyPath && (
           <SpecifyOnboardBanner
             kind={specifyBanner.kind}
             currentAgent={specifyBanner.currentAgent}
             selectedProvider={provider}
-            repoPath={selectedRepoPath!}
+            repoPath={effectiveSpecifyPath}
             repoName={repos.find((r) => r.path === selectedRepoPath)?.name ?? ""}
             onComplete={() => {
               // Optimistically update to hide banner immediately
               setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
               // Also re-fetch from daemon for accuracy
-              sendOrThrow({ type: "repo:specify-status", repoPath: selectedRepoPath! })
+              sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
                 .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
                 .catch(() => {});
             }}

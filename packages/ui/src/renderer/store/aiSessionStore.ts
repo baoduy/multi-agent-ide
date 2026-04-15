@@ -52,6 +52,10 @@ type AISessionStoreState = {
   updatePermissionMode: (sessionId: string, permissionMode: AIPermissionMode) => void;
   setExited: (sessionId: string, exitCode: number) => void;
 
+  // ── Derived ──
+  /** Count of sessions with active PTY (status is "active" or "waiting-input") */
+  getRunningSessionCount: () => number;
+
   // ── Subscription init ──
   initializeSubscriptions: () => void;
 };
@@ -196,6 +200,12 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
         s.id === sessionId ? { ...s, status: "exited" as const, lastActiveAt: Date.now() } : s
       ),
     }));
+  },
+
+  getRunningSessionCount: () => {
+    return get().sessions.filter(
+      (s) => s.status === "active" || s.status === "waiting-input"
+    ).length;
   },
 
   initializeSubscriptions: createSubscriptionInitializer(get, set, () => {

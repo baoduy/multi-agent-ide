@@ -203,6 +203,11 @@ export class AISessionApplicationService {
     });
   }
 
+  /** Returns the number of sessions with a live PTY process. */
+  getRunningCount(): number {
+    return this.liveSessions.size;
+  }
+
   getProviders(): Record<AIProvider, ProviderMeta> {
     return getAllProviderMeta();
   }

@@ -2,7 +2,7 @@ import type { SpecFolder } from "@magenta/shared/models";
 import { DEFAULT_SPEC_SYNC_INTERVAL_MINUTES } from "@magenta/shared/config";
 
 import type { ConfigManager } from "../config/ConfigManager";
-import type { IPCBridge } from "../ipc/IPCBridge";
+import type { IpcEventSink } from "./IpcEventSink";
 import type { BackgroundJobManager } from "./BackgroundJobManager";
 import type { RepoRepository } from "./RepoRepository";
 import type { SpecRepository } from "./SpecRepository";
@@ -18,7 +18,7 @@ export class SpecSyncService {
   constructor(
     private readonly specRepository: SpecRepository,
     private readonly repoRepository: RepoRepository,
-    private readonly bridge: IPCBridge,
+    private readonly bridge: IpcEventSink,
     private readonly jobManager: BackgroundJobManager,
     private readonly configManager: ConfigManager | null = null,
   ) {

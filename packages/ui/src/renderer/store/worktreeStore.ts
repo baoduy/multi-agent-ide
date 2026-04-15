@@ -167,13 +167,22 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       const allEntries: WorktreeInfo[] = [];
       const scanned = new Set(get().scannedRepoPaths);
 
-      for (const repoPath of repoPaths) {
-        try {
-          const response = await sendOrThrow({ type: "worktree:list", repoPath });
-          allEntries.push(...response.worktrees);
-          scanned.add(repoPath);
-        } catch {
-          // Continue on error for individual repo
+      // Issue all requests in parallel. `allSettled` lets us survive
+      // per-repo failures (e.g. a stale NFS mount) without aborting the
+      // whole batch — previously this was a serial await loop, meaning 10
+      // repos incurred 10 sequential IPC round-trips.
+      const results = await Promise.allSettled(
+        repoPaths.map((repoPath) =>
+          sendOrThrow({ type: "worktree:list", repoPath }).then((response) => ({
+            repoPath,
+            response,
+          })),
+        ),
+      );
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          allEntries.push(...result.value.response.worktrees);
+          scanned.add(result.value.repoPath);
         }
       }
 

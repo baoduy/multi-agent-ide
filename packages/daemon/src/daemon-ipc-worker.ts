@@ -15,6 +15,7 @@
 import { ConfigManager } from "./config/ConfigManager";
 import { DatabaseService } from "./db/DatabaseService";
 import { IPCBridge } from "./ipc/IPCBridge";
+import type { IpcResponse } from "@magenta/shared/ipc";
 import { registerHandlers } from "./ipc/registerHandlers";
 import { BackgroundJobManager } from "./services/BackgroundJobManager";
 import { DirWatcher } from "./services/DirWatcher";
@@ -31,6 +32,9 @@ import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
 import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
+import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
+import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
+import { SpecReader } from "./services/SpecReader";
 
 // Track services for graceful shutdown
 let shutdownServices: {
@@ -159,6 +163,13 @@ async function main() {
     // Git gateway (shared across services)
     const gitGateway = new GitGateway();
 
+    // Read-side gateways — constructed once and threaded through
+    // registerHandlers. Previously registerHandlers built its own copies,
+    // which produced e.g. a duplicate RepoScanner instance.
+    const fileSystemGateway = new FileSystemGateway(configManager);
+    const specGitGateway = new SpecGitGateway();
+    const specReader = new SpecReader();
+
     // Session sync service (scans Claude Code + Copilot JSONL from disk)
     const sessionSyncGateway = new SessionSyncGateway();
     const syncedSessionRepository = new SyncedSessionRepository(databaseService);
@@ -189,15 +200,19 @@ async function main() {
       jobManager,
       repoRepository,
       scanQueue,
+      scanner,
       terminalService,
       aiSessionService,
       sessionSyncService,
       gitGateway,
+      fileSystemGateway,
+      specGitGateway,
+      specReader,
     });
     console.log("[daemon-worker] All handlers registered");
 
     // Forward push events from the bridge to the parent process
-    const pushEventTypes = [
+    const pushEventTypes: Array<IpcResponse["type"]> = [
       "repo:scan:started",
       "repo:scan:progress",
       "repo:scan:complete",
@@ -220,7 +235,7 @@ async function main() {
     ];
 
     for (const eventType of pushEventTypes) {
-      (ipcBridge as any).on(eventType, (payload: unknown) => {
+      ipcBridge.on(eventType, (payload) => {
         console.log(`[daemon-worker] Emitting event: ${eventType}`);
         if (process.send) {
           process.send({ kind: "event", payload });

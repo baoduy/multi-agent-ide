@@ -83,7 +83,10 @@ export class SpecParser {
         try {
           const progressData = JSON.parse(entry.content || "{}");
           if (typeof progressData.progress === "number") {
-            implementationProgress = progressData.progress;
+            // Clamp to [0, 100] — a malformed `progress.json` with e.g.
+            // { "progress": 9999 } would otherwise trip the Zod range
+            // validator when the result is serialized over IPC.
+            implementationProgress = Math.min(100, Math.max(0, progressData.progress));
           }
         } catch {
           // Silently ignore progress.json parse errors

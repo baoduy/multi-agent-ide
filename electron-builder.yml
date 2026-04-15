@@ -93,7 +93,18 @@ mac:
       arch:
         - x64
         - arm64
-  hardenedRuntime: false
+  # Hardened runtime enables the macOS-level protections (library
+  # validation, restricted DYLIB injection, code integrity) required for
+  # notarization. Entitlements are in build/entitlements.mac.plist; only
+  # the minimum set needed by Electron + node-pty is enabled there.
+  #
+  # With `identity: null` the build is produced unsigned, so hardened
+  # runtime has no runtime effect until a signing identity is provided
+  # via CSC_LINK / CSC_KEY_PASSWORD — at which point signing, hardened
+  # runtime, and notarization all compose correctly.
+  hardenedRuntime: true
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
   gatekeeperAssess: false
   # Code signing disabled for now — set CSC_LINK and CSC_KEY_PASSWORD
   # environment variables when you have an Apple Developer certificate

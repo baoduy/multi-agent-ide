@@ -18,6 +18,9 @@ import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
 import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
+import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
+import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
+import { SpecReader } from "./services/SpecReader";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -49,6 +52,9 @@ export class DaemonContainer {
   readonly syncedSessionRepository: SyncedSessionRepository;
   readonly sessionSyncService: SessionSyncApplicationService;
   readonly sessionFileWatcher: SessionFileWatcher;
+  readonly fileSystemGateway: FileSystemGateway;
+  readonly specGitGateway: SpecGitGateway;
+  readonly specReader: SpecReader;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -94,6 +100,14 @@ export class DaemonContainer {
     // Git gateway (shared across services that need git operations)
     this.gitGateway = new GitGateway();
 
+    // Read-side gateways shared across handler registrations. Keeping a
+    // single instance here prevents duplicate construction in
+    // registerHandlers and ensures the FileSystemGateway has a single
+    // authoritative allowlist provider.
+    this.fileSystemGateway = new FileSystemGateway(this.configManager);
+    this.specGitGateway = new SpecGitGateway();
+    this.specReader = new SpecReader();
+
     // Session sync (scans Claude Code + Copilot JSONL files from disk)
     this.sessionSyncGateway = new SessionSyncGateway();
     this.syncedSessionRepository = new SyncedSessionRepository(databaseService);
@@ -135,10 +149,14 @@ export class DaemonContainer {
       jobManager: this.jobManager,
       repoRepository: this.repoRepository,
       scanQueue: this.scanQueue,
+      scanner: this.scanner,
       terminalService: this.terminalService,
       aiSessionService: this.aiSessionService,
       sessionSyncService: this.sessionSyncService,
       gitGateway: this.gitGateway,
+      fileSystemGateway: this.fileSystemGateway,
+      specGitGateway: this.specGitGateway,
+      specReader: this.specReader,
     });
   }
 

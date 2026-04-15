@@ -11,7 +11,7 @@ export function detectClaudeStatus(data: string, currentStatus: AISessionStatus)
   }
 
   // Detect error patterns
-  if (/error:/i.test(data) && currentStatus !== "error") {
+  if (/^\s*(?:Error:|\[error\]|FAIL:)/mi.test(data) && currentStatus !== "error") {
     return "error";
   }
 
@@ -39,7 +39,7 @@ export function detectCopilotStatus(data: string, currentStatus: AISessionStatus
   }
 
   // Detect error patterns
-  if (/error:/i.test(data) && currentStatus !== "error") {
+  if (/^\s*(?:Error:|\[error\]|FAIL:)/mi.test(data) && currentStatus !== "error") {
     return "error";
   }
 

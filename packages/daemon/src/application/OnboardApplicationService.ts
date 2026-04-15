@@ -231,8 +231,21 @@ export class OnboardApplicationService {
       // fallback to "main"
     }
 
-    // Sanitize branch name for use in directory/branch name
-    const safeBranch = sanitizeName(currentBranch);
+    // Sanitize branch name for use in directory/branch name.
+    // `sanitizeName` returns "" for an input made entirely of special chars
+    // (e.g. a branch literally named "!@#$"). Without this guard the resulting
+    // worktree path and branch would be malformed and the subsequent git
+    // checkout would fail with a cryptic error. WorktreeApplicationService
+    // already guards the user-facing flow; keep the same guard here for the
+    // onboarding-only path.
+    const rawSafeBranch = sanitizeName(currentBranch);
+    if (!rawSafeBranch) {
+      throw new AppError(
+        "WORKTREE_CONFLICT",
+        `Cannot derive a worktree name from branch "${currentBranch}" — it contains no usable characters.`,
+      );
+    }
+    const safeBranch = rawSafeBranch;
     const timestamp = Math.floor(Date.now() / 1000);
     const worktreeName = `specify-init-${safeBranch}-${timestamp}`;
     const newBranch = `specify-init/${safeBranch}`;

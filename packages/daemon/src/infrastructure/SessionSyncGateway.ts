@@ -188,12 +188,35 @@ export class SessionSyncGateway {
   }
 
   /**
+   * Hard caps on JSONL read size to prevent a single pathological Claude
+   * session file from blowing up the daemon's memory. A typical Claude
+   * session is well under 1 MB; multi-MB sessions occur but still fit
+   * comfortably. Beyond these caps we silently skip the file rather than
+   * OOM the process — a missing session is preferable to a crash.
+   */
+  private static readonly MAX_SESSION_FILE_BYTES = 64 * 1024 * 1024; // 64 MB
+  private static readonly MAX_SESSION_LINES = 200_000;
+
+  /**
    * Reads a JSONL file and returns all lines as an array of strings.
    * Uses streaming to handle large files efficiently.
+   *
+   * Enforces a size cap (see {@link MAX_SESSION_FILE_BYTES}) before reading
+   * and a line cap during iteration. If either is exceeded the file is
+   * treated as empty — the caller will see zero rows rather than trigger a
+   * runaway allocation.
    */
   async readJsonlLines(filePath: string): Promise<string[]> {
     if (!fs.existsSync(filePath)) {
       throw new AppError("FILE_NOT_FOUND", `JSONL file not found: ${filePath}`);
+    }
+
+    const stat = fs.statSync(filePath);
+    if (stat.size > SessionSyncGateway.MAX_SESSION_FILE_BYTES) {
+      console.warn(
+        `[SessionSyncGateway] Skipping oversize JSONL (${(stat.size / 1024 / 1024).toFixed(1)} MB): ${filePath}`,
+      );
+      return [];
     }
 
     const lines: string[] = [];
@@ -203,6 +226,14 @@ export class SessionSyncGateway {
     for await (const line of rl) {
       if (line.trim()) {
         lines.push(line);
+        if (lines.length >= SessionSyncGateway.MAX_SESSION_LINES) {
+          rl.close();
+          stream.destroy();
+          console.warn(
+            `[SessionSyncGateway] JSONL truncated at ${SessionSyncGateway.MAX_SESSION_LINES} lines: ${filePath}`,
+          );
+          break;
+        }
       }
     }
 

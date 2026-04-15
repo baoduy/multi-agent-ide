@@ -13,6 +13,7 @@ import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime, formatTokens } from "../../utils/formatters";
+import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import type { SessionGroupNode } from "../../utils/sessionTreeBuilder";
 export { buildUnifiedGroups, type SessionGroupNode } from "../../utils/sessionTreeBuilder";
@@ -172,19 +173,16 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
       <Folder size={14} color={colors.textSecondary} style={{ flexShrink: 0 }} />
 
       {/* Name */}
-      <span
+      <ScrollableText
         style={{
           flex: 1,
           fontSize: 12,
           fontWeight: 600,
           color: colors.text,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
         }}
       >
         {name}
-      </span>
+      </ScrollableText>
 
       {/* Active indicator */}
       {activeCount > 0 && (
@@ -281,66 +279,23 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       {/* Provider badge */}
       <ProviderBadge provider={provider} iconSize={12} fontSize={11} color={colors.textSecondary} />
 
-      {/* Session info */}
-      <div
+      {/* Branch badge */}
+      {session.gitBranch && <BranchLabel name={session.gitBranch} size="xs" />}
+
+      {/* Separator */}
+      <span style={{ color: colors.textTertiary, fontSize: 11, flexShrink: 0 }}>·</span>
+
+      {/* Title or slug */}
+      <ScrollableText
         style={{
           flex: 1,
           minWidth: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 2,
+          fontSize: 12,
+          color: colors.text,
         }}
       >
-        {/* Title or slug */}
-        <span
-          style={{
-            fontSize: 12,
-            color: colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {session.title || session.slug || session.sessionId.slice(0, 8)}
-        </span>
-
-        {/* Meta row: model + branch + messages */}
-        <span
-          style={{
-            fontSize: 10,
-            color: colors.textTertiary,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {session.model && <span>{session.model}</span>}
-          {session.gitBranch && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{session.gitBranch}</span>
-            </>
-          )}
-          {session.messageCount > 0 && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{session.messageCount} msgs</span>
-            </>
-          )}
-          {session.subagentCount > 0 && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{session.subagentCount} agents</span>
-            </>
-          )}
-          {tokenDisplay && (
-            <>
-              <span style={{ opacity: 0.4 }}>·</span>
-              <span>{tokenDisplay} tokens</span>
-            </>
-          )}
-        </span>
-      </div>
+        {session.title || session.slug || session.sessionId.slice(0, 8)}
+      </ScrollableText>
 
       {/* Status */}
       {session.status === "active" && (

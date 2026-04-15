@@ -3,6 +3,7 @@ import { FilePlus, FileEdit, FileX, FileQuestion, ArrowRight } from "lucide-reac
 
 import type { WorktreeFileStatus } from "../../store/worktreeStore";
 import { colors } from "../../utils/colors";
+import { StatusBadge } from "./StatusBadge";
 
 const STATUS_CONFIG: Record<
   WorktreeFileStatus["status"],
@@ -19,23 +20,13 @@ const STATUS_CONFIG: Record<
 export function FileStatusBadge({ status }: { status: WorktreeFileStatus["status"] }): React.ReactElement {
   const cfg = STATUS_CONFIG[status];
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 10,
-        fontWeight: 600,
-        color: cfg.color,
-        background: cfg.bg,
-        padding: "2px 8px",
-        borderRadius: 4,
-        textTransform: "uppercase",
-        letterSpacing: "0.04em",
-      }}
-    >
-      <cfg.Icon size={10} strokeWidth={2} />
-      {cfg.label}
-    </span>
+    <StatusBadge
+      text={cfg.label}
+      color={cfg.color}
+      background={cfg.bg}
+      icon={<cfg.Icon size={10} strokeWidth={2} />}
+      uppercase
+      letterSpacing="0.04em"
+    />
   );
 }

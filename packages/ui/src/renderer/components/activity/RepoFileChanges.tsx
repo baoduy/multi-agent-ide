@@ -5,6 +5,8 @@ import { colors } from "../../utils/colors";
 import { useWorktreeStore, type WorktreeStatus } from "../../store/worktreeStore";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 import { FileIconBadge, FolderIconBadge } from "../common/fileIcons";
+import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 
 /** How often to auto-refresh file changes (ms). */
 const REFRESH_INTERVAL = 60_000; // 1 minute
@@ -106,23 +108,7 @@ export function RepoFileChanges({
 
       {/* Loading state (only on first load — refresh shows spinner in button) */}
       {isLoading && !status && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            color: colors.textTertiary,
-            fontSize: 12,
-            padding: "12px 0",
-          }}
-        >
-          <Loader2
-            size={14}
-            strokeWidth={2}
-            style={{ animation: "spin 1s linear infinite" }}
-          />
-          Loading file status…
-        </div>
+        <InlineLoadingRow label="Loading file status…" />
       )}
 
       {/* Empty state */}
@@ -181,33 +167,27 @@ export function RepoFileChanges({
 
                 {/* Name + path */}
                 <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-                  <div
+                  <ScrollableText
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
                       color:
                         isClickable && isHovered ? colors.primary : colors.text,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
                       transition: "color 0.1s",
                     }}
                   >
                     {fileName}
-                  </div>
+                  </ScrollableText>
                   {dirPath && (
-                    <div
+                    <ScrollableText
                       style={{
                         fontSize: 10,
                         color: colors.textTertiary,
                         fontFamily: "var(--font-mono)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
                       }}
                     >
                       {dirPath}
-                    </div>
+                    </ScrollableText>
                   )}
                 </div>
 

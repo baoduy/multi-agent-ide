@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChevronDown, Check, Search, X } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { ScrollableText } from "./ScrollableText";
 
 /* ── Types ── */
 
@@ -129,16 +130,13 @@ function SelectDropdownComponent<T extends string = string>({
             {selected.icon}
           </span>
         )}
-        <span
+        <ScrollableText
           style={{
             flex: 1,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
           }}
         >
           {selected?.label ?? placeholder}
-        </span>
+        </ScrollableText>
         <ChevronDown
           size={14}
           color={colors.textTertiary}
@@ -289,15 +287,11 @@ function SelectDropdownItemComponent<T extends string>({
 
       {/* Label + description */}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span
+        <ScrollableText
           style={{
-            display: "block",
             fontSize: 12,
             fontWeight: 500,
             color: colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
             lineHeight: 1.4,
           }}
         >
@@ -307,7 +301,7 @@ function SelectDropdownItemComponent<T extends string>({
               {option.suffix}
             </span>
           )}
-        </span>
+        </ScrollableText>
         {option.description && (
           <span
             style={{

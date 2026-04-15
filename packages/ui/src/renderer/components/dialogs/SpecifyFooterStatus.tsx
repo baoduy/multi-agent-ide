@@ -4,10 +4,12 @@ import { ArrowLeftRight, Loader2, Check, AlertCircle } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { ipc } from "../../utils/ipc";
+import { ActionButton } from "../common/ActionButton";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { getProviderName } from "../common/providerConfig";
 import type { ProviderVariant } from "../common/providerConfig";
 import type { AIProvider } from "@magenta/shared/aiTerminal";
+import { ScrollableText } from "../common/ScrollableText";
 
 type SpecifyFooterStatusProps = {
   /** The Specify-configured agent for this repo (e.g. "claude" | "copilot"). */
@@ -109,15 +111,9 @@ export const SpecifyFooterStatus = React.memo(function SpecifyFooterStatus({
       {isKnownProvider && (
         <ProviderIcon provider={currentAgent as ProviderVariant} size={13} />
       )}
-      <span
-        style={{
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
+      <ScrollableText>
         Specify: <strong style={{ color: colors.text, fontWeight: 600 }}>{agentLabel}</strong>
-      </span>
+      </ScrollableText>
 
       {/* Mismatch: show switch affordance */}
       {isMismatch && phase === "idle" && (
@@ -194,24 +190,18 @@ export const SpecifyFooterStatus = React.memo(function SpecifyFooterStatus({
             <AlertCircle size={11} strokeWidth={2} />
             Failed
           </span>
-          <button
-            type="button"
+          <ActionButton
             onClick={() => void handleSwitch()}
-            style={{
-              padding: "2px 8px",
-              fontSize: 10,
-              fontWeight: 500,
-              fontFamily: "inherit",
-              borderRadius: 4,
-              border: `1px solid ${colors.border}`,
-              background: "transparent",
-              color: colors.textSecondary,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-            }}
+            variant="ghost"
+            padding="2px 8px"
+            fontSize={10}
+            fontWeight={500}
+            borderRadius={4}
+            hoverColor={colors.textSecondary}
+            style={{ whiteSpace: "nowrap" }}
           >
             Retry
-          </button>
+          </ActionButton>
         </>
       )}
     </div>

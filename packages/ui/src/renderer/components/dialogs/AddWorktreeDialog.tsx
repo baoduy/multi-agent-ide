@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { GitBranch, ChevronDown, Loader2 } from "lucide-react";
+import { GitBranch, ChevronDown } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -8,6 +8,7 @@ import { useSessionStore } from "../../store/sessionStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton, PrimaryButton } from "../common/DialogButtons";
 import { FormLabel, FormInput, FormError } from "../common/FormControls";
+import { InlineLoadingRow } from "../common/InlineLoadingRow";
 
 type AddWorktreeDialogProps = {
   /** The repository path to create the worktree in */
@@ -163,10 +164,12 @@ export function AddWorktreeDialog({
       }
     >
       {isLoadingBranches ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0" }}>
-          <Loader2 size={16} color={colors.textTertiary} style={{ animation: "spin 1s linear infinite" }} />
-          <span style={{ fontSize: 13, color: colors.textSecondary }}>Loading branches...</span>
-        </div>
+        <InlineLoadingRow
+          label="Loading branches..."
+          size={16}
+          fontSize={13}
+          color={colors.textSecondary}
+        />
       ) : branches.length === 0 ? (
         <p style={{ fontSize: 13, color: colors.textSecondary, margin: "8px 0", lineHeight: 1.5 }}>
           No other branches available. You are on <strong>{currentBranch}</strong> and there are

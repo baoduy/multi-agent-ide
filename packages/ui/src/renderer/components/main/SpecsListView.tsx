@@ -1,18 +1,16 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   FileText,
   ClipboardList,
   CheckCircle,
   Circle,
-  ChevronRight,
   Layers,
   GitBranch,
   ListChecks,
-  Play,
+  Clock,
 } from "lucide-react";
 
-import type { SpecFolder, PipelineStage } from "@magenta/shared/models";
-import { ScrollableText } from "../common/ScrollableText";
+import type { SpecFolder } from "@magenta/shared/models";
 import { colors } from "../../utils/colors";
 
 /* ═══════════════════════════════════════════════════════
@@ -28,7 +26,6 @@ function deriveSpecState(spec: SpecFolder): SpecState {
   const impl = stageMap.get("implementation");
   const plan = stageMap.get("plan");
 
-  // "Done" = all tasks completed OR implementation at 100%
   if (tasks?.metadata?.taskCount && tasks.metadata.taskCount > 0) {
     if (tasks.metadata.completedCount === tasks.metadata.taskCount) {
       return "done";
@@ -38,8 +35,6 @@ function deriveSpecState(spec: SpecFolder): SpecState {
     return "done";
   }
 
-  // "Implementing" = implementation stage is active (running/in-progress)
-  // or some tasks are completed but not all
   if (
     impl &&
     (impl.status === "running" || impl.status === "in-progress")
@@ -56,17 +51,14 @@ function deriveSpecState(spec: SpecFolder): SpecState {
     return "implementing";
   }
 
-  // "Tasks" = tasks stage exists and isn't missing
   if (tasks && tasks.status !== "missing") {
     return "tasks";
   }
 
-  // "Planned" = plan stage exists and isn't missing
   if (plan && plan.status !== "missing") {
     return "planned";
   }
 
-  // Default = "spec" (early stage)
   return "spec";
 }
 
@@ -76,7 +68,17 @@ function deriveSpecState(spec: SpecFolder): SpecState {
 
 const STATE_CONFIG: Record<
   SpecState,
-  { label: string; bg: string; color: string; border: string; Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }> }
+  {
+    label: string;
+    bg: string;
+    color: string;
+    border: string;
+    Icon: React.ComponentType<{
+      size?: number;
+      color?: string;
+      strokeWidth?: number;
+    }>;
+  }
 > = {
   spec: {
     label: "Spec",
@@ -115,65 +117,108 @@ const STATE_CONFIG: Record<
   },
 };
 
+const STEPS: SpecState[] = [
+  "spec",
+  "planned",
+  "tasks",
+  "implementing",
+  "done",
+];
+
 /* ═══════════════════════════════════════════════════════
-   Progress stepper (Spec → Planned → Implemented)
+   Relative time formatter
    ═══════════════════════════════════════════════════════ */
 
-const STEPS: SpecState[] = ["spec", "planned", "tasks", "implementing", "done"];
+function timeAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return "yesterday";
+  if (days < 30) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
 
-function ProgressStepper({ current }: { current: SpecState }): React.ReactElement {
-  const currentIdx = STEPS.indexOf(current);
+/* ═══════════════════════════════════════════════════════
+   Compact progress stepper (fits inside sticker)
+   ═══════════════════════════════════════════════════════ */
+
+function CompactStepper({
+  current,
+}: {
+  current: SpecState;
+}): React.ReactElement {
+  const idx = STEPS.indexOf(current);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
       {STEPS.map((step, i) => {
-        const isCompleted = i < currentIdx;
-        const isCurrent = i === currentIdx;
-        const isActive = i <= currentIdx;
+        const isCompleted = i < idx;
+        const isCurrent = i === idx;
         const cfg = STATE_CONFIG[step];
-        const prevCfg = i > 0 ? STATE_CONFIG[STEPS[i - 1]] : cfg;
 
         return (
           <React.Fragment key={step}>
             {i > 0 && (
               <div
                 style={{
-                  width: 12,
+                  width: 8,
                   height: 2,
                   borderRadius: 1,
-                  background: isActive ? prevCfg.color : colors.border,
+                  background: i <= idx ? cfg.color : colors.border,
                   transition: "background 0.2s",
                 }}
               />
             )}
             <div
+              title={cfg.label}
               style={{
+                width: isCurrent ? "auto" : 8,
+                height: isCurrent ? "auto" : 8,
+                borderRadius: isCurrent ? 10 : 4,
+                padding: isCurrent ? "3px 8px" : 0,
                 display: "flex",
                 alignItems: "center",
-                gap: 3,
-                padding: isCurrent ? "2px 7px" : "2px 4px",
-                borderRadius: 10,
-                background: isCurrent ? cfg.bg : "transparent",
-                border: isCurrent ? `1px solid ${cfg.border}` : "1px solid transparent",
+                justifyContent: "center",
+                background: isCompleted
+                  ? cfg.color
+                  : isCurrent
+                    ? cfg.bg
+                    : colors.bgMuted,
+                border: isCurrent
+                  ? `1.5px solid ${cfg.border}`
+                  : isCompleted
+                    ? "none"
+                    : `1.5px solid ${colors.border}`,
                 transition: "all 0.2s",
               }}
             >
-              {isCompleted ? (
-                <CheckCircle size={10} color={cfg.color} strokeWidth={2.5} />
-              ) : isCurrent ? (
-                <cfg.Icon size={10} color={cfg.color} strokeWidth={2.5} />
-              ) : (
-                <Circle size={10} color={colors.borderMuted} strokeWidth={2} />
+              {isCurrent && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: cfg.color,
+                    whiteSpace: "nowrap",
+                    lineHeight: 1,
+                  }}
+                >
+                  {cfg.label}
+                </span>
               )}
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: isCurrent ? 600 : 400,
-                  color: isActive ? cfg.color : colors.borderStrong,
-                }}
-              >
-                {cfg.label}
-              </span>
+              {isCompleted && (
+                <CheckCircle
+                  size={6}
+                  color={colors.bgSurface}
+                  strokeWidth={3}
+                />
+              )}
             </div>
           </React.Fragment>
         );
@@ -183,10 +228,12 @@ function ProgressStepper({ current }: { current: SpecState }): React.ReactElemen
 }
 
 /* ═══════════════════════════════════════════════════════
-   Spec card
+   Spec sticker card (fixed-width, flex-wrap friendly)
    ═══════════════════════════════════════════════════════ */
 
-function SpecCard({
+const STICKER_WIDTH = 280;
+
+function SpecSticker({
   spec,
   isSelected,
   onSelect,
@@ -201,14 +248,13 @@ function SpecCard({
   const specState = deriveSpecState(spec);
   const stateConfig = STATE_CONFIG[specState];
 
-  // Calculate overall progress
   const tasksStage = spec.stages.find((s) => s.name === "tasks");
   const taskCount = tasksStage?.metadata?.taskCount ?? 0;
   const completedCount = tasksStage?.metadata?.completedCount ?? 0;
-  const progressPercent = taskCount > 0 ? Math.min(100, Math.round((completedCount / taskCount) * 100)) : 0;
-
-  // Count approved stages
-
+  const progressPercent =
+    taskCount > 0
+      ? Math.min(100, Math.round((completedCount / taskCount) * 100))
+      : 0;
 
   return (
     <button
@@ -218,99 +264,150 @@ function SpecCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width: "100%",
+        width: STICKER_WIDTH,
+        minHeight: 156,
         textAlign: "left",
-        border: isSelected ? `1px solid ${colors.primary}` : `1px solid ${colors.border}`,
-        borderRadius: 10,
-        padding: "14px 16px",
-        background: isSelected ? colors.bgPanelSoft : hovered ? colors.bgPanel : colors.bgSurface,
+        border: isSelected
+          ? `2px solid ${colors.warningBorder}`
+          : `1px solid ${hovered ? colors.borderStrong : colors.border}`,
+        borderRadius: 14,
+        padding: isSelected ? 15 : 16,
+        background: isSelected
+          ? colors.warningSoft
+          : hovered
+            ? colors.bgPanel
+            : colors.bgSurface,
         cursor: "pointer",
-        transition: "all 0.12s",
+        transition: "all 0.15s ease",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 12,
+        boxShadow: hovered
+          ? colors.shadowSoft
+          : "none",
+        transform: hovered ? "translateY(-1px)" : "none",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
-      {/* Header row: icon + name + state badge */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            width: 30,
-            height: 30,
-            borderRadius: 6,
-            background: `${stateConfig.color}14`,
-            flexShrink: 0,
-          }}
-        >
-          <Layers size={16} color={stateConfig.color} strokeWidth={1.8} />
-        </span>
+      {/* Top accent bar — amber when selected, hidden otherwise */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: colors.warningBorder,
+          opacity: isSelected ? 1 : 0,
+          borderRadius: "14px 14px 0 0",
+          transition: "opacity 0.15s ease",
+        }}
+      />
 
+      {/* Header: name + state badge */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+          gap: 8,
+          marginTop: 2,
+        }}
+      >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <ScrollableText
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: colors.textStrong,
-              }}
-            >
-              {spec.name}
-            </ScrollableText>
-            {spec.branch && (
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 3,
-                  padding: "1px 7px",
-                  borderRadius: 8,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  flexShrink: 0,
-                  background: spec.isCurrentBranch ? colors.successSoft : colors.bgHover,
-                  color: spec.isCurrentBranch ? colors.successText : colors.textMuted,
-                  border: spec.isCurrentBranch ? `1px solid ${colors.successSoftBorder}` : `1px solid ${colors.border}`,
-                }}
-              >
-                <GitBranch size={9} strokeWidth={2} />
-                {spec.branch}
-              </span>
-            )}
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 650,
+              color: colors.textStrong,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              lineHeight: "1.35",
+            }}
+          >
+            {spec.name}
           </div>
         </div>
-
-        {/* State badge */}
         <span
           style={{
             display: "inline-flex",
             alignItems: "center",
             gap: 4,
-            padding: "3px 10px",
-            borderRadius: 12,
+            padding: "3px 8px",
+            borderRadius: 10,
             background: stateConfig.bg,
             color: stateConfig.color,
             border: `1px solid ${stateConfig.border}`,
-            fontSize: 11,
-            fontWeight: 600,
+            fontSize: 10,
+            fontWeight: 700,
             flexShrink: 0,
+            whiteSpace: "nowrap",
           }}
         >
-          <stateConfig.Icon size={12} strokeWidth={2} />
+          <stateConfig.Icon size={10} strokeWidth={2.5} />
           {stateConfig.label}
         </span>
-
-        <ChevronRight size={14} color={colors.borderStrong} strokeWidth={2} style={{ flexShrink: 0 }} />
       </div>
 
-      {/* Progress stepper */}
-      <ProgressStepper current={specState} />
+      {/* Branch + creation date row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexWrap: "wrap",
+        }}
+      >
+        {spec.branch && (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 3,
+              padding: "2px 7px",
+              borderRadius: 6,
+              fontSize: 10,
+              fontWeight: 600,
+              background: spec.isCurrentBranch
+                ? colors.successSoft
+                : colors.bgHover,
+              color: spec.isCurrentBranch
+                ? colors.successText
+                : colors.textMuted,
+              border: spec.isCurrentBranch
+                ? `1px solid ${colors.successSoftBorder}`
+                : `1px solid ${colors.border}`,
+            }}
+          >
+            <GitBranch size={9} strokeWidth={2.5} />
+            {spec.branch}
+          </span>
+        )}
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            fontSize: 10,
+            color: colors.textTertiary,
+            fontWeight: 500,
+          }}
+        >
+          <Clock size={9} strokeWidth={2} />
+          {timeAgo(spec.createdAt)}
+        </span>
+      </div>
+
+      {/* Compact stepper */}
+      <CompactStepper current={specState} />
 
       {/* Task progress bar (if tasks exist) */}
       {taskCount > 0 && (
-        <div>
+        <div style={{ marginTop: "auto" }}>
           <div
             style={{
               display: "flex",
@@ -321,8 +418,16 @@ function SpecCard({
             }}
           >
             <span>Tasks</span>
-            <span>
-              {completedCount}/{taskCount} ({progressPercent}%)
+            <span
+              style={{
+                fontWeight: 600,
+                color:
+                  progressPercent === 100
+                    ? colors.successText
+                    : colors.textMuted,
+              }}
+            >
+              {completedCount}/{taskCount}
             </span>
           </div>
           <div
@@ -338,8 +443,9 @@ function SpecCard({
                 height: "100%",
                 width: `${progressPercent}%`,
                 borderRadius: 2,
-                background: progressPercent === 100 ? colors.success : colors.primary,
-                transition: "width 0.3s",
+                background:
+                  progressPercent === 100 ? colors.success : colors.primary,
+                transition: "width 0.4s ease",
               }}
             />
           </div>
@@ -350,7 +456,7 @@ function SpecCard({
 }
 
 /* ═══════════════════════════════════════════════════════
-   Main SpecsListView
+   Main SpecsListView — flex-wrap sticker grid
    ═══════════════════════════════════════════════════════ */
 
 type SpecsListViewProps = {
@@ -368,26 +474,63 @@ export function SpecsListView({
 }: SpecsListViewProps): React.ReactElement {
   const [filterState, setFilterState] = useState<SpecState | null>(null);
 
+  // Sort by createdAt descending (newest first)
+  const sortedSpecs = useMemo(
+    () => [...specs].sort((a, b) => b.createdAt - a.createdAt),
+    [specs],
+  );
+
+  // Group by state for filter counts
+  const grouped = useMemo(() => {
+    const g: Record<SpecState, SpecFolder[]> = {
+      spec: [],
+      planned: [],
+      tasks: [],
+      implementing: [],
+      done: [],
+    };
+    for (const s of sortedSpecs) {
+      g[deriveSpecState(s)].push(s);
+    }
+    return g;
+  }, [sortedSpecs]);
+
+  // Apply filter
+  const filteredSpecs = filterState ? grouped[filterState] : sortedSpecs;
+
   if (specs.length === 0) {
     return (
-      <div style={{ padding: 24, color: colors.textTertiary, fontSize: 13, textAlign: "center" }}>
-        <Layers size={32} color={colors.borderMuted} strokeWidth={1.5} style={{ marginBottom: 12 }} />
+      <div
+        style={{
+          padding: 24,
+          color: colors.textTertiary,
+          fontSize: 13,
+          textAlign: "center",
+        }}
+      >
+        <Layers
+          size={32}
+          color={colors.borderMuted}
+          strokeWidth={1.5}
+          style={{ marginBottom: 12 }}
+        />
         <div>No specs found for this repository.</div>
         <div style={{ fontSize: 12, marginTop: 4 }}>
-          Create a spec folder under <code style={{ background: colors.bgCodeInline, padding: "1px 4px", borderRadius: 3 }}>specs/</code> to get started.
+          Create a spec folder under{" "}
+          <code
+            style={{
+              background: colors.bgCodeInline,
+              padding: "1px 4px",
+              borderRadius: 3,
+            }}
+          >
+            specs/
+          </code>{" "}
+          to get started.
         </div>
       </div>
     );
   }
-
-  // Group by state
-  const grouped: Record<SpecState, SpecFolder[]> = { spec: [], planned: [], tasks: [], implementing: [], done: [] };
-  for (const s of specs) {
-    grouped[deriveSpecState(s)].push(s);
-  }
-
-  // Apply filter
-  const filteredSpecs = filterState ? grouped[filterState] : specs;
 
   return (
     <div style={{ padding: 20 }}>
@@ -401,9 +544,10 @@ export function SpecsListView({
           background: colors.bgPanel,
           borderRadius: 8,
           border: `1px solid ${colors.border}`,
+          flexWrap: "wrap",
         }}
       >
-        {(STEPS as SpecState[]).map((state) => {
+        {STEPS.map((state) => {
           const cfg = STATE_CONFIG[state];
           const count = grouped[state].length;
           const isActive = filterState === state;
@@ -411,14 +555,18 @@ export function SpecsListView({
             <button
               type="button"
               key={state}
-              onClick={() => setFilterState(isActive ? null : state)}
+              onClick={() =>
+                setFilterState(isActive ? null : state)
+              }
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: 5,
                 padding: "5px 10px",
                 borderRadius: 6,
-                border: isActive ? `1px solid ${cfg.border}` : "1px solid transparent",
+                border: isActive
+                  ? `1px solid ${cfg.border}`
+                  : "1px solid transparent",
                 background: isActive ? cfg.bg : "transparent",
                 cursor: count > 0 ? "pointer" : "default",
                 opacity: count > 0 ? 1 : 0.4,
@@ -426,11 +574,26 @@ export function SpecsListView({
                 transition: "all 0.15s",
               }}
             >
-              <cfg.Icon size={13} color={isActive ? cfg.color : colors.textTertiary} strokeWidth={1.8} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: isActive ? cfg.color : colors.textMuted }}>
+              <cfg.Icon
+                size={13}
+                color={isActive ? cfg.color : colors.textTertiary}
+                strokeWidth={1.8}
+              />
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: isActive ? cfg.color : colors.textMuted,
+                }}
+              >
                 {count}
               </span>
-              <span style={{ fontSize: 11, color: isActive ? cfg.color : colors.textTertiary }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: isActive ? cfg.color : colors.textTertiary,
+                }}
+              >
                 {cfg.label}
               </span>
             </button>
@@ -438,10 +601,18 @@ export function SpecsListView({
         })}
       </div>
 
-      {/* Spec cards */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {/* Flex-wrap sticker grid */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 16,
+          alignItems: "stretch",
+          alignContent: "flex-start",
+        }}
+      >
         {filteredSpecs.map((spec) => (
-          <SpecCard
+          <SpecSticker
             key={spec.id}
             spec={spec}
             isSelected={spec.path === selectedSpecPath}
@@ -449,6 +620,19 @@ export function SpecsListView({
             onOpen={onOpenSpec}
           />
         ))}
+        {filteredSpecs.length === 0 && (
+          <div
+            style={{
+              width: "100%",
+              textAlign: "center",
+              padding: 48,
+              color: colors.textTertiary,
+              fontSize: 13,
+            }}
+          >
+            No specs match this filter.
+          </div>
+        )}
       </div>
     </div>
   );

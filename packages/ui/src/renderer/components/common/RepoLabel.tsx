@@ -2,6 +2,7 @@ import React from "react";
 import { FolderGit2, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { type LabelSize, type LabelVariant, sizeMap, boxedIconMap } from "./labelConstants";
+import { ScrollableText } from "./ScrollableText";
 
 /* ══════════════════════════════════════════
  * RepoLabel — folder-git icon + repository name
@@ -61,19 +62,15 @@ function RepoLabelComponent({
   );
 
   const nameNode = (
-    <span
+    <ScrollableText
       style={{
         fontSize: s.font,
         fontWeight: 600,
         color: colors.text,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-        display: "block",
       }}
     >
       {name}
-    </span>
+    </ScrollableText>
   );
 
   // Two-line layout when children (subtitle row) provided
@@ -195,17 +192,14 @@ function BranchLabelComponent({
         strokeWidth={1.5}
         style={{ flexShrink: 0 }}
       />
-      <span
+      <ScrollableText
         style={{
           fontSize: s.font,
           color: c.text,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
         }}
       >
         {name}
-      </span>
+      </ScrollableText>
     </span>
   );
 }

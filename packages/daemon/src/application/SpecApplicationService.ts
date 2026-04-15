@@ -14,7 +14,15 @@ export class SpecApplicationService {
   ) {}
 
   listSpecs(repoPath: string) {
-    return this.specSyncService.getSpecsFromDb(repoPath);
+    const specs = this.specSyncService.getSpecsFromDb(repoPath);
+
+    // If DB has no specs for this repo, trigger a background sync so the
+    // next fetch (via spec:sync:complete event) will return fresh data.
+    if (specs.length === 0) {
+      void this.specSyncService.syncRepo(repoPath);
+    }
+
+    return specs;
   }
 
   readGitFile(repoPath: string, ref: string, relativePath: string): string | null {

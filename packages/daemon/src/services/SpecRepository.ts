@@ -22,7 +22,7 @@ export class SpecRepository {
     const specRows = this.databaseService
       .getSqlite()
       .prepare(
-        `SELECT id, name, path, branch, is_current_branch as isCurrentBranch, files_json as filesJson, synced_at as syncedAt
+        `SELECT id, name, path, branch, is_current_branch as isCurrentBranch, files_json as filesJson, created_at as createdAt
          FROM specs
          WHERE repo_id = @repoId
          ORDER BY is_current_branch DESC, name ASC`
@@ -59,7 +59,7 @@ export class SpecRepository {
         isCurrentBranch: Boolean(specRow.isCurrentBranch),
         stages,
         files: JSON.parse((specRow.filesJson as string) || "[]"),
-        createdAt: specRow.syncedAt as number,
+        createdAt: specRow.createdAt as number,
       });
     }
 
@@ -105,7 +105,8 @@ export class SpecRepository {
                SET path = @path,
                    is_current_branch = @isCurrentBranch,
                    files_json = @filesJson,
-                   synced_at = @syncedAt
+                   synced_at = @syncedAt,
+                   created_at = @createdAt
                WHERE id = @specId`
             )
             .run({
@@ -114,6 +115,7 @@ export class SpecRepository {
               isCurrentBranch: spec.isCurrentBranch ? 1 : 0,
               filesJson: JSON.stringify(spec.files),
               syncedAt,
+              createdAt: spec.createdAt,
             });
 
           sqlite.prepare(`DELETE FROM spec_stages WHERE spec_id = @specId`).run({ specId });
@@ -140,8 +142,8 @@ export class SpecRepository {
 
           sqlite
             .prepare(
-              `INSERT INTO specs (id, repo_id, name, path, branch, is_current_branch, files_json, synced_at)
-               VALUES (@id, @repoId, @name, @path, @branch, @isCurrentBranch, @filesJson, @syncedAt)`
+              `INSERT INTO specs (id, repo_id, name, path, branch, is_current_branch, files_json, synced_at, created_at)
+               VALUES (@id, @repoId, @name, @path, @branch, @isCurrentBranch, @filesJson, @syncedAt, @createdAt)`
             )
             .run({
               id: specId,
@@ -152,6 +154,7 @@ export class SpecRepository {
               isCurrentBranch: spec.isCurrentBranch ? 1 : 0,
               filesJson: JSON.stringify(spec.files),
               syncedAt,
+              createdAt: spec.createdAt,
             });
 
           for (const stage of spec.stages) {

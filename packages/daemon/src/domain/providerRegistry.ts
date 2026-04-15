@@ -54,7 +54,7 @@ export function getPermissionModeArgs(
   if (provider === "copilot") {
     switch (mode) {
       case "auto":
-        return ["--autopilot", "--allow-all"];
+        return ["--autopilot", "--yolo", "--max-autopilot-continues", "50"];
       case "bypassPermissions":
         return ["--allow-all"];
       default:

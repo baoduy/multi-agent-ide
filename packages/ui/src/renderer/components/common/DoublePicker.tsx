@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Check, Search, X } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { ScrollableText } from "./ScrollableText";
 
 /* ── Types ── */
 
@@ -176,16 +177,13 @@ function PickerTrigger({
           {selected.icon}
         </span>
       )}
-      <span
+      <ScrollableText
         style={{
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
           maxWidth: 220,
         }}
       >
         {selected?.label ?? placeholder ?? "Select..."}
-      </span>
+      </ScrollableText>
     </button>
   );
 }
@@ -360,15 +358,11 @@ function DropdownItemComponent<T extends string>({
         </span>
       )}
       <span style={{ flex: 1, minWidth: 0 }}>
-        <span
+        <ScrollableText
           style={{
-            display: "block",
             fontSize: 12,
             fontWeight: 500,
             color: colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
             lineHeight: 1.4,
           }}
         >
@@ -378,7 +372,7 @@ function DropdownItemComponent<T extends string>({
               {option.suffix}
             </span>
           )}
-        </span>
+        </ScrollableText>
         {option.description && (
           <span
             style={{

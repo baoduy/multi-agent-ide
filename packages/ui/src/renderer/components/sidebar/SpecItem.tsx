@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { SpecFolder } from "@magenta/shared/models";
+import { ClickableRow } from "../common/ClickableRow";
 import { ScrollableText } from "../common/ScrollableText";
 import { StageDots } from "./StageDots";
 import { colors } from "../../utils/colors";
@@ -13,28 +14,16 @@ type SpecItemProps = {
 
 export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.ReactElement {
   return (
-    <div
-      style={{
-        padding: "7px 16px",
-        backgroundColor: isSelected ? colors.bgHover : "transparent",
-        borderLeft: isSelected ? `2px solid ${colors.primary}` : "2px solid transparent",
-        cursor: "pointer",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        transition: "background-color 0.12s",
-      }}
+    <ClickableRow
       onClick={() => onSelect(spec.path)}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.backgroundColor = colors.bgCodeInline;
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.backgroundColor = "transparent";
-        }
-      }}
+      selected={isSelected}
+      padding="7px 16px"
+      justifyContent="space-between"
+      defaultBackground="transparent"
+      hoverBackground={colors.bgCodeInline}
+      selectedBackground={colors.bgHover}
+      leftBorder="2px solid transparent"
+      selectedLeftBorder={`2px solid ${colors.primary}`}
     >
       <ScrollableText
         style={{
@@ -49,6 +38,6 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
         {spec.name}
       </ScrollableText>
       <StageDots stages={spec.stages} />
-    </div>
+    </ClickableRow>
   );
 }

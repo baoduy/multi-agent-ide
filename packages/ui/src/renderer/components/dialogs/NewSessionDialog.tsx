@@ -12,7 +12,9 @@ import { FormLabel, FormError } from "../common/FormControls";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { ButtonGroup, type ButtonGroupOption } from "../common/ButtonGroup";
 import { DoublePicker, type DoublePickerOption } from "../common/DoublePicker";
+import { InlineLoadingRow } from "../common/InlineLoadingRow";
 import { BranchLabel } from "../common/RepoLabel";
+import { ScrollableText } from "../common/ScrollableText";
 import { colors } from "../../utils/colors";
 import { getProviderName } from "../common/providerConfig";
 import { SpecifyOnboardBanner } from "./SpecifyOnboardBanner";
@@ -618,14 +620,11 @@ export function NewSessionDialog({
 
         {/* ─── Loading branches indicator ─── */}
         {hasRepo && isLoadingBranches && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0" }}>
-            <Loader2
-              size={14}
-              color={colors.textTertiary}
-              style={{ animation: "spin 1s linear infinite" }}
-            />
-            <span style={{ fontSize: 12, color: colors.textSecondary }}>Loading branches...</span>
-          </div>
+          <InlineLoadingRow
+            label="Loading branches..."
+            padding="4px 0"
+            color={colors.textSecondary}
+          />
         )}
 
         {/* ─── Specify Onboard Notice ─── */}
@@ -825,18 +824,15 @@ function WorktreeList({
             }}
           >
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div
+              <ScrollableText
                 style={{
                   fontSize: 12,
                   fontWeight: 500,
                   color: colors.text,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
                 }}
               >
                 {wt.name}
-              </div>
+              </ScrollableText>
               <div style={{ marginTop: 2 }}>
                 <BranchLabel name={wt.branch} size="xs" />
               </div>

@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Check,
   AlertCircle,
-  Loader2,
   Trash2,
   FolderOpen,
 } from "lucide-react";
@@ -13,10 +12,12 @@ import {
 import { colors } from "../../utils/colors";
 import type { WorktreeInfo } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { ActionButton } from "../common/ActionButton";
 import { ScrollableText } from "../common/ScrollableText";
 import { BranchLabel } from "../common/RepoLabel";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 import { SectionHeader } from "../common/FormControls";
+import { InlineLoadingRow } from "../common/InlineLoadingRow";
 import { sendOrThrow } from "../../services/ipcClient";
 
 type WorktreeInlinePanelProps = {
@@ -174,19 +175,7 @@ export function WorktreeInlinePanel({
         </SectionHeader>
 
         {isStatusLoading && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              color: colors.textTertiary,
-              fontSize: 12,
-              padding: "12px 0",
-            }}
-          >
-            <Loader2 size={14} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
-            Loading file status…
-          </div>
+          <InlineLoadingRow label="Loading file status…" />
         )}
 
         {!isStatusLoading && status && status.files.length === 0 && (
@@ -274,63 +263,27 @@ export function WorktreeInlinePanel({
           </div>
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <button
-              type="button"
+            <ActionButton
               onClick={handleDelete}
-              disabled={isDeleting}
-              style={{
-                padding: "8px 14px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: colors.textWhite,
-                background: isDeleting ? colors.borderMuted : colors.errorDark,
-                border: "none",
-                borderRadius: 6,
-                cursor: isDeleting ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                transition: "background 0.15s",
-              }}
+              variant="danger"
+              loading={isDeleting}
+              loadingText="Deleting…"
+              padding="8px 14px"
+              justifyContent="center"
+              icon={<Trash2 size={12} strokeWidth={2} />}
             >
-              {isDeleting ? (
-                <>
-                  <Loader2 size={12} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
-                  Deleting…
-                </>
-              ) : (
-                <>
-                  <Trash2 size={12} strokeWidth={2} />
-                  Delete worktree
-                </>
-              )}
-            </button>
+              Delete worktree
+            </ActionButton>
 
-            <button
-              type="button"
+            <ActionButton
               onClick={handleKeep}
-              style={{
-                padding: "8px 14px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: colors.textMuted,
-                background: colors.bgSurface,
-                border: `1px solid ${colors.border}`,
-                borderRadius: 6,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-                transition: "background 0.15s",
-              }}
+              variant="secondary"
+              padding="8px 14px"
+              justifyContent="center"
+              icon={<FolderOpen size={12} strokeWidth={2} />}
             >
-              <FolderOpen size={12} strokeWidth={2} />
               Keep worktree
-            </button>
+            </ActionButton>
           </div>
 
           {/* Delete result (error) */}
@@ -371,38 +324,15 @@ export function WorktreeInlinePanel({
               No changes — this worktree can be safely removed.
             </span>
 
-            <button
-              type="button"
+            <ActionButton
               onClick={handleDelete}
-              disabled={isDeleting}
-              style={{
-                padding: "7px 16px",
-                fontSize: 12,
-                fontWeight: 600,
-                color: colors.textWhite,
-                background: isDeleting ? colors.borderMuted : colors.errorDark,
-                border: "none",
-                borderRadius: 6,
-                cursor: isDeleting ? "not-allowed" : "pointer",
-                fontFamily: "inherit",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                transition: "background 0.15s",
-              }}
+              variant="danger"
+              loading={isDeleting}
+              loadingText="Deleting…"
+              icon={<Trash2 size={12} strokeWidth={2} />}
             >
-              {isDeleting ? (
-                <>
-                  <Loader2 size={12} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
-                  Deleting…
-                </>
-              ) : (
-                <>
-                  <Trash2 size={12} strokeWidth={2} />
-                  Delete worktree
-                </>
-              )}
-            </button>
+              Delete worktree
+            </ActionButton>
           </div>
         ) : (
           /* Merge section — worktree has changes */
@@ -433,27 +363,18 @@ export function WorktreeInlinePanel({
 
                 {/* Target branch picker */}
                 <div style={{ position: "relative" }}>
-                  <button
-                    type="button"
+                  <ActionButton
                     onClick={() => setShowBranchPicker(!showBranchPicker)}
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "5px 10px",
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: colors.text,
-                      background: colors.bgSurface,
-                      border: `1px solid ${colors.border}`,
-                      borderRadius: 6,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
+                    variant="secondary"
+                    padding="5px 10px"
+                    gap={4}
+                    fontWeight={500}
+                    color={colors.text}
+                    icon={<ChevronDown size={12} strokeWidth={1.5} />}
+                    style={{ flexDirection: "row-reverse" }}
                   >
                     {targetBranch || "Select branch"}
-                    <ChevronDown size={12} strokeWidth={1.5} />
-                  </button>
+                  </ActionButton>
 
                   {showBranchPicker && branches.length > 0 && (
                     <div
@@ -510,38 +431,16 @@ export function WorktreeInlinePanel({
                 </div>
               </div>
 
-              <button
-                type="button"
+              <ActionButton
                 onClick={handleMerge}
                 disabled={!targetBranch || isMerging}
-                style={{
-                  padding: "7px 16px",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: colors.textWhite,
-                  background: !targetBranch || isMerging ? colors.borderMuted : colors.primary,
-                  border: "none",
-                  borderRadius: 6,
-                  cursor: !targetBranch || isMerging ? "not-allowed" : "pointer",
-                  fontFamily: "inherit",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  transition: "background 0.15s",
-                }}
+                variant="primary"
+                loading={isMerging}
+                loadingText="Merging…"
+                icon={<GitMerge size={12} strokeWidth={2} />}
               >
-                {isMerging ? (
-                  <>
-                    <Loader2 size={12} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} />
-                    Merging…
-                  </>
-                ) : (
-                  <>
-                    <GitMerge size={12} strokeWidth={2} />
-                    Merge
-                  </>
-                )}
-              </button>
+                Merge
+              </ActionButton>
             </div>
 
             {/* Merge result (error only — success goes to post-merge state) */}

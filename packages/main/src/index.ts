@@ -332,15 +332,17 @@ function registerIpcHandler() {
       console.log(`[main] Forwarding request #${id} (${requestType}) to daemon`);
       daemonProcess!.send({ kind: "request", id, payload: request });
 
-      // Timeout after 10 seconds
+      // Timeout after 30 seconds — gives the daemon enough headroom for
+      // legitimately slow operations (large repo git commands, first-time
+      // spec sync) without masking real hangs.
       setTimeout(() => {
         if (pendingRequests.has(id)) {
           pendingRequests.delete(id);
-          console.warn(`[main] Request #${id} (${requestType}) timed out after 10s`);
-          writeLog("WARN", "main", `IPC request #${id} (${requestType}) timed out after 10s`);
+          console.warn(`[main] Request #${id} (${requestType}) timed out after 30s`);
+          writeLog("WARN", "main", `IPC request #${id} (${requestType}) timed out after 30s`);
           resolve({ type: "error", message: "Daemon request timed out" });
         }
-      }, 10_000);
+      }, 30_000);
     });
   });
 }

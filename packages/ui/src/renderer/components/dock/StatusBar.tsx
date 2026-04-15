@@ -135,7 +135,7 @@ export const StatusBar = React.memo(function StatusBar({
           active={false}
           onClick={resetLayout}
         />
-        <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />
+        <VerticalDivider />
 
         {/* ── Active agent session info ── */}
         {session && (
@@ -193,7 +193,23 @@ export const StatusBar = React.memo(function StatusBar({
 
       {/* Right section — view toggles */}
       <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
-        {runningCount > 0 && (
+        <VerticalDivider />
+        <StatusBarButton
+          icon={<Terminal size={12} />}
+          label="Terminal"
+          active={hasTerminal && !bottomCollapsed}
+          disabled={!resolvedTerminalCwd}
+          onClick={toggleTerminal}
+        />
+        <VerticalDivider />
+        <StatusBarButton
+          icon={<ScrollText size={12} />}
+          label="Log"
+          active={hasLog && !bottomCollapsed}
+          onClick={toggleLog}
+        />
+        {runningCount > 0 && (<>
+          <VerticalDivider />
           <StatusBarButton
             icon={
               <span style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
@@ -221,28 +237,19 @@ export const StatusBar = React.memo(function StatusBar({
                 </span>
               </span>
             }
-            label={`${runningCount} AI Running`}
+            label=""
             active={false}
             onClick={() => onShowRunningSessions?.()}
           />
-        )}
-        <StatusBarButton
-          icon={<Terminal size={12} />}
-          label="Terminal"
-          active={hasTerminal && !bottomCollapsed}
-          disabled={!resolvedTerminalCwd}
-          onClick={toggleTerminal}
-        />
-        <StatusBarButton
-          icon={<ScrollText size={12} />}
-          label="Log"
-          active={hasLog && !bottomCollapsed}
-          onClick={toggleLog}
-        />
+        </>)}
       </div>
     </div>
   );
 });
+
+function VerticalDivider(): React.ReactElement {
+  return <div style={{ width: 1, height: 14, background: colors.border, margin: "0 4px" }} />;
+}
 
 /* ── Dot separator ── */
 

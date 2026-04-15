@@ -261,9 +261,9 @@ async function main() {
       void scanQueue.requestScan(workingDirs);
     }
 
-    // 3. Start the 5-minute spec sync schedule (runs immediately on first call).
-    //    Because the repo scan was enqueued first, the initial "spec-sync-all"
-    //    will see any newly discovered repos.
+    // 3. Start the 5-minute spec sync interval. The initial sync is triggered
+    //    by the repo-scan job when it completes (via scanQueue → specSyncService),
+    //    so start() only sets up the recurring timer.
     specSyncService.start();
 
     // 3. Trigger one-time session sync (scans ~/.claude + ~/.copilot)

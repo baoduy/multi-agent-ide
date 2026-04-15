@@ -81,6 +81,7 @@ export function gitExecSync(
     cwd,
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],
+    timeout: 10_000,
     ...options,
   });
 }

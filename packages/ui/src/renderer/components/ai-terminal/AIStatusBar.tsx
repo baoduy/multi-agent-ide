@@ -7,6 +7,7 @@ import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { getStatusColor } from "../../utils/sessionStatus";
 import { colors } from "../../utils/colors";
+import { ScrollableText } from "../common/ScrollableText";
 
 /** Simplified permission modes — matches NewSessionDialog. */
 type SimplifiedPermission = "default" | "auto" | "bypassPermissions";
@@ -256,18 +257,15 @@ export function AIStatusBar({ tab }: AIStatusBarProps): React.ReactElement {
           <span style={{ color: colors.borderMuted }}>·</span>
 
           {/* Directory label */}
-          <span
+          <ScrollableText
             style={{
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
               maxWidth: 260,
               color: colors.textTertiary,
             }}
             title={(tab as TerminalTabInfo).cwd}
           >
             {(tab as TerminalTabInfo).label}
-          </span>
+          </ScrollableText>
 
           <span style={{ color: colors.borderMuted }}>·</span>
 

@@ -23,7 +23,8 @@ export class SpecSyncService {
   }
 
   start(): void {
-    this.syncAllRepos();
+    // Don't run immediately — the initial repo scan triggers syncAllRepos()
+    // when it completes. Only set up the recurring interval here.
     this.intervalHandle = setInterval(() => this.syncAllRepos(), SYNC_INTERVAL_MS);
     console.log(`${TAG} Scheduled spec sync every 5 minutes`);
   }

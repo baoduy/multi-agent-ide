@@ -167,6 +167,14 @@ export class SpecReader {
         (f) => `gitref://${branch}/specs/${specName}/${f}`,
       );
 
+      // Parse the "Created: YYYY-MM-DD" line from spec.md content on this branch
+      let createdAt = Date.now();
+      const specMdRelPath = `specs/${specName}/spec.md`;
+      const specMdContent = this.gitGateway.readGitFile(repoPath, branch, specMdRelPath);
+      if (specMdContent) {
+        createdAt = SpecReader.parseCreatedDate(specMdContent) ?? Date.now();
+      }
+
       return {
         id: ulid(),
         repoPath,
@@ -176,7 +184,7 @@ export class SpecReader {
         isCurrentBranch: false,
         stages,
         files,
-        createdAt: Date.now(),
+        createdAt,
       };
     } catch (error) {
       console.error(`Failed to parse git spec ${specName} on ${branch}:`, error);
@@ -295,6 +303,18 @@ export class SpecReader {
       const stages = this.parseStages(repoPath, specPath);
       const files = this.listSpecFiles(specPath);
 
+      // Parse the "Created: YYYY-MM-DD" line from spec.md content
+      let createdAt = Date.now();
+      const specMdPath = path.join(specPath, "spec.md");
+      try {
+        if (fs.existsSync(specMdPath)) {
+          const content = fs.readFileSync(specMdPath, "utf-8");
+          createdAt = SpecReader.parseCreatedDate(content) ?? Date.now();
+        }
+      } catch {
+        // If read fails, keep Date.now()
+      }
+
       return {
         id: ulid(),
         repoPath,
@@ -302,7 +322,7 @@ export class SpecReader {
         path: specPath,
         stages,
         files,
-        createdAt: Date.now(),
+        createdAt,
       };
     } catch (error) {
       console.error(`Failed to parse spec folder at ${specPath}:`, error);
@@ -402,6 +422,17 @@ export class SpecReader {
   /* ═══════════════════════════════════════════════════════
      Content parsers (shared by filesystem & git paths)
      ═══════════════════════════════════════════════════════ */
+
+  /**
+   * Parses the "Created: YYYY-MM-DD" line from spec.md content.
+   * Returns a Unix timestamp in milliseconds, or null if not found / invalid.
+   */
+  static parseCreatedDate(content: string): number | null {
+    const match = content.match(/^Created:\s*(\d{4}-\d{2}-\d{2})/m);
+    if (!match) return null;
+    const ts = new Date(match[1] + "T00:00:00").getTime();
+    return Number.isFinite(ts) ? ts : null;
+  }
 
   /**
    * Parses the approval marker from a file on disk.

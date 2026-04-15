@@ -151,13 +151,11 @@ export class ScanQueue {
         missing,
       });
 
-      // Sync specs for newly added repos so their specs are immediately
-      // available in the UI without waiting for the next 5-minute cycle.
-      if (newlyAddedPaths.length > 0 && this.specSyncService) {
-        console.log(`[scan-queue] Syncing specs for ${newlyAddedPaths.length} newly added repos`);
-        for (const repoPath of newlyAddedPaths) {
-          await this.specSyncService.syncRepo(repoPath);
-        }
+      // Trigger a spec sync as a separate background job so the repo-scan
+      // job completes quickly and doesn't block the IPC event loop.
+      // The job manager will run "spec-sync-all" next in the FIFO queue.
+      if (this.specSyncService) {
+        this.specSyncService.syncAllRepos();
       }
     } catch (error) {
       console.error("[scan-queue] Scan failed:", error);

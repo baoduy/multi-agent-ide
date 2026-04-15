@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
 import { Terminal } from "lucide-react";
-import { Terminal as XTerm } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import xtermCss from "@xterm/xterm/css/xterm.css";
 import stripAnsi from "strip-ansi";
 import { TERMINAL_THEMES } from "../../utils/terminalThemes";
 import { colors } from "../../utils/colors";
 import { useTerminalStore } from "../../store/terminalStore";
-import { useAISessionStore } from "../../store/aiSessionStore";
+import { TerminalHub } from "../../terminal/TerminalHub";
 
 export type MagentaTerminalStatus = "idle" | "running" | "done" | "canceled" | "error";
 
@@ -25,44 +22,22 @@ export interface MagentaTerminalProps {
   cwd?: string;
   label?: string;
   maxHeight?: number;
-  fontSize?: number; // Default: 11
-  fontFamily?: string; // Default: "'SF Mono', 'Fira Code', ui-monospace, monospace"
-  enableTabs?: boolean; // Default: false
-  /** Called when the last tab is closed (all terminals gone). */
+  fontSize?: number;
+  fontFamily?: string;
+  enableTabs?: boolean;
   onAllTabsClosed?: () => void;
-  /** Ref for imperative handle */
   ref?: React.Ref<MagentaTerminalHandle>;
-  /** Terminal mode: "shell" (default) or "ai-agent" */
   mode?: "shell" | "ai-agent";
-  /** Session ID for ai-agent mode (required when mode="ai-agent") */
   aiSessionId?: string;
-  /** Provider for ai-agent mode (required when mode="ai-agent") */
   aiProvider?: "claude" | "copilot";
-  /** Whether this terminal's container is currently visible. Triggers re-fit on true. */
   isVisible?: boolean;
 }
 
-// ── Runtime theme policy: always dark ────────────────────────────────────────
-// Terminals (both MagentaTerminal shells and AI agent sessions) use a fixed
-// dark palette regardless of the app's light/dark mode. ANSI colours from CLI
-// tools are authored against dark backgrounds and wash out on a light terminal.
+// Runtime theme: terminals are always dark regardless of app theme.
 const THEME = TERMINAL_THEMES.dark;
 const THEME_BG = THEME.background;
 
-let xtermStylesInjected = false;
-
-function ensureXtermStyles(): void {
-  if (xtermStylesInjected || typeof document === "undefined") {
-    return;
-  }
-  const style = document.createElement("style");
-  style.setAttribute("data-magenta-xterm", "true");
-  style.textContent = xtermCss;
-  document.head.appendChild(style);
-  xtermStylesInjected = true;
-}
-
-// ── Readonly branch ──────────────────────────────────────────────────────────
+// ── Readonly branch (batch output viewer) ────────────────────────────────────
 
 function MagentaTerminalReadonly({
   output = "",
@@ -76,7 +51,6 @@ function MagentaTerminalReadonly({
 }: MagentaTerminalProps): React.ReactElement {
   const preRef = useRef<HTMLPreElement>(null);
 
-  // Auto-scroll to bottom when output changes
   useEffect(() => {
     if (preRef.current) {
       preRef.current.scrollTop = preRef.current.scrollHeight;
@@ -85,21 +59,9 @@ function MagentaTerminalReadonly({
 
   return (
     <div>
-      {/* Header bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          marginBottom: 8,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
         <Terminal size={12} color={THEME.foreground} strokeWidth={2} style={{ opacity: 0.6 }} />
-        {label && (
-          <span style={{ fontSize: 11, fontWeight: 600, color: THEME.cyan }}>
-            {label}
-          </span>
-        )}
+        {label && <span style={{ fontSize: 11, fontWeight: 600, color: THEME.cyan }}>{label}</span>}
         {status === "running" && (
           <span
             style={{
@@ -113,8 +75,6 @@ function MagentaTerminalReadonly({
           />
         )}
       </div>
-
-      {/* Output area */}
       <pre
         ref={preRef}
         style={{
@@ -147,78 +107,41 @@ function MagentaTerminalReadonly({
   );
 }
 
-// ── Per-tab state ───────────────────────────────────────────────────────────
+// ── Interactive branch ───────────────────────────────────────────────────────
 
-/** Each tab owns its own xterm instance, DOM container, and daemon PTY session. */
-interface TabState {
+/**
+ * Tab bookkeeping. Every tab maps 1:1 to a hub session; the hub owns the
+ * xterm, this component just tells the hub where to mount it.
+ */
+interface TabRecord {
   id: string;
   label: string;
   sessionId: string | null;
-  xterm: XTerm;
-  fitAddon: FitAddon;
-  /** The persistent DOM div this tab's xterm is rendered into. */
-  hostEl: HTMLDivElement;
-  /** Data disposable returned by xterm.onData (keyboard input) */
-  dataDisposable: { dispose: () => void };
-  /** Tracks how much output has already been written to xterm */
-  lastOutputLength: number;
-  /** Whether "[Session closed]" has already been printed */
-  sessionClosedPrinted: boolean;
+  mode: "shell" | "ai-agent";
 }
 
-// ── Interactive branch ───────────────────────────────────────────────────────
-
-const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(function MagentaTerminalInteractive({
-  cwd,
-  maxHeight,
-  fontSize = 9,
-  fontFamily = "'SF Mono', 'Fira Code', ui-monospace, monospace",
-  enableTabs = true,
-  onAllTabsClosed,
-  mode = "shell",
-  aiSessionId: aiSessionIdProp,
-  isVisible = true,
-}, ref): React.ReactElement {
+const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(function MagentaTerminalInteractive(
+  {
+    cwd,
+    maxHeight,
+    fontFamily = "'SF Mono', 'Fira Code', ui-monospace, monospace",
+    enableTabs = true,
+    onAllTabsClosed,
+    mode = "shell",
+    aiSessionId: aiSessionIdProp,
+    isVisible = true,
+  },
+  ref,
+): React.ReactElement {
   const isAIMode = mode === "ai-agent";
 
-  // ── Shell mode store bindings ──
   const shellSpawn = useTerminalStore((s) => s.spawn);
-  const shellWrite = useTerminalStore((s) => s.write);
-  const shellResize = useTerminalStore((s) => s.resize);
   const shellClose = useTerminalStore((s) => s.close);
-  const shellSessions = useTerminalStore((s) => s.sessions);
-  const shellInitSubs = useTerminalStore((s) => s.initializeSubscriptions);
-
-  // ── AI agent mode store bindings ──
-  const aiSendInput = useAISessionStore((s) => s.sendInput);
-  const aiResize = useAISessionStore((s) => s.resize);
-  const aiLiveOutput = useAISessionStore((s) => s.liveOutput);
-  const aiSessions = useAISessionStore((s) => s.sessions);
-  const aiInitSubs = useAISessionStore((s) => s.initializeSubscriptions);
-
-  // ── Unified I/O callbacks (pick based on mode) ──
-  const writeSession = useCallback(
-    (sessionId: string, data: string) => {
-      if (isAIMode) void aiSendInput(sessionId, data);
-      else void shellWrite(sessionId, data);
-    },
-    [isAIMode, aiSendInput, shellWrite],
-  );
-
-  const resizeSession = useCallback(
-    (sessionId: string, cols: number, rows: number) => {
-      if (isAIMode) void aiResize(sessionId, cols, rows);
-      else void shellResize(sessionId, cols, rows);
-    },
-    [isAIMode, aiResize, shellResize],
-  );
 
   const frameRef = useRef<HTMLDivElement>(null);
-  /** Parent container that holds all per-tab host divs. */
-  const containerRef = useRef<HTMLDivElement>(null);
-  /** All tab instances, keyed by tab id for O(1) lookup. */
-  const tabsRef = useRef<Map<string, TabState>>(new Map());
-  /** Counter for generating unique tab labels. */
+  const mountRef = useRef<HTMLDivElement>(null);
+
+  const tabsRef = useRef<Map<string, TabRecord>>(new Map());
   const tabCounterRef = useRef(0);
 
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
@@ -229,155 +152,50 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     y: 0,
   });
 
-  // Ensure xterm styles + subscriptions once
-  useEffect(() => {
-    ensureXtermStyles();
-    if (isAIMode) aiInitSubs();
-    else shellInitSubs();
-  }, [isAIMode, aiInitSubs, shellInitSubs]);
+  // ─── Build a new tab ──────────────────────────────────────────
 
-  // ── Build a new tab (xterm + PTY) ─────────────────────────────
-
-  const buildTab = useCallback((): TabState => {
+  const buildTab = useCallback(async (): Promise<TabRecord> => {
     tabCounterRef.current += 1;
     const id = `tab-${Date.now()}-${tabCounterRef.current}`;
     const label = `Terminal ${tabCounterRef.current}`;
+    const tab: TabRecord = { id, label, sessionId: null, mode: isAIMode ? "ai-agent" : "shell" };
 
-    // Create a persistent DOM host for this tab's xterm
-    const hostEl = document.createElement("div");
-    hostEl.setAttribute("data-tab-id", id);
-    // Start hidden; the caller will show the active tab
-    hostEl.style.display = "none";
-    hostEl.style.flex = "1";
-    hostEl.style.minHeight = "0";
-    hostEl.style.padding = "0";
-    hostEl.style.margin = "0";
-    hostEl.style.overflow = "hidden";
-
-    // Append to the shared container
-    containerRef.current?.appendChild(hostEl);
-
-    const xterm = new XTerm({
-      convertEol: true,
-      cursorBlink: true,
-      fontFamily,
-      fontSize,
-      lineHeight: 1.45,
-      theme: THEME,
-    });
-    const fitAddon = new FitAddon();
-    xterm.loadAddon(fitAddon);
-
-    // The tab object — declared here so the closures below can reference it.
-    const tab: TabState = {
-      id,
-      label,
-      sessionId: null,
-      xterm,
-      fitAddon,
-      hostEl,
-      dataDisposable: { dispose: () => {} }, // replaced below
-      lastOutputLength: 0,
-      sessionClosedPrinted: false,
-    };
-
-    // Keyboard shortcut handler
-    xterm.attachCustomKeyEventHandler((event) => {
-      if (event.type !== "keydown") return true;
-
-      const isMac = navigator.platform.toUpperCase().includes("MAC");
-      const mod = isMac ? event.metaKey : event.ctrlKey;
-
-      // Cmd/Ctrl + K: clear
-      if (mod && !event.shiftKey && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        xterm.clear();
-        return false;
-      }
-
-      // Cmd + C (macOS): copy when selection exists
-      if (isMac && event.metaKey && !event.shiftKey && event.key.toLowerCase() === "c") {
-        if (xterm.hasSelection()) {
-          event.preventDefault();
-          void navigator.clipboard.writeText(xterm.getSelection());
-          return false;
-        }
-        return true;
-      }
-
-      // Cmd + V / Ctrl+Shift+V: paste
-      if (
-        (isMac && event.metaKey && event.key.toLowerCase() === "v") ||
-        (!isMac && event.ctrlKey && event.shiftKey && event.key.toLowerCase() === "v")
-      ) {
-        event.preventDefault();
-        void navigator.clipboard.readText().then((text) => {
-          if (text && tab.sessionId) {
-            void writeSession(tab.sessionId, text);
-          }
-        });
-        return false;
-      }
-
-      return true;
-    });
-
-    // Forward keyboard input to this tab's PTY
-    tab.dataDisposable = xterm.onData((data) => {
-      if (tab.sessionId) {
-        void writeSession(tab.sessionId, data);
-      }
-    });
-
-    // Open xterm into its persistent host element
-    xterm.open(hostEl);
-
-    // Connect to session — in AI mode use the provided sessionId,
-    // in shell mode spawn a new daemon PTY
     if (isAIMode && aiSessionIdProp) {
       tab.sessionId = aiSessionIdProp;
     } else {
       const resolvedCwd = cwd ?? "~";
-      const cols = xterm.cols > 0 ? xterm.cols : 80;
-      const rows = xterm.rows > 0 ? xterm.rows : 24;
-      shellSpawn(resolvedCwd, cols, rows).then((sessionId) => {
-        tab.sessionId = sessionId;
-      });
+      // Initial cols/rows are provisional — the hub re-fits on mount.
+      tab.sessionId = await shellSpawn(resolvedCwd, 80, 24);
     }
 
     tabsRef.current.set(id, tab);
     return tab;
-  }, [cwd, fontFamily, fontSize, isAIMode, aiSessionIdProp, shellSpawn, writeSession]);
+  }, [cwd, isAIMode, aiSessionIdProp, shellSpawn]);
 
-  // ── Show / hide tabs via CSS display ─────────────────────────
+  // ─── Show / hide tabs by attaching the active session to the mount div ──
 
   const showTab = useCallback((tabId: string) => {
-    // Hide all tabs, show the target
-    for (const tab of tabsRef.current.values()) {
-      tab.hostEl.style.display = tab.id === tabId ? "flex" : "none";
-    }
-    // Fit + focus the newly shown tab
     const tab = tabsRef.current.get(tabId);
-    if (tab) {
-      tab.fitAddon.fit();
-      tab.xterm.focus();
-    }
+    const mount = mountRef.current;
+    if (!tab || !mount || !tab.sessionId) return;
+    // The hub moves the xterm's persistent DOM into the mount div.
+    // Previously-mounted terminals are implicitly detached by the hub.
+    TerminalHub.attach(tab.sessionId, tab.mode, mount);
+    TerminalHub.focus(tab.sessionId);
   }, []);
 
-  // ── Tab actions ──────────────────────────────────────────────────
-
-  const createNewTab = useCallback(() => {
-    const tab = buildTab();
-    showTab(tab.id);
+  const createNewTab = useCallback(async () => {
+    const tab = await buildTab();
     setTabIds((prev) => [...prev, tab.id]);
     setActiveTabId(tab.id);
+    showTab(tab.id);
   }, [buildTab, showTab]);
 
   const switchTab = useCallback(
     (tabId: string) => {
       if (tabId === activeTabId) return;
-      showTab(tabId);
       setActiveTabId(tabId);
+      showTab(tabId);
     },
     [activeTabId, showTab],
   );
@@ -387,170 +205,82 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
       const tab = tabsRef.current.get(tabId);
       if (!tab) return;
 
-      // Tear down PTY + xterm for this tab (only close shell PTYs — AI sessions persist)
-      if (tab.sessionId && !isAIMode) {
-        void shellClose(tab.sessionId);
+      if (tab.sessionId) {
+        if (!isAIMode) {
+          void shellClose(tab.sessionId);
+          TerminalHub.dispose(tab.sessionId);
+        } else {
+          // AI sessions persist in the daemon; just detach the DOM so the
+          // session can be re-opened later.
+          TerminalHub.detach(tab.sessionId);
+        }
       }
-      tab.dataDisposable.dispose();
-      tab.xterm.dispose();
-      // Remove the DOM element
-      tab.hostEl.parentNode?.removeChild(tab.hostEl);
       tabsRef.current.delete(tabId);
 
       setTabIds((prev) => {
         const next = prev.filter((id) => id !== tabId);
-
         if (next.length === 0) {
-          // All tabs closed — notify parent
           setActiveTabId(null);
           onAllTabsClosed?.();
         } else if (activeTabId === tabId) {
-          // Activate a neighbour tab
           const closedIdx = prev.indexOf(tabId);
           const nextActive = next[Math.max(0, closedIdx - 1)];
-          showTab(nextActive);
           setActiveTabId(nextActive);
+          showTab(nextActive);
         }
-
         return next;
       });
     },
     [activeTabId, isAIMode, shellClose, showTab, onAllTabsClosed],
   );
 
-  // ── Imperative handle for parent ────────────────────────────────
+  useImperativeHandle(ref, () => ({ createTab: () => { void createNewTab(); } }), [createNewTab]);
 
-  useImperativeHandle(ref, () => ({
-    createTab: createNewTab,
-  }), [createNewTab]);
-
-  // ── Auto-create first tab on mount ────────────────────────────
+  // ─── Auto-create first tab on mount ───────────────────────────
 
   const initializedRef = useRef(false);
   useEffect(() => {
-    // Always create the first tab on mount — shell mode needs a PTY session,
-    // AI mode needs to attach to the provided sessionId.
     if (tabIds.length === 0 && !initializedRef.current) {
       initializedRef.current = true;
-      createNewTab();
+      void createNewTab();
     }
   }, [tabIds.length, createNewTab]);
 
-  // ── Resize observer (debounced — resizes the active xterm when container changes) ──
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let timerId: ReturnType<typeof setTimeout> | null = null;
-    let prevCols = 0;
-    let prevRows = 0;
-
-    const observer = new ResizeObserver(() => {
-      if (timerId) clearTimeout(timerId);
-      timerId = setTimeout(() => {
-        if (!activeTabId) return;
-        const tab = tabsRef.current.get(activeTabId);
-        if (!tab) return;
-        tab.fitAddon.fit();
-        const cols = tab.xterm.cols;
-        const rows = tab.xterm.rows;
-        if (cols === prevCols && rows === prevRows) return;
-        prevCols = cols;
-        prevRows = rows;
-        // Send resize IPC so the PTY / AI agent knows the new dimensions
-        if (tab.sessionId && cols > 0 && rows > 0) {
-          void resizeSession(tab.sessionId, cols, rows);
-        }
-      }, 150);
-    });
-    observer.observe(container);
-    return () => {
-      if (timerId) clearTimeout(timerId);
-      observer.disconnect();
-    };
-  }, [activeTabId, resizeSession]);
-
-  // ── Re-fit when the terminal becomes visible (tab switch in parent) ──
+  // ─── Re-fit on visibility change ──────────────────────────────
 
   useEffect(() => {
     if (!isVisible || !activeTabId) return;
     const tab = tabsRef.current.get(activeTabId);
-    if (!tab) return;
-    // Delay slightly to allow the DOM to lay out after visibility change
+    if (!tab?.sessionId) return;
+    const sessionId = tab.sessionId;
     const timerId = setTimeout(() => {
-      tab.fitAddon.fit();
-      tab.xterm.focus();
-      // Only send resize IPC for shell terminals — AI sessions (Claude Code)
-      // re-draw their output on resize which causes duplicate/garbled text.
-      if (!isAIMode && tab.sessionId) {
-        const cols = tab.xterm.cols;
-        const rows = tab.xterm.rows;
-        if (cols > 0 && rows > 0) {
-          void resizeSession(tab.sessionId, cols, rows);
-        }
-      }
+      TerminalHub.refitAll();
+      TerminalHub.focus(sessionId);
     }, 50);
     return () => clearTimeout(timerId);
-  }, [isVisible, activeTabId, isAIMode, resizeSession]);
+  }, [isVisible, activeTabId]);
 
-  // ── Stream store output → each tab's xterm ────────────────────
-
-  useEffect(() => {
-    for (const tab of tabsRef.current.values()) {
-      if (!tab.sessionId) continue;
-
-      let output: string;
-      let ended: boolean;
-
-      if (isAIMode) {
-        output = aiLiveOutput[tab.sessionId] ?? "";
-        const rec = aiSessions.find((s) => s.id === tab.sessionId);
-        ended = rec?.status === "exited";
-      } else {
-        const session = shellSessions[tab.sessionId];
-        if (!session) continue;
-        output = session.output;
-        ended = session.status === "closed";
-      }
-
-      // Incremental write
-      const prev = tab.lastOutputLength;
-      const chunk = output.length >= prev ? output.slice(prev) : output;
-      if (chunk) {
-        tab.xterm.write(chunk);
-      }
-      tab.lastOutputLength = output.length;
-
-      // Session ended message
-      if (ended && !tab.sessionClosedPrinted) {
-        tab.xterm.write("\r\n[Session ended]\r\n");
-        tab.sessionClosedPrinted = true;
-      }
-    }
-  }, [isAIMode, shellSessions, aiLiveOutput, aiSessions]);
-
-  // ── Cleanup all tabs on unmount ───────────────────────────────
+  // ─── Cleanup on unmount ───────────────────────────────────────
 
   useEffect(() => {
-    // Capture current mode in closure — stable for the component's lifetime
     const aiMode = isAIMode;
     return () => {
       for (const tab of tabsRef.current.values()) {
-        // Only close shell PTYs — AI sessions persist outside this component
-        if (tab.sessionId && !aiMode) {
+        if (!tab.sessionId) continue;
+        if (!aiMode) {
           void shellClose(tab.sessionId);
+          TerminalHub.dispose(tab.sessionId);
+        } else {
+          // AI sessions outlive this component — just unmount the DOM.
+          TerminalHub.detach(tab.sessionId);
         }
-        tab.dataDisposable.dispose();
-        tab.xterm.dispose();
-        tab.hostEl.parentNode?.removeChild(tab.hostEl);
       }
       tabsRef.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Context menu close on outside click ───────────────────────
+  // ─── Context menu ─────────────────────────────────────────────
 
   useEffect(() => {
     if (!menuState.open) return;
@@ -563,12 +293,11 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     };
   }, [menuState.open]);
 
-  // ── Render ────────────────────────────────────────────────────
-
   const activeTab = activeTabId ? tabsRef.current.get(activeTabId) : undefined;
 
   const copySelection = useCallback(async () => {
-    const selected = activeTab?.xterm.getSelection() ?? "";
+    if (!activeTab?.sessionId) return;
+    const selected = TerminalHub.getSelection(activeTab.sessionId);
     if (!selected) return;
     try { await navigator.clipboard.writeText(selected); } catch { /* noop */ }
   }, [activeTab]);
@@ -577,17 +306,17 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     if (!activeTab?.sessionId) return;
     try {
       const text = await navigator.clipboard.readText();
-      if (text) void writeSession(activeTab.sessionId, text);
+      if (text) TerminalHub.writeInput(activeTab.sessionId, text);
     } catch { /* noop */ }
-  }, [activeTab, writeSession]);
+  }, [activeTab]);
 
   const clearTerminal = useCallback(() => {
-    activeTab?.xterm.clear();
+    if (!activeTab?.sessionId) return;
+    TerminalHub.clear(activeTab.sessionId);
   }, [activeTab]);
 
   return (
     <div ref={frameRef} style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, height: "100%", minHeight: 0 }}>
-      {/* Tab bar (if enabled and tabs exist) */}
       {enableTabs && tabIds.length > 0 && (
         <div
           style={{
@@ -610,9 +339,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
                   display: "flex",
                   alignItems: "center",
                   background:
-                    activeTabId === tabId
-                      ? "var(--color-primary-soft)"
-                      : "transparent",
+                    activeTabId === tabId ? "var(--color-primary-soft)" : "transparent",
                   borderBottom: activeTabId === tabId ? "2px solid var(--color-primary)" : "none",
                   borderRight: index < tabIds.length - 1 ? "1px solid var(--color-border)" : "none",
                 }}
@@ -667,16 +394,10 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
         </div>
       )}
 
-      {/*
-        Container that holds ALL per-tab xterm host divs.
-        Each tab's hostEl is appended here imperatively.
-        Only the active tab has display:block; the rest are display:none.
-        This keeps every xterm's DOM intact so sessions continue running.
-      */}
       <div
-        ref={containerRef}
+        ref={mountRef}
         className="magenta-terminal-xterm"
-        onClick={() => activeTab?.xterm.focus()}
+        onClick={() => { if (activeTab?.sessionId) TerminalHub.focus(activeTab.sessionId); }}
         onContextMenu={(event) => {
           event.preventDefault();
           const frame = frameRef.current;
@@ -687,7 +408,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
             x: event.clientX - rect.left,
             y: event.clientY - rect.top,
           });
-          activeTab?.xterm.focus();
+          if (activeTab?.sessionId) TerminalHub.focus(activeTab.sessionId);
         }}
         style={{
           display: "flex",
@@ -722,30 +443,21 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
         >
           <button
             type="button"
-            onClick={() => {
-              void copySelection();
-              setMenuState({ open: false, x: 0, y: 0 });
-            }}
+            onClick={() => { void copySelection(); setMenuState({ open: false, x: 0, y: 0 }); }}
             style={menuButtonStyle}
           >
             Copy
           </button>
           <button
             type="button"
-            onClick={() => {
-              void pasteClipboard();
-              setMenuState({ open: false, x: 0, y: 0 });
-            }}
+            onClick={() => { void pasteClipboard(); setMenuState({ open: false, x: 0, y: 0 }); }}
             style={menuButtonStyle}
           >
             Paste
           </button>
           <button
             type="button"
-            onClick={() => {
-              clearTerminal();
-              setMenuState({ open: false, x: 0, y: 0 });
-            }}
+            onClick={() => { clearTerminal(); setMenuState({ open: false, x: 0, y: 0 }); }}
             style={menuButtonStyle}
           >
             Clear
@@ -767,8 +479,6 @@ const menuButtonStyle: React.CSSProperties = {
   fontSize: 12,
   cursor: "pointer",
 };
-
-// ── Public dispatcher ────────────────────────────────────────────────────────
 
 export const MagentaTerminal = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(
   function MagentaTerminal(props, ref): React.ReactElement {

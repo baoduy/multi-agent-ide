@@ -44,6 +44,35 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
     return { type: "ai-session:stop:ack" };
   });
 
+  safeHandle(bridge, "ai-session:attach", async (msg) => {
+    const result = aiSessionService.attach(msg.sessionId, msg.fromSeq);
+    if (!result) {
+      return {
+        type: "ai-session:attach:result",
+        sessionId: msg.sessionId,
+        chunks: [],
+        snapshot: false,
+        headSeq: 0,
+        alive: false,
+        status: "idle" as const,
+      };
+    }
+    return {
+      type: "ai-session:attach:result",
+      sessionId: msg.sessionId,
+      chunks: result.chunks,
+      snapshot: result.snapshot,
+      headSeq: result.headSeq,
+      alive: result.alive,
+      status: result.status,
+    };
+  });
+
+  safeHandle(bridge, "ai-session:ack", async (msg) => {
+    aiSessionService.ack(msg.sessionId, msg.seq);
+    return { type: "ai-session:ack:ack" };
+  });
+
   safeHandle(bridge, "ai-session:list", async () => {
     const sessions = aiSessionService.listSessions();
     return { type: "ai-session:list:result", sessions };

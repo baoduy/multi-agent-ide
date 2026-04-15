@@ -29,4 +29,31 @@ export function registerTerminalHandlers({ bridge, terminalService }: TerminalHa
     terminalService.close(msg.sessionId);
     return { type: "terminal:close:ack" };
   });
+
+  safeHandle(bridge, "terminal:attach", async (msg) => {
+    const result = terminalService.attach(msg.sessionId, msg.fromSeq);
+    if (!result) {
+      return {
+        type: "terminal:attach:result",
+        sessionId: msg.sessionId,
+        chunks: [],
+        snapshot: false,
+        headSeq: 0,
+        alive: false,
+      };
+    }
+    return {
+      type: "terminal:attach:result",
+      sessionId: msg.sessionId,
+      chunks: result.chunks,
+      snapshot: result.snapshot,
+      headSeq: result.headSeq,
+      alive: result.alive,
+    };
+  });
+
+  safeHandle(bridge, "terminal:ack", async (msg) => {
+    terminalService.ack(msg.sessionId, msg.seq);
+    return { type: "terminal:ack:ack" };
+  });
 }

@@ -163,6 +163,7 @@ export class AISessionApplicationService {
     const session = this.liveSessions.get(sessionId);
     if (!session) return;
     session.stop();
+    session.dispose();
     this.liveSessions.delete(sessionId);
   }
 
@@ -209,6 +210,7 @@ export class AISessionApplicationService {
     for (const [id, session] of this.liveSessions) {
       try {
         session.stop();
+        session.dispose();
       } catch {
         // Best effort
       }
@@ -222,8 +224,8 @@ export class AISessionApplicationService {
    * Only lastActiveAt is persisted to DB — status is NOT persisted.
    */
   private wireSessionEvents(sessionId: string, session: BaseAISession): void {
-    session.on("data", (data: string) => {
-      this.bridge.emit({ type: "ai-session:data", sessionId, data });
+    session.on("data", (payload: { data: string; seq: number }) => {
+      this.bridge.emit({ type: "ai-session:data", sessionId, data: payload.data, seq: payload.seq });
     });
     session.on("status", (status: string) => {
       this.bridge.emit({
@@ -239,5 +241,31 @@ export class AISessionApplicationService {
       this.bridge.emit({ type: "ai-session:exited", sessionId, exitCode });
       this.sessionRepo.update(sessionId, { lastActiveAt: Date.now() });
     });
+    session.on("heartbeat", (payload: { headSeq: number; alive: boolean }) => {
+      this.bridge.emit({
+        type: "ai-session:heartbeat",
+        sessionId,
+        headSeq: payload.headSeq,
+        alive: payload.alive,
+      });
+    });
+  }
+
+  /**
+   * Return chunks newer than fromSeq for the given session, plus a snapshot
+   * marker. If the session is not live but record exists, returns null —
+   * the UI should call resumeSession to bring it back up.
+   */
+  attach(sessionId: string, fromSeq?: number) {
+    const session = this.liveSessions.get(sessionId);
+    if (!session) return null;
+    return session.attach(fromSeq ?? 0);
+  }
+
+  /** Acknowledge received seq (currently a liveness signal; reserved for windowed flow control). */
+  ack(_sessionId: string, _seq: number): void {
+    // Intentionally no-op today — present so the IPC contract exists and
+    // the UI can start sending acks. A future sliding-window flow
+    // controller will read these.
   }
 }

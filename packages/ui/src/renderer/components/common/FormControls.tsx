@@ -91,6 +91,8 @@ type FormTextareaProps = {
   rows?: number;
   /** If true, uses a monospace font (good for commit messages / paths). */
   mono?: boolean;
+  /** Minimum height of the textarea. Defaults to 80px; pass a smaller value for compact inputs. */
+  minHeight?: number;
   textareaRef?: React.Ref<HTMLTextAreaElement>;
 };
 
@@ -104,6 +106,7 @@ export function FormTextarea({
   error = false,
   rows = 4,
   mono = false,
+  minHeight = 80,
   textareaRef,
 }: FormTextareaProps): React.ReactElement {
   return (
@@ -117,7 +120,7 @@ export function FormTextarea({
       rows={rows}
       style={{
         width: "100%",
-        padding: "8px 12px",
+        padding: "6px 10px",
         fontSize: 13,
         border: `1px solid ${error ? colors.error : colors.border}`,
         borderRadius: 6,
@@ -128,7 +131,7 @@ export function FormTextarea({
         boxSizing: "border-box",
         transition: "border-color 0.15s",
         resize: "vertical",
-        minHeight: 80,
+        minHeight,
         lineHeight: 1.5,
       }}
       onFocus={(e) => {

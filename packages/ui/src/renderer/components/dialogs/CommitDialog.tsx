@@ -6,8 +6,7 @@ import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useRepoStore } from "../../store/repoStore";
 import { BaseDialog } from "../common/BaseDialog";
-import { CancelButton } from "../common/DialogButtons";
-import { FormLabel, FormTextarea, FormError, SectionHeader } from "../common/FormControls";
+import { FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
 
 /* ══════════════════════════════════════════
@@ -71,7 +70,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
   const [isCommitting, setIsCommitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
-  const messageRef = useRef<HTMLTextAreaElement>(null);
+  const messageRef = useRef<HTMLInputElement>(null);
   /** Tracks which primary action the user triggered so only that one shows a spinner. */
   const pushIntent = useRef(true); // default to push — it's the primary action
   /** Secondary-action dropdown (opens the "Commit only" option). */
@@ -165,12 +164,49 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
     }
   }, [message, selected, files, repoPath, fetchRepos, onClose]);
 
-  /* ── Footer: split button (primary = Commit & Push, dropdown = Commit only) ── */
+  /* ── Footer: commit message input on the left + split button on the right ── */
   const primaryDisabled = !message.trim() || selected.size === 0 || isLoading || isCommitting;
+
+  const onMessageKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Cmd/Ctrl+Enter to trigger the primary action (Commit & Push).
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && !primaryDisabled) {
+      e.preventDefault();
+      void doCommit(true);
+    }
+  }, [doCommit, primaryDisabled]);
 
   const footer = (
     <>
-      <CancelButton onClick={onClose} />
+      <input
+        ref={messageRef}
+        id="commit-message"
+        type="text"
+        value={message}
+        onChange={(e) => { setMessage(e.target.value); setCommitError(null); }}
+        onKeyDown={onMessageKeyDown}
+        placeholder="Commit message"
+        disabled={isLoading || files.length === 0}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          padding: "8px 12px",
+          fontSize: 13,
+          border: `1px solid ${commitError ? colors.error : colors.border}`,
+          borderRadius: 6,
+          outline: "none",
+          background: colors.bgSurface,
+          color: colors.text,
+          fontFamily: "var(--font-mono)",
+          boxSizing: "border-box",
+          transition: "border-color 0.15s",
+        }}
+        onFocus={(e) => {
+          e.currentTarget.style.borderColor = commitError ? colors.error : colors.primary;
+        }}
+        onBlur={(e) => {
+          e.currentTarget.style.borderColor = commitError ? colors.error : colors.border;
+        }}
+      />
       <SplitButton
         containerRef={splitRef}
         disabled={primaryDisabled}
@@ -204,7 +240,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
     <BaseDialog
       title="Commit changes"
       icon={<GitCommit size={16} color={colors.primary} strokeWidth={2} />}
-      width={540}
+      width={680}
       minHeight={480}
       scrollable
       maxHeight="82vh"
@@ -220,9 +256,10 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
           No changes to commit on <strong style={{ color: colors.text }}>{currentBranch}</strong>.
         </p>
       ) : (
-        <>
-          {/* Files */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        /* Flex column that fills the scrollable body — file list grows, commit input pinned to bottom. */
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+          {/* Files header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexShrink: 0 }}>
             <SectionHeader style={{ marginBottom: 0 }}>
               Files ({files.length})
             </SectionHeader>
@@ -243,15 +280,17 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
             </button>
           </div>
 
+          {/* File list — grows to fill available space */}
           <div
             style={{
-              maxHeight: 240,
+              flex: 1,
+              minHeight: 0,
               overflowY: "auto",
               border: `1px solid ${colors.border}`,
               borderRadius: 6,
               padding: 4,
               background: colors.bgSurface,
-              marginBottom: 16,
+              marginBottom: 12,
             }}
           >
             {groups.map((group) => (
@@ -327,26 +366,16 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
             ))}
           </div>
 
-          {/* Commit message */}
-          <FormLabel htmlFor="commit-message">Commit message</FormLabel>
-          <FormTextarea
-            id="commit-message"
-            textareaRef={messageRef}
-            value={message}
-            onChange={(v) => { setMessage(v); setCommitError(null); }}
-            placeholder="Short subject line&#10;&#10;Optional longer description..."
-            rows={5}
-          />
-
+          {/* Inline hint + error — sits between the file list and the footer's message input */}
           {!hasUpstream && (
-            <p style={{ fontSize: 11, color: colors.textTertiary, marginTop: 8, marginBottom: 0, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 11, color: colors.textTertiary, marginTop: 0, marginBottom: 0, lineHeight: 1.5, flexShrink: 0 }}>
               Branch <strong style={{ color: colors.textSecondary }}>{currentBranch}</strong> has no upstream.
               Pushing will set <code style={{ fontFamily: "var(--font-mono)" }}>origin/{currentBranch}</code> as upstream.
             </p>
           )}
 
           <FormError message={commitError} />
-        </>
+        </div>
       )}
     </BaseDialog>
   );

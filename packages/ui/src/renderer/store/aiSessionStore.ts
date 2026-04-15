@@ -173,9 +173,12 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
   },
 
   getRunningSessionCount: () => {
-    return get().sessions.filter(
-      (s) => s.status === "active" || s.status === "waiting-input"
-    ).length;
+    // "in-progress" means the agent is actively processing (PTY output
+    // streaming) — not merely alive. A session at `waiting-input` is
+    // parked at a prompt with no work to lose, so we don't include it.
+    // This drives the close-warning dialog: we only nag the user when
+    // quitting would actually interrupt work.
+    return get().sessions.filter((s) => s.status === "active").length;
   },
 
   initializeSubscriptions: createSubscriptionInitializer(get, set, () => {

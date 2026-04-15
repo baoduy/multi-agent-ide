@@ -160,7 +160,9 @@ export abstract class BaseAISession extends EventEmitter {
           `\x1b[33mMake sure '${binaryName}' is installed and on your PATH.\x1b[0m\r\n`;
       setImmediate(() => {
         this.core.injectOutput(hint);
-        this.setStatus("exited");
+        // Spawn itself threw — the binary couldn't be started at all.
+        // Mirror the post-exit non-zero path: terminal "error" status.
+        this.setStatus("error");
         this.emit("exit", 127);
       });
       return;
@@ -221,7 +223,13 @@ export abstract class BaseAISession extends EventEmitter {
             `activates the right node version.\x1b[0m\r\n`,
         );
       }
-      this.setStatus("exited");
+      // `"error"` is a terminal status set only when the PTY child exits
+      // with a non-zero code. A clean exit (code 0) is `"exited"`. This is
+      // the only reliable error signal — text-based detection of "Error:"
+      // in PTY output produced rampant false positives and was removed.
+      // See packages/daemon/src/domain/statusDetection.ts for context.
+      const finalStatus: AISessionStatus = exitCode === 0 ? "exited" : "error";
+      this.setStatus(finalStatus);
       this.emit("exit", exitCode);
     });
 

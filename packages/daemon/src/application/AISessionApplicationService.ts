@@ -26,9 +26,11 @@ import { AppError } from "../errors/AppError";
  * is the single source of truth.
  *
  * The only state we hold is the in-memory records + their running PTYs,
- * keyed by the agent's session UUID (Claude: --session-id; Copilot: captured
- * post-spawn). That UUID is the same one the sync layer writes into
- * synced_sessions.session_id, so live ↔ synced rows join by id.
+ * keyed by a locally-generated UUID. The agent-generated session UUID is
+ * captured post-spawn (for both Claude and Copilot) into
+ * `providerSessionId`, which is the same id the sync layer writes into
+ * synced_sessions.session_id — so live ↔ synced rows join by
+ * providerSessionId.
  */
 export class AISessionApplicationService {
   private readonly records = new Map<string, AISessionRecord>();
@@ -73,33 +75,34 @@ export class AISessionApplicationService {
 
     // ── Resolve agent session ID strategy ────────────────────────────────
     //
-    // Claude Code supports `--session-id <uuid>` to force a specific UUID
-    // for the on-disk JSONL. We use this so the live record's `id` and the
-    // synced session's `sessionId` are always equal — no post-spawn
-    // reconciliation needed. Resuming a synced session passes the synced
-    // sessionId via config.providerSessionId so the new live record reuses it.
+    // Neither Claude nor Copilot accept a flag to pin the session UUID on
+    // spawn (Claude's `--session-id` is rejected when combined with
+    // `--continue`/`--resume` unless `--fork-session` is also set, and we
+    // don't want to fork). Both CLIs generate their own UUID on disk.
     //
-    // Copilot CLI doesn't expose a session-id flag — it always generates its
-    // own UUID. We capture it later via post-spawn reconciliation that
-    // watches ~/.copilot/session-state/ for the new dir.
+    // Strategy: assign a local `id` for the in-memory Map key and let the
+    // background sync job capture the real agent UUID into
+    // `providerSessionId`. Post-spawn reconciliation watches the provider's
+    // state directory and patches the live record once the UUID appears.
+    //
+    // Resuming a synced session passes its sessionId via
+    // config.providerSessionId → the CLI is invoked with `--resume <id>`
+    // (Claude) or `--resume=<id>` (Copilot), no `--session-id` involved.
     const explicitId = config.providerSessionId;
-    const id = explicitId && provider === "claude" ? explicitId : randomUUID();
-    const initialProviderSessionId =
-      provider === "claude" ? id : explicitId ?? null;
+    const id = randomUUID();
+    const initialProviderSessionId = explicitId ?? null;
 
     // Build CLI args — permission mode flags first, then provider defaults,
-    // then any --session-id we own. Arbitrary caller-supplied args are not
-    // forwarded: see ai-session:create schema rationale in packages/shared.
+    // then resume flags when resuming a synced session. Arbitrary caller-
+    // supplied args are not forwarded: see ai-session:create schema
+    // rationale in packages/shared.
     const permissionArgs = getPermissionModeArgs(provider, permissionMode);
     const idArgs: string[] = [];
-    if (provider === "claude") {
-      // Brand-new session: --session-id <id>.
-      // Resume of a synced session: --session-id matches the synced UUID
-      // AND --resume <id> tells Claude to continue that conversation.
-      idArgs.push("--session-id", id);
-      if (explicitId) {
-        idArgs.push("--resume", explicitId);
-      }
+    if (provider === "claude" && explicitId) {
+      // Claude resume of a synced session. No --session-id: combining it
+      // with --resume requires --fork-session and would start a new
+      // conversation branch instead of continuing the original.
+      idArgs.push("--resume", explicitId);
     } else if (provider === "copilot" && explicitId) {
       // Copilot resume of a synced session.
       idArgs.push(`--resume=${explicitId}`);
@@ -140,10 +143,16 @@ export class AISessionApplicationService {
     session.start(cwd, args, cols, rows);
     this.liveSessions.set(id, session);
 
-    // Schedule post-spawn reconciliation for Copilot only when we don't
-    // already know the agent's session id (i.e. brand-new sessions).
-    if (provider === "copilot" && !initialProviderSessionId) {
-      this.scheduleCopilotReconciliation(id, cwd, now);
+    // Schedule post-spawn reconciliation when we don't already know the
+    // agent's session id (i.e. brand-new sessions). Claude and Copilot
+    // both generate their own UUIDs on disk; the reconciler watches the
+    // provider's state dir and patches `providerSessionId` on match.
+    if (!initialProviderSessionId) {
+      if (provider === "copilot") {
+        this.scheduleCopilotReconciliation(id, cwd, now);
+      } else if (provider === "claude") {
+        this.scheduleClaudeReconciliation(id, cwd, now);
+      }
     }
 
     return record;
@@ -172,19 +181,20 @@ export class AISessionApplicationService {
 
     // Build args for resume.
     //
-    // Claude: prefer --session-id <id> --resume <id> (so the JSONL keeps the
-    //   same UUID and live↔synced join still works). Falls back to --continue
-    //   for legacy records whose providerSessionId was never captured.
+    // Claude:  --resume <id> if the synced UUID is known, else --continue
+    //          (legacy records that never got reconciled).
     // Copilot: --resume=<id> if known, else --continue.
+    //
+    // We never pass --session-id here: Claude rejects it alongside
+    // --resume/--continue unless --fork-session is specified, which would
+    // create a new conversation branch instead of continuing the original.
     const args = [...providerMeta.defaultArgs];
     const resumeId = record.providerSessionId;
     if (record.provider === "claude") {
       if (resumeId) {
-        args.push("--session-id", resumeId, "--resume", resumeId);
+        args.push("--resume", resumeId);
       } else {
-        // Legacy record: Claude has no session id stored. Use --continue and
-        // assign a fresh --session-id so future syncs can still merge.
-        args.push("--session-id", record.id, "--continue");
+        args.push("--continue");
       }
     } else if (record.provider === "copilot") {
       if (resumeId) {
@@ -192,16 +202,6 @@ export class AISessionApplicationService {
       } else {
         args.push("--continue");
       }
-    }
-
-    // Remove the legacy Claude --session-id-with-continue path: --continue
-    // resumes the agent's most recent conversation under its own UUID, so
-    // pinning a different --session-id alongside it would either fail or
-    // start a fresh empty session. For legacy records without a captured
-    // providerSessionId, fall back to a plain --continue.
-    if (record.provider === "claude" && !resumeId) {
-      args.length = providerMeta.defaultArgs.length;
-      args.push("--continue");
     }
 
     // Spawn PTY
@@ -410,6 +410,105 @@ export class AISessionApplicationService {
 
     // First attempt slightly delayed — Copilot needs a moment to write its
     // workspace.yaml after spawn.
+    setTimeout(tryReconcile, POLL_INTERVAL_MS);
+  }
+
+  /**
+   * Post-spawn reconciliation for a brand-new Claude session.
+   *
+   * Claude Code writes each conversation to
+   * `~/.claude/projects/<encodedCwd>/<uuid>.jsonl`, where encodedCwd is
+   * the absolute cwd with path separators replaced by dashes (and a
+   * leading dash added). The JSONL is created on the first user/assistant
+   * message, not at spawn time — so reconciliation may take a while if
+   * the user is idle after launch. We poll every 500 ms up to 10 min.
+   *
+   * Strategy: watch the encoded project dir for `.jsonl` files whose
+   * mtime is after spawnedAt. The newest matching file wins. On match,
+   * patch `providerSessionId` on the live record and emit
+   * `ai-session:updated` so the UI tree dedup picks it up.
+   */
+  private scheduleClaudeReconciliation(
+    liveId: string,
+    cwd: string,
+    spawnedAt: number,
+  ): void {
+    // Claude encodes the cwd by replacing path separators with dashes.
+    // Absolute path `/Users/foo/bar` → `-Users-foo-bar`.
+    const encodedCwd = path.normalize(cwd).replace(/[\\/:]/g, "-");
+    const projectDir = path.join(
+      os.homedir(),
+      ".claude",
+      "projects",
+      encodedCwd,
+    );
+    const POLL_INTERVAL_MS = 500;
+    const TIMEOUT_MS = 10 * 60_000;
+    const SKEW_TOLERANCE_MS = 1_500;
+    const deadline = spawnedAt + TIMEOUT_MS;
+
+    const tryReconcile = (): void => {
+      // Bail out if the session was already reconciled (e.g. via a manual
+      // path or a concurrent run) or has been deleted.
+      const current = this.records.get(liveId);
+      if (!current) return;
+      if (current.providerSessionId) return;
+
+      let match: { sessionId: string; mtime: number } | null = null;
+
+      try {
+        if (existsSync(projectDir)) {
+          const files = readdirSync(projectDir, { withFileTypes: true });
+          for (const file of files) {
+            if (!file.isFile() || !file.name.endsWith(".jsonl")) continue;
+            const filePath = path.join(projectDir, file.name);
+            try {
+              const stat = statSync(filePath);
+              if (stat.mtimeMs < spawnedAt - SKEW_TOLERANCE_MS) continue;
+              if (!match || stat.mtimeMs > match.mtime) {
+                match = {
+                  sessionId: file.name.replace(/\.jsonl$/, ""),
+                  mtime: stat.mtimeMs,
+                };
+              }
+            } catch {
+              // Skip files we can't stat
+            }
+          }
+        }
+      } catch (err) {
+        console.warn(`[AISession] Claude reconcile scan failed:`, err);
+      }
+
+      if (match) {
+        const updated: AISessionRecord = {
+          ...current,
+          providerSessionId: match.sessionId,
+        };
+        this.records.set(liveId, updated);
+        const liveRuntime = this.liveSessions.get(liveId);
+        this.bridge.emit({
+          type: "ai-session:updated",
+          session: {
+            ...updated,
+            status: liveRuntime ? liveRuntime.getStatus() : updated.status,
+          },
+        });
+        return;
+      }
+
+      if (Date.now() >= deadline) {
+        console.log(
+          `[AISession] Claude reconcile timed out for live id=${liveId} cwd=${cwd}`,
+        );
+        return;
+      }
+
+      setTimeout(tryReconcile, POLL_INTERVAL_MS);
+    };
+
+    // First attempt slightly delayed — Claude writes its JSONL only after
+    // the first message, so early polls usually miss.
     setTimeout(tryReconcile, POLL_INTERVAL_MS);
   }
 

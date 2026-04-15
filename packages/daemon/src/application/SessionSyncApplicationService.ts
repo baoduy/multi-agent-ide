@@ -63,7 +63,7 @@ export class SessionSyncApplicationService {
     const startTime = Date.now();
 
     // Collect all known paths from repos, working dirs, and worktrees
-    const knownPaths = this.collectApplicationPaths();
+    const knownPaths = await this.collectApplicationPaths();
     console.log(`${TAG} Known application paths: ${knownPaths.length}`);
 
     if (knownPaths.length === 0) {
@@ -112,8 +112,10 @@ export class SessionSyncApplicationService {
    * - Registered repository paths
    * - Configured working directories
    * - Active git worktree paths for each repo
+   *
+   * Now async since GitGateway.listWorktrees() is async.
    */
-  private collectApplicationPaths(): string[] {
+  private async collectApplicationPaths(): Promise<string[]> {
     const repos = this.repoRepository.listAll();
     const repoPaths = repos
       .filter((r) => r.status === "active")
@@ -126,7 +128,7 @@ export class SessionSyncApplicationService {
     const worktreePaths: string[] = [];
     for (const repoPath of repoPaths) {
       try {
-        const worktrees = this.gitGateway.listWorktrees(repoPath);
+        const worktrees = await this.gitGateway.listWorktrees(repoPath);
         for (const wt of worktrees) {
           worktreePaths.push(wt.worktreePath);
         }

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { gitExecSync } from "./utils/safeExecSync";
+import { createGit } from "./utils/createGit";
+
 /**
  * Info about a single git worktree discovered on disk.
  */
@@ -15,6 +16,8 @@ export interface WorktreeEntry {
 /**
  * GitGateway wraps git worktree operations.
  * Encapsulates all git-related I/O and parsing logic.
+ *
+ * Uses simple-git for all git operations — fully async, never blocks the event loop.
  */
 export class GitGateway {
   /**
@@ -26,17 +29,33 @@ export class GitGateway {
    *   <blank line>
    *
    * For detached HEADs the "branch" line is replaced with "detached".
+   *
+   * Uses a single `git worktree list --porcelain` invocation (previously two).
    */
-  listWorktrees(repoPath: string): WorktreeEntry[] {
+  async listWorktrees(repoPath: string): Promise<WorktreeEntry[]> {
     if (!repoPath) {
       return [];
     }
 
     const resolved = path.resolve(repoPath);
-    const raw = gitExecSync("git worktree list --porcelain", resolved);
+    const git = createGit(resolved);
+    const raw = await git.raw(["worktree", "list", "--porcelain"]);
 
-    const mainPath = this.getMainWorktreePath(resolved);
+    // Extract main worktree path from the first block (avoids a second git call)
+    const mainPath = this.extractMainWorktreePath(raw, resolved);
     return this.parseWorktreeList(raw, resolved, mainPath);
+  }
+
+  /**
+   * Extract the main worktree path from the first block of `git worktree list --porcelain` output.
+   * Falls back to the resolved repoPath if parsing fails.
+   */
+  private extractMainWorktreePath(raw: string, repoPath: string): string {
+    const first = raw.split("\n")[0]; // "worktree /path/to/main"
+    if (first && first.startsWith("worktree ")) {
+      return first.slice("worktree ".length);
+    }
+    return path.resolve(repoPath);
   }
 
   /**
@@ -83,27 +102,10 @@ export class GitGateway {
   }
 
   /**
-   * Get the main worktree path for a repo.
-   * This is the path shown in the first block of `git worktree list --porcelain`.
-   */
-  private getMainWorktreePath(repoPath: string): string {
-    try {
-      const raw = gitExecSync("git worktree list --porcelain", repoPath);
-      const first = raw.split("\n")[0]; // "worktree /path/to/main"
-      if (first.startsWith("worktree ")) {
-        return first.slice("worktree ".length);
-      }
-    } catch {
-      // fallback
-    }
-    return path.resolve(repoPath);
-  }
-
-  /**
    * Create a new git worktree with fallback strategies.
    * Uses multiple strategies if the primary approach fails.
    */
-  createWorktree(repoPath: string, worktreePath: string, branch: string, safeName: string): void {
+  async createWorktree(repoPath: string, worktreePath: string, branch: string, safeName: string): Promise<void> {
     // If the worktree directory already exists, verify it and return
     if (fs.existsSync(worktreePath) && fs.existsSync(path.join(worktreePath, ".git"))) {
       return;
@@ -115,94 +117,70 @@ export class GitGateway {
       fs.mkdirSync(worktreeDir, { recursive: true });
     }
 
+    const git = createGit(repoPath);
+
     // Create a new local branch from the remote tracking branch, then create worktree.
     // If the branch already exists locally, just create the worktree from it.
     try {
       // Try to create worktree tracking the remote branch
-      gitExecSync(
-        `git worktree add "${worktreePath}" -b "${safeName}" "origin/${branch}"`,
-        repoPath,
-      );
+      await git.raw(["worktree", "add", worktreePath, "-b", safeName, `origin/${branch}`]);
     } catch {
       // If local branch already exists, try creating worktree from it
       try {
-        gitExecSync(
-          `git worktree add "${worktreePath}" "${branch}"`,
-          repoPath,
-        );
+        await git.raw(["worktree", "add", worktreePath, branch]);
       } catch {
         // If both fail, try creating worktree with detached HEAD from the ref
-        gitExecSync(
-          `git worktree add --detach "${worktreePath}" "origin/${branch}"`,
-          repoPath,
-        );
+        await git.raw(["worktree", "add", "--detach", worktreePath, `origin/${branch}`]);
       }
     }
   }
 
   /**
-   * File status entry from a worktree's git status.
-   */
-
-  /**
    * Get the status of changed files in a worktree relative to its tracking branch.
    * Returns list of changed files with their status.
    */
-  getWorktreeStatus(worktreePath: string): { files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }>; ahead: number; behind: number } {
+  async getWorktreeStatus(worktreePath: string): Promise<{
+    files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }>;
+    ahead: number;
+    behind: number;
+  }> {
     const resolved = path.resolve(worktreePath);
+    const git = createGit(resolved);
 
-    // Get changed files (staged + unstaged + untracked)
-    const raw = gitExecSync("git status --porcelain=v1", resolved);
+    // Use simple-git's structured status output
+    const statusResult = await git.status();
 
     const files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }> = [];
 
-    for (const line of raw.trim().split("\n")) {
-      if (!line) continue;
-      const xy = line.substring(0, 2);
-      const filePath = line.substring(2).trim();
-
-      // Map git status codes to our simplified status.
-      // XY columns: X = index (staging) status, Y = working-tree status.
-      // If Y='D' the file is deleted from the working tree and does NOT exist
-      // on disk — must be checked first regardless of what X says (e.g. "AD").
-      const workTreeCol = xy[1];
-      let status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked";
-      if (xy === "??") {
-        status = "untracked";
-      } else if (workTreeCol === "D") {
-        // File deleted from working tree — doesn't exist on disk
-        status = "deleted";
-      } else if (xy.includes("R")) {
-        status = "renamed";
-      } else if (xy.includes("C")) {
-        status = "copied";
-      } else if (xy.includes("A")) {
-        status = "added";
-      } else if (xy.includes("D")) {
-        // Deleted from index only (staged deletion) — file may still exist in working tree
-        status = "deleted";
-      } else {
-        status = "modified";
+    // Map simple-git FileStatusResult to our simplified status
+    for (const f of statusResult.not_added) {
+      files.push({ path: f, status: "untracked" });
+    }
+    for (const f of statusResult.created) {
+      files.push({ path: f, status: "added" });
+    }
+    for (const f of statusResult.deleted) {
+      files.push({ path: f, status: "deleted" });
+    }
+    for (const f of statusResult.modified) {
+      files.push({ path: f, status: "modified" });
+    }
+    for (const f of statusResult.renamed) {
+      files.push({ path: (f as any).to ?? f, status: "renamed" });
+    }
+    // Staged files that aren't in the above categories
+    for (const f of statusResult.staged) {
+      // Avoid duplicates — staged files may already appear in created/modified/deleted
+      if (!files.some((entry) => entry.path === f)) {
+        files.push({ path: f, status: "modified" });
       }
-
-      files.push({ path: filePath, status });
     }
 
-    // Get ahead/behind counts relative to tracking branch
-    let ahead = 0;
-    let behind = 0;
-    try {
-      const revList = gitExecSync("git rev-list --left-right --count HEAD...@{upstream}", resolved).trim();
-      const parts = revList.split("\t");
-      if (parts.length === 2) {
-        ahead = parseInt(parts[0], 10) || 0;
-        behind = parseInt(parts[1], 10) || 0;
-      }
-    } catch {
-      // No upstream configured — that's fine
-    }
-
-    return { files, ahead, behind };
+    return {
+      files,
+      ahead: statusResult.ahead,
+      behind: statusResult.behind,
+    };
   }
 
   /**
@@ -213,20 +191,21 @@ export class GitGateway {
    *   3. Fall back to regular merge if fast-forward is not possible
    *   4. If merge conflicts arise but both trees are identical, fast-forward to the worktree branch
    */
-  mergeWorktree(repoPath: string, worktreeBranch: string, targetBranch: string): { success: boolean; message: string } {
+  async mergeWorktree(repoPath: string, worktreeBranch: string, targetBranch: string): Promise<{ success: boolean; message: string }> {
     const resolved = path.resolve(repoPath);
+    const git = createGit(resolved);
 
     try {
       // Save current branch to restore later
-      const currentBranch = gitExecSync("git branch --show-current", resolved).trim();
+      const currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
 
       // Checkout target branch
-      gitExecSync(`git checkout "${targetBranch}"`, resolved);
+      await git.checkout(targetBranch);
 
-      const restoreOriginalBranch = () => {
+      const restoreOriginalBranch = async () => {
         if (currentBranch) {
           try {
-            gitExecSync(`git checkout "${currentBranch}"`, resolved);
+            await git.checkout(currentBranch);
           } catch {
             // best effort
           }
@@ -234,54 +213,48 @@ export class GitGateway {
       };
 
       try {
-        // Attempt merge allowing fast-forward (--ff is default, explicit for clarity)
-        const output = gitExecSync(`git merge --ff --no-edit "${worktreeBranch}"`, resolved).trim();
+        // Attempt merge allowing fast-forward
+        const mergeResult = await git.merge(["--ff", "--no-edit", worktreeBranch]);
 
-        // "Already up to date" is a successful no-op
-        if (output.includes("Already up to date")) {
-          restoreOriginalBranch();
+        // Check for "Already up to date" result
+        const resultStr = String(mergeResult?.result ?? "");
+        if (resultStr.includes("Already up to date") || resultStr.includes("up-to-date")) {
+          await restoreOriginalBranch();
           return { success: true, message: `'${targetBranch}' is already up to date with '${worktreeBranch}'.` };
         }
 
-        restoreOriginalBranch();
+        await restoreOriginalBranch();
         return { success: true, message: `Merged '${worktreeBranch}' into '${targetBranch}' successfully.` };
       } catch (mergeError) {
         // Abort the failed merge first
         try {
-          gitExecSync("git merge --abort", resolved);
+          await git.merge(["--abort"]);
         } catch {
           // merge --abort may fail if there's nothing to abort
         }
 
         // Check if both branches result in the same tree (identical content).
-        // This handles the case where the same changes exist on both branches
-        // (e.g., cherry-picked commits, independent but identical work).
         try {
-          const targetTree = gitExecSync(`git rev-parse "${targetBranch}^{tree}"`, resolved).trim();
-          const worktreeTree = gitExecSync(`git rev-parse "${worktreeBranch}^{tree}"`, resolved).trim();
+          const targetTree = (await git.revparse([`${targetBranch}^{tree}`])).trim();
+          const worktreeTree = (await git.revparse([`${worktreeBranch}^{tree}`])).trim();
 
           if (targetTree === worktreeTree) {
-            // Trees are identical — the branches have the same content.
-            // Fast-forward target to worktree branch tip so history is unified.
-            gitExecSync(`git merge --ff-only "${worktreeBranch}"`, resolved);
-            restoreOriginalBranch();
+            // Trees are identical — fast-forward target to worktree branch tip
+            await git.merge(["--ff-only", worktreeBranch]);
+            await restoreOriginalBranch();
             return {
               success: true,
               message: `Merged '${worktreeBranch}' into '${targetBranch}' (branches had identical content).`,
             };
           }
 
-          // Trees differ but merge conflicted — try merge with
-          // "-X theirs" strategy option to auto-resolve in favour of the worktree branch
-          // only when the tree comparison shows the worktree branch is strictly ahead
-          const mergeBase = gitExecSync(`git merge-base "${targetBranch}" "${worktreeBranch}"`, resolved).trim();
-          const targetCommit = gitExecSync(`git rev-parse "${targetBranch}"`, resolved).trim();
+          // Check if target is ancestor of worktree — pure fast-forward
+          const mergeBase = (await git.raw(["merge-base", targetBranch, worktreeBranch])).trim();
+          const targetCommit = (await git.revparse([targetBranch])).trim();
 
           if (mergeBase === targetCommit) {
-            // Target is an ancestor of worktree — this is a pure fast-forward case
-            // that somehow failed above (e.g., dirty index). Force fast-forward.
-            gitExecSync(`git merge --ff-only "${worktreeBranch}"`, resolved);
-            restoreOriginalBranch();
+            await git.merge(["--ff-only", worktreeBranch]);
+            await restoreOriginalBranch();
             return {
               success: true,
               message: `Fast-forwarded '${targetBranch}' to '${worktreeBranch}'.`,
@@ -291,7 +264,7 @@ export class GitGateway {
           // Tree comparison or ff-only fallback failed — fall through to error
         }
 
-        restoreOriginalBranch();
+        await restoreOriginalBranch();
 
         return {
           success: false,
@@ -309,37 +282,29 @@ export class GitGateway {
   /**
    * List local branches for a repository.
    */
-  listLocalBranches(repoPath: string): { branches: string[]; current: string } {
+  async listLocalBranches(repoPath: string): Promise<{ branches: string[]; current: string }> {
     const resolved = path.resolve(repoPath);
+    const git = createGit(resolved);
 
-    const raw = gitExecSync("git branch --format=%(refname:short)", resolved);
+    const summary = await git.branchLocal();
 
-    const branches = raw
-      .trim()
-      .split("\n")
-      .map((b) => b.trim().replace(/^'|'$/g, ""))
-      .filter(Boolean);
-
-    let current = "";
-    try {
-      current = gitExecSync("git branch --show-current", resolved).trim();
-    } catch {
-      // detached HEAD
-    }
-
-    return { branches, current };
+    return {
+      branches: summary.all,
+      current: summary.current,
+    };
   }
 
   /**
    * Remove a git worktree.
    * Uses `git worktree remove` with --force to handle dirty worktrees.
    */
-  removeWorktree(repoPath: string, worktreePath: string): void {
+  async removeWorktree(repoPath: string, worktreePath: string): Promise<void> {
     const resolved = path.resolve(repoPath);
     const wtResolved = path.resolve(worktreePath);
+    const git = createGit(resolved);
 
     try {
-      gitExecSync(`git worktree remove "${wtResolved}" --force`, resolved);
+      await git.raw(["worktree", "remove", wtResolved, "--force"]);
     } catch (error) {
       // Fallback: prune stale worktrees if remove failed
       try {
@@ -347,7 +312,7 @@ export class GitGateway {
         if (fs.existsSync(wtResolved)) {
           fs.rmSync(wtResolved, { recursive: true, force: true });
         }
-        gitExecSync("git worktree prune", resolved);
+        await git.raw(["worktree", "prune"]);
       } catch {
         throw error; // re-throw original error
       }

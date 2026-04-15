@@ -293,12 +293,18 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
   const activeGroupRef = useRef<HTMLDivElement | null>(null);
 
   // When the selected repo changes (or worktrees first load for the active repo),
-  // auto-expand its group and scroll it into view at the top.
+  // collapse all non-active repos, expand the active one, and scroll it into view.
   useEffect(() => {
     if (!activeRepoPath) return;
     const hasAny = allWorktrees.some((w) => w.repoPath === activeRepoPath);
     if (!hasAny) return;
-    setRepoExpanded(activeRepoPath, true);
+
+    // Collapse every repo except the active one
+    const repoPathsWithWorktrees = new Set(allWorktrees.map((w) => w.repoPath));
+    for (const rp of repoPathsWithWorktrees) {
+      setRepoExpanded(rp, rp === activeRepoPath);
+    }
+
     // Defer scroll until after the expand re-render has committed.
     const id = requestAnimationFrame(() => {
       activeGroupRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });

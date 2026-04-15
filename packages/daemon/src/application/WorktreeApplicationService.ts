@@ -4,12 +4,14 @@ import { sanitizeName } from "../domain/sanitizeName";
 import type { GitGateway, WorktreeEntry } from "../infrastructure/GitGateway";
 import type { RepoRepository } from "../services/RepoRepository";
 import { requireNonEmpty } from "../errors/validation";
-import { wrapError } from "../errors/wrapError";
+import { wrapErrorAsync } from "../errors/wrapError";
 import { AppError } from "../errors/AppError";
 
 /**
  * WorktreeApplicationService orchestrates worktree operations.
  * Delegates to GitGateway for actual git operations.
+ *
+ * All methods are async — GitGateway no longer blocks the event loop.
  */
 export class WorktreeApplicationService {
   constructor(
@@ -17,7 +19,7 @@ export class WorktreeApplicationService {
     private readonly repoRepository: RepoRepository,
   ) {}
 
-  listWorktrees(repoPath?: string): WorktreeEntry[] {
+  async listWorktrees(repoPath?: string): Promise<WorktreeEntry[]> {
     if (!repoPath) {
       return [];
     }
@@ -32,26 +34,26 @@ export class WorktreeApplicationService {
     return this.gitGateway.listWorktrees(repoPath);
   }
 
-  getWorktreeStatus(repoPath: string, worktreePath: string): {
+  async getWorktreeStatus(repoPath: string, worktreePath: string): Promise<{
     files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }>;
     ahead: number;
     behind: number;
-  } {
+  }> {
     requireNonEmpty(worktreePath, "worktreePath");
 
-    return wrapError(
+    return wrapErrorAsync(
       () => this.gitGateway.getWorktreeStatus(worktreePath),
       "GIT_ERROR",
       "get worktree status",
     );
   }
 
-  mergeWorktree(
+  async mergeWorktree(
     repoPath: string,
     worktreePath: string,
     worktreeBranch: string,
     targetBranch: string,
-  ): { success: boolean; message: string } {
+  ): Promise<{ success: boolean; message: string }> {
     requireNonEmpty(repoPath, "repoPath");
     requireNonEmpty(worktreeBranch, "worktreeBranch");
     requireNonEmpty(targetBranch, "targetBranch");
@@ -60,30 +62,30 @@ export class WorktreeApplicationService {
       throw new AppError("VALIDATION_ERROR", "Cannot merge a branch into itself");
     }
 
-    return wrapError(
+    return wrapErrorAsync(
       () => this.gitGateway.mergeWorktree(repoPath, worktreeBranch, targetBranch),
       "GIT_ERROR",
       "merge worktree",
     );
   }
 
-  listLocalBranches(repoPath: string): { branches: string[]; current: string } {
+  async listLocalBranches(repoPath: string): Promise<{ branches: string[]; current: string }> {
     requireNonEmpty(repoPath, "repoPath");
 
-    return wrapError(
+    return wrapErrorAsync(
       () => this.gitGateway.listLocalBranches(repoPath),
       "GIT_ERROR",
       "list branches",
     );
   }
 
-  deleteWorktree(repoPath: string, worktreePath: string): { success: boolean; message: string } {
+  async deleteWorktree(repoPath: string, worktreePath: string): Promise<{ success: boolean; message: string }> {
     requireNonEmpty(repoPath, "repoPath");
     requireNonEmpty(worktreePath, "worktreePath");
 
-    return wrapError(
-      () => {
-        this.gitGateway.removeWorktree(repoPath, worktreePath);
+    return wrapErrorAsync(
+      async () => {
+        await this.gitGateway.removeWorktree(repoPath, worktreePath);
         return { success: true, message: "Worktree removed successfully." };
       },
       "GIT_ERROR",
@@ -91,7 +93,7 @@ export class WorktreeApplicationService {
     );
   }
 
-  createWorktree(repoPath: string, branch: string, name: string): { worktreePath: string; success: boolean } {
+  async createWorktree(repoPath: string, branch: string, name: string): Promise<{ worktreePath: string; success: boolean }> {
     requireNonEmpty(repoPath, "repoPath");
     requireNonEmpty(branch, "branch");
     requireNonEmpty(name, "name");
@@ -104,9 +106,9 @@ export class WorktreeApplicationService {
     const worktreeDir = path.join(repoPath, ".worktrees");
     const worktreePath = path.join(worktreeDir, safeName);
 
-    return wrapError(
-      () => {
-        this.gitGateway.createWorktree(repoPath, worktreePath, branch, safeName);
+    return wrapErrorAsync(
+      async () => {
+        await this.gitGateway.createWorktree(repoPath, worktreePath, branch, safeName);
         this.gitGateway.ensureGitignoreEntry(repoPath, ".worktrees");
         return { worktreePath, success: true };
       },

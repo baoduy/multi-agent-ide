@@ -18,12 +18,12 @@ export function registerSpecHandlers({ bridge, specService }: SpecHandlerContext
   });
 
   safeHandle(bridge, "git:user", async (msg) => {
-    const { name, email } = specService.getGitUser(msg.repoPath);
+    const { name, email } = await specService.getGitUser(msg.repoPath);
     return { type: "git:user:result", name, email };
   });
 
   safeHandle(bridge, "gitfile:read", async (msg) => {
-    const content = specService.readGitFileOrThrow(msg.repoPath, msg.ref, msg.relativePath);
+    const content = await specService.readGitFileOrThrow(msg.repoPath, msg.ref, msg.relativePath);
     return {
       type: "gitfile:read:result",
       filePath: `gitref://${msg.ref}/${msg.relativePath}`,

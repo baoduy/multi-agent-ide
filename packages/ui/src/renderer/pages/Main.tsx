@@ -115,7 +115,8 @@ export function MainPage(): React.ReactElement {
   const setSelectedSpecPath = useSpecStore((state) => state.setSelectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
   const fetchWorktreesForAll = useWorktreeStore((state) => state.fetchWorktreesForAll);
-  const fetchWorktrees = useWorktreeStore((state) => state.fetchWorktrees);
+  const fetchWorktreesIfNeeded = useWorktreeStore((state) => state.fetchWorktreesIfNeeded);
+  const pinnedPaths = useRepoStore((state) => state.pinnedPaths);
 
   // Sidebar collapse state
   const sidebarCollapsed = useSessionStore((state) => state.sidebarCollapsed);
@@ -128,19 +129,22 @@ export function MainPage(): React.ReactElement {
     setNewSessionDialogOpen(true);
   }, []);
 
-  // ── Fetch worktrees for all repos once repos are loaded ──
+  // ── Fetch worktrees for pinned repos + active repo once repos are loaded ──
   useEffect(() => {
-    if (repos.length > 0) {
-      void fetchWorktreesForAll(repos.map((r) => r.path));
+    if (repos.length === 0) return;
+    const paths = new Set(pinnedPaths);
+    if (activeRepoPath) paths.add(activeRepoPath);
+    if (paths.size > 0) {
+      void fetchWorktreesForAll([...paths]);
     }
-  }, [repos, fetchWorktreesForAll]);
+  }, [repos, pinnedPaths, activeRepoPath, fetchWorktreesForAll]);
 
-  // ── Refresh worktrees when the active repo changes ──
+  // ── Incrementally fetch worktrees when the active repo changes ──
   useEffect(() => {
     if (activeRepoPath) {
-      void fetchWorktrees(activeRepoPath);
+      void fetchWorktreesIfNeeded(activeRepoPath);
     }
-  }, [activeRepoPath, fetchWorktrees]);
+  }, [activeRepoPath, fetchWorktreesIfNeeded]);
 
   // ── Save / restore per-repo state when the active repo changes ──
   useEffect(() => {

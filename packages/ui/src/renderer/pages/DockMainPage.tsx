@@ -130,7 +130,8 @@ export function DockMainPage(): React.ReactElement {
   const setSelectedSpecPath = useSpecStore((s) => s.setSelectedSpecPath);
   const specs = useSpecStore((s) => s.specs);
   const fetchWorktreesForAll = useWorktreeStore((s) => s.fetchWorktreesForAll);
-  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
+  const fetchWorktreesIfNeeded = useWorktreeStore((s) => s.fetchWorktreesIfNeeded);
+  const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
 
   // Sidebar collapse (mapped to dock layout)
   const leftCollapsed = useLayoutStore((s) => s.layout.left.collapsed);
@@ -171,18 +172,22 @@ export function DockMainPage(): React.ReactElement {
     return { kind: "builtin", id: "specs" };
   }, [centerActiveTabId, mainTabId, mainViewId]);
 
-  // ── Fetch worktrees ──
+  // ── Fetch worktrees for pinned repos + active repo once repos are loaded ──
   useEffect(() => {
-    if (repos.length > 0) {
-      void fetchWorktreesForAll(repos.map((r) => r.path));
+    if (repos.length === 0) return;
+    const paths = new Set(pinnedPaths);
+    if (activeRepoPath) paths.add(activeRepoPath);
+    if (paths.size > 0) {
+      void fetchWorktreesForAll([...paths]);
     }
-  }, [repos, fetchWorktreesForAll]);
+  }, [repos, pinnedPaths, activeRepoPath, fetchWorktreesForAll]);
 
+  // ── Incrementally fetch worktrees when the active repo changes ──
   useEffect(() => {
     if (activeRepoPath) {
-      void fetchWorktrees(activeRepoPath);
+      void fetchWorktreesIfNeeded(activeRepoPath);
     }
-  }, [activeRepoPath, fetchWorktrees]);
+  }, [activeRepoPath, fetchWorktreesIfNeeded]);
 
   // ── Snapshot persistence on repo switch ──
   useEffect(() => {

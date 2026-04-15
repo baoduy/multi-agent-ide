@@ -36,6 +36,9 @@ type WorktreeStoreState = {
   /** Last error message, if any. */
   error: string | null;
 
+  /** Repo paths that have already been scanned for worktrees (avoids redundant fetches). */
+  scannedRepoPaths: Set<string>;
+
   /** Cached worktree statuses keyed by worktreePath. */
   statusCache: Record<string, WorktreeStatus>;
 
@@ -58,6 +61,12 @@ type WorktreeStoreState = {
    * Fetch worktrees for multiple repos at once.
    */
   fetchWorktreesForAll: (repoPaths: string[]) => Promise<void>;
+
+  /**
+   * Fetch worktrees for a repo only if it hasn't been scanned yet.
+   * Used for incremental loading when a repo becomes active.
+   */
+  fetchWorktreesIfNeeded: (repoPath: string) => Promise<void>;
 
   /**
    * Look up an existing worktree for a given repo + branch combo.
@@ -121,6 +130,7 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
   worktrees: [],
   isLoading: false,
   error: null,
+  scannedRepoPaths: new Set<string>(),
   statusCache: {},
   isStatusLoading: false,
   isMerging: false,
@@ -134,8 +144,11 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       set((state) => {
         // Remove stale entries for this repo, then add fresh ones
         const others = state.worktrees.filter((w) => w.repoPath !== repoPath);
+        const nextScanned = new Set(state.scannedRepoPaths);
+        nextScanned.add(repoPath);
         return {
           worktrees: [...others, ...response.worktrees],
+          scannedRepoPaths: nextScanned,
           isLoading: false,
         };
       });
@@ -152,23 +165,39 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
 
     try {
       const allEntries: WorktreeInfo[] = [];
+      const scanned = new Set(get().scannedRepoPaths);
 
       for (const repoPath of repoPaths) {
         try {
           const response = await sendOrThrow({ type: "worktree:list", repoPath });
           allEntries.push(...response.worktrees);
+          scanned.add(repoPath);
         } catch {
           // Continue on error for individual repo
         }
       }
 
-      set({ worktrees: allEntries, isLoading: false });
+      set((state) => {
+        // Keep worktrees from repos not in this batch, then add fresh ones
+        const batchSet = new Set(repoPaths);
+        const kept = state.worktrees.filter((w) => !batchSet.has(w.repoPath));
+        return {
+          worktrees: [...kept, ...allEntries],
+          scannedRepoPaths: scanned,
+          isLoading: false,
+        };
+      });
     } catch (err) {
       set({
         error: getErrorMessage(err),
         isLoading: false,
       });
     }
+  },
+
+  async fetchWorktreesIfNeeded(repoPath: string) {
+    if (get().scannedRepoPaths.has(repoPath)) return;
+    await get().fetchWorktrees(repoPath);
   },
 
   getWorktreeForBranch(repoPath: string, branch: string): WorktreeInfo | null {

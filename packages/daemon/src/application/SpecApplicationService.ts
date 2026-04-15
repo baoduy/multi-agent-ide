@@ -25,7 +25,7 @@ export class SpecApplicationService {
     return specs;
   }
 
-  readGitFile(repoPath: string, ref: string, relativePath: string): string | null {
+  async readGitFile(repoPath: string, ref: string, relativePath: string): Promise<string | null> {
     return this.specReader.readGitFile(repoPath, ref, relativePath);
   }
 
@@ -33,15 +33,15 @@ export class SpecApplicationService {
    * Reads a git file or throws FILE_NOT_FOUND if not found.
    * Use this from handlers that need a guaranteed non-null result.
    */
-  readGitFileOrThrow(repoPath: string, ref: string, relativePath: string): string {
-    const content = this.specReader.readGitFile(repoPath, ref, relativePath);
+  async readGitFileOrThrow(repoPath: string, ref: string, relativePath: string): Promise<string> {
+    const content = await this.specReader.readGitFile(repoPath, ref, relativePath);
     if (content === null) {
       throw new AppError("FILE_NOT_FOUND", `File not found: ${ref}:${relativePath}`);
     }
     return content;
   }
 
-  getGitUser(repoPath: string): { name: string; email: string } {
+  async getGitUser(repoPath: string): Promise<{ name: string; email: string }> {
     return this.gitGateway.getGitUser(repoPath);
   }
 }

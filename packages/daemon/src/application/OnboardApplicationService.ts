@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { gitExecSync } from "../infrastructure/utils/safeExecSync";
+import { createGit } from "../infrastructure/utils/createGit";
 import { existsSync, readFileSync, mkdirSync } from "node:fs";
 import { join, basename, resolve } from "node:path";
 import type { IPCBridge } from "../ipc/IPCBridge";
@@ -53,7 +53,7 @@ export class OnboardApplicationService {
 
     if (useWorktree) {
       try {
-        targetPath = this.createOnboardWorktree(repoPath);
+        targetPath = await this.createOnboardWorktree(repoPath);
         this.bridge.emit({
           type: "repo:onboard:output",
           repoPath,
@@ -219,13 +219,14 @@ export class OnboardApplicationService {
    * `specify-init-<branch>-<timestamp>` under the `.worktrees/` directory.
    * Returns the absolute path of the created worktree.
    */
-  private createOnboardWorktree(repoPath: string): string {
+  private async createOnboardWorktree(repoPath: string): Promise<string> {
     const resolved = resolve(repoPath);
+    const git = createGit(resolved);
 
     // Get the current branch name
     let currentBranch = "main";
     try {
-      currentBranch = gitExecSync("git rev-parse --abbrev-ref HEAD", resolved).trim();
+      currentBranch = (await git.revparse(["--abbrev-ref", "HEAD"])).trim();
     } catch {
       // fallback to "main"
     }
@@ -248,23 +249,14 @@ export class OnboardApplicationService {
 
     // Create the worktree with a new branch from current HEAD
     try {
-      gitExecSync(
-        `git worktree add "${worktreePath}" -b "${newBranch}"`,
-        resolved,
-      );
+      await git.raw(["worktree", "add", worktreePath, "-b", newBranch]);
     } catch {
       // Branch may already exist — try without -b
       try {
-        gitExecSync(
-          `git worktree add "${worktreePath}" "${newBranch}"`,
-          resolved,
-        );
+        await git.raw(["worktree", "add", worktreePath, newBranch]);
       } catch (err2) {
         // Last resort: detach from HEAD
-        gitExecSync(
-          `git worktree add --detach "${worktreePath}"`,
-          resolved,
-        );
+        await git.raw(["worktree", "add", "--detach", worktreePath]);
       }
     }
 

@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react";
-import { Terminal } from "lucide-react";
+import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef, useMemo } from "react";
+import { Terminal, Copy, ClipboardPaste, Eraser } from "lucide-react";
 import stripAnsi from "strip-ansi";
 import { TERMINAL_THEMES } from "../../utils/terminalThemes";
 import { colors } from "../../utils/colors";
 import { useTerminalStore } from "../../store/terminalStore";
 import { TerminalHub } from "../../terminal/TerminalHub";
+import { ContextMenu, useContextMenu } from "./ContextMenu";
+import type { ContextMenuAction } from "./ContextMenu";
 
 export type MagentaTerminalStatus = "idle" | "running" | "done" | "canceled" | "error";
 
@@ -146,11 +148,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
 
   const [activeTabId, setActiveTabId] = useState<string | null>(null);
   const [tabIds, setTabIds] = useState<string[]>([]);
-  const [menuState, setMenuState] = useState<{ open: boolean; x: number; y: number }>({
-    open: false,
-    x: 0,
-    y: 0,
-  });
+  const { contextMenu: terminalMenu, openContextMenu: openTerminalMenu, closeContextMenu: closeTerminalMenu } = useContextMenu();
 
   // ─── Build a new tab ──────────────────────────────────────────
 

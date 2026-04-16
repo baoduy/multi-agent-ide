@@ -441,26 +441,26 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         {session.title || session.slug || session.sessionId.slice(0, 8)}
       </ScrollableText>
 
-      {/* Live activity badge — processing / idle. Completed sessions show no badge. */}
-      <ActivityBadge activity={session.activity} />
-
-
       {/* Time */}
       <span
         style={{
           fontSize: 10,
           color: colors.textTertiary,
           flexShrink: 0,
-          minWidth: 48,
+          minWidth: 60,
           textAlign: "right",
           display: "flex",
           alignItems: "center",
+          justifyContent: "flex-end",
           gap: 3,
         }}
       >
         <Clock size={10} />
         {timeDisplay}
       </span>
+
+      {/* Live activity badge — processing / idle. Completed sessions show no badge. */}
+      <ActivityBadge activity={session.activity} />
     </button>
     {contextMenu && (
       <ContextMenu
@@ -477,6 +477,7 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
 
 type BranchGroupSectionProps = {
   group: BranchGroup;
+  defaultExpanded?: boolean;
   onSelectSession: (sessionId: string) => void;
   onResumeSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
@@ -485,12 +486,17 @@ type BranchGroupSectionProps = {
 
 const BranchGroupSection = React.memo(function BranchGroupSection({
   group,
+  defaultExpanded = false,
   onSelectSession,
   onResumeSession,
   onDeleteSession,
   onResumeSyncedSession,
 }: BranchGroupSectionProps): React.ReactElement {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  useEffect(() => {
+    if (defaultExpanded) setExpanded(true);
+  }, [defaultExpanded]);
 
   const toggleExpanded = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -536,6 +542,8 @@ type SessionGroupNodeViewProps = {
   defaultExpanded?: boolean;
   /** When this matches the group's repo path, force-expand and scroll into view. */
   activeRepoPath?: string | null;
+  /** When true, auto-expand branch groups (used during search) */
+  forceExpandBranches?: boolean;
   onSelectSession: (sessionId: string) => void;
   onResumeSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
@@ -549,6 +557,7 @@ function SessionGroupNodeComponent({
   node,
   defaultExpanded = false,
   activeRepoPath,
+  forceExpandBranches = false,
   onSelectSession,
   onResumeSession,
   onDeleteSession,
@@ -561,6 +570,11 @@ function SessionGroupNodeComponent({
   const isActive =
     !!activeRepoPath &&
     (node.repo?.path === activeRepoPath || node.path === activeRepoPath);
+
+  // Force-expand when defaultExpanded flips to true (e.g. search is active)
+  useEffect(() => {
+    if (defaultExpanded) setExpanded(true);
+  }, [defaultExpanded]);
 
   // Auto-expand and scroll into view when this group becomes the active repo.
   useEffect(() => {
@@ -622,6 +636,7 @@ function SessionGroupNodeComponent({
             <BranchGroupSection
               key={`branch:${group.branchName}`}
               group={group}
+              defaultExpanded={forceExpandBranches}
               onSelectSession={onSelectSession}
               onResumeSession={onResumeSession}
               onDeleteSession={onDeleteSession}

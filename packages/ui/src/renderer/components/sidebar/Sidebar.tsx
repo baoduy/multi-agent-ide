@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useRef } from "react";
-import { Search, X } from "lucide-react";
+import React, { useEffect } from "react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useSpecStore } from "../../store/specStore";
 import { useConfigStore } from "../../store/configStore";
 import { RepoList } from "./RepoList";
-import { colors } from "../../utils/colors";
 
 export function Sidebar(): React.ReactElement {
   const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
@@ -14,11 +12,6 @@ export function Sidebar(): React.ReactElement {
 
   const fetchConfig = useConfigStore((state) => state.fetchConfig);
   const initializeConfigSubscriptions = useConfigStore((state) => state.initializeSubscriptions);
-
-  /* ── Inline search state ── */
-  const searchQuery = useRepoStore((state) => state.searchQuery);
-  const setSearchQuery = useRepoStore((state) => state.setSearchQuery);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     initializeSubscriptions();
@@ -32,86 +25,8 @@ export function Sidebar(): React.ReactElement {
     }
   }, [activeRepoPath, fetchSpecs]);
 
-  const handleClearSearch = useCallback(() => {
-    setSearchQuery("");
-    searchInputRef.current?.focus();
-  }, [setSearchQuery]);
-
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Unified search + repositories header */}
-      <div
-        style={{
-          padding: "6px 8px 4px",
-          display: "flex",
-          alignItems: "center",
-          flexShrink: 0,
-          minHeight: 26,
-        }}
-      >
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            background: colors.bgPanel,
-            borderRadius: 4,
-            padding: "0 6px",
-            border: `1px solid ${searchQuery ? colors.borderStrong : colors.border}`,
-            height: 22,
-            boxSizing: "border-box",
-            transition: "border-color 0.15s",
-          }}
-        >
-          <Search size={11} color={colors.textTertiary} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-          <input
-            ref={searchInputRef}
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setSearchQuery("");
-                searchInputRef.current?.blur();
-              }
-            }}
-            placeholder="Repositories"
-            style={{
-              flex: 1,
-              border: "none",
-              background: "transparent",
-              outline: "none",
-              fontSize: 11,
-              color: colors.textStrong,
-              padding: 0,
-              lineHeight: "16px",
-            }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={handleClearSearch}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "1px",
-                lineHeight: 1,
-                display: "inline-flex",
-                alignItems: "center",
-                color: colors.textTertiary,
-                borderRadius: 3,
-              }}
-              title="Clear search"
-            >
-              <X size={12} strokeWidth={2} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Repo list — fills remaining space */}
       <div style={{ flex: 1, overflowY: "auto", minHeight: 80 }}>
         <RepoList />
       </div>

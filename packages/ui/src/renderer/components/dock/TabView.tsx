@@ -16,10 +16,13 @@ import { colors } from "../../utils/colors";
 type TabViewProps = {
   /** Extra props to pass down to individual view components by viewId */
   viewProps?: Record<string, Record<string, unknown>>;
+  /** Callback to duplicate an agent-session tab */
+  onDuplicateTab?: (tab: TabState) => void;
 };
 
 export const TabView = React.memo(function TabView({
   viewProps,
+  onDuplicateTab,
 }: TabViewProps): React.ReactElement {
   const center: CenterState = useLayoutStore((s) => s.layout.center);
   const setActiveTab = useLayoutStore((s) => s.setActiveTab);
@@ -71,6 +74,7 @@ export const TabView = React.memo(function TabView({
           mainTabActive={center.activeTabId === mainTab.tabId}
           mainTabViewId={mainTab.viewId}
           onSelectMainTab={() => handleSelectTab(mainTab.tabId)}
+          onDuplicateTab={onDuplicateTab}
         />
       )}
 

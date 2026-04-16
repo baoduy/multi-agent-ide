@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { useWorktreeStore, type WorktreeStatus } from "../../store/worktreeStore";
+import { useViewSearchStore } from "../../store/viewSearchStore";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 import { FileIconBadge, FolderIconBadge } from "../common/fileIcons";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
@@ -40,6 +41,7 @@ export function RepoFileChanges({
 
   // The effective path to run git status against
   const effectivePath = worktreePath || repoPath;
+  const searchQuery = useViewSearchStore((s) => s.queries["repo-changes"] ?? "");
 
   const fetchStatus = useCallback(async () => {
     setIsLoading(true);
@@ -89,6 +91,12 @@ export function RepoFileChanges({
     [effectivePath, onOpenFile, onOpenDiff],
   );
 
+  const filteredFiles = useMemo(() => {
+    if (!status || !searchQuery.trim()) return status?.files ?? [];
+    const q = searchQuery.toLowerCase().trim();
+    return status.files.filter((f) => f.path.toLowerCase().includes(q));
+  }, [status, searchQuery]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
       {/* Ahead/behind indicator */}
@@ -112,16 +120,18 @@ export function RepoFileChanges({
       )}
 
       {/* Empty state */}
-      {!isLoading && status && status.files.length === 0 && (
+      {!isLoading && status && filteredFiles.length === 0 && (
         <div style={{ color: colors.textTertiary, fontSize: 12, padding: "8px 0" }}>
-          No changed files.
+          {searchQuery.trim()
+            ? `No matches for \u201c${searchQuery}\u201d`
+            : "No changed files."}
         </div>
       )}
 
       {/* File list */}
-      {status && status.files.length > 0 && (
+      {status && filteredFiles.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {status.files.map((file) => {
+          {filteredFiles.map((file) => {
             const isDirectory = file.path.endsWith("/");
             const isClickable = file.status !== "deleted" && !isDirectory;
             const fileName = file.path.split("/").pop() ?? file.path;

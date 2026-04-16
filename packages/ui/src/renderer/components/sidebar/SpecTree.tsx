@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { SpecItem } from "./SpecItem";
 import { colors } from "../../utils/colors";
 import { useSortedSpecs } from "../../hooks/useSortedSpecs";
+import { useViewSearchStore } from "../../store/viewSearchStore";
 
 type SpecTreeProps = {
   specs: SpecFolder[];
@@ -48,6 +49,13 @@ export const SpecTree = React.memo(function SpecTree({
 }: SpecTreeProps): React.ReactElement {
   // Sort MUST be called unconditionally (React hooks rules)
   const sortedSpecs = useSortedSpecs(specs);
+  const searchQuery = useViewSearchStore((s) => s.queries["specs"] ?? "");
+
+  const filteredSpecs = useMemo(() => {
+    if (!searchQuery.trim()) return sortedSpecs;
+    const q = searchQuery.toLowerCase().trim();
+    return sortedSpecs.filter((s) => s.name.toLowerCase().includes(q));
+  }, [sortedSpecs, searchQuery]);
 
   // Loading — no data yet, waiting for first fetch
   if (isLoading && specs.length === 0) {
@@ -66,9 +74,17 @@ export const SpecTree = React.memo(function SpecTree({
     );
   }
 
+  if (filteredSpecs.length === 0) {
+    return (
+      <div style={{ padding: "5px 10px", fontSize: 11, color: colors.textTertiary }}>
+        No matches for &ldquo;{searchQuery}&rdquo;
+      </div>
+    );
+  }
+
   return (
     <div style={{ flex: 1, overflowY: "auto", paddingBottom: 4 }}>
-      {sortedSpecs.map((spec) => (
+      {filteredSpecs.map((spec) => (
         <SpecItem
           key={spec.id}
           spec={spec}

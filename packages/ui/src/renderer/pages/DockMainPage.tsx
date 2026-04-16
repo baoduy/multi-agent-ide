@@ -31,6 +31,7 @@ import { useAISessionStore } from "../store/aiSessionStore";
 import type { ActiveTab, BuiltinTabId } from "../types/tabs";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SavedDockTab } from "../hooks/usePersistedSnapshots";
+import type { TabState } from "../components/dock/types";
 
 /* ── Register views once at module load ── */
 registerAllViews();
@@ -468,6 +469,34 @@ export function DockMainPage(): React.ReactElement {
     [openTab]
   );
 
+  const handleDuplicateTab = useCallback(
+    async (tab: TabState) => {
+      if (tab.viewId !== "agent-session") return;
+      const sessionId = tab.props?.aiSessionId as string | undefined;
+      if (!sessionId) return;
+
+      // Look up the existing session to copy its config
+      const sessions = useAISessionStore.getState().sessions;
+      const source = sessions.find((s) => s.id === sessionId);
+      if (!source) return;
+
+      const newSession = await useAISessionStore.getState().createSession(
+        {
+          provider: source.provider,
+          repoPath: source.repoPath ?? undefined,
+          branch: source.branch ?? undefined,
+          worktreePath: source.worktreePath ?? undefined,
+          permissionMode: source.permissionMode,
+        },
+        80,
+        24
+      );
+
+      handleOpenAgentSession(newSession);
+    },
+    [handleOpenAgentSession]
+  );
+
   const handleSelectBuiltinTab = useCallback(
     (id: BuiltinTabId) => {
       const viewId = BUILTIN_VIEW_MAP[id];
@@ -629,6 +658,7 @@ export function DockMainPage(): React.ReactElement {
         repoName={repoName}
       />
       <DockManager
+        onDuplicateTab={handleDuplicateTab}
         titleBar={
           <TitleBar
             sidebarCollapsed={leftCollapsed}

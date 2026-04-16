@@ -8,11 +8,13 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { X, Terminal, ChevronDown } from "lucide-react";
+import { X, Terminal, ChevronDown, Copy } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { viewRegistry } from "./ViewRegistry";
 import { useDockDrag } from "./useDockDrag";
 import { ProviderIcon } from "../common/ProviderIcon";
+import { ContextMenu, useContextMenu } from "../common/ContextMenu";
+import type { ContextMenuAction } from "../common/ContextMenu";
 import type { TabState, DockRegion } from "./types";
 
 type DockTabBarProps = {
@@ -30,6 +32,8 @@ type DockTabBarProps = {
   mainTabViewId?: string;
   /** Callback to re-activate the main tab */
   onSelectMainTab?: () => void;
+  /** Callback to duplicate an agent-session tab */
+  onDuplicateTab?: (tab: TabState) => void;
 };
 
 const TabCloseButton = React.memo(function TabCloseButton({
@@ -96,6 +100,7 @@ export const DockTabBar = React.memo(function DockTabBar({
   mainTabActive,
   mainTabViewId,
   onSelectMainTab,
+  onDuplicateTab,
 }: DockTabBarProps): React.ReactElement | null {
   if (tabs.length === 0 && !mainTabViewId) return null;
 
@@ -103,6 +108,10 @@ export const DockTabBar = React.memo(function DockTabBar({
   const [isOverflowing, setIsOverflowing] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Context menu for tab right-click
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  const contextMenuTabRef = useRef<TabState | null>(null);
 
   // Detect overflow
   useEffect(() => {
@@ -130,6 +139,57 @@ export const DockTabBar = React.memo(function DockTabBar({
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [dropdownOpen]);
+
+  // Build context menu items for the right-clicked tab
+  const buildTabContextMenuItems = useCallback(
+    (tab: TabState): ContextMenuAction[] => {
+      const items: ContextMenuAction[] = [];
+
+      // "Duplicate Session" — only for agent-session tabs
+      if (tab.viewId === "agent-session" && onDuplicateTab) {
+        items.push({
+          label: "Duplicate Session",
+          Icon: Copy,
+          action: () => onDuplicateTab(tab),
+        });
+      }
+
+      // "Close" — available for all closable tabs
+      const descriptor = viewRegistry.get(tab.viewId);
+      if (descriptor?.closable !== false && onCloseTab) {
+        items.push({
+          label: "Close",
+          Icon: X,
+          separator: items.length > 0,
+          action: () => onCloseTab(tab.tabId),
+        });
+
+        // "Close Others"
+        const otherClosable = tabs.filter(
+          (t) => t.tabId !== tab.tabId && viewRegistry.get(t.viewId)?.closable !== false
+        );
+        if (otherClosable.length > 0) {
+          items.push({
+            label: "Close Others",
+            action: () => {
+              for (const t of otherClosable) onCloseTab(t.tabId);
+            },
+          });
+        }
+      }
+
+      return items;
+    },
+    [tabs, onCloseTab, onDuplicateTab]
+  );
+
+  const handleTabContextMenu = useCallback(
+    (e: React.MouseEvent, tab: TabState) => {
+      contextMenuTabRef.current = tab;
+      openContextMenu(e);
+    },
+    [openContextMenu]
+  );
 
   // Resolve main tab descriptor for the back-to-main pill
   const mainDescriptor = mainTabViewId ? viewRegistry.get(mainTabViewId) : null;
@@ -186,6 +246,7 @@ export const DockTabBar = React.memo(function DockTabBar({
               onSelect={onSelectTab}
               onClose={onCloseTab}
               region={region}
+              onContextMenu={(e) => handleTabContextMenu(e, tab)}
             />
           );
         })}
@@ -211,6 +272,15 @@ export const DockTabBar = React.memo(function DockTabBar({
             } : undefined}
           />
         </div>
+      )}
+
+      {/* Tab right-click context menu */}
+      {contextMenu && contextMenuTabRef.current && (
+        <ContextMenu
+          position={contextMenu}
+          items={buildTabContextMenuItems(contextMenuTabRef.current)}
+          onClose={closeContextMenu}
+        />
       )}
     </div>
   );
@@ -279,6 +349,7 @@ const TabItem = React.memo(function TabItem({
   onSelect,
   onClose,
   region,
+  onContextMenu,
 }: {
   tabId: string;
   viewId: string;
@@ -289,6 +360,7 @@ const TabItem = React.memo(function TabItem({
   onSelect: (tabId: string) => void;
   onClose?: (tabId: string) => void;
   region?: DockRegion;
+  onContextMenu?: (e: React.MouseEvent) => void;
 }): React.ReactElement {
   const [hovered, setHovered] = useState(false);
   const startDrag = useDockDrag((s) => s.startDrag);
@@ -340,6 +412,7 @@ const TabItem = React.memo(function TabItem({
     <button
       type="button"
       onMouseDown={handleMouseDown}
+      onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{

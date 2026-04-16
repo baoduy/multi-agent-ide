@@ -10,6 +10,7 @@ import React, { useMemo, useCallback, createElement } from "react";
 import { useLayoutStore } from "./layoutStore";
 import { viewRegistry } from "./ViewRegistry";
 import { AccordionSection } from "./AccordionSection";
+import { useViewSearchStore } from "../../store/viewSearchStore";
 import type { SideContainerState, SectionState, ActivityBarGroup } from "./types";
 
 type SideContainerProps = {
@@ -48,6 +49,9 @@ export const SideContainer = React.memo(function SideContainer({
     (viewId: string) => toggleSection(region, viewId),
     [region, toggleSection]
   );
+
+  const searchQueries = useViewSearchStore((s) => s.queries);
+  const setSearchQuery = useViewSearchStore((s) => s.setQuery);
 
   if (container.collapsed) {
     return null;
@@ -91,6 +95,10 @@ export const SideContainer = React.memo(function SideContainer({
               expanded={section.expanded}
               onToggle={() => handleToggle(section.viewId)}
               region={region}
+              searchable={descriptor.searchable}
+              searchPlaceholder={descriptor.searchPlaceholder}
+              searchQuery={searchQueries[section.viewId] ?? ""}
+              onSearchChange={(q) => setSearchQuery(section.viewId, q)}
             >
               {createElement(descriptor.component, extraProps)}
             </AccordionSection>

@@ -18,6 +18,15 @@ export type ContextMenuAction = {
   separator?: boolean;
   /** Child items rendered as a nested menu on hover. When set, `action` is ignored. */
   submenu?: ContextMenuAction[];
+  /**
+   * When true the item renders muted and is not clickable. Useful for actions
+   * whose target is temporarily unavailable (e.g. a path that no longer exists
+   * on disk) — the item stays visible so the user can see why the action is
+   * offered and hover the tooltip, rather than silently disappearing.
+   */
+  disabled?: boolean;
+  /** Optional tooltip shown on hover (via the native `title` attribute). */
+  title?: string;
 };
 
 /* ── ContextMenu ── */
@@ -130,24 +139,27 @@ function ContextMenuItem({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasSubmenu = !!(item.submenu && item.submenu.length > 0);
+  const isDisabled = !!item.disabled;
 
   const handleClick = useCallback(() => {
     if (hasSubmenu) return; // submenu items don't trigger actions themselves
+    if (isDisabled) return; // disabled items are non-interactive
     item.action?.();
     onClose();
-  }, [hasSubmenu, item, onClose]);
+  }, [hasSubmenu, isDisabled, item, onClose]);
 
-  // Open/close submenu with a grace period for mouse transitions
+  // Open/close submenu with a grace period for mouse transitions.
+  // Disabled items never open their submenu (if any) — they're inert.
   const openSubmenu = useCallback(() => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-    if (!hasSubmenu || !itemRef.current) return;
+    if (!hasSubmenu || isDisabled || !itemRef.current) return;
     const rect = itemRef.current.getBoundingClientRect();
     setSubmenuPos({ x: rect.right - 2, y: rect.top - 4 });
     setSubmenuOpen(true);
-  }, [hasSubmenu]);
+  }, [hasSubmenu, isDisabled]);
 
   const scheduleCloseSubmenu = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -173,17 +185,23 @@ function ContextMenuItem({
         ref={itemRef}
         type="button"
         onClick={handleClick}
+        disabled={isDisabled}
+        title={item.title}
+        aria-disabled={isDisabled}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
           width: "100%",
           border: "none",
-          background: hovered || submenuOpen ? colors.bgHover : "transparent",
+          // Disabled items never show a hover highlight — they're inert.
+          background:
+            !isDisabled && (hovered || submenuOpen) ? colors.bgHover : "transparent",
           padding: "7px 14px",
-          cursor: hasSubmenu ? "default" : "pointer",
+          cursor: isDisabled ? "not-allowed" : hasSubmenu ? "default" : "pointer",
           fontSize: 12,
-          color: colors.text,
+          color: isDisabled ? colors.textMuted : colors.text,
+          opacity: isDisabled ? 0.55 : 1,
           textAlign: "left",
           transition: "background 0.08s",
         }}

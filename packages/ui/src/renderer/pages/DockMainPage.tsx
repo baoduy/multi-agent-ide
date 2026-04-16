@@ -473,7 +473,9 @@ export function DockMainPage(): React.ReactElement {
   const handleOpenAgentSession = useCallback(
     (session: AISessionRecord) => {
       const tabId = `agent-${session.id}`;
-      const title = session.title ?? session.repoName ?? `${session.provider} agent`;
+      // Use repo name as the base title so the branch label is the differentiator
+      const title = session.repoName ?? session.title ?? `${session.provider} agent`;
+      const branchLabel = session.worktreeName ?? session.branch ?? null;
       openTab("center", {
         tabId,
         viewId: "agent-session",
@@ -481,6 +483,7 @@ export function DockMainPage(): React.ReactElement {
           aiSessionId: session.id,
           aiProvider: session.provider,
           cwd: session.cwd,
+          branchLabel,
         },
         title,
       });

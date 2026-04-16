@@ -6,7 +6,7 @@
  * via grip handle → DragOverlay → drop on target region.
  */
 
-import React, { useMemo, useCallback, createElement } from "react";
+import React, { useMemo, useCallback, createElement, useEffect, useRef } from "react";
 import { useLayoutStore } from "./layoutStore";
 import { viewRegistry } from "./ViewRegistry";
 import { AccordionSection } from "./AccordionSection";
@@ -27,6 +27,41 @@ export const SideContainer = React.memo(function SideContainer({
     (s) => s.layout[region]
   );
   const toggleSection = useLayoutStore((s) => s.toggleSection);
+  const setSectionExpanded = useLayoutStore((s) => s.setSectionExpanded);
+
+  // ── Context-aware auto-collapse for the right sidebar ──
+  const centerActiveTabId = useLayoutStore((s) => s.layout.center.activeTabId);
+  const centerTabs = useLayoutStore((s) => s.layout.center.tabs);
+
+  // Resolve the active center tab's viewId
+  const activeCenterViewId = useMemo(() => {
+    const tab = centerTabs.find((t) => t.tabId === centerActiveTabId);
+    return tab?.viewId ?? null;
+  }, [centerTabs, centerActiveTabId]);
+
+  // Track previous viewId so we only act on actual changes
+  const prevCenterViewIdRef = useRef<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (region !== "right") return;
+    if (activeCenterViewId === prevCenterViewIdRef.current) return;
+    prevCenterViewIdRef.current = activeCenterViewId;
+
+    if (!activeCenterViewId) return;
+
+    const SPECS_VIEW_IDS = new Set(["specs-list", "file-viewer", "diff-viewer", "workflow", "worktrees"]);
+    const AI_VIEW_IDS = new Set(["ai-sessions", "agent-session", "terminal-session"]);
+
+    if (SPECS_VIEW_IDS.has(activeCenterViewId)) {
+      // Specs / file context: show spec-files, hide repo-changes
+      setSectionExpanded("right", "spec-files", true);
+      setSectionExpanded("right", "repo-changes", false);
+    } else if (AI_VIEW_IDS.has(activeCenterViewId)) {
+      // AI context: show repo-changes, hide spec-files
+      setSectionExpanded("right", "spec-files", false);
+      setSectionExpanded("right", "repo-changes", true);
+    }
+  }, [region, activeCenterViewId, setSectionExpanded]);
 
   // For the left sidebar, filter sections to only those in the active group
   const activeGroupId = useLayoutStore((s) => s.layout.activityBar.activeGroupId);

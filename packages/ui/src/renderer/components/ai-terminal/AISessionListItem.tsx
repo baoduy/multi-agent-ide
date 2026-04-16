@@ -2,7 +2,6 @@ import React, { useMemo } from "react";
 import { Play, Trash2 } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import { ContextMenu, useContextMenu, type ContextMenuAction } from "../common/ContextMenu";
-import { BranchLabel } from "../common/RepoLabel";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { ClickableRow } from "../common/ClickableRow";
 import { StatusBadge } from "../common/StatusBadge";
@@ -60,7 +59,6 @@ function AISessionListItemComponent({
 
   const showStatus = isActiveStatus(session.status);
   const statusColor = showStatus ? getStatusColor(session.status) : "";
-  const branchDisplayName = session.worktreeName || session.branch || null;
   const timeDisplay = formatRelativeTime(session.lastActiveAt);
   const statusText = showStatus ? formatStatus(session.status) : "";
   const sessionTitle = session.title || `Session ${session.id.slice(0, 8)}`;
@@ -77,7 +75,6 @@ function AISessionListItemComponent({
         hoverBackground={colors.bgHover}
       >
         <ProviderBadge provider={session.provider} iconSize={14} fontSize={12} color={colors.text} />
-        {branchDisplayName && <BranchLabel name={branchDisplayName} size="xs" />}
         {sessionTitle && (
           <>
             <span style={{ color: colors.textTertiary, fontSize: 11, flexShrink: 0 }}>·</span>

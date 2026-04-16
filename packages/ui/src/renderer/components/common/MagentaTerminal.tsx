@@ -3,6 +3,7 @@ import { Terminal, Copy, ClipboardPaste, Eraser } from "lucide-react";
 import stripAnsi from "strip-ansi";
 import { TERMINAL_THEMES } from "../../utils/terminalThemes";
 import { useTerminalStore } from "../../store/terminalStore";
+import { useAISessionStore } from "../../store/aiSessionStore";
 import { TerminalHub } from "../../terminal/TerminalHub";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
 import type { ContextMenuAction } from "./ContextMenu";
@@ -207,9 +208,15 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
           void shellClose(tab.sessionId);
           TerminalHub.dispose(tab.sessionId);
         } else {
-          // AI sessions persist in the daemon; just detach the DOM so the
-          // session can be re-opened later.
-          TerminalHub.detach(tab.sessionId);
+          // If the AI session is actively processing, just detach so it
+          // continues in the background.  Otherwise end it.
+          const session = useAISessionStore.getState().sessions.find((s) => s.id === tab.sessionId);
+          if (session?.status === "active") {
+            TerminalHub.detach(tab.sessionId);
+          } else {
+            void useAISessionStore.getState().stopSession(tab.sessionId);
+            TerminalHub.detach(tab.sessionId);
+          }
         }
       }
       tabsRef.current.delete(tabId);

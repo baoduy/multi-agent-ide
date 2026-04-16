@@ -8,8 +8,7 @@ import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
-import { openInVscode } from "../../utils/ipc";
-import { VsCodeIcon } from "../common/VsCodeIcon";
+import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
 import { useRepoStore } from "../../store/repoStore";
@@ -108,11 +107,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       Icon: Star,
       action: () => onTogglePin(repo.path),
     },
-    {
-      label: "Open with Code",
-      Icon: VsCodeIcon,
-      action: () => void openInVscode(repo.path),
-    },
+    openWithVsCodeAction(repo.path),
     {
       label: "Copy path",
       Icon: Clipboard,

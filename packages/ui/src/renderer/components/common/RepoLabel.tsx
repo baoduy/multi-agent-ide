@@ -185,7 +185,8 @@ function BranchLabelComponent({
       <ScrollableText
         style={{
           fontSize: s.font,
-          color: BRANCH_INLINE_COLOR,
+          fontWeight: 600,
+          color: colors.text,
         }}
       >
         {name}

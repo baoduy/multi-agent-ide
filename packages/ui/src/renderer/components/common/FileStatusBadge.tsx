@@ -9,11 +9,11 @@ const STATUS_CONFIG: Record<
   WorktreeFileStatus["status"],
   { label: string; color: string; bg: string; Icon: React.ElementType }
 > = {
-  added: { label: "Added", color: colors.success, bg: colors.successSoft, Icon: FilePlus },
-  modified: { label: "Modified", color: colors.warningTextStrong, bg: colors.warningSoft, Icon: FileEdit },
+  added: { label: "Added", color: colors.textTertiary, bg: colors.bgMuted, Icon: FilePlus },
+  modified: { label: "Modified", color: colors.textTertiary, bg: colors.bgMuted, Icon: FileEdit },
   deleted: { label: "Deleted", color: colors.error, bg: colors.errorSoft, Icon: FileX },
-  renamed: { label: "Renamed", color: colors.accentPurple, bg: "color-mix(in srgb, var(--accent-purple) 12%, transparent)", Icon: ArrowRight },
-  copied: { label: "Copied", color: colors.iconCyan, bg: "color-mix(in srgb, var(--icon-cyan) 12%, transparent)", Icon: FilePlus },
+  renamed: { label: "Renamed", color: colors.textTertiary, bg: colors.bgMuted, Icon: ArrowRight },
+  copied: { label: "Copied", color: colors.textTertiary, bg: colors.bgMuted, Icon: FilePlus },
   untracked: { label: "Untracked", color: colors.textTertiary, bg: colors.bgMuted, Icon: FileQuestion },
 };
 

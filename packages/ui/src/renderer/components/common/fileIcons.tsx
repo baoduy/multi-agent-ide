@@ -129,11 +129,11 @@ export function FileIconBadge({
         width: 22,
         height: 22,
         borderRadius: 4,
-        background: `color-mix(in srgb, ${info.color} 14%, transparent)`,
+        background: colors.bgMuted,
         flexShrink: 0,
       }}
     >
-      <info.Icon size={size} color={info.color} strokeWidth={1.8} />
+      <info.Icon size={size} color={colors.iconNeutral} strokeWidth={1.8} />
     </span>
   );
 }
@@ -171,15 +171,14 @@ export function FolderIconBadge({
 export function ExtensionBadge({ fileName }: { fileName: string }): React.ReactElement | null {
   const ext = getFileExtension(fileName);
   if (!ext) return null;
-  const info = getFileIconInfo(fileName);
   return (
     <span
       style={{
         fontSize: 9,
         fontWeight: 600,
         textTransform: "uppercase",
-        color: info.color,
-        background: `color-mix(in srgb, ${info.color} 12%, transparent)`,
+        color: colors.textTertiary,
+        background: colors.bgMuted,
         padding: "2px 5px",
         borderRadius: 3,
         flexShrink: 0,

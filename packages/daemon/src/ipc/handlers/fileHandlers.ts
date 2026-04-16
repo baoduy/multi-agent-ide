@@ -35,6 +35,33 @@ export function registerFileHandlers({ bridge, fileSystemGateway }: FileHandlerC
   });
 
   /**
+   * Handles "file:delete" requests.
+   * Deletes a file from disk.
+   */
+  safeHandle(bridge, "file:delete", async (msg) => {
+    fileSystemGateway.deleteFile(msg.filePath);
+    return {
+      type: "file:delete:result",
+      filePath: msg.filePath,
+      success: true,
+    };
+  });
+
+  /**
+   * Handles "file:rename" requests.
+   * Renames (moves) a file on disk.
+   */
+  safeHandle(bridge, "file:rename", async (msg) => {
+    fileSystemGateway.renameFile(msg.oldPath, msg.newPath);
+    return {
+      type: "file:rename:result",
+      oldPath: msg.oldPath,
+      newPath: msg.newPath,
+      success: true,
+    };
+  });
+
+  /**
    * Handles "dir:list" requests.
    * Lists the entries (files and subdirectories) of a directory.
    */

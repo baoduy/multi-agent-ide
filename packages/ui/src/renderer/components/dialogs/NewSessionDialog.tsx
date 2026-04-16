@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
 
+import { isValidWorktreeName } from "@magenta/shared/sanitize";
 import { sendOrThrow } from "../../services/ipcClient";
+import { ipc } from "../../utils/ipc";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useRepoStore } from "../../store/repoStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
@@ -36,6 +38,16 @@ type NewSessionDialogProps = {
   repoName?: string | null;
   /** Called with the newly created AI session when creation succeeds. */
   onSessionCreated?: (session: AISessionRecord) => void;
+  /**
+   * When set, the dialog acts as a "Resume Session" picker.
+   * The providerSessionId is passed to createSession so the agent
+   * resumes from the synced session rather than starting fresh.
+   */
+  resumeContext?: {
+    providerSessionId: string;
+    provider: AIProvider;
+    branch?: string;
+  };
 };
 
 /* ── Dialog ── */
@@ -46,9 +58,11 @@ export function NewSessionDialog({
   repoPath: initialRepoPath,
   repoName: _initialRepoName,
   onSessionCreated,
+  resumeContext,
 }: NewSessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
   const repos = useRepoStore((s) => s.repos);
+  const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
   const worktrees = useWorktreeStore((s) => s.worktrees);
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
@@ -87,17 +101,27 @@ export function NewSessionDialog({
 
   /* ── Derived values ── */
 
-  /** Repo dropdown options for the DoublePicker. */
-  const repoOptions = useMemo(
-    (): readonly DoublePickerOption<string>[] =>
-      repos.map((r) => ({
+  /** Repo dropdown options for the DoublePicker — pinned repos first with star icon. */
+  const repoOptions = useMemo((): readonly DoublePickerOption<string>[] => {
+    const pinned: DoublePickerOption<string>[] = [];
+    const unpinned: DoublePickerOption<string>[] = [];
+    for (const r of repos) {
+      const isPinned = pinnedPaths.has(r.path);
+      const opt: DoublePickerOption<string> = {
         value: r.path,
         label: r.name,
         description: r.path,
         icon: <FolderGit2 size={14} color={colors.textTertiary} />,
-      })),
-    [repos],
-  );
+        suffix: isPinned ? <span style={{ color: colors.primary, fontSize: 10 }}>{"\u2605"}</span> : undefined,
+      };
+      if (isPinned) {
+        pinned.push(opt);
+      } else {
+        unpinned.push(opt);
+      }
+    }
+    return [...pinned, ...unpinned];
+  }, [repos, pinnedPaths]);
 
   const repoWorktrees = useMemo(
     () =>
@@ -221,7 +245,7 @@ export function NewSessionDialog({
   useEffect(() => {
     if (open) {
       setSelectedRepoPath(initialRepoPath ?? null);
-      setProvider("claude");
+      setProvider(resumeContext?.provider ?? "claude");
       setPermissionMode("auto");
       setWorkspaceTarget("branch");
       setSelectedWorktreePath(null);
@@ -232,7 +256,7 @@ export function NewSessionDialog({
       setSpecifyStatus(null);
       setIsLoadingSpecifyStatus(false);
     }
-  }, [open, initialRepoPath]);
+  }, [open, initialRepoPath, resumeContext]);
 
   // Load branches when repo changes
   useEffect(() => {
@@ -252,7 +276,12 @@ export function NewSessionDialog({
         if (cancelled) return;
         setBranches(res.branches);
         setCurrentBranch(res.current);
-        setSelectedBranch(res.current);
+        // Pre-select the resume branch if it exists in the list, otherwise current
+        const preferredBranch = resumeContext?.branch;
+        const initialBranch = preferredBranch && res.branches.includes(preferredBranch)
+          ? preferredBranch
+          : res.current;
+        setSelectedBranch(initialBranch);
         setIsLoadingBranches(false);
       })
       .catch(() => {
@@ -348,7 +377,7 @@ export function NewSessionDialog({
 
     // Validate worktree name if custom
     if (workspaceTarget === "new-worktree" && worktreeCustomName.trim()) {
-      if (!/^[a-zA-Z0-9_-]+$/.test(worktreeCustomName.trim())) {
+      if (!isValidWorktreeName(worktreeCustomName.trim())) {
         setWorktreeNameError("Only letters, numbers, dashes, and underscores.");
         return;
       }
@@ -390,6 +419,38 @@ export function NewSessionDialog({
         branchToUse = result.branch;
       }
 
+      /* ── Auto-switch Specify integration on the destination path ── */
+
+      const switchTargetPath = worktreePathToUse ?? selectedRepoPath;
+      if (specifyStatus?.hasSpecs && specifyStatus.currentAgent !== provider) {
+        await sendOrThrow({
+          type: "repo:specify-switch",
+          repoPath: switchTargetPath,
+          aiAgent: provider,
+        });
+
+        // Wait for the async switch to complete before creating the session
+        await new Promise<void>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            unsub();
+            reject(new Error("Specify switch timed out"));
+          }, 30_000);
+
+          const unsub = ipc.on("repo:onboard:complete", (msg) => {
+            if (msg.repoPath === switchTargetPath) {
+              clearTimeout(timeout);
+              unsub();
+              if (msg.success) {
+                setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
+                resolve();
+              } else {
+                reject(new Error(msg.error ?? "Specify switch failed"));
+              }
+            }
+          });
+        });
+      }
+
       /* ── Create the agent session ── */
 
       const session = await createSession(
@@ -399,6 +460,7 @@ export function NewSessionDialog({
           branch: branchToUse,
           worktreePath: worktreePathToUse,
           permissionMode: permissionMode as AIPermissionMode,
+          providerSessionId: resumeContext?.providerSessionId,
         },
         80,
         24,
@@ -420,6 +482,8 @@ export function NewSessionDialog({
     worktreeCustomName,
     providerPrefix,
     repoWorktrees,
+    specifyStatus,
+    resumeContext,
     createSession,
     onSessionCreated,
     onClose,
@@ -442,7 +506,7 @@ export function NewSessionDialog({
 
   return (
     <BaseDialog
-      title="New Session"
+      title={resumeContext ? "Resume Session" : "New Session"}
       width={680}
       scrollable
       minHeight="70vh"
@@ -452,19 +516,11 @@ export function NewSessionDialog({
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
           {/* Left: Specify integration status + switch */}
           <div style={{ flex: "1 1 auto", minWidth: 0 }}>
-            {specifyStatus && specifyStatus.hasSpecs && effectiveSpecifyPath && (
+            {specifyStatus && specifyStatus.hasSpecs && (
               <SpecifyFooterStatus
                 currentAgent={specifyStatus.currentAgent}
                 selectedProvider={provider}
                 hasSpecs={specifyStatus.hasSpecs}
-                repoPath={effectiveSpecifyPath}
-                autoSwitch
-                onSwitchComplete={() => {
-                  setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
-                  sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })
-                    .then((res) => setSpecifyStatus({ hasSpecs: res.hasSpecs, currentAgent: res.currentAgent }))
-                    .catch(() => {});
-                }}
               />
             )}
           </div>
@@ -475,9 +531,9 @@ export function NewSessionDialog({
               onClick={() => void handleConfirm()}
               disabled={!canCreate}
               loading={isCreating}
-              loadingText="Creating..."
+              loadingText={resumeContext ? "Resuming..." : "Creating..."}
             >
-              Create
+              {resumeContext ? "Resume" : "Create"}
             </PrimaryButton>
           </div>
         </div>

@@ -91,16 +91,6 @@ function AISessionListItemComponent({
           </>
         )}
 
-        {showStatus && (
-          <StatusBadge
-            text={statusText}
-            color={statusColor}
-            background={`${statusColor}12`}
-            borderColor={`${statusColor}40`}
-            style={{ flexShrink: 0 }}
-          />
-        )}
-
         <span
           style={{
             fontSize: 11,
@@ -112,6 +102,16 @@ function AISessionListItemComponent({
         >
           {timeDisplay}
         </span>
+
+        {showStatus && (
+          <StatusBadge
+            text={statusText}
+            color={statusColor}
+            background={`${statusColor}12`}
+            borderColor={`${statusColor}40`}
+            style={{ flexShrink: 0, minWidth: 80, textAlign: "center" }}
+          />
+        )}
       </ClickableRow>
 
       {contextMenu && (

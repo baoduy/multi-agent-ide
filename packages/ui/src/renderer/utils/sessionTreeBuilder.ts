@@ -58,6 +58,80 @@ export interface SessionGroupNode {
   latestTimestamp: number;
 }
 
+/**
+ * Filter session groups by a search query. Matches against repo name, branch
+ * names, session titles, slugs, and provider names. Returns only groups (and
+ * within them only branch groups / active sessions) that contain matches.
+ */
+export function filterSessionGroups(
+  groups: SessionGroupNode[],
+  query: string,
+): SessionGroupNode[] {
+  // Split query into individual words — every word must match somewhere
+  // in the searchable fields for a session to be considered a hit.
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return groups;
+
+  /** Check that every word appears in at least one of the given fields. */
+  function matchesAllWords(fields: (string | null | undefined)[]): boolean {
+    const haystack = fields.map((f) => (f ?? "").toLowerCase()).join(" ");
+    return words.every((w) => haystack.includes(w));
+  }
+
+  function matchesLive(s: AISessionRecord): boolean {
+    return matchesAllWords([s.title, s.repoName, s.branch, s.worktreeName, s.provider]);
+  }
+
+  function matchesSynced(s: SyncedSessionRecord): boolean {
+    return matchesAllWords([s.title, s.slug, s.gitBranch, s.provider, s.model]);
+  }
+
+  function matchesHistoryItem(item: HistoryItem): boolean {
+    return item.kind === "live" ? matchesLive(item.session) : matchesSynced(item.session);
+  }
+
+  const result: SessionGroupNode[] = [];
+
+  for (const group of groups) {
+    const groupNameMatches = matchesAllWords([group.name]);
+
+    // Filter active live sessions
+    const filteredActive = groupNameMatches
+      ? group.activeLiveSessions
+      : group.activeLiveSessions.filter(matchesLive);
+
+    // Filter branch groups
+    const filteredBranches: BranchGroup[] = [];
+    const filteredHistory: HistoryItem[] = [];
+
+    for (const bg of group.branchGroups) {
+      const branchNameMatches = groupNameMatches || matchesAllWords([group.name, bg.branchName]);
+      const matchingItems = branchNameMatches ? bg.items : bg.items.filter(matchesHistoryItem);
+      if (matchingItems.length > 0) {
+        filteredBranches.push({
+          branchName: bg.branchName,
+          items: matchingItems,
+          latestTimestamp: matchingItems[0]?.timestamp ?? 0,
+        });
+        filteredHistory.push(...matchingItems);
+      }
+    }
+
+    if (filteredActive.length > 0 || filteredBranches.length > 0) {
+      result.push({
+        ...group,
+        activeLiveSessions: filteredActive,
+        branchGroups: filteredBranches,
+        history: filteredHistory,
+        totalCount: filteredActive.length + filteredHistory.length,
+        activeCount: filteredActive.length,
+      });
+    }
+  }
+
+  return result;
+}
+
 /** Normalise path for matching (strip trailing slash) */
 function normalisePath(p: string): string {
   return p.replace(/\/+$/, "");

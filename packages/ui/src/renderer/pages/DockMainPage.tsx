@@ -139,6 +139,14 @@ export function DockMainPage(): React.ReactElement {
   const leftCollapsed = useLayoutStore((s) => s.layout.left.collapsed);
   const rightCollapsed = useLayoutStore((s) => s.layout.right.collapsed);
   const toggleRegionCollapse = useLayoutStore((s) => s.toggleRegionCollapse);
+  const setRegionCollapsed = useLayoutStore((s) => s.setRegionCollapsed);
+
+  // Active dock group — drives right sidebar visibility
+  const activeGroupId = useLayoutStore((s) => s.layout.activityBar.activeGroupId);
+  const activeGroup = useLayoutStore((s) =>
+    s.layout.activityBar.groups.find((g) => g.id === s.layout.activityBar.activeGroupId),
+  );
+  const hasRightSidebar = (activeGroup?.rightViewIds?.length ?? 0) > 0;
   const openTab = useLayoutStore((s) => s.openTab);
   const closeTab = useLayoutStore((s) => s.closeTab);
   const setActiveTab = useLayoutStore((s) => s.setActiveTab);
@@ -249,6 +257,32 @@ export function DockMainPage(): React.ReactElement {
       void fetchWorktreesIfNeeded(activeRepoPath);
     }
   }, [activeRepoPath, fetchWorktreesIfNeeded]);
+
+  // ── Auto-collapse/restore right sidebar when switching dock groups ──
+  const prevGroupIdRef = useRef(activeGroupId);
+  const savedRightCollapsed = useRef(rightCollapsed);
+  useEffect(() => {
+    if (prevGroupIdRef.current === activeGroupId) return;
+    const prevHadRight =
+      (useLayoutStore.getState().layout.activityBar.groups
+        .find((g) => g.id === prevGroupIdRef.current)?.rightViewIds?.length ?? 0) > 0;
+
+    // Save current right sidebar state when leaving a group that had a right sidebar
+    if (prevHadRight) {
+      savedRightCollapsed.current = useLayoutStore.getState().layout.right.collapsed;
+    }
+
+    prevGroupIdRef.current = activeGroupId;
+
+    if (!hasRightSidebar) {
+      // Entering a group with no right sidebar → collapse
+      setRegionCollapsed("right", true);
+    } else {
+      // Entering a group with a right sidebar → restore saved state
+      setRegionCollapsed("right", savedRightCollapsed.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroupId]);
 
   // ── Snapshot persistence on repo switch ──
   // Per-repo memory intentionally excludes the title bar tab — the active
@@ -439,7 +473,9 @@ export function DockMainPage(): React.ReactElement {
   const handleOpenAgentSession = useCallback(
     (session: AISessionRecord) => {
       const tabId = `agent-${session.id}`;
-      const title = session.title ?? session.repoName ?? `${session.provider} agent`;
+      // Use repo name as the base title so the branch label is the differentiator
+      const title = session.repoName ?? session.title ?? `${session.provider} agent`;
+      const branchLabel = session.worktreeName ?? session.branch ?? null;
       openTab("center", {
         tabId,
         viewId: "agent-session",
@@ -447,6 +483,7 @@ export function DockMainPage(): React.ReactElement {
           aiSessionId: session.id,
           aiProvider: session.provider,
           cwd: session.cwd,
+          branchLabel,
         },
         title,
       });
@@ -625,6 +662,9 @@ export function DockMainPage(): React.ReactElement {
       repoName,
       onOpenFile: handleOpenFile,
     },
+    "md-file-tree": {
+      onOpenFile: handleOpenFile,
+    },
     "ai-sessions": {
       repoPath: activeRepoPath ?? undefined,
       repoName,
@@ -663,7 +703,7 @@ export function DockMainPage(): React.ReactElement {
           <TitleBar
             sidebarCollapsed={leftCollapsed}
             activityCollapsed={rightCollapsed}
-            hasActivity={true}
+            hasActivity={hasRightSidebar}
             onToggleSidebar={handleToggleSidebar}
             onToggleActivity={handleToggleActivity}
             canGoBack={nav.canGoBack}

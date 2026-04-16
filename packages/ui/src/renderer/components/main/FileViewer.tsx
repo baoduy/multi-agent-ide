@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, FileCode, Copy, Check, Clipboard, CheckCircle, GitBranch } from "lucide-react";
+import { Eye, FileCode, Copy, Check, Clipboard, CheckCircle, GitBranch, Save } from "lucide-react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import rehypeSlug from "rehype-slug";
 
 import { ipc } from "../../utils/ipc";
+import { sendOrThrow } from "../../services/ipcClient";
 import { ScrollableText } from "../common/ScrollableText";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 import { useWorktreeStore } from "../../store/worktreeStore";
@@ -880,20 +881,91 @@ function ApproveButton({
 }
 
 /* ═══════════════════════════════════════════════════════
-   Raw markdown view with line numbers
+   Editable raw markdown view with line numbers
    ═══════════════════════════════════════════════════════ */
 
-function RawMarkdownView({ content }: { content: string }): React.ReactElement {
-  const lines = content.split("\n");
+function EditableRawView({
+  content,
+  onChange,
+  onBlur,
+  readOnly,
+}: {
+  content: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  readOnly: boolean;
+}): React.ReactElement {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const gutterRef = useRef<HTMLDivElement>(null);
+  const lineCount = content.split("\n").length;
+
+  // Sync gutter scroll with textarea scroll
+  const handleScroll = useCallback(() => {
+    if (textareaRef.current && gutterRef.current) {
+      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
+    }
+  }, []);
+
+  // Handle Tab key for indentation
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (readOnly) return;
+      if (e.key === "Tab") {
+        e.preventDefault();
+        const ta = e.currentTarget;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const value = ta.value;
+        const newValue = value.substring(0, start) + "  " + value.substring(end);
+        onChange(newValue);
+        // Restore cursor position after React re-render
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = start + 2;
+        });
+      }
+    },
+    [readOnly, onChange],
+  );
 
   return (
-    <div className="md-raw-viewer">
-      <div className="md-raw-gutter">
-        {lines.map((_, i) => (
+    <div className="md-raw-viewer" style={{ position: "relative" }}>
+      <div
+        ref={gutterRef}
+        className="md-raw-gutter"
+        style={{ overflow: "hidden", pointerEvents: "none" }}
+      >
+        {Array.from({ length: lineCount }, (_, i) => (
           <div key={i}>{i + 1}</div>
         ))}
       </div>
-      <div className="md-raw-content">{content}</div>
+      <textarea
+        ref={textareaRef}
+        className="md-raw-content"
+        value={content}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        onScroll={handleScroll}
+        onKeyDown={handleKeyDown}
+        readOnly={readOnly}
+        spellCheck={false}
+        style={{
+          flex: 1,
+          resize: "none",
+          border: "none",
+          outline: "none",
+          background: "transparent",
+          color: "inherit",
+          font: "inherit",
+          lineHeight: "inherit",
+          padding: "inherit",
+          margin: 0,
+          whiteSpace: "pre",
+          overflowX: "auto",
+          overflowY: "auto",
+          tabSize: 2,
+          cursor: readOnly ? "default" : "text",
+        }}
+      />
     </div>
   );
 }
@@ -908,20 +980,64 @@ type FileViewerProps = {
   repoPath?: string;
 };
 
+type SaveStatus = "idle" | "saving" | "saved";
+
 export function FileViewer({ filePath, repoPath }: FileViewerProps): React.ReactElement {
   const [content, setContent] = useState<string | null>(null);
+  const [editedContent, setEditedContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const contentRef = useRef<HTMLDivElement>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const isGitRef = isGitRefPath(filePath);
+  const canEdit = !isGitRef && isMarkdownFile(filePath);
+  const isDirty = canEdit && editedContent !== null && editedContent !== content;
 
+  // Save edited content to disk
+  const save = useCallback(async () => {
+    if (!isDirty || editedContent === null) return;
+    setSaveStatus("saving");
+    try {
+      await sendOrThrow({ type: "file:write", filePath, content: editedContent });
+      setContent(editedContent);
+      setSaveStatus("saved");
+      // Clear "saved" indicator after a short delay
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
+    } catch {
+      setSaveStatus("idle");
+    }
+  }, [isDirty, editedContent, filePath]);
+
+  // Auto-save when switching from raw to preview
+  const handleViewModeChange = useCallback(
+    (mode: ViewMode) => {
+      if (mode === "preview" && isDirty) {
+        void save();
+      }
+      setViewMode(mode);
+    },
+    [isDirty, save],
+  );
+
+  // Auto-save on editor blur
+  const handleEditorBlur = useCallback(() => {
+    if (isDirty) {
+      void save();
+    }
+  }, [isDirty, save]);
+
+  // Load file content
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
     setContent(null);
+    setEditedContent(null);
+    setSaveStatus("idle");
 
     void (async () => {
       const gitRef = parseGitRef(filePath);
@@ -942,6 +1058,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
       if (response.type === "file:read:result" || response.type === "gitfile:read:result") {
         setContent(response.content);
+        setEditedContent(response.content);
         setLoading(false);
       } else if (response.type === "error") {
         setError(response.message);
@@ -954,16 +1071,22 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
     };
   }, [filePath, repoPath]);
 
+  // Cleanup save timer
+  useEffect(() => () => clearTimeout(saveTimerRef.current), []);
+
+  // The content to display — use editedContent if available (for live preview after edits)
+  const displayContent = editedContent ?? content;
+
   // Extract headings for Table of Contents
   const headings = useMemo(() => {
-    if (!content) return [];
-    return extractHeadings(content);
-  }, [content]);
+    if (!displayContent) return [];
+    return extractHeadings(displayContent);
+  }, [displayContent]);
 
   // Track which heading is currently in view
   const activeHeadingId = useActiveHeading(contentRef, headings, viewMode);
 
-  const isMd = content !== null && isMarkdownFile(filePath);
+  const isMd = displayContent !== null && isMarkdownFile(filePath);
   const showToc = isMd && viewMode === "preview" && headings.length > 1;
 
   if (loading) {
@@ -993,7 +1116,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
     );
   }
 
-  if (content === null) return <div />;
+  if (displayContent === null) return <div />;
 
   return (
     <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -1010,9 +1133,23 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: 11, color: colors.textTertiary, fontWeight: 500 }}>
-            {getFileName(filePath)}
-          </span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 11, color: colors.textTertiary, fontWeight: 500 }}>
+              {getFileName(filePath)}
+            </span>
+            {/* Save status indicator */}
+            {canEdit && saveStatus === "saving" && (
+              <span style={{ fontSize: 10, color: colors.textTertiary }}>Saving...</span>
+            )}
+            {canEdit && saveStatus === "saved" && (
+              <span style={{ fontSize: 10, color: colors.success, display: "flex", alignItems: "center", gap: 3 }}>
+                <Check size={10} /> Saved
+              </span>
+            )}
+            {canEdit && isDirty && saveStatus === "idle" && (
+              <span style={{ fontSize: 10, color: colors.warningText }}>Unsaved</span>
+            )}
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {isGitRef && (
               <span
@@ -1025,16 +1162,19 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                   borderRadius: 4,
                 }}
               >
-                remote branch
+                read-only
               </span>
             )}
-            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
-            <CopyContentButton content={content} />
+            <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
+            <CopyContentButton content={displayContent} />
             <ApproveButton
               filePath={filePath}
-              content={content}
+              content={displayContent}
               repoPath={repoPath}
-              onApproved={(newContent) => setContent(newContent)}
+              onApproved={(newContent) => {
+                setContent(newContent);
+                setEditedContent(newContent);
+              }}
             />
           </div>
         </div>
@@ -1055,7 +1195,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                   rehypePlugins={rehypePlugins}
                   components={markdownComponents}
                 >
-                  {content}
+                  {displayContent}
                 </ReactMarkdown>
               </div>
 
@@ -1069,7 +1209,12 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
               )}
             </div>
           ) : (
-            <RawMarkdownView content={content} />
+            <EditableRawView
+              content={editedContent ?? displayContent}
+              onChange={setEditedContent}
+              onBlur={handleEditorBlur}
+              readOnly={!canEdit}
+            />
           )
         ) : (
           <pre
@@ -1085,7 +1230,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
               wordBreak: "break-word",
             }}
           >
-            {content}
+            {displayContent}
           </pre>
         )}
       </div>

@@ -31,6 +31,10 @@
     "./syncedSession": {
       "types": "./dist/syncedSession.d.ts",
       "default": "./dist/syncedSession.js"
+    },
+    "./sanitize": {
+      "types": "./dist/sanitize.d.ts",
+      "default": "./dist/sanitize.js"
     }
   },
   "scripts": {

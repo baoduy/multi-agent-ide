@@ -64,6 +64,8 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("spec:list"), repoPath: z.string() }),
   z.object({ type: z.literal("file:read"), filePath: z.string() }),
   z.object({ type: z.literal("file:write"), filePath: z.string(), content: z.string() }),
+  z.object({ type: z.literal("file:delete"), filePath: z.string() }),
+  z.object({ type: z.literal("file:rename"), oldPath: z.string(), newPath: z.string() }),
   z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
   // NOTE: session:get / session:update removed — session state now persisted in localStorage
   z.object({ type: z.literal("config:get") }),
@@ -154,6 +156,12 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     files: z.array(z.string()),
     push: z.boolean().optional(),
   }),
+  z.object({
+    type: z.literal("git:ls-files"),
+    repoPath: z.string(),
+    pattern: z.string().min(1).max(200),
+    ref: z.string().min(1).max(200).regex(/^[A-Za-z0-9._/\-]+$/, "ref contains invalid characters").optional(),
+  }),
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -187,6 +195,8 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("config:updated"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("file:read:result"), filePath: z.string(), content: z.string() }),
   z.object({ type: z.literal("file:write:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("file:delete:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("file:rename:result"), oldPath: z.string(), newPath: z.string(), success: z.boolean() }),
   z.object({
     type: z.literal("dir:list:result"),
     dirPath: z.string(),
@@ -319,6 +329,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     pushed: z.boolean(),
     message: z.string(),
   }),
+  z.object({ type: z.literal("git:ls-files:result"), repoPath: z.string(), files: z.array(z.string()) }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

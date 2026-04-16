@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GitBranch, GitFork } from "lucide-react";
 
+import { isValidBranchName, isValidWorktreeName, sanitizeWorktreeName } from "@magenta/shared/sanitize";
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useRepoStore } from "../../store/repoStore";
@@ -30,23 +31,7 @@ type Props = {
   onClose: () => void;
 };
 
-/* ── Validation ── */
-
-/** Legal git branch name (simplified — rejects spaces, ~, ^, :, \, .., trailing ., leading -) */
-function isValidBranchName(name: string): boolean {
-  if (!name) return false;
-  return /^[a-zA-Z0-9][a-zA-Z0-9._/-]*[a-zA-Z0-9]$/.test(name) && !name.includes("..");
-}
-
-/** Worktree name is a directory name — stricter. */
-function isValidWorktreeName(name: string): boolean {
-  return /^[a-zA-Z0-9_-]+$/.test(name);
-}
-
-/** Sanitize a branch name into a directory-safe worktree name. */
-function deriveWorktreeName(branch: string): string {
-  return branch.replace(/[^a-zA-Z0-9_-]/g, "-");
-}
+/* ── Validation (imported from @magenta/shared/sanitize) ── */
 
 /* ── Component ── */
 
@@ -106,7 +91,7 @@ export function CreateBranchOrWorktreeDialog({
   const handleBaseBranchChange = useCallback((b: string) => {
     setBaseBranch(b);
     setCreateError(null);
-    if (!isBranch) setName((prev) => (prev === "" ? deriveWorktreeName(b) : prev));
+    if (!isBranch) setName((prev) => (prev === "" ? sanitizeWorktreeName(b) : prev));
   }, [isBranch]);
 
   // Per-kind validation

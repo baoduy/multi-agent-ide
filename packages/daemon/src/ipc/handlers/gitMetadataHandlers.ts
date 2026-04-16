@@ -1,5 +1,6 @@
 import type { IPCBridge } from "../IPCBridge";
 import type { SpecApplicationService } from "../../application/SpecApplicationService";
+import type { SpecGitGateway } from "../../infrastructure/SpecGitGateway";
 import { safeHandle } from "../createHandler";
 
 /**
@@ -16,9 +17,10 @@ import { safeHandle } from "../createHandler";
 type GitMetadataHandlerContext = {
   bridge: IPCBridge;
   specService: SpecApplicationService;
+  specGitGateway: SpecGitGateway;
 };
 
-export function registerGitMetadataHandlers({ bridge, specService }: GitMetadataHandlerContext): void {
+export function registerGitMetadataHandlers({ bridge, specService, specGitGateway }: GitMetadataHandlerContext): void {
   safeHandle(bridge, "git:user", async (msg) => {
     const { name, email } = await specService.getGitUser(msg.repoPath);
     return { type: "git:user:result", name, email };
@@ -31,5 +33,10 @@ export function registerGitMetadataHandlers({ bridge, specService }: GitMetadata
       filePath: `gitref://${msg.ref}/${msg.relativePath}`,
       content,
     };
+  });
+
+  safeHandle(bridge, "git:ls-files", async (msg) => {
+    const files = await specGitGateway.listFilesByPattern(msg.repoPath, msg.pattern, msg.ref);
+    return { type: "git:ls-files:result", repoPath: msg.repoPath, files };
   });
 }

@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Search, X } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
 import { useRepoStore } from "../../store/repoStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
+import { filterSessionGroups } from "../../utils/sessionTreeBuilder";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
 import { colors } from "../../utils/colors";
 import { resolveWorktreeParent } from "../../utils/formatters";
@@ -55,9 +56,16 @@ export function AISessionsView({
   // Repos from the database (for matching session dirs to repos)
   const repos = useRepoStore((s) => s.repos);
   const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
+  const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
 
+  const [searchQuery, setSearchQuery] = useState("");
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
   const [newSessionRepoPath, setNewSessionRepoPath] = useState<string | undefined>(repoPath);
+  const [resumeContext, setResumeContext] = useState<{
+    providerSessionId: string;
+    provider: "claude" | "copilot";
+    branch?: string;
+  } | undefined>(undefined);
 
   // Guard: only trigger the first-launch sync once per mount lifetime
   const hasTriggeredInitialSync = useRef(false);
@@ -110,16 +118,19 @@ export function AISessionsView({
 
   const handleNewSession = useCallback(() => {
     setNewSessionRepoPath(repoPath);
+    setResumeContext(undefined);
     setNewSessionDialogOpen(true);
   }, [repoPath]);
 
   const handleCloseDialog = useCallback(() => {
     setNewSessionDialogOpen(false);
     setNewSessionRepoPath(repoPath);
+    setResumeContext(undefined);
   }, [repoPath]);
 
   const handleCreateSessionForRepo = useCallback((targetRepoPath: string) => {
     setNewSessionRepoPath(targetRepoPath);
+    setResumeContext(undefined);
     setNewSessionDialogOpen(true);
   }, []);
 
@@ -207,19 +218,16 @@ export function AISessionsView({
             repoPath: resolvedRepoPath,
           });
           if (!check.valid) {
-            const shouldRecreate = window.confirm(
-              `The worktree "${check.worktreeName}" no longer exists under ${check.repoPath}.\n\n` +
-              `Would you like to re-create it and resume the session?`,
-            );
-            if (!shouldRecreate) return;
-
-            // Re-create the worktree with the same name and branch
-            await sendOrThrow({
-              type: "worktree:create",
-              repoPath: check.repoPath,
-              branch: syncedSession.gitBranch || "main",
-              name: check.worktreeName,
+            // Worktree is missing — open the dialog so the user can pick
+            // a new or existing branch/worktree to resume into.
+            setNewSessionRepoPath(check.repoPath);
+            setResumeContext({
+              providerSessionId: syncedSession.sessionId,
+              provider,
+              branch: syncedSession.gitBranch ?? undefined,
             });
+            setNewSessionDialogOpen(true);
+            return;
           }
         } catch (err) {
           console.error("[AISessionsView] Worktree check failed:", err);
@@ -248,7 +256,24 @@ export function AISessionsView({
 
   // Build unified groups: merge live sessions + synced history, grouped by repo/dir.
   const unifiedGroups = useMemo(() => {
-    const groups = buildUnifiedGroups(sessions, syncedGroups, repos);
+    let groups = buildUnifiedGroups(sessions, syncedGroups, repos);
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      groups = filterSessionGroups(groups, searchQuery.trim());
+    }
+
+    // Sort pinned repos to top (after any active-repo hoisting below)
+    if (pinnedPaths.size > 0) {
+      groups = [...groups].sort((a, b) => {
+        const aPinned = a.repo ? pinnedPaths.has(a.repo.path) : false;
+        const bPinned = b.repo ? pinnedPaths.has(b.repo.path) : false;
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+        return 0; // preserve existing order within same pin status
+      });
+    }
+
     if (!activeRepoPath) return groups;
     const idx = groups.findIndex((g) => g.repo?.path === activeRepoPath || g.path === activeRepoPath);
     if (idx <= 0) return groups;
@@ -256,7 +281,7 @@ export function AISessionsView({
     const [active] = reordered.splice(idx, 1);
     reordered.unshift(active);
     return reordered;
-  }, [sessions, syncedGroups, repos, activeRepoPath]);
+  }, [sessions, syncedGroups, repos, activeRepoPath, searchQuery, pinnedPaths]);
 
   return (
     <div
@@ -266,17 +291,69 @@ export function AISessionsView({
         height: "100%",
       }}
     >
-      {/* Toolbar — refresh re-syncs Claude + Copilot sessions from disk */}
+      {/* Toolbar — search + refresh */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "flex-end",
-          padding: "8px 8px",
+          gap: 6,
+          padding: "6px 8px",
           borderBottom: `1px solid ${colors.border}`,
           flexShrink: 0,
         }}
       >
+        {/* Search input */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "3px 8px",
+            borderRadius: 4,
+            border: `1px solid ${colors.border}`,
+            background: colors.bgMuted,
+          }}
+        >
+          <Search size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+          <input
+            type="text"
+            placeholder="Search sessions…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 12,
+              color: colors.text,
+              padding: 0,
+              lineHeight: "18px",
+            }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                padding: 0,
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: colors.textTertiary,
+                flexShrink: 0,
+              }}
+              aria-label="Clear search"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* Refresh button */}
         <button
           type="button"
           onClick={handleRefresh}
@@ -294,6 +371,7 @@ export function AISessionsView({
             border: `1px solid ${colors.border}`,
             borderRadius: 4,
             cursor: isRefreshing ? "default" : "pointer",
+            flexShrink: 0,
           }}
         >
           <RefreshCw
@@ -318,8 +396,9 @@ export function AISessionsView({
             <SessionGroupNodeView
               key={node.key}
               node={node}
-              defaultExpanded={node.activeCount > 0 || unifiedGroups.length <= 3}
+              defaultExpanded={!!searchQuery.trim() || node.activeCount > 0 || unifiedGroups.length <= 3}
               activeRepoPath={activeRepoPath}
+              forceExpandBranches={!!searchQuery.trim()}
               onSelectSession={handleSelectSession}
               onResumeSession={handleResumeSession}
               onDeleteSession={handleDeleteSession}
@@ -327,6 +406,22 @@ export function AISessionsView({
               onCreateSession={handleCreateSessionForRepo}
             />
           ))
+        ) : searchQuery.trim() ? (
+          /* No search results */
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flex: 1,
+              padding: 12,
+              textAlign: "center",
+              color: colors.textTertiary,
+              fontSize: 12,
+            }}
+          >
+            No sessions matching &ldquo;{searchQuery.trim()}&rdquo;
+          </div>
         ) : (
           /* Empty state */
           !syncedIsLoading && (
@@ -372,6 +467,7 @@ export function AISessionsView({
         onSessionCreated={handleSessionCreated}
         repoPath={newSessionRepoPath}
         repoName={repoName}
+        resumeContext={resumeContext}
       />
     </div>
   );

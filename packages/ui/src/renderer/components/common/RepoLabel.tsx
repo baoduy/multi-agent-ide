@@ -1,9 +1,14 @@
 import React from "react";
 import { FolderGit2, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
+import { useRepoStore } from "../../store/repoStore";
 import { type LabelSize, type LabelVariant, sizeMap, boxedIconMap } from "./labelConstants";
 import { ScrollableText } from "./ScrollableText";
 import { Tag } from "./Tag";
+
+/* ── Pinned star (Unicode ★) ── */
+
+const PINNED_STAR = "\u2605";
 
 /* ══════════════════════════════════════════
  * RepoLabel — folder-git icon + repository name
@@ -22,6 +27,8 @@ type RepoLabelProps = {
   size?: LabelSize;
   /** Render the icon inside a rounded muted-background box. Default: false */
   boxed?: boolean;
+  /** When provided, auto-shows a pinned ★ star after the name if this repo is pinned. */
+  repoPath?: string;
   /** Optional content rendered as a second line below the name (badges, branch). */
   children?: React.ReactNode;
   /** Extra inline styles on the outer element */
@@ -32,10 +39,12 @@ function RepoLabelComponent({
   name,
   size = "sm",
   boxed = false,
+  repoPath,
   children,
   style,
 }: RepoLabelProps): React.ReactElement {
-  const s = sizeMap[size];
+  const isPinned = useRepoStore((s) => repoPath ? s.pinnedPaths.has(repoPath) : false);
+  const sz = sizeMap[size];
   const b = boxedIconMap[size];
 
   const iconNode = boxed ? (
@@ -53,7 +62,7 @@ function RepoLabelComponent({
     </span>
   ) : (
     <FolderGit2
-      size={s.icon}
+      size={sz.icon}
       color={colors.textSecondary}
       strokeWidth={1.8}
       style={{ flexShrink: 0 }}
@@ -63,12 +72,17 @@ function RepoLabelComponent({
   const nameNode = (
     <ScrollableText
       style={{
-        fontSize: s.font,
+        fontSize: sz.font,
         fontWeight: 600,
         color: colors.text,
       }}
     >
       {name}
+      {isPinned && (
+        <span style={{ color: colors.primary, fontSize: sz.font - 2, marginLeft: 4 }}>
+          {PINNED_STAR}
+        </span>
+      )}
     </ScrollableText>
   );
 
@@ -79,7 +93,7 @@ function RepoLabelComponent({
         style={{
           display: "inline-flex",
           alignItems: "center",
-          gap: boxed ? 10 : s.gap,
+          gap: boxed ? 10 : sz.gap,
           minWidth: 0,
           ...style,
         }}
@@ -110,7 +124,7 @@ function RepoLabelComponent({
       style={{
         display: "inline-flex",
         alignItems: "center",
-        gap: boxed ? 10 : s.gap,
+        gap: boxed ? 10 : sz.gap,
         minWidth: 0,
         ...style,
       }}

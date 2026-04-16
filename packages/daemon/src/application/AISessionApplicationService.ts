@@ -6,6 +6,7 @@ import path from "node:path";
 
 import type { AIProvider, AISessionRecord, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
 import { parseWorkspaceYaml } from "../domain/copilotSessionParser";
+import { extractTitleFromContent } from "../domain/claudeSessionParser";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import { buildAllowlist, resolveAndAssert, type PathAllowlistProvider } from "../domain/pathGuard";
 import { resolveSessionCwd } from "../domain/sessionCwdResolver";
@@ -423,7 +424,18 @@ export class AISessionApplicationService {
       }
 
       if (match) {
-        const updated: AISessionRecord = { ...current, providerSessionId: match.sessionId };
+        // Extract title from workspace.yaml summary field.
+        let title: string | null = null;
+        try {
+          const yamlPath = path.join(stateDir, match.sessionId, "workspace.yaml");
+          const content = readFileSync(yamlPath, "utf-8");
+          const ws = parseWorkspaceYaml(content);
+          title = ws.summary ?? null;
+        } catch {
+          // workspace.yaml may not have a summary — title stays null
+        }
+
+        const updated: AISessionRecord = { ...current, providerSessionId: match.sessionId, title };
         this.records.set(liveId, updated);
         // Mirror the live runtime status onto the broadcast record so the
         // UI doesn't briefly flip back to "idle" after the dedup runs.
@@ -432,6 +444,9 @@ export class AISessionApplicationService {
           type: "ai-session:updated",
           session: { ...updated, status: liveRuntime ? liveRuntime.getStatus() : updated.status },
         });
+        if (title) {
+          this.bridge.emit({ type: "ai-session:title", sessionId: liveId, title });
+        }
         return;
       }
 
@@ -518,9 +533,36 @@ export class AISessionApplicationService {
       }
 
       if (match) {
+        // Extract title from the JSONL file's first user message.
+        let title: string | null = null;
+        try {
+          const jsonlPath = path.join(projectDir, `${match.sessionId}.jsonl`);
+          const raw = readFileSync(jsonlPath, "utf-8");
+          for (const line of raw.split("\n")) {
+            if (!line.trim()) continue;
+            try {
+              const event = JSON.parse(line) as Record<string, unknown>;
+              if (event.type !== "user") continue;
+              const message = event.message as Record<string, unknown> | undefined;
+              if (message) {
+                const content = message.content;
+                if (typeof content === "string") {
+                  title = extractTitleFromContent(content);
+                }
+              }
+              break; // Only inspect the first user message
+            } catch {
+              // Skip malformed lines
+            }
+          }
+        } catch {
+          // JSONL may not be readable yet — title stays null
+        }
+
         const updated: AISessionRecord = {
           ...current,
           providerSessionId: match.sessionId,
+          title,
         };
         this.records.set(liveId, updated);
         const liveRuntime = this.liveSessions.get(liveId);
@@ -531,6 +573,9 @@ export class AISessionApplicationService {
             status: liveRuntime ? liveRuntime.getStatus() : updated.status,
           },
         });
+        if (title) {
+          this.bridge.emit({ type: "ai-session:title", sessionId: liveId, title });
+        }
         return;
       }
 

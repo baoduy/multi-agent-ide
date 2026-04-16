@@ -1,4 +1,5 @@
 import type { GitOperationsGateway, GitStatusResult } from "../infrastructure/GitOperationsGateway";
+import { sanitizeGitName } from "@magenta/shared/sanitize";
 import { AppError } from "../errors/AppError";
 import { requireNonEmpty } from "../errors/validation";
 import { wrapErrorAsync } from "../errors/wrapError";
@@ -13,8 +14,14 @@ export class GitApplicationService {
   async createBranch(repoPath: string, branchName: string, startPoint?: string): Promise<{ success: boolean }> {
     requireNonEmpty(repoPath, "repoPath");
     requireNonEmpty(branchName, "branchName");
+
+    const safeName = sanitizeGitName(branchName);
+    if (!safeName) {
+      throw new AppError("VALIDATION_ERROR", "Invalid branch name after sanitization");
+    }
+
     return wrapErrorAsync(async () => {
-      await this.gitOps.createBranch(repoPath, branchName, startPoint);
+      await this.gitOps.createBranch(repoPath, safeName, startPoint);
       return { success: true };
     }, "GIT_ERROR", "create branch");
   }

@@ -112,7 +112,13 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
           <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
         )}
 
-        <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+        <RepoLabel
+          name={repo.name}
+          repoPath={repo.path}
+          size="md"
+          boxed
+          style={{ flex: 1, minWidth: 0 }}
+        >
           <Tag tone={badge.tone} size="xs" fontWeight={500}>
             {badge.label}
           </Tag>

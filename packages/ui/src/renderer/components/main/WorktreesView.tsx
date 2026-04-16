@@ -240,6 +240,7 @@ const RepoGroup = React.memo(function RepoGroup({
         />
         <RepoLabel
           name={repoName}
+          repoPath={repoPath}
           size="sm"
           style={{ color: isActive ? colors.primary : colors.textMuted }}
         />
@@ -451,6 +452,7 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <RepoLabel
                         name={r.name}
+                        repoPath={r.path}
                         size="sm"
                         style={{
                           color: isActive ? colors.primary : colors.textStrong,

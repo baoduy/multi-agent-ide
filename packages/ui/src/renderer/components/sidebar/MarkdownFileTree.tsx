@@ -219,13 +219,15 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
     const pinned: DoublePickerOption<string>[] = [];
     const unpinned: DoublePickerOption<string>[] = [];
     for (const r of repos) {
+      const isPinned = pinnedPaths.has(r.path);
       const opt: DoublePickerOption<string> = {
         value: r.path,
         label: r.name,
         description: r.path,
         icon: <FolderGit2 size={14} color={colors.textTertiary} />,
+        suffix: isPinned ? <span style={{ color: colors.primary, fontSize: 10 }}>{"\u2605"}</span> : undefined,
       };
-      if (pinnedPaths.has(r.path)) {
+      if (isPinned) {
         pinned.push(opt);
       } else {
         unpinned.push(opt);

@@ -56,6 +56,7 @@ export function AISessionsView({
   // Repos from the database (for matching session dirs to repos)
   const repos = useRepoStore((s) => s.repos);
   const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
+  const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
@@ -262,6 +263,17 @@ export function AISessionsView({
       groups = filterSessionGroups(groups, searchQuery.trim());
     }
 
+    // Sort pinned repos to top (after any active-repo hoisting below)
+    if (pinnedPaths.size > 0) {
+      groups = [...groups].sort((a, b) => {
+        const aPinned = a.repo ? pinnedPaths.has(a.repo.path) : false;
+        const bPinned = b.repo ? pinnedPaths.has(b.repo.path) : false;
+        if (aPinned && !bPinned) return -1;
+        if (!aPinned && bPinned) return 1;
+        return 0; // preserve existing order within same pin status
+      });
+    }
+
     if (!activeRepoPath) return groups;
     const idx = groups.findIndex((g) => g.repo?.path === activeRepoPath || g.path === activeRepoPath);
     if (idx <= 0) return groups;
@@ -269,7 +281,7 @@ export function AISessionsView({
     const [active] = reordered.splice(idx, 1);
     reordered.unshift(active);
     return reordered;
-  }, [sessions, syncedGroups, repos, activeRepoPath, searchQuery]);
+  }, [sessions, syncedGroups, repos, activeRepoPath, searchQuery, pinnedPaths]);
 
   return (
     <div

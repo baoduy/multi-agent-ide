@@ -62,6 +62,7 @@ export function NewSessionDialog({
 }: NewSessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
   const repos = useRepoStore((s) => s.repos);
+  const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
   const worktrees = useWorktreeStore((s) => s.worktrees);
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
@@ -100,17 +101,27 @@ export function NewSessionDialog({
 
   /* ── Derived values ── */
 
-  /** Repo dropdown options for the DoublePicker. */
-  const repoOptions = useMemo(
-    (): readonly DoublePickerOption<string>[] =>
-      repos.map((r) => ({
+  /** Repo dropdown options for the DoublePicker — pinned repos first with star icon. */
+  const repoOptions = useMemo((): readonly DoublePickerOption<string>[] => {
+    const pinned: DoublePickerOption<string>[] = [];
+    const unpinned: DoublePickerOption<string>[] = [];
+    for (const r of repos) {
+      const isPinned = pinnedPaths.has(r.path);
+      const opt: DoublePickerOption<string> = {
         value: r.path,
         label: r.name,
         description: r.path,
         icon: <FolderGit2 size={14} color={colors.textTertiary} />,
-      })),
-    [repos],
-  );
+        suffix: isPinned ? <span style={{ color: colors.primary, fontSize: 10 }}>{"\u2605"}</span> : undefined,
+      };
+      if (isPinned) {
+        pinned.push(opt);
+      } else {
+        unpinned.push(opt);
+      }
+    }
+    return [...pinned, ...unpinned];
+  }, [repos, pinnedPaths]);
 
   const repoWorktrees = useMemo(
     () =>

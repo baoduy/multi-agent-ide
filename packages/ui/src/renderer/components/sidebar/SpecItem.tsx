@@ -17,7 +17,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
     <ClickableRow
       onClick={() => onSelect(spec.path)}
       selected={isSelected}
-      padding="4px 12px"
+      padding="7px 14px"
       justifyContent="space-between"
       defaultBackground="transparent"
       hoverBackground={colors.bgCodeInline}
@@ -27,7 +27,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
     >
       <ScrollableText
         style={{
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: isSelected ? 500 : 400,
           color: colors.textStrong,
           flex: 1,

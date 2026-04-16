@@ -54,6 +54,13 @@ export type TagTone =
 export type TagSize = "xs" | "sm" | "md" | "lg";
 
 type TagPalette = { bg: string; text: string; border?: string };
+// Keep non-critical repository/branch chips visually quiet to avoid
+// distracting from code content in primary views.
+const subtlePalette: TagPalette = {
+  bg: colors.bgMuted,
+  text: colors.textTertiary,
+  border: colors.borderLight,
+};
 
 /**
  * Central tone → palette map. Keep this the single source of truth so
@@ -83,9 +90,9 @@ const tonePalettes: Record<TagTone, TagPalette> = {
     border: colors.errorSoftBorder,
   },
   primary: { bg: colors.bgPanelSoft, text: colors.primary },
-  branch: { bg: colors.bgMuted, text: colors.textTertiary, border: colors.borderLight },
-  spec: { bg: colors.bgMuted, text: colors.textTertiary, border: colors.borderLight },
-  active: { bg: colors.bgMuted, text: colors.textTertiary, border: colors.borderLight },
+  branch: subtlePalette,
+  spec: subtlePalette,
+  active: subtlePalette,
   missing: { bg: colors.repoBadgeMissingBg, text: colors.repoBadgeMissingFg },
 };
 

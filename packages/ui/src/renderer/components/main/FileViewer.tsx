@@ -990,7 +990,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const contentRef = useRef<HTMLDivElement>(null);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const isGitRef = isGitRefPath(filePath);
   const canEdit = !isGitRef && isMarkdownFile(filePath);

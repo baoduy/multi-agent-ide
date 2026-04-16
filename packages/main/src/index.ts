@@ -293,11 +293,11 @@ function registerIpcHandler() {
     // Try the `code` CLI first — it correctly opens folders as workspaces
     // (the `vscode://file/<path>` URL scheme opens folders as single-file
     // previews in some builds, which is not what users expect).
-    //   -r  reuse the frontmost VS Code window if one is open
+    //   -n  open a new VS Code window (avoids hijacking an existing project)
     const tryCli = (): Promise<boolean> =>
       new Promise((resolve) => {
         try {
-          const child = spawn("code", ["-r", targetPath], {
+          const child = spawn("code", ["-n", targetPath], {
             detached: true,
             stdio: "ignore",
             // On Windows `code` is a .cmd shim; shell:true lets Node resolve it.

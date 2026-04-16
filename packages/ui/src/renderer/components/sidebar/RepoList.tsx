@@ -54,18 +54,18 @@ export function RepoList(): React.ReactElement {
   return (
     <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {error ? (
-        <div style={{ color: colors.errorDark, padding: "6px 16px", fontSize: 12, background: colors.errorSoft }}>
+        <div style={{ color: colors.errorDark, padding: "4px 10px", fontSize: 11, background: colors.errorSoft }}>
           {error}
         </div>
       ) : null}
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {repos.length === 0 ? (
-          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 16px" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "6px 10px" }}>
             No repositories found.
           </div>
         ) : filteredRepos.length === 0 ? (
-          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 16px" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "6px 10px" }}>
             No matches for &ldquo;{searchQuery}&rdquo;
           </div>
         ) : (

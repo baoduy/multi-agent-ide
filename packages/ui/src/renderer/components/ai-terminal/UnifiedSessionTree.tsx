@@ -22,6 +22,7 @@ import { formatRelativeTime, formatTokens } from "../../utils/formatters";
 import { openInVscode, pathExists } from "../../utils/ipc";
 import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
+import { Tag } from "../common/Tag";
 import type { SessionGroupNode } from "../../utils/sessionTreeBuilder";
 export { buildUnifiedGroups, type SessionGroupNode } from "../../utils/sessionTreeBuilder";
 
@@ -97,55 +98,23 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
       )}
 
       <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-        <span
-          style={{
-            display: "inline-block",
-            padding: "1px 6px",
-            borderRadius: 3,
-            fontSize: 9,
-            fontWeight: 500,
-            background: badge.bg,
-            color: badge.color,
-            lineHeight: "16px",
-          }}
-        >
+        <Tag tone={badge.tone} size="xs" fontWeight={500}>
           {badge.label}
-        </span>
+        </Tag>
         <BranchLabel name={repo.branch} size="xs" />
       </RepoLabel>
 
       {/* Active indicator */}
       {activeCount > 0 && (
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 700,
-            color: colors.success,
-            padding: "1px 5px",
-            borderRadius: 4,
-            background: colors.successSoft,
-            border: `1px solid ${colors.successSoftBorder}`,
-            flexShrink: 0,
-          }}
-        >
+        <Tag tone="success" size="xs" fontWeight={700}>
           {activeCount} active
-        </span>
+        </Tag>
       )}
 
-      {/* Total session count */}
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: colors.textTertiary,
-          padding: "1px 5px",
-          borderRadius: 4,
-          background: colors.bgHover,
-          flexShrink: 0,
-        }}
-      >
+      {/* Total session count — borderless muted chip */}
+      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
         {totalCount}
-      </span>
+      </Tag>
     </button>
   );
 });
@@ -215,36 +184,15 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
 
       {/* Active indicator */}
       {activeCount > 0 && (
-        <span
-          style={{
-            fontSize: 9,
-            fontWeight: 700,
-            color: colors.success,
-            padding: "1px 5px",
-            borderRadius: 4,
-            background: colors.successSoft,
-            border: `1px solid ${colors.successSoftBorder}`,
-            flexShrink: 0,
-          }}
-        >
+        <Tag tone="success" size="xs" fontWeight={700}>
           {activeCount} active
-        </span>
+        </Tag>
       )}
 
-      {/* Total session count */}
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: colors.textTertiary,
-          padding: "1px 5px",
-          borderRadius: 4,
-          background: colors.bgHover,
-          flexShrink: 0,
-        }}
-      >
+      {/* Total session count — borderless muted chip */}
+      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
         {totalCount}
-      </span>
+      </Tag>
 
       {/* Latest time */}
       {latestTimestamp > 0 && (
@@ -272,36 +220,9 @@ const ActivityBadge = React.memo(function ActivityBadge({
   if (activity !== "processing") return null;
 
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize: 9,
-        fontWeight: 600,
-        color: colors.success,
-        padding: "1px 6px",
-        borderRadius: 3,
-        background: colors.successSoft,
-        border: `1px solid ${colors.successSoftBorder}`,
-        flexShrink: 0,
-      }}
-      title="Agent is currently producing output"
-    >
-      <span
-        aria-hidden
-        style={{
-          width: 6,
-          height: 6,
-          borderRadius: "50%",
-          background: colors.success,
-          // Pulse the dot while processing for a clear "live" cue.
-          // Reuses the existing provider-pulse @keyframes from globals.css.
-          animation: "provider-pulse 1.2s ease-in-out infinite",
-        }}
-      />
+    <Tag tone="success" size="xs" dot title="Agent is currently producing output">
       Processing
-    </span>
+    </Tag>
   );
 });
 

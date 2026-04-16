@@ -157,6 +157,16 @@
   --stage-default-dot: #d1cec6;
   --stage-default-border-muted: #d1d5db;
 
+  /* Branch tag — amber palette used by Tag (tone="branch") and BranchLabel.
+     Light mode uses a stronger amber tint + darker text for contrast on
+     white surfaces; dark mode inherits from the .dark override. */
+  --branch-bg: rgba(245, 158, 11, 0.28);
+  --branch-fg: #b45309;
+
+  /* Terminal reconnect banner — amber warning state. */
+  --terminal-banner-bg: rgba(255, 180, 0, 0.18);
+  --terminal-banner-fg: #ffb400;
+
   --icon-blue: #3178c6;
   --icon-cyan: #00add8;
   --icon-gold: #b76b01;
@@ -232,11 +242,14 @@
 }
 
 .dark {
-  --background: oklch(0.15 0.015 49);
+  /* Softer dark background — was oklch(0.15 0.015 49) which read as near-black
+     and felt too heavy on wide surfaces like WorkflowView / empty states.
+     Lifting to oklch(0.2) sits closer to VS Code's #1e1e1e baseline. */
+  --background: oklch(0.2 0.01 49);
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.17 0.015 49);
+  --card: oklch(0.23 0.01 49);
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.18 0.015 49);
+  --popover: oklch(0.24 0.01 49);
   --popover-foreground: oklch(0.98 0 0);
   --primary: oklch(0.555 0.146 49);
   --primary-foreground: oklch(1 0 0);
@@ -271,8 +284,8 @@
   --tabbar-fg: oklch(0.985 0 0);
   --tabbar-fg-muted: oklch(0.65 0 0);
 
-  --flow-bg: oklch(0.16 0 0);
-  --flow-grid: oklch(0.28 0 0);
+  --flow-bg: oklch(0.2 0.005 49);
+  --flow-grid: oklch(0.3 0.005 49);
   --flow-node-bg: oklch(0.269 0 0);
   --flow-node-border: oklch(0.32 0 0);
   --flow-node-text: oklch(0.985 0 0);
@@ -323,11 +336,20 @@
   --error-soft-border: rgba(239, 68, 68, 0.3);
 
   --repo-badge-missing-fg: #fca5a5;
-  --repo-badge-spec-fg: #fcd34d;
+  /* Brighter amber-200 for punchier spec tag on dark backgrounds
+     (was amber-300 #fcd34d — felt muted against the translucent primary bg). */
+  --repo-badge-spec-fg: #fde68a;
   --stage-pending-bg: rgba(59, 130, 246, 0.16);
   --stage-pending-fg: #93c5fd;
   --stage-pending-dot: #60a5fa;
   --stage-pending-border-muted: rgba(96, 165, 250, 0.45);
+
+  /* Branch tag — translucent amber bg + bright amber text for dark surfaces. */
+  --branch-bg: rgba(245, 158, 11, 0.18);
+  --branch-fg: #fcd34d;
+
+  --terminal-banner-bg: rgba(255, 180, 0, 0.22);
+  --terminal-banner-fg: #fcd34d;
 
   --icon-blue: #60a5fa;
   --icon-cyan: #22d3ee;

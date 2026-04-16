@@ -3,6 +3,7 @@ import React from "react";
 import type { SpecFolder } from "@magenta/shared/models";
 import { SpecItem } from "./SpecItem";
 import { colors } from "../../utils/colors";
+import { useSortedSpecs } from "../../hooks/useSortedSpecs";
 
 type SpecTreeProps = {
   specs: SpecFolder[];
@@ -39,12 +40,15 @@ function LoadingBar(): React.ReactElement {
   );
 }
 
-export function SpecTree({
+export const SpecTree = React.memo(function SpecTree({
   specs,
   isLoading,
   selectedSpecPath,
   onSelectSpec,
 }: SpecTreeProps): React.ReactElement {
+  // Sort MUST be called unconditionally (React hooks rules)
+  const sortedSpecs = useSortedSpecs(specs);
+
   // Loading — no data yet, waiting for first fetch
   if (isLoading && specs.length === 0) {
     return (
@@ -54,7 +58,7 @@ export function SpecTree({
     );
   }
 
-  if (specs.length === 0) {
+  if (sortedSpecs.length === 0) {
     return (
       <div style={{ padding: "5px 10px", fontSize: 11, color: colors.textTertiary }}>
         No specs found
@@ -64,7 +68,7 @@ export function SpecTree({
 
   return (
     <div style={{ flex: 1, overflowY: "auto", paddingBottom: 4 }}>
-      {specs.map((spec) => (
+      {sortedSpecs.map((spec) => (
         <SpecItem
           key={spec.id}
           spec={spec}
@@ -74,4 +78,4 @@ export function SpecTree({
       ))}
     </div>
   );
-}
+});

@@ -42,11 +42,11 @@ export function Sidebar(): React.ReactElement {
       {/* Unified search + repositories header */}
       <div
         style={{
-          padding: "8px 10px 6px",
+          padding: "6px 8px 4px",
           display: "flex",
           alignItems: "center",
           flexShrink: 0,
-          minHeight: 32,
+          minHeight: 26,
         }}
       >
         <div
@@ -54,17 +54,17 @@ export function Sidebar(): React.ReactElement {
             flex: 1,
             display: "flex",
             alignItems: "center",
-            gap: 6,
+            gap: 4,
             background: colors.bgPanel,
-            borderRadius: 6,
-            padding: "0 8px",
+            borderRadius: 4,
+            padding: "0 6px",
             border: `1px solid ${searchQuery ? colors.borderStrong : colors.border}`,
-            height: 26,
+            height: 22,
             boxSizing: "border-box",
             transition: "border-color 0.15s",
           }}
         >
-          <Search size={13} color={colors.textTertiary} strokeWidth={1.8} style={{ flexShrink: 0 }} />
+          <Search size={11} color={colors.textTertiary} strokeWidth={1.8} style={{ flexShrink: 0 }} />
           <input
             ref={searchInputRef}
             type="text"
@@ -82,10 +82,10 @@ export function Sidebar(): React.ReactElement {
               border: "none",
               background: "transparent",
               outline: "none",
-              fontSize: 12,
+              fontSize: 11,
               color: colors.textStrong,
               padding: 0,
-              lineHeight: "18px",
+              lineHeight: "16px",
             }}
           />
           {searchQuery && (

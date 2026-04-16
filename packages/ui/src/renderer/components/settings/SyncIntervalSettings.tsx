@@ -80,15 +80,15 @@ function SyncIntervalField({
   const isDefault = value === defaultValue;
 
   return (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ display: "block", fontSize: 13, fontWeight: 500, color: colors.text, marginBottom: 4 }}>
+    <div style={{ marginBottom: 10 }}>
+      <label style={{ display: "block", fontSize: 11, fontWeight: 500, color: colors.text, marginBottom: 2 }}>
         {label}
       </label>
-      <p style={{ margin: "0 0 8px 0", fontSize: 12, color: colors.textMuted, lineHeight: 1.5 }}>
+      <p style={{ margin: "0 0 6px 0", fontSize: 10, color: colors.textMuted, lineHeight: 1.5 }}>
         {description}
       </p>
 
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
         <input
           type="number"
           min={MIN_SYNC_INTERVAL_MINUTES}
@@ -100,37 +100,37 @@ function SyncIntervalField({
           onBlur={() => { if (isDirty) void commit(); }}
           disabled={isLoading}
           style={{
-            width: 90,
-            padding: "6px 8px",
-            fontSize: 13,
+            width: 72,
+            padding: "3px 6px",
+            fontSize: 11,
             border: `1px solid ${errorText ? colors.errorDark : colors.border}`,
-            borderRadius: 6,
+            borderRadius: 4,
             background: colors.bgSurface,
             color: colors.text,
             outline: "none",
           }}
         />
-        <span style={{ fontSize: 12, color: colors.textMuted }}>minutes</span>
+        <span style={{ fontSize: 10, color: colors.textMuted }}>minutes</span>
         {isDefault && (
-          <span style={{ fontSize: 11, color: colors.textTertiary }}>
+          <span style={{ fontSize: 10, color: colors.textTertiary }}>
             (default: {defaultValue})
           </span>
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, minHeight: 18 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, minHeight: 14 }}>
         {errorText && (
-          <span style={{ fontSize: 11, color: colors.errorDark, fontWeight: 500 }}>
+          <span style={{ fontSize: 10, color: colors.errorDark, fontWeight: 500 }}>
             {errorText}
           </span>
         )}
         {!errorText && saved && (
-          <span style={{ fontSize: 11, color: colors.success, fontWeight: 500 }}>
+          <span style={{ fontSize: 10, color: colors.success, fontWeight: 500 }}>
             Saved
           </span>
         )}
         {!errorText && isDirty && !saved && (
-          <span style={{ fontSize: 11, color: colors.textTertiary }}>
+          <span style={{ fontSize: 10, color: colors.textTertiary }}>
             Press Enter or click away to save
           </span>
         )}
@@ -152,7 +152,7 @@ export function SyncIntervalSettings(): React.ReactElement {
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 12px 0", fontSize: 14, fontWeight: 600, color: colors.textStrong }}>
+      <h3 style={{ margin: "0 0 6px 0", fontSize: 12, fontWeight: 600, color: colors.textStrong }}>
         Background Sync Intervals
       </h3>
 

@@ -968,7 +968,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   if (loading) {
     return (
-      <div style={{ padding: 20, color: colors.textTertiary, fontSize: 13 }}>
+      <div style={{ padding: 12, color: colors.textTertiary, fontSize: 11 }}>
         Loading {getFileName(filePath)}...
       </div>
     );
@@ -976,14 +976,14 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   if (error) {
     return (
-      <div style={{ padding: 20 }}>
+      <div style={{ padding: 12 }}>
         <div
           style={{
             background: colors.errorSoft,
             border: `1px solid ${colors.errorSoftBorder}`,
-            borderRadius: 8,
-            padding: 12,
-            fontSize: 13,
+            borderRadius: 6,
+            padding: 8,
+            fontSize: 11,
             color: colors.errorDark,
           }}
         >
@@ -1048,7 +1048,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
               {/* Main markdown content — rendered via react-markdown */}
               <div
                 className="markdown-body md-viewer"
-                style={{ padding: "20px 28px", flex: 1, minWidth: 0 }}
+                style={{ padding: "12px 16px", flex: 1, minWidth: 0 }}
               >
                 <ReactMarkdown
                   remarkPlugins={remarkPlugins}

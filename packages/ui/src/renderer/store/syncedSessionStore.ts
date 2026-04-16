@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { sendOrThrow, onEvent } from "../services/ipcClient";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 import type { SyncedSessionRecord, SyncedSessionProvider, SyncedSessionGroup } from "@magenta/shared/syncedSession";
-import { extractDisplayName } from "../utils/formatters";
+import { extractDisplayName, resolveWorktreeParent } from "../utils/formatters";
 
 /* ── Types ── */
 
@@ -31,8 +31,10 @@ function groupSessions(sessions: SyncedSessionRecord[]): SyncedSessionGroup[] {
   const groupMap = new Map<string, SyncedSessionRecord[]>();
 
   for (const session of sessions) {
-    // Group key: prefer cwd, fall back to projectDir, then "unknown"
-    const key = session.cwd || session.projectDir || "unknown";
+    // Group key: prefer cwd, fall back to projectDir, then "unknown".
+    // Resolve worktree paths to their parent repo so they group together.
+    const rawKey = session.cwd || session.projectDir || "unknown";
+    const key = resolveWorktreeParent(rawKey);
     const existing = groupMap.get(key);
     if (existing) {
       existing.push(session);

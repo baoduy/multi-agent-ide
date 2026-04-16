@@ -21,7 +21,7 @@ type StageDotsProps = {
  *  - idle     → light green
  *  - running  → amber (pulsing)
  */
-export function StageDots({ stages }: StageDotsProps): React.ReactElement {
+export const StageDots = React.memo(function StageDots({ stages }: StageDotsProps): React.ReactElement {
   return (
     <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
       {stages.map((stage) => {
@@ -51,4 +51,4 @@ export function StageDots({ stages }: StageDotsProps): React.ReactElement {
       })}
     </div>
   );
-}
+});

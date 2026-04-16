@@ -1,7 +1,7 @@
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord, SyncedSessionGroup } from "@magenta/shared/syncedSession";
 import type { Repository } from "@magenta/shared/models";
-import { extractDisplayName } from "./formatters";
+import { extractDisplayName, resolveWorktreeParent } from "./formatters";
 
 /**
  * One row under the "HISTORY" section. Discriminated so the renderer knows
@@ -122,6 +122,17 @@ export function buildUnifiedGroups(
       matchedRepo = repoByPath.get(normalisePath(resolved)) ?? null;
       if (matchedRepo) {
         groupKey = normalisePath(matchedRepo.path);
+      }
+    }
+
+    // Worktree path match: strip /.worktrees/<name> and check against repos
+    if (!matchedRepo) {
+      const parentPath = resolveWorktreeParent(syncedPath);
+      if (parentPath !== syncedPath) {
+        matchedRepo = repoByPath.get(normalisePath(parentPath)) ?? null;
+        if (matchedRepo) {
+          groupKey = normalisePath(matchedRepo.path);
+        }
       }
     }
 

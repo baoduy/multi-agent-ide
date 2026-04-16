@@ -3,6 +3,7 @@ import { FolderGit2, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { type LabelSize, type LabelVariant, sizeMap, boxedIconMap } from "./labelConstants";
 import { ScrollableText } from "./ScrollableText";
+import { Tag } from "./Tag";
 
 /* ══════════════════════════════════════════
  * RepoLabel — folder-git icon + repository name
@@ -128,16 +129,18 @@ export const RepoLabel = React.memo(RepoLabelComponent);
  * BranchLabel — git-branch icon + branch/worktree name
  * ══════════════════════════════════════════ */
 
-const branchColors: Record<LabelVariant, { icon: string; text: string; bg: string; border: string }> = {
-  light: { icon: colors.success, text: colors.success, bg: colors.successSoft, border: colors.successSoftBorder },
-  dark: { icon: colors.success, text: colors.success, bg: colors.successSoft, border: colors.successSoftBorder },
-};
+// Branch-tag colour is owned by the unified `Tag` primitive (tone="branch").
+// Non-badge variant still needs a text/icon colour to match, so we read
+// the same --branch-fg token (defined in colours.css) for the inline layout.
+const BRANCH_INLINE_COLOR = colors.branchFg;
 
 type BranchLabelProps = {
   name: string;
   size?: LabelSize;
+  /** Preserved for back-compat; currently has no visual effect since
+   *  the cyan palette works on both light and dark backgrounds. */
   variant?: LabelVariant;
-  /** Show as an inline badge (green bg) instead of plain text. Default: true */
+  /** Show as an inline badge instead of plain text. Default: true */
   badge?: boolean;
   /** Extra inline styles on the outer span */
   style?: React.CSSProperties;
@@ -146,33 +149,22 @@ type BranchLabelProps = {
 function BranchLabelComponent({
   name,
   size = "sm",
-  variant = "light",
   badge = true,
   style,
 }: BranchLabelProps): React.ReactElement {
   const s = sizeMap[size];
-  const c = branchColors[variant];
 
   if (badge) {
     return (
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: s.gap,
-          padding: "1px 6px",
-          borderRadius: 8,
-          fontSize: s.font - 1,
-          fontWeight: 600,
-          background: c.bg,
-          color: c.text,
-          border: `1px solid ${c.border}`,
-          ...style,
-        }}
+      <Tag
+        tone="branch"
+        size={size === "xs" ? "xs" : "sm"}
+        fontSize={s.font - 1}
+        icon={<GitBranch size={s.icon - 2} strokeWidth={2} />}
+        style={style}
       >
-        <GitBranch size={s.icon - 2} strokeWidth={2} />
         {name}
-      </span>
+      </Tag>
     );
   }
 
@@ -188,14 +180,14 @@ function BranchLabelComponent({
     >
       <GitBranch
         size={s.icon}
-        color={c.icon}
+        color={BRANCH_INLINE_COLOR}
         strokeWidth={1.5}
         style={{ flexShrink: 0 }}
       />
       <ScrollableText
         style={{
           fontSize: s.font,
-          color: c.text,
+          color: BRANCH_INLINE_COLOR,
         }}
       >
         {name}

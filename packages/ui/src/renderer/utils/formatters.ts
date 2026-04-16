@@ -28,6 +28,31 @@ export function formatTokens(count: number): string {
 }
 
 /**
+ * If `p` is a worktree path, returns the parent repo path.
+ * Otherwise returns `p` unchanged.
+ *
+ * Handles two worktree directory conventions:
+ * - Magenta IDE:   `<repo>/.worktrees/<name>`
+ * - Claude Code:   `<repo>/.claude/worktrees/<name>`
+ *
+ * Example: "/repos/my-app/.claude/worktrees/zen-bell" → "/repos/my-app"
+ * Example: "/repos/my-app/.worktrees/claude-auth"     → "/repos/my-app"
+ */
+export function resolveWorktreeParent(p: string): string {
+  // Claude Code worktrees: /.claude/worktrees/<name>
+  const claudeMarker = "/.claude/worktrees/";
+  const claudeIdx = p.indexOf(claudeMarker);
+  if (claudeIdx > 0) return p.slice(0, claudeIdx);
+
+  // Magenta IDE worktrees: /.worktrees/<name>
+  const marker = "/.worktrees/";
+  const idx = p.indexOf(marker);
+  if (idx > 0) return p.slice(0, idx);
+
+  return p;
+}
+
+/**
  * Extracts a short display name from a file path.
  * "/Users/steven/_CODE/GIT/multi-agent-ide" -> "multi-agent-ide"
  * "-Users-steven--CODE-GIT-multi-agent-ide" -> "multi-agent-ide"

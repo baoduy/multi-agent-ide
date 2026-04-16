@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  Star, FolderOpen, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork,
+  Star, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork,
   GitBranch, ArrowDown, ArrowUp, Download, GitCommit,
 } from "lucide-react";
 
@@ -8,7 +8,8 @@ import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
-import { openInFileManager } from "../../utils/ipc";
+import { openInVscode } from "../../utils/ipc";
+import { VsCodeIcon } from "../common/VsCodeIcon";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
 import { useRepoStore } from "../../store/repoStore";
@@ -17,6 +18,7 @@ import { CreateBranchOrWorktreeDialog, type CreateKind } from "../dialogs/Create
 import { CommitDialog } from "../dialogs/CommitDialog";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { colors } from "../../utils/colors";
+import { Tag } from "../common/Tag";
 
 /* ── RepoItem ── */
 
@@ -107,9 +109,9 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       action: () => onTogglePin(repo.path),
     },
     {
-      label: "Open in File Explorer",
-      Icon: FolderOpen,
-      action: () => void openInFileManager(repo.path),
+      label: "Open with Code",
+      Icon: VsCodeIcon,
+      action: () => void openInVscode(repo.path),
     },
     {
       label: "Copy path",
@@ -194,20 +196,9 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
         }}
       >
         <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-          <span
-            style={{
-              display: "inline-block",
-              padding: "1px 6px",
-              borderRadius: 3,
-              fontSize: 9,
-              fontWeight: 500,
-              background: badge.bg,
-              color: badge.color,
-              lineHeight: "16px",
-            }}
-          >
+          <Tag tone={badge.tone} size="xs" fontWeight={500}>
             {badge.label}
-          </span>
+          </Tag>
           {/* Current branch — read-only tag */}
           <BranchLabel name={repo.branch} size="xs" />
         </RepoLabel>

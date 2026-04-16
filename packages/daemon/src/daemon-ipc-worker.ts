@@ -157,11 +157,11 @@ async function main() {
     // Terminal PTY service
     const terminalService = new TerminalApplicationService(ipcBridge);
 
-    // AI Terminal session service — in-memory only; the sync layer owns history.
-    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager);
-
     // Git gateway (shared across services)
     const gitGateway = new GitGateway();
+
+    // AI Terminal session service — in-memory only; the sync layer owns history.
+    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager, gitGateway);
 
     // Read-side gateways — constructed once and threaded through
     // registerHandlers. Previously registerHandlers built its own copies,

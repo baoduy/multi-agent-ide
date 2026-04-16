@@ -60,6 +60,7 @@ type ResponseForRequest = {
   "ai-session:providers": Extract<IpcResponse, { type: "ai-session:providers:result" }>;
   "ai-session:set-permission-mode": Extract<IpcResponse, { type: "ai-session:permission-mode:ack" }>;
   "ai-session:running-count": Extract<IpcResponse, { type: "ai-session:running-count:result" }>;
+  "ai-session:check-worktree": Extract<IpcResponse, { type: "ai-session:check-worktree:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
   "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
   "ui:ai-tab-active": Extract<IpcResponse, { type: "ui:ai-tab-active:ack" }>;

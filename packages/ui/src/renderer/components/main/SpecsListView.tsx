@@ -12,6 +12,8 @@ import {
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { colors } from "../../utils/colors";
+import { Tag } from "../common/Tag";
+import { useSortedSpecs } from "../../hooks/useSortedSpecs";
 
 /* ═══════════════════════════════════════════════════════
    Spec high-level state derivation
@@ -233,7 +235,7 @@ function CompactStepper({
 
 const STICKER_WIDTH = 280;
 
-function SpecSticker({
+const SpecSticker = React.memo(function SpecSticker({
   spec,
   isSelected,
   onSelect,
@@ -332,25 +334,17 @@ function SpecSticker({
             {spec.name}
           </div>
         </div>
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 8px",
-            borderRadius: 10,
-            background: stateConfig.bg,
-            color: stateConfig.color,
-            border: `1px solid ${stateConfig.border}`,
-            fontSize: 10,
-            fontWeight: 700,
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
+        <Tag
+          size="md"
+          bg={stateConfig.bg}
+          color={stateConfig.color}
+          borderColor={stateConfig.border}
+          borderRadius={10}
+          fontWeight={700}
+          icon={<stateConfig.Icon size={10} strokeWidth={2.5} />}
         >
-          <stateConfig.Icon size={10} strokeWidth={2.5} />
           {stateConfig.label}
-        </span>
+        </Tag>
       </div>
 
       {/* Branch + creation date row */}
@@ -363,29 +357,19 @@ function SpecSticker({
         }}
       >
         {spec.branch && (
-          <span
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 3,
-              padding: "2px 7px",
-              borderRadius: 6,
-              fontSize: 10,
-              fontWeight: 600,
-              background: spec.isCurrentBranch
-                ? colors.successSoft
-                : colors.bgHover,
-              color: spec.isCurrentBranch
-                ? colors.successText
-                : colors.textMuted,
-              border: spec.isCurrentBranch
-                ? `1px solid ${colors.successSoftBorder}`
-                : `1px solid ${colors.border}`,
-            }}
+          <Tag
+            tone={spec.isCurrentBranch ? "success" : "neutral"}
+            size="sm"
+            // Non-current branches borrow the neutral tone but still want a
+            // visible outline — the neutral palette has no border, so pass
+            // the default divider colour explicitly.
+            borderColor={
+              spec.isCurrentBranch ? undefined : colors.border
+            }
+            icon={<GitBranch size={9} strokeWidth={2.5} />}
           >
-            <GitBranch size={9} strokeWidth={2.5} />
             {spec.branch}
-          </span>
+          </Tag>
         )}
         <span
           style={{
@@ -453,7 +437,7 @@ function SpecSticker({
       )}
     </button>
   );
-}
+});
 
 /* ═══════════════════════════════════════════════════════
    Main SpecsListView — flex-wrap sticker grid
@@ -475,10 +459,7 @@ export function SpecsListView({
   const [filterState, setFilterState] = useState<SpecState | null>(null);
 
   // Sort by createdAt descending (newest first)
-  const sortedSpecs = useMemo(
-    () => [...specs].sort((a, b) => b.createdAt - a.createdAt),
-    [specs],
-  );
+  const sortedSpecs = useSortedSpecs(specs);
 
   // Group by state for filter counts
   const grouped = useMemo(() => {
@@ -502,25 +483,25 @@ export function SpecsListView({
     return (
       <div
         style={{
-          padding: 24,
+          padding: 12,
           color: colors.textTertiary,
-          fontSize: 13,
+          fontSize: 11,
           textAlign: "center",
         }}
       >
         <Layers
-          size={32}
+          size={24}
           color={colors.borderMuted}
           strokeWidth={1.5}
-          style={{ marginBottom: 12 }}
+          style={{ marginBottom: 8 }}
         />
         <div>No specs found for this repository.</div>
-        <div style={{ fontSize: 12, marginTop: 4 }}>
+        <div style={{ fontSize: 10, marginTop: 4 }}>
           Create a spec folder under{" "}
           <code
             style={{
               background: colors.bgCodeInline,
-              padding: "1px 4px",
+              padding: "1px 3px",
               borderRadius: 3,
             }}
           >
@@ -533,16 +514,16 @@ export function SpecsListView({
   }
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 10 }}>
       {/* Summary filter bar */}
       <div
         style={{
           display: "flex",
-          gap: 4,
-          marginBottom: 20,
-          padding: "6px 8px",
+          gap: 3,
+          marginBottom: 10,
+          padding: "4px 6px",
           background: colors.bgPanel,
-          borderRadius: 8,
+          borderRadius: 6,
           border: `1px solid ${colors.border}`,
           flexWrap: "wrap",
         }}
@@ -561,9 +542,9 @@ export function SpecsListView({
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 5,
-                padding: "5px 10px",
-                borderRadius: 6,
+                gap: 4,
+                padding: "3px 8px",
+                borderRadius: 4,
                 border: isActive
                   ? `1px solid ${cfg.border}`
                   : "1px solid transparent",
@@ -575,13 +556,13 @@ export function SpecsListView({
               }}
             >
               <cfg.Icon
-                size={13}
+                size={11}
                 color={isActive ? cfg.color : colors.textTertiary}
                 strokeWidth={1.8}
               />
               <span
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
                   color: isActive ? cfg.color : colors.textMuted,
                 }}
@@ -590,7 +571,7 @@ export function SpecsListView({
               </span>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   color: isActive ? cfg.color : colors.textTertiary,
                 }}
               >
@@ -606,7 +587,7 @@ export function SpecsListView({
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 16,
+          gap: 10,
           alignItems: "stretch",
           alignContent: "flex-start",
         }}
@@ -625,9 +606,9 @@ export function SpecsListView({
             style={{
               width: "100%",
               textAlign: "center",
-              padding: 48,
+              padding: 24,
               color: colors.textTertiary,
-              fontSize: 13,
+              fontSize: 11,
             }}
           >
             No specs match this filter.

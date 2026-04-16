@@ -148,14 +148,14 @@ export function DiffViewer({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 8,
-          padding: 40,
+          gap: 6,
+          padding: 20,
           color: colors.textTertiary,
-          fontSize: 13,
+          fontSize: 11,
         }}
       >
         <Loader2
-          size={16}
+          size={12}
           strokeWidth={2}
           style={{ animation: "spin 1s linear infinite" }}
         />
@@ -168,9 +168,9 @@ export function DiffViewer({
     return (
       <div
         style={{
-          padding: 20,
+          padding: 12,
           color: colors.error,
-          fontSize: 13,
+          fontSize: 11,
         }}
       >
         Failed to load diff: {error}

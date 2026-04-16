@@ -65,10 +65,10 @@ function ToolbarButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 26,
-        height: 26,
+        width: 22,
+        height: 22,
         border: "none",
-        borderRadius: 6,
+        borderRadius: 4,
         cursor: disabled ? "default" : "pointer",
         background: hovered && !disabled ? "var(--accent)" : "transparent",
         color: disabled ? "var(--muted-foreground)" : "var(--foreground)",
@@ -124,7 +124,7 @@ function TitleBarTabGroup({
       })}
       {onPlus && (
           <Button
-            size="icon"
+            size="icon-sm"
             variant="outline"
             onClick={onPlus}
             title="New AI Session"

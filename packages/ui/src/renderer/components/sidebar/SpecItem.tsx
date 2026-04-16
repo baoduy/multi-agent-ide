@@ -12,10 +12,12 @@ type SpecItemProps = {
   onSelect: (specPath: string) => void;
 };
 
-export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.ReactElement {
+export const SpecItem = React.memo(function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.ReactElement {
+  const handleClick = React.useCallback(() => onSelect(spec.path), [onSelect, spec.path]);
+
   return (
     <ClickableRow
-      onClick={() => onSelect(spec.path)}
+      onClick={handleClick}
       selected={isSelected}
       padding="7px 14px"
       justifyContent="space-between"
@@ -40,4 +42,4 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
       <StageDots stages={spec.stages} />
     </ClickableRow>
   );
-}
+});

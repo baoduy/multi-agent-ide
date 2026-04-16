@@ -118,25 +118,25 @@ export function BaseDialog({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "16px 20px 12px",
+            padding: "8px 12px 6px",
             borderBottom: `1px solid ${colors.border}`,
             flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {icon}
-            <span style={{ fontSize: 14, fontWeight: 600, color: colors.text }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
               {title}
             </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {showMinimize && onMinimize && (
               <DialogIconButton onClick={onMinimize} title="Minimize to background">
-                <Minimize2 size={13} strokeWidth={2} />
+                <Minimize2 size={12} strokeWidth={2} />
               </DialogIconButton>
             )}
             <DialogIconButton onClick={handleCloseClick} title={onMinimize ? "Minimize to background" : "Close"}>
-              <X size={14} strokeWidth={2} />
+              <X size={12} strokeWidth={2} />
             </DialogIconButton>
           </div>
         </div>
@@ -144,7 +144,7 @@ export function BaseDialog({
         {/* Body */}
         <div
           style={{
-            padding: "16px 20px",
+            padding: "10px 12px",
             ...(scrollable ? { flex: 1, overflowY: "auto" as const, minHeight: 100 } : {}),
           }}
         >
@@ -157,8 +157,8 @@ export function BaseDialog({
             style={{
               display: "flex",
               justifyContent: "flex-end",
-              gap: 8,
-              padding: "12px 20px 16px",
+              gap: 6,
+              padding: "8px 12px 10px",
               borderTop: `1px solid ${colors.borderLight}`,
               flexShrink: 0,
             }}

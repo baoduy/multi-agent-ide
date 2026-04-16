@@ -12,6 +12,7 @@ import { resolveSessionCwd } from "../domain/sessionCwdResolver";
 import { getAllProviderMeta, getProviderMeta, getPermissionModeArgs } from "../domain/providerRegistry";
 import { getSessionFactory } from "../infrastructure/sessions";
 import type { BaseAISession } from "../infrastructure/sessions";
+import type { GitGateway } from "../infrastructure/GitGateway";
 import { AppError } from "../errors/AppError";
 
 /**
@@ -44,6 +45,8 @@ export class AISessionApplicationService {
      * renderer could spawn those processes anywhere on disk.
      */
     private readonly allowlistProvider: PathAllowlistProvider,
+    /** Optional — enables worktree-existence checks on resume. */
+    private readonly gitGateway?: GitGateway,
   ) {}
 
   async createSession(
@@ -158,6 +161,29 @@ export class AISessionApplicationService {
     return record;
   }
 
+  /**
+   * Checks whether a worktree still exists as a valid git worktree.
+   * Used by the UI to decide whether to offer re-creation before resuming.
+   */
+  async checkWorktreeExists(
+    worktreePath: string,
+    repoPath: string,
+  ): Promise<{ valid: boolean; repoPath: string; worktreeName: string }> {
+    const worktreeName = path.basename(worktreePath);
+    if (!this.gitGateway) {
+      return { valid: true, repoPath, worktreeName };
+    }
+    try {
+      const worktrees = await this.gitGateway.listWorktrees(repoPath);
+      const exists = worktrees.some(
+        (wt) => path.normalize(wt.worktreePath) === path.normalize(worktreePath),
+      );
+      return { valid: exists, repoPath, worktreeName };
+    } catch {
+      return { valid: false, repoPath, worktreeName };
+    }
+  }
+
   async resumeSession(
     sessionId: string,
     cols: number,
@@ -174,8 +200,19 @@ export class AISessionApplicationService {
       return { ...record, status: existingSession.getStatus() };
     }
 
-    // Ensure directory still exists
-    await fs.mkdir(record.cwd, { recursive: true });
+    // Ensure directory still exists. For worktree sessions, verify the
+    // worktree is a real git worktree — not just a bare directory.
+    if (record.worktreePath && record.repoPath && this.gitGateway) {
+      const check = await this.checkWorktreeExists(record.worktreePath, record.repoPath);
+      if (!check.valid) {
+        throw new AppError(
+          "WORKTREE_MISSING",
+          `Worktree "${check.worktreeName}" no longer exists under ${record.repoPath}`,
+        );
+      }
+    } else {
+      await fs.mkdir(record.cwd, { recursive: true });
+    }
 
     const providerMeta = getProviderMeta(record.provider);
 

@@ -1,21 +1,24 @@
 import type { Repository } from "@magenta/shared/models";
-import { colors } from "./colors";
+
+import type { TagTone } from "../components/common/Tag";
 
 export interface BadgeInfo {
   label: string;
-  bg: string;
-  color: string;
+  /** Tone for the unified `Tag` primitive. Maps to the repo-badge palette. */
+  tone: TagTone;
 }
 
 export function getRepoBadge(repo: Repository): BadgeInfo {
   if (repo.status === "missing") {
-    return { label: "missing", bg: colors.repoBadgeMissingBg, color: colors.repoBadgeMissingFg };
+    return { label: "missing", tone: "missing" };
   }
   if (repo.hasSpecs) {
-    return { label: "spec", bg: colors.repoBadgeSpecBg, color: colors.repoBadgeSpecFg };
+    return { label: "spec", tone: "spec" };
   }
   if (repo.status === "active") {
-    return { label: "active", bg: colors.repoBadgeActiveBg, color: colors.repoBadgeActiveFg };
+    return { label: "active", tone: "active" };
   }
-  return { label: repo.status, bg: colors.repoBadgeDefaultBg, color: colors.repoBadgeDefaultFg };
+  // `default` repo-badge palette has no dedicated tone — fall back to
+  // "neutral" so any future Repository.status variant still renders.
+  return { label: repo.status, tone: "neutral" };
 }

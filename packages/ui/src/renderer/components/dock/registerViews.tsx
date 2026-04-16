@@ -113,7 +113,10 @@ function SpecFilesView(props: {
 }): React.ReactElement {
   const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
-  const selectedSpec = specs.find((s) => s.path === selectedSpecPath) ?? null;
+  const selectedSpec = React.useMemo(
+    () => specs.find((s) => s.path === selectedSpecPath) ?? null,
+    [specs, selectedSpecPath],
+  );
 
   if (!selectedSpec || selectedSpec.files.length === 0) {
     return (
@@ -196,7 +199,7 @@ function FileViewerTabView(props: {
   repoPath?: string;
 }): React.ReactElement {
   if (!props.filePath) {
-    return <div style={{ padding: 20, color: colors.textTertiary }}>No file selected</div>;
+    return <div style={{ padding: 12, color: colors.textTertiary, fontSize: 11 }}>No file selected</div>;
   }
   return <FileViewer filePath={props.filePath} repoPath={props.repoPath} />;
 }
@@ -207,7 +210,7 @@ function DiffViewerTabView(props: {
   fileStatus?: string;
 }): React.ReactElement {
   if (!props.filePath || !props.repoPath) {
-    return <div style={{ padding: 20, color: colors.textTertiary }}>No file selected</div>;
+    return <div style={{ padding: 12, color: colors.textTertiary, fontSize: 11 }}>No file selected</div>;
   }
   return (
     <DiffViewer
@@ -227,7 +230,7 @@ function AgentSessionTabView(props: {
   isVisible?: boolean;
 }): React.ReactElement {
   if (!props.aiSessionId || !props.aiProvider) {
-    return <div style={{ padding: 20, color: colors.textTertiary }}>No session selected</div>;
+    return <div style={{ padding: 12, color: colors.textTertiary, fontSize: 11 }}>No session selected</div>;
   }
   return (
     <MagentaTerminal

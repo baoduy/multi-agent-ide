@@ -4,6 +4,8 @@ import { RotateCcw } from "lucide-react";
 import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
 import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
+import { AutoSaveStatus } from "../common/AutoSaveStatus";
+import { useTransientFlag } from "../../hooks/useTransientFlag";
 
 /**
  * Settings section for customizing the Specify install/upgrade command template.
@@ -15,7 +17,7 @@ export function SpecifyCommandSetting(): React.ReactElement {
   const isLoading = useConfigStore((s) => s.isLoading);
 
   const [localValue, setLocalValue] = useState(specifyCommand);
-  const [saved, setSaved] = useState(false);
+  const [saved, showSaved] = useTransientFlag();
 
   // Sync with store when it changes externally
   useEffect(() => {
@@ -26,17 +28,15 @@ export function SpecifyCommandSetting(): React.ReactElement {
     const trimmed = localValue.trim();
     if (trimmed && trimmed !== specifyCommand) {
       await updateSpecifyCommand(trimmed);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      showSaved();
     }
-  }, [localValue, specifyCommand, updateSpecifyCommand]);
+  }, [localValue, specifyCommand, updateSpecifyCommand, showSaved]);
 
   const handleReset = useCallback(async () => {
     setLocalValue(DEFAULT_SPECIFY_COMMAND);
     await updateSpecifyCommand(DEFAULT_SPECIFY_COMMAND);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }, [updateSpecifyCommand]);
+    showSaved();
+  }, [updateSpecifyCommand, showSaved]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -106,18 +106,7 @@ export function SpecifyCommandSetting(): React.ReactElement {
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, minHeight: 16 }}>
-        {saved && (
-          <span style={{ fontSize: 10, color: colors.success, fontWeight: 500 }}>
-            Saved
-          </span>
-        )}
-        {isDirty && !saved && (
-          <span style={{ fontSize: 10, color: colors.textTertiary }}>
-            Press Enter or click away to save
-          </span>
-        )}
-      </div>
+      <AutoSaveStatus saved={saved} isDirty={isDirty} />
     </div>
   );
 }

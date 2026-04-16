@@ -8,6 +8,8 @@ import {
 } from "@magenta/shared/config";
 import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
+import { AutoSaveStatus } from "../common/AutoSaveStatus";
+import { useTransientFlag } from "../../hooks/useTransientFlag";
 
 type SyncIntervalFieldProps = {
   label: string;
@@ -31,7 +33,7 @@ function SyncIntervalField({
   onSave,
 }: SyncIntervalFieldProps): React.ReactElement {
   const [localValue, setLocalValue] = useState<string>(String(value));
-  const [saved, setSaved] = useState(false);
+  const [saved, showSaved] = useTransientFlag();
   const [errorText, setErrorText] = useState<string | null>(null);
 
   // Sync with store when it changes externally
@@ -61,9 +63,8 @@ function SyncIntervalField({
     }
 
     await onSave(parsed);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  }, [localValue, onSave, value]);
+    showSaved();
+  }, [localValue, onSave, value, showSaved]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -118,23 +119,7 @@ function SyncIntervalField({
         )}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, minHeight: 14 }}>
-        {errorText && (
-          <span style={{ fontSize: 10, color: colors.errorDark, fontWeight: 500 }}>
-            {errorText}
-          </span>
-        )}
-        {!errorText && saved && (
-          <span style={{ fontSize: 10, color: colors.success, fontWeight: 500 }}>
-            Saved
-          </span>
-        )}
-        {!errorText && isDirty && !saved && (
-          <span style={{ fontSize: 10, color: colors.textTertiary }}>
-            Press Enter or click away to save
-          </span>
-        )}
-      </div>
+      <AutoSaveStatus saved={saved} isDirty={isDirty} errorText={errorText} minHeight={14} />
     </div>
   );
 }

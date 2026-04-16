@@ -106,7 +106,7 @@ function TitleBarTabGroup({
   onPlus,
 }: TitleBarTabGroupProps): React.ReactElement {
   return (
-    <ButtonGroup style={noDrag}>
+    <ButtonGroup style={{ ...noDrag, alignItems: "center" }}>
       {tabs.map((tab) => {
         const isActive = activeTab.kind === "builtin" && activeTab.id === tab.id;
         return (
@@ -251,8 +251,8 @@ export function TitleBar({
           display: "flex",
           alignItems: "center",
           gap: 2,
-          // On macOS, leave space for the traffic lights (3 buttons ~ 70px)
-          paddingLeft: 78,
+          // On macOS, leave space for the traffic lights (3 buttons ~ 70px + breathing room)
+          paddingLeft: 86,
           paddingRight: 8,
           height: "100%",
           flexShrink: 0,
@@ -302,6 +302,7 @@ export function TitleBar({
           alignItems: "center",
           justifyContent: "center",
           overflow: "hidden",
+          height: "100%",
         }}
       >
         <TitleBarTabGroup

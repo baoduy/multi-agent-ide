@@ -288,6 +288,8 @@ export function registerAllViews(): void {
     keepAlive: true,
     activityGroup: "primary",
     activityOrder: 1,
+    searchable: true,
+    searchPlaceholder: "Search repositories…",
   });
 
   viewRegistry.register({
@@ -300,6 +302,8 @@ export function registerAllViews(): void {
     keepAlive: true,
     activityGroup: "primary",
     activityOrder: 2,
+    searchable: true,
+    searchPlaceholder: "Search specs…",
   });
 
   // ── Right Sidebar Views ──
@@ -314,6 +318,8 @@ export function registerAllViews(): void {
     keepAlive: true,
     activityGroup: "primary",
     activityOrder: 3,
+    searchable: true,
+    searchPlaceholder: "Search changes…",
   });
 
   viewRegistry.register({
@@ -326,6 +332,8 @@ export function registerAllViews(): void {
     keepAlive: true,
     activityGroup: "primary",
     activityOrder: 4,
+    searchable: true,
+    searchPlaceholder: "Search files…",
   });
 
   // ── Center Tab Views ──

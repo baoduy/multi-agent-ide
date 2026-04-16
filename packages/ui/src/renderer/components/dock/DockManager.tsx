@@ -21,7 +21,7 @@ import { ResizeHandle } from "./ResizeHandle";
 import { DockDragOverlay } from "./DragOverlay";
 import { useDockDrag } from "./useDockDrag";
 import { colors } from "../../utils/colors";
-import type { DockRegion } from "./types";
+import type { DockRegion, TabState } from "./types";
 
 const MIN_SIDE_WIDTH = 180;
 const MIN_BOTTOM_HEIGHT = 70;
@@ -36,6 +36,8 @@ type DockManagerProps = {
   viewProps?: Record<string, Record<string, unknown>>;
   /** Callback when settings is clicked in activity bar */
   onSettingsClick?: () => void;
+  /** Callback to duplicate an agent-session tab */
+  onDuplicateTab?: (tab: TabState) => void;
 };
 
 export const DockManager = React.memo(function DockManager({
@@ -43,6 +45,7 @@ export const DockManager = React.memo(function DockManager({
   statusBar,
   viewProps,
   onSettingsClick,
+  onDuplicateTab,
 }: DockManagerProps): React.ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -197,7 +200,7 @@ export const DockManager = React.memo(function DockManager({
               minHeight: 100,
             }}
           >
-            <TabView viewProps={viewProps} />
+            <TabView viewProps={viewProps} onDuplicateTab={onDuplicateTab} />
           </div>
 
           {/* Bottom Panel */}

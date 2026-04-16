@@ -24,6 +24,8 @@ type AISessionListItemProps = {
  */
 function formatStatus(status: AISessionRecord["status"]): string {
   switch (status) {
+    case "active":
+      return "Processing";
     case "waiting-input":
       return "Waiting for input";
     default:

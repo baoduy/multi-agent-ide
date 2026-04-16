@@ -285,6 +285,14 @@ class TerminalHubImpl {
       const isMac = navigator.platform.toUpperCase().includes("MAC");
       const mod = isMac ? event.metaKey : event.ctrlKey;
 
+      // Shift+Enter → send CSI u escape sequence so CLI tools (Claude Code,
+      // Copilot) treat it as "newline without submit" for multi-line prompts.
+      if (event.shiftKey && event.key === "Enter") {
+        event.preventDefault();
+        void this.sendInput(entry, "\x1b[13;2u");
+        return false;
+      }
+
       if (mod && !event.shiftKey && event.key.toLowerCase() === "k") {
         event.preventDefault();
         xterm.clear();

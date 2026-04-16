@@ -48,7 +48,7 @@ export function SpecTree({
   // Loading — no data yet, waiting for first fetch
   if (isLoading && specs.length === 0) {
     return (
-      <div style={{ padding: "8px 12px" }}>
+      <div style={{ padding: "5px 10px" }}>
         <LoadingBar />
       </div>
     );
@@ -56,7 +56,7 @@ export function SpecTree({
 
   if (specs.length === 0) {
     return (
-      <div style={{ padding: "8px 12px", fontSize: 11, color: colors.textTertiary }}>
+      <div style={{ padding: "5px 10px", fontSize: 11, color: colors.textTertiary }}>
         No specs found
       </div>
     );

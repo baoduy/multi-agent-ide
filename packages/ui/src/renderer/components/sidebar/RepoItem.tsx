@@ -185,11 +185,11 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           border: "none",
           borderLeft: active ? `2px solid ${colors.primary}` : "2px solid transparent",
           background: active ? colors.bgHover : hovered ? colors.bgCodeInline : "transparent",
-          padding: "7px 32px 7px 10px",
+          padding: "4px 28px 4px 8px",
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 6,
           transition: "background 0.12s",
         }}
       >

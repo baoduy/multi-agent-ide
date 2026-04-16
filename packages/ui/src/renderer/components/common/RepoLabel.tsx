@@ -46,8 +46,6 @@ function RepoLabelComponent({
         justifyContent: "center",
         width: b.box,
         height: b.box,
-        borderRadius: b.radius,
-        background: colors.bgMuted,
         flexShrink: 0,
       }}
     >

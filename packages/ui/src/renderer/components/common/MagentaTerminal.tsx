@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback, useImperativeHandle, f
 import { Terminal, Copy, ClipboardPaste, Eraser } from "lucide-react";
 import stripAnsi from "strip-ansi";
 import { TERMINAL_THEMES } from "../../utils/terminalThemes";
-import { colors } from "../../utils/colors";
 import { useTerminalStore } from "../../store/terminalStore";
 import { TerminalHub } from "../../terminal/TerminalHub";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
@@ -278,19 +277,6 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Context menu ─────────────────────────────────────────────
-
-  useEffect(() => {
-    if (!menuState.open) return;
-    const handler = () => setMenuState((prev) => ({ ...prev, open: false }));
-    document.addEventListener("mousedown", handler);
-    window.addEventListener("blur", handler);
-    return () => {
-      document.removeEventListener("mousedown", handler);
-      window.removeEventListener("blur", handler);
-    };
-  }, [menuState.open]);
-
   const activeTab = activeTabId ? tabsRef.current.get(activeTabId) : undefined;
 
   const copySelection = useCallback(async () => {
@@ -312,6 +298,12 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
     if (!activeTab?.sessionId) return;
     TerminalHub.clear(activeTab.sessionId);
   }, [activeTab]);
+
+  const terminalMenuItems: ContextMenuAction[] = useMemo(() => [
+    { label: "Copy", Icon: Copy, action: () => void copySelection() },
+    { label: "Paste", Icon: ClipboardPaste, action: () => void pasteClipboard() },
+    { label: "Clear", Icon: Eraser, separator: true, action: () => clearTerminal() },
+  ], [copySelection, pasteClipboard, clearTerminal]);
 
   return (
     <div ref={frameRef} style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, height: "100%", minHeight: 0 }}>
@@ -397,15 +389,7 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
         className="magenta-terminal-xterm"
         onClick={() => { if (activeTab?.sessionId) TerminalHub.focus(activeTab.sessionId); }}
         onContextMenu={(event) => {
-          event.preventDefault();
-          const frame = frameRef.current;
-          if (!frame) return;
-          const rect = frame.getBoundingClientRect();
-          setMenuState({
-            open: true,
-            x: event.clientX - rect.left,
-            y: event.clientY - rect.top,
-          });
+          openTerminalMenu(event);
           if (activeTab?.sessionId) TerminalHub.focus(activeTab.sessionId);
         }}
         style={{
@@ -423,60 +407,16 @@ const MagentaTerminalInteractive = forwardRef<MagentaTerminalHandle, MagentaTerm
         } as React.CSSProperties}
       />
 
-      {menuState.open && (
-        <div
-          style={{
-            position: "absolute",
-            top: menuState.y,
-            left: menuState.x,
-            zIndex: 20,
-            minWidth: 140,
-            background: colors.dialogBg,
-            border: `1px solid ${colors.border}`,
-            borderRadius: 6,
-            boxShadow: colors.dialogShadow,
-            padding: 4,
-          }}
-          onMouseDown={(event) => event.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={() => { void copySelection(); setMenuState({ open: false, x: 0, y: 0 }); }}
-            style={menuButtonStyle}
-          >
-            Copy
-          </button>
-          <button
-            type="button"
-            onClick={() => { void pasteClipboard(); setMenuState({ open: false, x: 0, y: 0 }); }}
-            style={menuButtonStyle}
-          >
-            Paste
-          </button>
-          <button
-            type="button"
-            onClick={() => { clearTerminal(); setMenuState({ open: false, x: 0, y: 0 }); }}
-            style={menuButtonStyle}
-          >
-            Clear
-          </button>
-        </div>
+      {terminalMenu && (
+        <ContextMenu
+          position={terminalMenu}
+          items={terminalMenuItems}
+          onClose={closeTerminalMenu}
+        />
       )}
     </div>
   );
 });
-
-const menuButtonStyle: React.CSSProperties = {
-  width: "100%",
-  border: "none",
-  borderRadius: 4,
-  background: "transparent",
-  color: "var(--color-foreground)",
-  textAlign: "left",
-  padding: "6px 8px",
-  fontSize: 12,
-  cursor: "pointer",
-};
 
 export const MagentaTerminal = forwardRef<MagentaTerminalHandle, MagentaTerminalProps>(
   function MagentaTerminal(props, ref): React.ReactElement {

@@ -157,8 +157,6 @@ export function FolderIconBadge({
         justifyContent: "center",
         width: 22,
         height: 22,
-        borderRadius: 4,
-        background: `color-mix(in srgb, ${info.color} 14%, transparent)`,
         flexShrink: 0,
       }}
     >

@@ -31,6 +31,7 @@ export function mapSyncedSessionRow(row: Record<string, unknown>): SyncedSession
     version: (row.version as string) ?? null,
     entrypoint: (row.entrypoint as string) ?? null,
     title: (row.title as string) ?? null,
+    syncedFilePath: (row.synced_file_path as string) ?? null,
     startedAt: row.started_at as number,
     endedAt: (row.ended_at as number) ?? null,
     createdAt: row.created_at as number,

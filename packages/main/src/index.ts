@@ -275,6 +275,73 @@ function registerIpcHandler() {
     }
   });
 
+  // Open a directory (or file) in VS Code.
+  //
+  // Strategy: first try the `code` CLI via `child_process.spawn`, because that
+  // correctly opens folders as workspaces (`vscode://file/<path>` opens a
+  // folder as a single-file preview in some VS Code builds). Fall back to the
+  // `vscode://` URL scheme when the CLI isn't on PATH — that way users who
+  // installed VS Code but never ran "Shell Command: Install 'code' command in
+  // PATH" still get a working menu item.
+  //
+  // Never throws: on failure the renderer just sees an unresolved promise.
+  ipcMain.handle("magenta:open-in-vscode", async (_event, targetPath: string) => {
+    if (!targetPath || typeof targetPath !== "string") return;
+
+    const { spawn } = await import("child_process");
+
+    // Try the `code` CLI first — it correctly opens folders as workspaces
+    // (the `vscode://file/<path>` URL scheme opens folders as single-file
+    // previews in some builds, which is not what users expect).
+    //   -r  reuse the frontmost VS Code window if one is open
+    const tryCli = (): Promise<boolean> =>
+      new Promise((resolve) => {
+        try {
+          const child = spawn("code", ["-r", targetPath], {
+            detached: true,
+            stdio: "ignore",
+            // On Windows `code` is a .cmd shim; shell:true lets Node resolve it.
+            shell: process.platform === "win32",
+          });
+          child.on("error", () => resolve(false));
+          child.on("spawn", () => {
+            child.unref();
+            resolve(true);
+          });
+        } catch {
+          resolve(false);
+        }
+      });
+
+    const ok = await tryCli();
+    if (ok) return;
+
+    // Fallback: URL scheme. Useful when VS Code is installed but `code` isn't
+    // on PATH (common on macOS until the user runs the "Install 'code' command
+    // in PATH" command palette action).
+    try {
+      await shell.openExternal(`vscode://file/${targetPath}`);
+    } catch {
+      // Silent — renderer treats both success and failure the same.
+    }
+  });
+
+  // Check whether a filesystem path currently exists.
+  //
+  // Used by renderer-side context menus to grey out actions (e.g. "Open
+  // session directory") when the referenced path has been moved or deleted
+  // since the session record was persisted. Returns false on any error
+  // (including EACCES) rather than throwing — callers treat a missing path
+  // and an unreadable path identically.
+  ipcMain.handle("magenta:path-exists", async (_event, targetPath: string): Promise<boolean> => {
+    if (!targetPath || typeof targetPath !== "string") return false;
+    try {
+      return fs.existsSync(targetPath);
+    } catch {
+      return false;
+    }
+  });
+
   // Read today's application log file.
   //
   // The log is exposed to the renderer for the in-app diagnostics view. It

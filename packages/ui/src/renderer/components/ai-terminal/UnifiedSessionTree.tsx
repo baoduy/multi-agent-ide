@@ -3,6 +3,8 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
+  FolderOpen,
+  FileText,
   Clock,
 } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
@@ -11,12 +13,40 @@ import type { Repository } from "@magenta/shared/models";
 import { AISessionListItem } from "./AISessionListItem";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
+import {
+  ContextMenu,
+  useContextMenu,
+  type ContextMenuAction,
+} from "../common/ContextMenu";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime, formatTokens } from "../../utils/formatters";
+import { openInVscode, pathExists } from "../../utils/ipc";
 import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import type { SessionGroupNode } from "../../utils/sessionTreeBuilder";
 export { buildUnifiedGroups, type SessionGroupNode } from "../../utils/sessionTreeBuilder";
+
+/**
+ * Derive the on-disk "session directory" for a synced session record — the
+ * folder that holds the session's JSONL file(s). For both Claude Code (the
+ * main session JSONL sits in `<projectsDir>/<slug>/`) and Copilot (the
+ * `events.jsonl` sits in `<session-state>/<sessionId>/`) the parent directory
+ * of `syncedFilePath` is the right thing to reveal in Finder / Explorer.
+ *
+ * Returns `null` for legacy rows that predate the `syncedFilePath` column so
+ * the caller can mark the context-menu item unavailable.
+ */
+function getSessionDirectory(session: SyncedSessionRecord): string | null {
+  if (!session.syncedFilePath) return null;
+  // Match on both POSIX and Windows separators — the daemon records the
+  // platform-native absolute path, but we must not assume it's POSIX.
+  const lastSlash = Math.max(
+    session.syncedFilePath.lastIndexOf("/"),
+    session.syncedFilePath.lastIndexOf("\\"),
+  );
+  if (lastSlash <= 0) return null;
+  return session.syncedFilePath.slice(0, lastSlash);
+}
 
 /* ── Components ── */
 
@@ -289,6 +319,80 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
   onResume,
 }: SyncedSessionRowProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+
+  // Availability of the two paths we expose on the context menu. We track
+  // `undefined` as "not yet checked" so the items aren't flashed enabled then
+  // immediately disabled on first open; they render grey until the IPC round
+  // trip resolves. Re-checked every time the menu is opened so stale answers
+  // don't linger when the user has just deleted/restored a directory.
+  const [sessionDirAvailable, setSessionDirAvailable] = useState<boolean | undefined>(undefined);
+  const [workingDirAvailable, setWorkingDirAvailable] = useState<boolean | undefined>(undefined);
+
+  const sessionDir = useMemo(() => getSessionDirectory(session), [session]);
+  const workingDir = session.cwd;
+
+  const handleOpenContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      // Reset prior results — the paths may have been deleted / recreated
+      // since the last right-click.
+      setSessionDirAvailable(undefined);
+      setWorkingDirAvailable(undefined);
+      openContextMenu(e);
+
+      // Fire both existence checks in parallel. If either is missing at the
+      // schema level (null) the helper short-circuits to false without hitting
+      // the IPC bridge.
+      void pathExists(sessionDir).then(setSessionDirAvailable);
+      void pathExists(workingDir).then(setWorkingDirAvailable);
+    },
+    [openContextMenu, sessionDir, workingDir],
+  );
+
+  const contextMenuItems = useMemo<ContextMenuAction[]>(() => {
+    // When availability is still `undefined` we render the items as disabled
+    // so the user never sees a momentary flash of "enabled" state that could
+    // lead to a click on a non-existent path. This resolves in a few ms.
+    const sessionDirReady = sessionDirAvailable === true;
+    const workingDirReady = workingDirAvailable === true;
+
+    const sessionDirTitle = !sessionDir
+      ? "Session directory not recorded for this session"
+      : sessionDirAvailable === false
+        ? `Path no longer exists: ${sessionDir}`
+        : sessionDirAvailable === undefined
+          ? "Checking availability…"
+          : sessionDir;
+
+    const workingDirTitle = !workingDir
+      ? "Working directory not recorded for this session"
+      : workingDirAvailable === false
+        ? `Path no longer exists: ${workingDir}`
+        : workingDirAvailable === undefined
+          ? "Checking availability…"
+          : workingDir;
+
+    return [
+      {
+        label: "Open session directory in VS Code",
+        Icon: FileText,
+        disabled: !sessionDirReady,
+        title: sessionDirTitle,
+        action: () => {
+          if (sessionDir) void openInVscode(sessionDir);
+        },
+      },
+      {
+        label: "Open working directory in VS Code",
+        Icon: FolderOpen,
+        disabled: !workingDirReady,
+        title: workingDirTitle,
+        action: () => {
+          if (workingDir) void openInVscode(workingDir);
+        },
+      },
+    ];
+  }, [sessionDir, workingDir, sessionDirAvailable, workingDirAvailable]);
 
   const timeDisplay = formatRelativeTime(session.startedAt);
 
@@ -306,9 +410,11 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
   }, [onResume, session]);
 
   return (
+    <>
     <button
       type="button"
       onClick={handleClick}
+      onContextMenu={handleOpenContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
@@ -367,6 +473,14 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         {timeDisplay}
       </span>
     </button>
+    {contextMenu && (
+      <ContextMenu
+        position={contextMenu}
+        items={contextMenuItems}
+        onClose={closeContextMenu}
+      />
+    )}
+    </>
   );
 });
 

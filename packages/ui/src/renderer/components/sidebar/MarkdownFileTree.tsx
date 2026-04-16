@@ -6,14 +6,17 @@
  * file-viewer tab.
  */
 
-import React, { useCallback, useEffect, useMemo } from "react";
-import { FolderGit2, GitBranch } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FolderGit2, GitBranch, FilePlus, Pencil, Trash2 } from "lucide-react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useMarkdownManagerStore } from "../../store/markdownManagerStore";
+import { useSessionStore } from "../../store/sessionStore";
 import { useViewSearchStore } from "../../store/viewSearchStore";
+import { sendOrThrow } from "../../services/ipcClient";
 import { DoublePicker, type DoublePickerOption } from "../common/DoublePicker";
 import { FileTree, type TreeEntry } from "../common/FileTree";
+import type { ContextMenuAction } from "../common/ContextMenu";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
 import { colors } from "../../utils/colors";
 
@@ -102,6 +105,67 @@ function filterTree(entries: TreeEntry[], query: string): TreeEntry[] {
   return result;
 }
 
+/* ── Inline input for new file / rename ── */
+
+function InlineInput({
+  defaultValue,
+  placeholder,
+  onConfirm,
+  onCancel,
+}: {
+  defaultValue?: string;
+  placeholder?: string;
+  onConfirm: (value: string) => void;
+  onCancel: () => void;
+}): React.ReactElement {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [value, setValue] = useState(defaultValue ?? "");
+
+  useEffect(() => {
+    // Focus and select file name without extension
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    const dotIdx = value.lastIndexOf(".");
+    el.setSelectionRange(0, dotIdx > 0 ? dotIdx : value.length);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const submit = useCallback(() => {
+    const trimmed = value.trim();
+    if (trimmed) {
+      onConfirm(trimmed);
+    } else {
+      onCancel();
+    }
+  }, [value, onConfirm, onCancel]);
+
+  return (
+    <input
+      ref={inputRef}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => setValue(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") submit();
+        if (e.key === "Escape") onCancel();
+      }}
+      onBlur={submit}
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "3px 6px",
+        fontSize: 12,
+        fontFamily: "inherit",
+        border: `1px solid ${colors.primary}`,
+        borderRadius: 3,
+        background: colors.bgSurface,
+        color: colors.text,
+        outline: "none",
+      }}
+    />
+  );
+}
+
 /* ── Component ── */
 
 type MarkdownFileTreeProps = {
@@ -110,6 +174,7 @@ type MarkdownFileTreeProps = {
 
 export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.ReactElement {
   const repos = useRepoStore((s) => s.repos);
+  const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
 
   const selectedRepoPath = useMarkdownManagerStore((s) => s.selectedRepoPath);
   const selectedBranch = useMarkdownManagerStore((s) => s.selectedBranch);
@@ -120,8 +185,25 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
   const isLoadingFiles = useMarkdownManagerStore((s) => s.isLoadingFiles);
   const selectRepo = useMarkdownManagerStore((s) => s.selectRepo);
   const selectBranch = useMarkdownManagerStore((s) => s.selectBranch);
+  const refreshFiles = useMarkdownManagerStore((s) => s.refreshFiles);
 
+  const explorerRepoPath = useSessionStore((s) => s.selectedRepoPath);
   const searchQuery = useViewSearchStore((s) => s.queries["md-file-tree"] ?? "");
+
+  // Inline editing state
+  const [newFileDir, setNewFileDir] = useState<string | null>(null); // relative dir path or "" for root
+  const [renamingPath, setRenamingPath] = useState<string | null>(null); // relative file path being renamed
+
+  const isCurrentBranch = selectedBranch === currentBranch;
+
+  // Auto-select from Explorer group when no persisted selection exists
+  useEffect(() => {
+    if (!selectedRepoPath && explorerRepoPath) {
+      selectRepo(explorerRepoPath);
+    }
+    // Only on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-fetch on mount if we have a persisted selection
   useEffect(() => {
@@ -132,17 +214,25 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Picker options
-  const repoOptions = useMemo(
-    (): readonly DoublePickerOption<string>[] =>
-      repos.map((r) => ({
+  // Picker options — pinned repos first, then the rest alphabetically
+  const repoOptions = useMemo((): readonly DoublePickerOption<string>[] => {
+    const pinned: DoublePickerOption<string>[] = [];
+    const unpinned: DoublePickerOption<string>[] = [];
+    for (const r of repos) {
+      const opt: DoublePickerOption<string> = {
         value: r.path,
         label: r.name,
         description: r.path,
         icon: <FolderGit2 size={14} color={colors.textTertiary} />,
-      })),
-    [repos],
-  );
+      };
+      if (pinnedPaths.has(r.path)) {
+        pinned.push(opt);
+      } else {
+        unpinned.push(opt);
+      }
+    }
+    return [...pinned, ...unpinned];
+  }, [repos, pinnedPaths]);
 
   const branchOptions = useMemo(
     (): readonly DoublePickerOption<string>[] =>
@@ -185,35 +275,157 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
     [selectBranch],
   );
 
+  // ── File CRUD handlers ──
+
+  const handleNewFile = useCallback(
+    async (name: string, dir: string) => {
+      if (!selectedRepoPath) return;
+      // Ensure .md extension
+      const fileName = name.endsWith(".md") ? name : `${name}.md`;
+      const relativePath = dir ? `${dir}/${fileName}` : fileName;
+      const absPath = `${selectedRepoPath}/${relativePath}`;
+      try {
+        await sendOrThrow({ type: "file:write", filePath: absPath, content: "" });
+        refreshFiles();
+        onOpenFile?.(absPath);
+      } catch { /* ignore — gateway throws on validation errors */ }
+      setNewFileDir(null);
+    },
+    [selectedRepoPath, refreshFiles, onOpenFile],
+  );
+
+  const handleRename = useCallback(
+    async (oldRelPath: string, newName: string) => {
+      if (!selectedRepoPath) return;
+      const dir = oldRelPath.includes("/") ? oldRelPath.substring(0, oldRelPath.lastIndexOf("/")) : "";
+      const newRelPath = dir ? `${dir}/${newName}` : newName;
+      const oldAbs = `${selectedRepoPath}/${oldRelPath}`;
+      const newAbs = `${selectedRepoPath}/${newRelPath}`;
+      try {
+        await sendOrThrow({ type: "file:rename", oldPath: oldAbs, newPath: newAbs });
+        refreshFiles();
+      } catch { /* ignore */ }
+      setRenamingPath(null);
+    },
+    [selectedRepoPath, refreshFiles],
+  );
+
+  const handleDelete = useCallback(
+    async (relPath: string) => {
+      if (!selectedRepoPath) return;
+      const absPath = `${selectedRepoPath}/${relPath}`;
+      // eslint-disable-next-line no-restricted-globals
+      if (!confirm(`Delete "${relPath}"?`)) return;
+      try {
+        await sendOrThrow({ type: "file:delete", filePath: absPath });
+        refreshFiles();
+      } catch { /* ignore */ }
+    },
+    [selectedRepoPath, refreshFiles],
+  );
+
+  // Context menu builder
+  const buildContextMenu = useCallback(
+    (entry: TreeEntry): ContextMenuAction[] => {
+      if (!isCurrentBranch) return [];
+
+      if (entry.isDirectory) {
+        return [
+          { label: "New File", Icon: FilePlus, action: () => setNewFileDir(entry.path) },
+        ];
+      }
+
+      return [
+        { label: "Rename", Icon: Pencil, action: () => setRenamingPath(entry.path) },
+        { label: "Delete", Icon: Trash2, action: () => void handleDelete(entry.path), separator: true },
+      ];
+    },
+    [isCurrentBranch, handleDelete],
+  );
+
+  // Custom item renderer for inline rename — returns undefined for non-renaming
+  // entries so FileTree falls back to its default name rendering.
+  const renderItemContent = useCallback(
+    (entry: TreeEntry, _depth: number): React.ReactNode | undefined => {
+      if (!entry.isDirectory && renamingPath === entry.path) {
+        return (
+          <InlineInput
+            defaultValue={entry.name}
+            onConfirm={(newName) => void handleRename(entry.path, newName)}
+            onCancel={() => setRenamingPath(null)}
+          />
+        );
+      }
+      return undefined;
+    },
+    [renamingPath, handleRename],
+  );
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      {/* Repo + Branch picker */}
-      <div style={{ padding: "8px 8px 4px", flexShrink: 0 }}>
-        <DoublePicker<string, string>
-          left={{
-            options: repoOptions,
-            value: selectedRepoPath ?? "",
-            onChange: handleRepoChange,
-            placeholder: "Select repository",
-            searchable: repos.length > 5,
-            searchPlaceholder: "Search repositories...",
-            minPanelWidth: 260,
-          }}
-          right={{
-            options: branchOptions,
-            value: selectedBranch ?? "",
-            onChange: handleBranchChange,
-            placeholder: "Branch",
-            searchable: branches.length > 5,
-            searchPlaceholder: "Search branches...",
-            minPanelWidth: 220,
-            disabled: !selectedRepoPath || isLoadingBranches,
-          }}
-        />
+      {/* Repo + Branch picker + New file button */}
+      <div style={{ padding: "8px 8px 4px", flexShrink: 0, display: "flex", gap: 4, alignItems: "center" }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <DoublePicker<string, string>
+            left={{
+              options: repoOptions,
+              value: selectedRepoPath ?? "",
+              onChange: handleRepoChange,
+              placeholder: "Select repository",
+              searchable: repos.length > 5,
+              searchPlaceholder: "Search repositories...",
+              minPanelWidth: 260,
+            }}
+            right={{
+              options: branchOptions,
+              value: selectedBranch ?? "",
+              onChange: handleBranchChange,
+              placeholder: "Branch",
+              searchable: branches.length > 5,
+              searchPlaceholder: "Search branches...",
+              minPanelWidth: 220,
+              disabled: !selectedRepoPath || isLoadingBranches,
+            }}
+          />
+        </div>
+        {selectedRepoPath && isCurrentBranch && (
+          <button
+            type="button"
+            title="New markdown file"
+            onClick={() => setNewFileDir("")}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 26,
+              height: 26,
+              padding: 0,
+              border: `1px solid ${colors.border}`,
+              borderRadius: 5,
+              background: colors.bgMuted,
+              color: colors.textMuted,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            <FilePlus size={14} />
+          </button>
+        )}
       </div>
 
       {/* Content */}
       <div style={{ flex: 1, overflow: "auto", padding: "0 4px 4px" }}>
+        {/* Inline new-file input */}
+        {newFileDir !== null && (
+          <div style={{ padding: "4px 8px" }}>
+            <InlineInput
+              placeholder="filename.md"
+              onConfirm={(name) => void handleNewFile(name, newFileDir)}
+              onCancel={() => setNewFileDir(null)}
+            />
+          </div>
+        )}
+
         {!selectedRepoPath && (
           <p style={{ padding: "12px 8px", color: colors.textTertiary, fontSize: 12, margin: 0 }}>
             Select a repository to browse markdown files.
@@ -228,7 +440,7 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
           />
         )}
 
-        {selectedRepoPath && !isLoadingBranches && !isLoadingFiles && mdFiles.length === 0 && (
+        {selectedRepoPath && !isLoadingBranches && !isLoadingFiles && mdFiles.length === 0 && newFileDir === null && (
           <p style={{ padding: "12px 8px", color: colors.textTertiary, fontSize: 12, margin: 0 }}>
             No markdown files found.
           </p>
@@ -238,6 +450,8 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
           <FileTree
             entries={treeEntries}
             onFileClick={handleFileClick}
+            contextMenuItems={buildContextMenu}
+            renderItemContent={renderItemContent}
             showFileIcons
             showExtensionBadge={false}
           />

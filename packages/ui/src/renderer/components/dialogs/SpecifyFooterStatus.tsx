@@ -1,5 +1,4 @@
 import React from "react";
-import { AlertTriangle } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { ProviderIcon } from "../common/ProviderIcon";
@@ -18,9 +17,8 @@ type SpecifyFooterStatusProps = {
 };
 
 /**
- * Compact footer indicator showing the current Specify integration status.
- * When the selected provider doesn't match, displays a mismatch hint —
- * the actual switch happens automatically on session creation.
+ * Compact read-only footer indicator showing the current Specify integration.
+ * Purely informational — the actual switch happens in handleConfirm on Create.
  *
  * Rendered on the LEFT side of the dialog action bar.
  */
@@ -31,51 +29,40 @@ export const SpecifyFooterStatus = React.memo(function SpecifyFooterStatus({
 }: SpecifyFooterStatusProps): React.ReactElement | null {
   if (!hasSpecs) return null;
 
-  const isMismatch =
-    currentAgent != null && currentAgent !== selectedProvider;
-
   const isKnownProvider =
     currentAgent === "claude" || currentAgent === "copilot";
   const agentLabel = isKnownProvider
     ? getProviderName(currentAgent as ProviderVariant)
     : (currentAgent ?? "Unknown");
 
+  const isMismatch =
+    currentAgent != null && currentAgent !== selectedProvider;
+
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 8,
+        gap: 6,
         fontSize: 11,
         color: colors.textSecondary,
         minWidth: 0,
       }}
     >
-      {/* Current integration indicator */}
       {isKnownProvider && (
         <ProviderIcon provider={currentAgent as ProviderVariant} size={13} />
       )}
       <ScrollableText>
-        Specify: <strong style={{ color: colors.text, fontWeight: 600 }}>{agentLabel}</strong>
-      </ScrollableText>
-
-      {/* Mismatch hint — auto-switched on Create */}
-      {isMismatch && (
-        <span
+        Specify:{" "}
+        <strong
           style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            fontSize: 10,
-            color: colors.warningTextStrong,
-            whiteSpace: "nowrap",
+            color: isMismatch ? colors.warningTextStrong : colors.text,
+            fontWeight: 600,
           }}
-          title={`Will auto-switch to ${getProviderName(selectedProvider)} on create`}
         >
-          <AlertTriangle size={11} strokeWidth={2} />
-          Auto-switch on create
-        </span>
-      )}
+          {agentLabel}
+        </strong>
+      </ScrollableText>
     </div>
   );
 });

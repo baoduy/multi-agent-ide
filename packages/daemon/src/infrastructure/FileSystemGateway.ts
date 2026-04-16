@@ -62,6 +62,44 @@ export class FileSystemGateway {
   }
 
   /**
+   * Delete a file from disk.
+   */
+  deleteFile(filePath: string): void {
+    const resolved = this.resolveAllowed(filePath);
+
+    if (!fs.existsSync(resolved)) {
+      throw new AppError("FILE_NOT_FOUND", `File not found: ${resolved}`);
+    }
+
+    const stat = fs.statSync(resolved);
+    if (stat.isDirectory()) {
+      throw new AppError("VALIDATION_ERROR", `Path is a directory, not a file: ${resolved}`);
+    }
+
+    fs.unlinkSync(resolved);
+  }
+
+  /**
+   * Rename (move) a file on disk.
+   * @returns The resolved absolute path of the new location
+   */
+  renameFile(oldPath: string, newPath: string): string {
+    const resolvedOld = this.resolveAllowed(oldPath);
+    const resolvedNew = this.resolveAllowed(newPath);
+
+    if (!fs.existsSync(resolvedOld)) {
+      throw new AppError("FILE_NOT_FOUND", `File not found: ${resolvedOld}`);
+    }
+
+    if (fs.existsSync(resolvedNew)) {
+      throw new AppError("VALIDATION_ERROR", `Target already exists: ${resolvedNew}`);
+    }
+
+    fs.renameSync(resolvedOld, resolvedNew);
+    return resolvedNew;
+  }
+
+  /**
    * List directory contents, excluding hidden files.
    * Sorted with directories first, then alphabetically.
    */

@@ -64,6 +64,8 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("spec:list"), repoPath: z.string() }),
   z.object({ type: z.literal("file:read"), filePath: z.string() }),
   z.object({ type: z.literal("file:write"), filePath: z.string(), content: z.string() }),
+  z.object({ type: z.literal("file:delete"), filePath: z.string() }),
+  z.object({ type: z.literal("file:rename"), oldPath: z.string(), newPath: z.string() }),
   z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
   // NOTE: session:get / session:update removed — session state now persisted in localStorage
   z.object({ type: z.literal("config:get") }),
@@ -193,6 +195,8 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("config:updated"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("file:read:result"), filePath: z.string(), content: z.string() }),
   z.object({ type: z.literal("file:write:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("file:delete:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("file:rename:result"), oldPath: z.string(), newPath: z.string(), success: z.boolean() }),
   z.object({
     type: z.literal("dir:list:result"),
     dirPath: z.string(),

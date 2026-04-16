@@ -21,6 +21,8 @@ type ResponseForRequest = {
   "spec:list": Extract<IpcResponse, { type: "spec:list:result" }>;
   "file:read": Extract<IpcResponse, { type: "file:read:result" }>;
   "file:write": Extract<IpcResponse, { type: "file:write:result" }>;
+  "file:delete": Extract<IpcResponse, { type: "file:delete:result" }>;
+  "file:rename": Extract<IpcResponse, { type: "file:rename:result" }>;
   "dir:list": Extract<IpcResponse, { type: "dir:list:result" }>;
 "config:get": Extract<IpcResponse, { type: "config:response" }>;
   "config:add-working-dir": Extract<IpcResponse, { type: "config:response" }>;

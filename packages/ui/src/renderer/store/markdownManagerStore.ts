@@ -23,6 +23,8 @@ type MarkdownManagerState = {
   selectBranch: (branch: string) => void;
   fetchBranches: (repoPath: string) => Promise<void>;
   fetchMdFiles: (repoPath: string, branch: string) => Promise<void>;
+  /** Re-fetch markdown files for the current repo+branch selection. */
+  refreshFiles: () => void;
 };
 
 function loadPersisted(): { selectedRepoPath: string | null; selectedBranch: string | null } {
@@ -106,6 +108,13 @@ export const useMarkdownManagerStore = create<MarkdownManagerState>((set, get) =
       set({ mdFiles: res.files, isLoadingFiles: false });
     } catch {
       set({ mdFiles: [], isLoadingFiles: false });
+    }
+  },
+
+  refreshFiles: () => {
+    const { selectedRepoPath, selectedBranch } = get();
+    if (selectedRepoPath && selectedBranch) {
+      void get().fetchMdFiles(selectedRepoPath, selectedBranch);
     }
   },
 }));

@@ -209,9 +209,7 @@ function FolderNode({
         {showFileIcons && <FolderIconBadge isOpen={expanded} size={14} />}
 
         {/* Name or custom content */}
-        {renderItemContent ? (
-          renderItemContent(entry, depth)
-        ) : (
+        {renderItemContent?.(entry, depth) ?? (
           <ScrollableText
             style={{
               fontSize: 11,
@@ -333,9 +331,7 @@ function FileNode({
         {showFileIcons && <FileIconBadge fileName={entry.name} size={14} />}
 
         {/* Name or custom content */}
-        {renderItemContent ? (
-          renderItemContent(entry, depth)
-        ) : (
+        {renderItemContent?.(entry, depth) ?? (
           <ScrollableText
             style={{
               fontSize: 11,

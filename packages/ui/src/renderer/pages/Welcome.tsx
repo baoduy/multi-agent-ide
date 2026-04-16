@@ -128,20 +128,20 @@ export function WelcomePage(): React.ReactElement {
         justifyContent: "center",
         minHeight: "100vh",
         backgroundColor: colors.bgSurface,
-        padding: 20,
+        padding: 12,
       }}
     >
-      <div style={{ maxWidth: 500, textAlign: "center" }}>
-        <div style={{ marginBottom: 20, display: "flex", justifyContent: "center" }}>
-          <MagentaLogo size={80} />
+      <div style={{ maxWidth: 440, textAlign: "center" }}>
+        <div style={{ marginBottom: 12, display: "flex", justifyContent: "center" }}>
+          <MagentaLogo size={56} />
         </div>
-        <h1 style={{ fontSize: 32, fontWeight: 700, marginBottom: 12, color: colors.textStrong }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8, color: colors.textStrong }}>
           Welcome to Magenta IDE
         </h1>
 
         {repos.length === 0 ? (
           <>
-            <p style={{ fontSize: 16, color: colors.textMuted, marginBottom: 24, lineHeight: 1.6 }}>
+            <p style={{ fontSize: 12, color: colors.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
               Get started by adding a working directory to scan for git repositories.
             </p>
 
@@ -149,12 +149,12 @@ export function WelcomePage(): React.ReactElement {
               style={{
                 backgroundColor: colors.bgPanel,
                 border: `1px solid ${colors.border}`,
-                borderRadius: 8,
-                padding: 16,
-                marginBottom: 24,
+                borderRadius: 6,
+                padding: 10,
+                marginBottom: 12,
               }}
             >
-              <p style={{ fontSize: 14, color: colors.textMuted, margin: 0 }}>
+              <p style={{ fontSize: 11, color: colors.textMuted, margin: 0 }}>
                 Tip: A working directory can contain multiple git repositories. Magenta IDE will
                 scan up to 3 levels deep.
               </p>
@@ -165,10 +165,10 @@ export function WelcomePage(): React.ReactElement {
                 style={{
                   backgroundColor: colors.errorSoft,
                   border: `1px solid ${colors.errorSoftBorder}`,
-                  borderRadius: 8,
-                  padding: 12,
-                  marginBottom: 16,
-                  fontSize: 13,
+                  borderRadius: 6,
+                  padding: 8,
+                  marginBottom: 10,
+                  fontSize: 11,
                   color: colors.errorDark,
                   textAlign: "left",
                 }}
@@ -180,20 +180,20 @@ export function WelcomePage(): React.ReactElement {
             {status && (
               <div
                 style={{
-                  fontSize: 13,
+                  fontSize: 11,
                   color: colors.textMuted,
-                  marginBottom: 16,
+                  marginBottom: 10,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 8,
+                  gap: 6,
                 }}
               >
                 <span
                   style={{
                     display: "inline-block",
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     border: `2px solid ${colors.primary}`,
                     borderTopColor: "transparent",
                     borderRadius: "50%",
@@ -209,13 +209,13 @@ export function WelcomePage(): React.ReactElement {
               onClick={() => void handleAddDirectory()}
               disabled={isAdding}
               style={{
-                padding: "12px 24px",
-                fontSize: 14,
-                fontWeight: 600,
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: 500,
                 backgroundColor: isAdding ? colors.primaryAlpha : colors.primary,
                 color: colors.textWhite,
                 border: "none",
-                borderRadius: 6,
+                borderRadius: 4,
                 cursor: isAdding ? "default" : "pointer",
                 transition: "background 0.12s",
               }}
@@ -224,7 +224,7 @@ export function WelcomePage(): React.ReactElement {
             </button>
           </>
         ) : (
-          <p style={{ fontSize: 16, color: colors.textMuted, marginBottom: 24, lineHeight: 1.6 }}>
+          <p style={{ fontSize: 12, color: colors.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
             Found {repos.length} repositor{repos.length === 1 ? "y" : "ies"}! Select one from the sidebar to get
             started.
           </p>

@@ -15,6 +15,12 @@ type SpecStoreState = {
    * Background sync is completely invisible to the user.
    */
   isLoading: boolean;
+  /**
+   * True once we have completed at least one fetch for the current repo.
+   * Prevents re-showing the loading indicator on background syncs when
+   * the repo genuinely has zero specs.
+   */
+  hasFetchedForRepo: boolean;
   error: string | null;
   subscriptionsReady: boolean;
   setSpecs: (specs: SpecFolder[]) => void;
@@ -34,6 +40,7 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
   selectedSpecPath: null,
   currentRepoPath: null,
   isLoading: false,
+  hasFetchedForRepo: false,
   error: null,
   subscriptionsReady: false,
 
@@ -47,13 +54,20 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
 
   async fetchSpecs(repoPath: string) {
     const state = get();
-    const hasData = state.currentRepoPath === repoPath && state.specs.length > 0;
+    const isSameRepo = state.currentRepoPath === repoPath;
+    const alreadyFetched = isSameRepo && state.hasFetchedForRepo;
 
-    // Update repo path immediately
-    set({ currentRepoPath: repoPath, error: null });
+    // When switching repos, reset the fetched flag
+    if (!isSameRepo) {
+      set({ currentRepoPath: repoPath, error: null, hasFetchedForRepo: false });
+    } else {
+      set({ error: null });
+    }
 
-    // Only show loading if we have no data yet
-    if (!hasData) {
+    // Only show loading if we haven't completed a fetch for this repo yet.
+    // This prevents flashing "loading → empty" on background syncs when
+    // the repo genuinely has zero specs.
+    if (!alreadyFetched) {
       set({ isLoading: true });
     }
 
@@ -63,15 +77,28 @@ export const useSpecStore = create<SpecStoreState>((set, get) => ({
       // Guard: repo may have changed while we were waiting
       if (get().currentRepoPath !== repoPath) return;
 
+      // Guard: skip state write if specs haven't actually changed
+      // (avoids new array reference → unnecessary re-renders)
+      const prev = get().specs;
+      const specsChanged =
+        prev.length !== response.specs.length ||
+        response.specs.some((s, i) => {
+          const p = prev[i];
+          return !p || s.path !== p.path || s.name !== p.name || s.files.length !== p.files.length ||
+            s.stages.length !== p.stages.length ||
+            s.stages.some((st, j) => st.status !== p.stages[j]?.status);
+        });
+
       set({
-        specs: response.specs,
+        ...(specsChanged ? { specs: response.specs } : {}),
         error: null,
         isLoading: false,
+        hasFetchedForRepo: true,
       });
     } catch (error) {
       if (get().currentRepoPath !== repoPath) return;
       const errorMessage = getErrorMessage(error);
-      set({ error: errorMessage, isLoading: false, specs: [] });
+      set({ error: errorMessage, isLoading: false, hasFetchedForRepo: true, specs: [] });
     }
   },
 

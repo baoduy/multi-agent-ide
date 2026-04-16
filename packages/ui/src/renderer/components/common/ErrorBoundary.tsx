@@ -36,25 +36,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       const { error } = this.state;
 
       return (
-        <div style={{ padding: 32, maxWidth: 600, margin: "40px auto", fontFamily: "var(--font-sans)" }}>
-          <div style={{ padding: 24, border: "1px solid var(--error-soft-border)", borderRadius: 12, background: "var(--error-soft)" }}>
-            <h2 style={{ marginTop: 0, color: "var(--destructive)", fontSize: 18 }}>Something went wrong</h2>
-            <p style={{ color: "var(--foreground)", marginBottom: 12 }}>
+        <div style={{ padding: 16, maxWidth: 560, margin: "24px auto", fontFamily: "var(--font-sans)" }}>
+          <div style={{ padding: 12, border: "1px solid var(--error-soft-border)", borderRadius: 8, background: "var(--error-soft)" }}>
+            <h2 style={{ marginTop: 0, color: "var(--destructive)", fontSize: 13, fontWeight: 600 }}>Something went wrong</h2>
+            <p style={{ color: "var(--foreground)", marginBottom: 8, fontSize: 11 }}>
               The application encountered an unexpected error. Check the developer console for full details.
             </p>
             {error && (
               <pre
                 style={{
                   background: "var(--error-soft)",
-                  padding: 12,
-                  borderRadius: 6,
-                  fontSize: 12,
+                  padding: 8,
+                  borderRadius: 4,
+                  fontSize: 11,
                   whiteSpace: "pre-wrap",
                   wordBreak: "break-word",
                   color: "var(--destructive)",
-                  maxHeight: 200,
+                  maxHeight: 180,
                   overflow: "auto",
-                  margin: "12px 0 0",
+                  margin: "8px 0 0",
                 }}
               >
                 {error.name}: {error.message}
@@ -65,14 +65,14 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               type="button"
               onClick={() => window.location.reload()}
               style={{
-                marginTop: 16,
-                padding: "8px 20px",
+                marginTop: 10,
+                padding: "4px 12px",
                 background: "var(--destructive)",
                 color: "var(--text-on-primary, white)",
                 border: "none",
-                borderRadius: 6,
+                borderRadius: 4,
                 cursor: "pointer",
-                fontSize: 13,
+                fontSize: 11,
                 fontWeight: 500,
               }}
             >

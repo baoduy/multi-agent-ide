@@ -24,7 +24,7 @@ import { colors } from "../../utils/colors";
 import type { DockRegion } from "./types";
 
 const MIN_SIDE_WIDTH = 180;
-const MIN_BOTTOM_HEIGHT = 100;
+const MIN_BOTTOM_HEIGHT = 70;
 const MAX_SIDE_RATIO = 0.4;
 
 type DockManagerProps = {

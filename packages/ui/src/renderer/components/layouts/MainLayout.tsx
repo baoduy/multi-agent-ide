@@ -10,8 +10,8 @@ import { useSessionStore } from "../../store/sessionStore";
 
 /* ── Constants ── */
 
-const MIN_PANEL_WIDTH = 180;
-const DEFAULT_SIDEBAR_WIDTH = 280;
+const MIN_PANEL_WIDTH = 160;
+const DEFAULT_SIDEBAR_WIDTH = 220;
 const DEFAULT_ACTIVITY_WIDTH = 260;
 const HANDLE_WIDTH = 5;
 const COLLAPSE_TRANSITION = "width 0.2s ease, min-width 0.2s ease, opacity 0.15s ease";
@@ -168,7 +168,7 @@ export function MainLayout({
         flexDirection: "column",
         height: "100vh",
         fontFamily: "var(--font-sans)",
-        fontSize: 13,
+        fontSize: 12,
         color: colors.text,
         background: colors.bgSurface,
       }}

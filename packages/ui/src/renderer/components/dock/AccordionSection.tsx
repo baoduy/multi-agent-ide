@@ -108,7 +108,7 @@ export const AccordionSection = React.memo(function AccordionSection({
           display: "flex",
           alignItems: "center",
           gap: 4,
-          padding: "5px 8px",
+          padding: "7px 8px",
           fontSize: 11,
           fontWeight: 600,
           textTransform: "uppercase",

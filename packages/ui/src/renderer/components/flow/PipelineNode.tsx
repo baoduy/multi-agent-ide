@@ -5,6 +5,7 @@ import { CheckCircle, FileText } from "lucide-react";
 import { ScrollableText } from "../common/ScrollableText";
 import { calculateCompletionPercent, getStageColor } from "./diagramUtils";
 import { colors as uiColors } from "../../utils/colors";
+import { Tag } from "../common/Tag";
 
 export interface PipelineNodeData {
   label: string;
@@ -66,14 +67,14 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width: 200,
-        padding: 14,
-        borderRadius: 10,
+        width: 180,
+        padding: 10,
+        borderRadius: 8,
         border: `2px solid ${colors.border}`,
         backgroundColor: colors.bg,
         cursor: isMissing ? "not-allowed" : hasFile ? "pointer" : "default",
         textAlign: "left",
-        fontSize: 13,
+        fontSize: 11,
         transition: "box-shadow 0.15s, transform 0.12s, opacity 0.15s",
         boxShadow: hovered && hasFile && !isInactive ? uiColors.shadowSoft : "none",
         transform: hovered && hasFile && !isInactive ? "translateY(-1px)" : "none",
@@ -82,11 +83,11 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
       }}
     >
       {/* Header row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-        <span style={{ fontWeight: 700, fontSize: 14, color: colors.text, flex: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
+        <span style={{ fontWeight: 600, fontSize: 12, color: colors.text, flex: 1 }}>
           {data.label}
         </span>
-        {(isApproved || isDone) && <CheckCircle size={14} color={uiColors.success} strokeWidth={2} />}
+        {(isApproved || isDone) && <CheckCircle size={12} color={uiColors.success} strokeWidth={2} />}
       </div>
 
       {/* Status line */}
@@ -179,52 +180,34 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
 
       {/* Done badge — visible when implementation is complete */}
       {isDone && (
-        <div
-          style={{
-            marginTop: 8,
-            width: "100%",
-            padding: "5px 10px",
-            fontSize: 11,
-            fontWeight: 600,
-            borderRadius: 5,
-            background: uiColors.successSoft,
-            border: `1px solid ${uiColors.success}`,
-            color: uiColors.successText,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-          }}
+        <Tag
+          tone="success"
+          size="lg"
+          block
+          // Stronger border than the default `success-soft-border` —
+          // matches the emphasis we want on completion blocks.
+          borderColor={uiColors.success}
+          icon={<CheckCircle size={11} strokeWidth={2} />}
+          style={{ marginTop: 8 }}
         >
-          <CheckCircle size={11} strokeWidth={2} />
           All tasks complete
-        </div>
+        </Tag>
       )}
 
       {/* Approved badge — always visible when stage is approved */}
       {isApproved && (
-        <div
-          style={{
-            marginTop: 8,
-            width: "100%",
-            padding: "5px 10px",
-            fontSize: 11,
-            fontWeight: 600,
-            borderRadius: 5,
-            background: uiColors.successSoft,
-            border: `1px solid ${uiColors.success}`,
-            color: uiColors.successText,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 4,
-          }}
+        <Tag
+          tone="success"
+          size="lg"
+          block
+          borderColor={uiColors.success}
+          icon={<CheckCircle size={11} strokeWidth={2} />}
+          style={{ marginTop: 8 }}
         >
-          <CheckCircle size={11} strokeWidth={2} />
           {data.metadata?.approvedBy
             ? `Approved by ${data.metadata.approvedBy}`
             : "Approved"}
-        </div>
+        </Tag>
       )}
 
       {/* Approve button — shown on hover for approvable stages */}

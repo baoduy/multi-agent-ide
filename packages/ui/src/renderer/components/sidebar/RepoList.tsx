@@ -54,18 +54,18 @@ export function RepoList(): React.ReactElement {
   return (
     <section style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {error ? (
-        <div style={{ color: colors.errorDark, padding: "6px 16px", fontSize: 12, background: colors.errorSoft }}>
+        <div style={{ color: colors.errorDark, padding: "4px 10px", fontSize: 11, background: colors.errorSoft }}>
           {error}
         </div>
       ) : null}
 
       <div style={{ flex: 1, overflowY: "auto" }}>
         {repos.length === 0 ? (
-          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 16px" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "6px 10px" }}>
             No repositories found.
           </div>
         ) : filteredRepos.length === 0 ? (
-          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 16px" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "6px 10px" }}>
             No matches for &ldquo;{searchQuery}&rdquo;
           </div>
         ) : (
@@ -75,8 +75,8 @@ export function RepoList(): React.ReactElement {
               <>
                 <div
                   style={{
-                    padding: "8px 16px 4px",
-                    fontSize: 10,
+                    padding: "5px 12px 2px",
+                    fontSize: 9,
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.1em",
@@ -99,7 +99,7 @@ export function RepoList(): React.ReactElement {
                     onTogglePin={togglePin}
                   />
                 ))}
-                <div style={{ height: 1, background: colors.border, margin: "4px 16px 2px" }} />
+                <div style={{ height: 1, background: colors.border, margin: "2px 12px 1px" }} />
               </>
             )}
 

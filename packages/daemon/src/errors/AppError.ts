@@ -8,6 +8,7 @@ export type AppErrorCode =
   | "FILE_TOO_LARGE"
   | "FILE_NOT_FOUND"
   | "WORKTREE_CONFLICT"
+  | "WORKTREE_MISSING"
   | "GIT_ERROR"
   | "CONFIG_ERROR"
   | "SESSION_SYNC_ERROR"

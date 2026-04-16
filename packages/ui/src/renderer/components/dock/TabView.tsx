@@ -129,7 +129,7 @@ export const TabView = React.memo(function TabView({
               const descriptor = viewRegistry.get(activeTab.viewId);
               if (!descriptor) {
                 return (
-                  <div style={{ padding: 20, color: colors.textTertiary }}>
+                  <div style={{ padding: 12, color: colors.textTertiary, fontSize: 11 }}>
                     View &quot;{activeTab.viewId}&quot; not found in registry.
                   </div>
                 );

@@ -1,6 +1,15 @@
 import React from "react";
 
-type StatusBadgeProps = {
+import { Tag } from "./Tag";
+
+/* ══════════════════════════════════════════
+ * StatusBadge — legacy raw-colour API preserved as a thin wrapper over
+ * the unified `Tag` primitive. New code should import `Tag` directly and
+ * prefer named `tone` props; this shim exists only so existing callers
+ * (FileStatusBadge, AISessionListItem, …) keep working without churn.
+ * ══════════════════════════════════════════ */
+
+export type StatusBadgeProps = {
   text: string;
   color: string;
   background: string;
@@ -30,25 +39,19 @@ export function StatusBadge({
   style,
 }: StatusBadgeProps): React.ReactElement {
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 4,
-        fontSize,
-        fontWeight,
-        color,
-        background,
-        padding,
-        borderRadius,
-        border: borderColor ? `1px solid ${borderColor}` : undefined,
-        letterSpacing,
-        textTransform: uppercase ? "uppercase" : undefined,
-        ...style,
-      }}
-    >
-      {icon}
-      {text}
-    </span>
+    <Tag
+      text={text}
+      color={color}
+      bg={background}
+      borderColor={borderColor}
+      icon={icon}
+      fontSize={fontSize}
+      fontWeight={fontWeight}
+      padding={padding}
+      borderRadius={borderRadius}
+      letterSpacing={letterSpacing}
+      uppercase={uppercase}
+      style={style}
+    />
   );
 }

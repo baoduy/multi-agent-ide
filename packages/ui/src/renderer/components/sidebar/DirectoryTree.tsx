@@ -1,11 +1,12 @@
 import React, { useMemo } from "react";
-import { FolderOpen, Clipboard } from "lucide-react";
+import { Clipboard } from "lucide-react";
 
 import type { Repository } from "@magenta/shared/models";
 import { FileTree } from "../common/FileTree";
 import type { TreeEntry } from "../common/FileTree";
 import type { ContextMenuAction } from "../common/ContextMenu";
-import { openInFileManager } from "../../utils/ipc";
+import { openInVscode } from "../../utils/ipc";
+import { VsCodeIcon } from "../common/VsCodeIcon";
 import { RepoItem } from "./RepoItem";
 
 /* ── Internal tree node (for building the tree from flat repos) ── */
@@ -215,9 +216,9 @@ export function DirectoryTree({
       if (!entry.isDirectory) return []; // repos have their own context menu in RepoItem
       return [
         {
-          label: "Open in File Explorer",
-          Icon: FolderOpen,
-          action: () => void openInFileManager(entry.path),
+          label: "Open with Code",
+          Icon: VsCodeIcon,
+          action: () => void openInVscode(entry.path),
         },
         {
           label: "Copy path",

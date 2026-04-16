@@ -48,6 +48,22 @@ const api = {
   },
 
   /**
+   * Returns true if the given filesystem path currently exists, false otherwise.
+   * Never throws — unreadable paths are reported as non-existent.
+   */
+  async pathExists(targetPath: string): Promise<boolean> {
+    return ipcRenderer.invoke("magenta:path-exists", targetPath) as Promise<boolean>;
+  },
+
+  /**
+   * Opens the given path in VS Code. Prefers the `code` CLI and falls back to
+   * the `vscode://` URL scheme. Never throws.
+   */
+  async openInVscode(targetPath: string): Promise<void> {
+    await ipcRenderer.invoke("magenta:open-in-vscode", targetPath);
+  },
+
+  /**
    * Reads today's application log file.
    */
   async readLog(): Promise<{ content: string; path: string }> {

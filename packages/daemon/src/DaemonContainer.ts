@@ -93,12 +93,12 @@ export class DaemonContainer {
     // Terminal PTY service
     this.terminalService = new TerminalApplicationService(this.bridge);
 
-    // AI Session service — purely in-memory; the disk-backed sync layer is
-    // the source of truth for session history.
-    this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager);
-
     // Git gateway (shared across services that need git operations)
     this.gitGateway = new GitGateway();
+
+    // AI Session service — purely in-memory; the disk-backed sync layer is
+    // the source of truth for session history.
+    this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager, this.gitGateway);
 
     // Read-side gateways shared across handler registrations. Keeping a
     // single instance here prevents duplicate construction in

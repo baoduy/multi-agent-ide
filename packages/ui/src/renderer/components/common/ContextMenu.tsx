@@ -7,9 +7,32 @@ import { colors } from "../../utils/colors";
 
 export type ContextMenuPosition = { x: number; y: number };
 
+/**
+ * Component shape accepted by {@link ContextMenuAction.Icon}. `LucideIcon` is
+ * the common case, but custom SVG components (e.g. {@link VsCodeIcon}) are
+ * also supported as long as they accept the same prop trio. The signature is
+ * deliberately structural rather than nominal so callers don't have to
+ * `forwardRef` a one-off glyph.
+ */
+export type ContextMenuIconComponent =
+  | LucideIcon
+  | React.ComponentType<{
+      size?: number | string;
+      color?: string;
+      strokeWidth?: number | string;
+    }>;
+
 export type ContextMenuAction = {
   label: string;
-  Icon?: LucideIcon;
+  Icon?: ContextMenuIconComponent;
+  /**
+   * Optional color applied to the icon for this specific item. When omitted
+   * the icon uses {@link colors.textMuted} — i.e. the standard muted glyph
+   * tone that matches labels elsewhere in the menu. Use this to call out
+   * brand-coloured actions (e.g. a VS Code blue for "Open in VS Code").
+   * Ignored when the item is disabled.
+   */
+  iconColor?: string;
   /** Fallback emoji icon when no lucide Icon is provided */
   emoji?: string;
   /** Click handler. Ignored when `submenu` is provided. */
@@ -18,6 +41,15 @@ export type ContextMenuAction = {
   separator?: boolean;
   /** Child items rendered as a nested menu on hover. When set, `action` is ignored. */
   submenu?: ContextMenuAction[];
+  /**
+   * When true the item renders muted and is not clickable. Useful for actions
+   * whose target is temporarily unavailable (e.g. a path that no longer exists
+   * on disk) — the item stays visible so the user can see why the action is
+   * offered and hover the tooltip, rather than silently disappearing.
+   */
+  disabled?: boolean;
+  /** Optional tooltip shown on hover (via the native `title` attribute). */
+  title?: string;
 };
 
 /* ── ContextMenu ── */
@@ -130,24 +162,27 @@ function ContextMenuItem({
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasSubmenu = !!(item.submenu && item.submenu.length > 0);
+  const isDisabled = !!item.disabled;
 
   const handleClick = useCallback(() => {
     if (hasSubmenu) return; // submenu items don't trigger actions themselves
+    if (isDisabled) return; // disabled items are non-interactive
     item.action?.();
     onClose();
-  }, [hasSubmenu, item, onClose]);
+  }, [hasSubmenu, isDisabled, item, onClose]);
 
-  // Open/close submenu with a grace period for mouse transitions
+  // Open/close submenu with a grace period for mouse transitions.
+  // Disabled items never open their submenu (if any) — they're inert.
   const openSubmenu = useCallback(() => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
-    if (!hasSubmenu || !itemRef.current) return;
+    if (!hasSubmenu || isDisabled || !itemRef.current) return;
     const rect = itemRef.current.getBoundingClientRect();
     setSubmenuPos({ x: rect.right - 2, y: rect.top - 4 });
     setSubmenuOpen(true);
-  }, [hasSubmenu]);
+  }, [hasSubmenu, isDisabled]);
 
   const scheduleCloseSubmenu = useCallback(() => {
     if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
@@ -173,23 +208,40 @@ function ContextMenuItem({
         ref={itemRef}
         type="button"
         onClick={handleClick}
+        disabled={isDisabled}
+        title={item.title}
+        aria-disabled={isDisabled}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
           width: "100%",
           border: "none",
-          background: hovered || submenuOpen ? colors.bgHover : "transparent",
+          // Disabled items never show a hover highlight — they're inert.
+          background:
+            !isDisabled && (hovered || submenuOpen) ? colors.bgHover : "transparent",
           padding: "7px 14px",
-          cursor: hasSubmenu ? "default" : "pointer",
+          cursor: isDisabled ? "not-allowed" : hasSubmenu ? "default" : "pointer",
           fontSize: 12,
-          color: colors.text,
+          color: isDisabled ? colors.textMuted : colors.text,
+          opacity: isDisabled ? 0.55 : 1,
           textAlign: "left",
           transition: "background 0.08s",
         }}
       >
         <span style={{ display: "inline-flex", width: 18, justifyContent: "center", flexShrink: 0 }}>
-          {item.Icon ? <item.Icon size={14} color={colors.textMuted} strokeWidth={1.8} /> : item.emoji ? <span style={{ fontSize: 13 }}>{item.emoji}</span> : null}
+          {item.Icon ? (
+            <item.Icon
+              size={14}
+              // Disabled items always render in the muted tone regardless of
+              // the caller's `iconColor` — a bright-blue disabled icon would
+              // read as a live call-to-action.
+              color={isDisabled ? colors.textMuted : item.iconColor ?? colors.textMuted}
+              strokeWidth={1.8}
+            />
+          ) : item.emoji ? (
+            <span style={{ fontSize: 13 }}>{item.emoji}</span>
+          ) : null}
         </span>
         <span style={{ flex: 1 }}>{item.label}</span>
         {hasSubmenu && (

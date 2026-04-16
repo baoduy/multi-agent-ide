@@ -18,20 +18,20 @@ export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps):
         justifyContent: "center",
         minHeight: "100vh",
         backgroundColor: colors.bgSurface,
-        gap: 16,
+        gap: 10,
       }}
     >
       <div
         style={{
-          width: 40,
-          height: 40,
-          border: `3px solid ${colors.border}`,
+          width: 28,
+          height: 28,
+          border: `2px solid ${colors.border}`,
           borderTopColor: colors.primary,
           borderRadius: "50%",
           animation: "spin 1s linear infinite",
         }}
       />
-      <p style={{ fontSize: 14, color: colors.textSecondary, margin: 0 }}>{message}</p>
+      <p style={{ fontSize: 11, color: colors.textSecondary, margin: 0 }}>{message}</p>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -7,6 +7,8 @@ import { useRepoStore } from "../../store/repoStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
 import { colors } from "../../utils/colors";
+import { resolveWorktreeParent } from "../../utils/formatters";
+import { sendOrThrow } from "../../services/ipcClient";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
@@ -56,13 +58,28 @@ export function AISessionsView({
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
-  // Initialize subscriptions and fetch sessions on mount
+  // Guard: only trigger the first-launch sync once per mount lifetime
+  const hasTriggeredInitialSync = useRef(false);
+
+  // Initialize subscriptions and fetch sessions on mount.
+  // If both live and synced sessions are empty after the initial fetch,
+  // immediately trigger a full sync so the user sees results on first launch.
+  // BackgroundJobManager deduplicates — if a sync is already queued/running
+  // (e.g. from setAITabActive), this is a harmless no-op.
   useEffect(() => {
     initializeSubscriptions();
     initSyncedSubscriptions();
-    void fetchSessions();
-    void fetchSyncedSessions();
-  }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions]);
+
+    void Promise.all([fetchSessions(), fetchSyncedSessions()]).then(() => {
+      if (hasTriggeredInitialSync.current) return;
+      const liveEmpty = useAISessionStore.getState().sessions.length === 0;
+      const syncedEmpty = useSyncedSessionStore.getState().sessions.length === 0;
+      if (liveEmpty && syncedEmpty) {
+        hasTriggeredInitialSync.current = true;
+        void triggerSync();
+      }
+    });
+  }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions, triggerSync]);
 
   // Clear the refreshing spinner once the synced loading cycle completes.
   // triggerSync is fire-and-forget; the syncedSessionStore auto-fetches
@@ -145,12 +162,17 @@ export function AISessionsView({
   );
 
   const handleResumeSyncedSession = useCallback(
-    (syncedSession: SyncedSessionRecord) => {
+    async (syncedSession: SyncedSessionRecord) => {
       const provider = syncedSession.provider === "claude-code" ? "claude" as const : "copilot" as const;
       const cwd = syncedSession.cwd || syncedSession.projectDir || undefined;
+
+      // Resolve worktree paths to their parent repo for correct grouping
+      const resolvedRepoPath = cwd ? resolveWorktreeParent(cwd) : undefined;
+      const resolvedWorktreePath = cwd && resolvedRepoPath !== cwd ? cwd : undefined;
+
       // Mark this session's repo as globally selected
-      if (cwd) {
-        SessionCoordinator.selectRepo(cwd);
+      if (resolvedRepoPath) {
+        SessionCoordinator.selectRepo(resolvedRepoPath);
       }
       // If a live session already mirrors this synced row (same agent UUID),
       // open it instead of creating a duplicate.
@@ -167,6 +189,36 @@ export function AISessionsView({
         }
         return;
       }
+
+      // Pre-flight: if this is a worktree session, verify the worktree still exists
+      if (resolvedWorktreePath && resolvedRepoPath) {
+        try {
+          const check = await sendOrThrow({
+            type: "ai-session:check-worktree",
+            worktreePath: resolvedWorktreePath,
+            repoPath: resolvedRepoPath,
+          });
+          if (!check.valid) {
+            const shouldRecreate = window.confirm(
+              `The worktree "${check.worktreeName}" no longer exists under ${check.repoPath}.\n\n` +
+              `Would you like to re-create it and resume the session?`,
+            );
+            if (!shouldRecreate) return;
+
+            // Re-create the worktree with the same name and branch
+            await sendOrThrow({
+              type: "worktree:create",
+              repoPath: check.repoPath,
+              branch: syncedSession.gitBranch || "main",
+              name: check.worktreeName,
+            });
+          }
+        } catch (err) {
+          console.error("[AISessionsView] Worktree check failed:", err);
+          // Fall through — let createSession handle any errors
+        }
+      }
+
       // Pass providerSessionId so the daemon reuses the synced agent UUID:
       //   - Claude:  --resume <id>  (live.providerSessionId === synced.sessionId)
       //   - Copilot: --resume=<id>  (live.providerSessionId === synced.sessionId)
@@ -174,7 +226,8 @@ export function AISessionsView({
       void createSession(
         {
           provider,
-          repoPath: cwd,
+          repoPath: resolvedRepoPath,
+          worktreePath: resolvedWorktreePath,
           branch: syncedSession.gitBranch ?? undefined,
           providerSessionId: syncedSession.sessionId,
         },
@@ -211,7 +264,7 @@ export function AISessionsView({
           display: "flex",
           alignItems: "center",
           justifyContent: "flex-end",
-          padding: "6px 8px",
+          padding: "8px 8px",
           borderBottom: `1px solid ${colors.border}`,
           flexShrink: 0,
         }}
@@ -241,7 +294,6 @@ export function AISessionsView({
               animation: isRefreshing ? "spin 1s linear infinite" : undefined,
             }}
           />
-          {isRefreshing ? "Syncing…" : "Refresh"}
         </button>
       </div>
       {/* Unified session tree grouped by repo/directory */}
@@ -276,12 +328,12 @@ export function AISessionsView({
                 alignItems: "center",
                 justifyContent: "center",
                 flex: 1,
-                padding: 24,
+                padding: 12,
                 textAlign: "center",
                 color: colors.textTertiary,
               }}
             >
-              <div style={{ fontSize: 13, marginBottom: 8 }}>
+              <div style={{ fontSize: 11, marginBottom: 6 }}>
                 No sessions yet.
               </div>
               <button

@@ -470,14 +470,13 @@ export function NewSessionDialog({
 
           {/* Right: action buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <CancelButton onClick={onClose} />
             <PrimaryButton
               onClick={() => void handleConfirm()}
               disabled={!canCreate}
               loading={isCreating}
               loadingText="Creating..."
             >
-              Create Agent Session
+              Create
             </PrimaryButton>
           </div>
         </div>

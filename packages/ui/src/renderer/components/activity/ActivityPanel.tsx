@@ -25,7 +25,7 @@ function Section({
       style={{
         display: "flex",
         flexDirection: "column",
-        padding: "14px 16px",
+        padding: "8px 12px",
         borderBottom: `1px solid ${colors.border}`,
         minHeight: 0,
         ...style,

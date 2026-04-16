@@ -8,6 +8,7 @@ import { WorktreeDialog } from "../dialogs/WorktreeDialog";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { useSpecStore } from "../../store/specStore";
 import { colors } from "../../utils/colors";
+import { Tag } from "../common/Tag";
 
 type WorkflowViewProps = {
   spec: SpecFolder | null;
@@ -262,13 +263,13 @@ export function WorkflowView({
     return (
       <div
         style={{
-          padding: 24,
+          padding: 12,
           color: colors.textTertiary,
-          fontSize: 13,
+          fontSize: 11,
           textAlign: "center",
         }}
       >
-        <Layers size={32} color={colors.borderMuted} strokeWidth={1.5} style={{ marginBottom: 12 }} />
+        <Layers size={24} color={colors.borderMuted} strokeWidth={1.5} style={{ marginBottom: 8 }} />
         <div>Select a spec from the Specs tab to view its workflow.</div>
       </div>
     );
@@ -281,20 +282,20 @@ export function WorkflowView({
       {/* Header bar */}
       <div
         style={{
-          padding: "12px 20px",
+          padding: "6px 12px",
           borderBottom: `1px solid ${colors.border}`,
           display: "flex",
           alignItems: "center",
-          gap: 12,
+          gap: 8,
           flexShrink: 0,
           background: colors.bgSurface,
         }}
       >
-        <Layers size={16} color={colors.primary} strokeWidth={1.8} />
+        <Layers size={14} color={colors.primary} strokeWidth={1.8} />
         <div style={{ flex: 1 }}>
           <span
             style={{
-              fontSize: 14,
+              fontSize: 12,
               fontWeight: 600,
               color: colors.textStrong,
             }}
@@ -318,22 +319,18 @@ export function WorkflowView({
 
         {/* Approval summary */}
         {approvedStages.length > 0 && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              padding: "3px 10px",
-              borderRadius: 12,
-              background: colors.successSoft,
-              color: colors.successText,
-              fontSize: 11,
-              fontWeight: 600,
-            }}
+          <Tag
+            tone="success"
+            size="md"
+            borderRadius={12}
+            padding="3px 10px"
+            fontSize={11}
+            fontWeight={600}
+            borderColor={null}
+            icon={<CheckCircle size={12} strokeWidth={2} />}
           >
-            <CheckCircle size={12} strokeWidth={2} />
             {approvedStages.length}/{spec.stages.length} approved
-          </div>
+          </Tag>
         )}
 
         {/* Toast for last approved */}

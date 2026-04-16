@@ -68,6 +68,14 @@ export const colors = {
   statusError: "var(--status-error)",
   statusIdle: "var(--status-idle)",
 
+  /** Branch tag colors (Tag tone="branch", BranchLabel inline) */
+  branchBg: "var(--branch-bg)",
+  branchFg: "var(--branch-fg)",
+
+  /** Terminal reconnect banner */
+  terminalBannerBg: "var(--terminal-banner-bg)",
+  terminalBannerFg: "var(--terminal-banner-fg)",
+
   /** Repo badge colors */
   repoBadgeMissingBg: "var(--repo-badge-missing-bg)",
   repoBadgeMissingFg: "var(--repo-badge-missing-fg)",

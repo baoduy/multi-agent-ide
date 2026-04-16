@@ -8,6 +8,7 @@ import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { colors } from "../../utils/colors";
+import { Tag } from "../common/Tag";
 
 type WorktreesViewProps = {
   repoName: string | null;
@@ -78,39 +79,51 @@ const WorktreeCard = React.memo(function WorktreeCard({
           <GitBranch size={16} color={colors.primary} strokeWidth={1.8} />
         </div>
 
-        {/* Info */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Info — single-line: name + date. The branch is intentionally
+            omitted here because in the common case the worktree is named
+            after its branch, which produced a visible duplicate row. If the
+            branch differs from the worktree name we surface it inline after
+            the name. */}
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
           <ScrollableText
             style={{
               fontSize: 13,
               fontWeight: 600,
               color: colors.textStrong,
+              minWidth: 0,
             }}
           >
             {wt.name}
           </ScrollableText>
-          <div
+          {wt.branch && wt.branch !== wt.name && (
+            <BranchLabel
+              name={wt.branch}
+              size="xs"
+              badge={false}
+              style={{ color: colors.textTertiary, flexShrink: 0 }}
+            />
+          )}
+          <span
             style={{
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
-              gap: 10,
-              marginTop: 3,
+              gap: 3,
               fontSize: 11,
               color: colors.textTertiary,
+              flexShrink: 0,
             }}
           >
-            <BranchLabel name={wt.branch} size="xs" badge={false} style={{ color: colors.textTertiary }} />
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 3,
-              }}
-            >
-              <Clock size={10} strokeWidth={1.5} />
-              {dateStr}
-            </span>
-          </div>
+            <Clock size={10} strokeWidth={1.5} />
+            {dateStr}
+          </span>
         </div>
 
         {/* Path (truncated) */}
@@ -231,20 +244,9 @@ const RepoGroup = React.memo(function RepoGroup({
           style={{ color: isActive ? colors.primary : colors.textMuted }}
         />
         {isActive && (
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 600,
-              color: colors.primary,
-              background: colors.bgPanelSoft,
-              padding: "2px 6px",
-              borderRadius: 4,
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-            }}
-          >
+          <Tag tone="primary" size="xs" uppercase padding="2px 6px" borderRadius={4}>
             Active
-          </span>
+          </Tag>
         )}
         <span
           style={{
@@ -371,16 +373,16 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
   }, []);
 
   return (
-    <div style={{ padding: 20 }}>
+    <div style={{ padding: 10 }}>
       {/* Section header */}
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           color: colors.textTertiary,
-          marginBottom: 16,
+          marginBottom: 8,
         }}
       >
         {allWorktrees.length === 0 ? "Repositories" : "Worktrees by repository"}
@@ -468,21 +470,15 @@ export function WorktreesView({ repoName, onOpenFile }: WorktreesViewProps): Rea
                       </ScrollableText>
                     </div>
                     {isActive && (
-                      <span
-                        style={{
-                          fontSize: 9,
-                          fontWeight: 600,
-                          color: colors.primary,
-                          background: colors.bgPanelSoft,
-                          padding: "2px 6px",
-                          borderRadius: 4,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          flexShrink: 0,
-                        }}
+                      <Tag
+                        tone="primary"
+                        size="xs"
+                        uppercase
+                        padding="2px 6px"
+                        borderRadius={4}
                       >
                         Active
-                      </span>
+                      </Tag>
                     )}
                   </button>
                 );

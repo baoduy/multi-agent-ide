@@ -51,8 +51,8 @@ export const ActivityBar = React.memo(function ActivityBar({
       style={{
         display: "flex",
         flexDirection: "column",
-        width: 48,
-        minWidth: 48,
+        width: 36,
+        minWidth: 36,
         background: colors.bgPanel,
         borderRight: `1px solid ${colors.border}`,
         alignItems: "center",
@@ -93,7 +93,7 @@ export const ActivityBar = React.memo(function ActivityBar({
           flexDirection: "column",
           alignItems: "center",
           gap: 2,
-          paddingBottom: 8,
+          paddingBottom: 4,
         }}
       >
         {onSettingsClick && (
@@ -135,8 +135,8 @@ const ActivityBarItem = React.memo(function ActivityBarItem({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 40,
-        height: 40,
+        width: 32,
+        height: 32,
         borderRadius: 6,
         border: "none",
         background: hovered ? colors.bgHover : "transparent",

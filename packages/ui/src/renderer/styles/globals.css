@@ -67,7 +67,9 @@
   --status-error: var(--destructive);
   --status-idle: var(--muted-foreground);
   --repo-badge-missing-bg: var(--error-soft);
-  --repo-badge-spec-bg: color-mix(in srgb, var(--primary) 20%, transparent);
+  /* Bumped primary mix from 20% to 32% so the amber text has a saturated
+     surface to sit on — previous value read as washed-out in dark mode. */
+  --repo-badge-spec-bg: color-mix(in srgb, var(--primary) 32%, transparent);
   --repo-badge-active-bg: var(--success-soft);
   --repo-badge-active-fg: var(--success-text);
   --repo-badge-default-bg: var(--muted);

@@ -133,6 +133,7 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:providers") }),
   z.object({ type: z.literal("ai-session:set-permission-mode"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count") }),
+  z.object({ type: z.literal("ai-session:check-worktree"), worktreePath: z.string(), repoPath: z.string() }),
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   z.object({ type: z.literal("synced-session:trigger-sync") }),
@@ -289,6 +290,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:permission-mode:ack"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:permission-mode-changed"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count:result"), count: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("ai-session:check-worktree:result"), valid: z.boolean(), repoPath: z.string(), worktreeName: z.string() }),
   // Synced session responses + push events
   z.object({ type: z.literal("synced-session:list:result"), sessions: z.array(SyncedSessionRecordSchema) }),
   z.object({ type: z.literal("synced-session:sync:triggered") }),

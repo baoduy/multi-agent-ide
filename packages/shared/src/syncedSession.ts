@@ -43,6 +43,13 @@ export const SyncedSessionRecordSchema = z.object({
   version: z.string().nullable(),
   entrypoint: z.string().nullable(),
   title: z.string().nullable(),
+  /**
+   * Absolute path to the session's JSONL file on disk (Claude Code: the main
+   * session JSONL; Copilot: events.jsonl). The parent directory of this file
+   * is treated as the "session directory" in UI context menus. `null` when
+   * the path was not recorded (e.g. legacy rows from before this field existed).
+   */
+  syncedFilePath: z.string().nullable(),
   startedAt: z.number().int().nonnegative(),
   endedAt: z.number().int().nonnegative().nullable(),
   createdAt: z.number().int().nonnegative(),

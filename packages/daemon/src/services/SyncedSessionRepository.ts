@@ -19,7 +19,8 @@ export class SyncedSessionRepository {
       .prepare(
         `SELECT id, provider, session_id, project_dir, cwd, git_branch, model,
                 token_usage_json, message_count, subagent_count, status, activity,
-                slug, version, entrypoint, title, started_at, ended_at, created_at
+                slug, version, entrypoint, title, synced_file_path,
+                started_at, ended_at, created_at
          FROM synced_sessions
          ORDER BY started_at DESC`
       )
@@ -37,7 +38,8 @@ export class SyncedSessionRepository {
       .prepare(
         `SELECT id, provider, session_id, project_dir, cwd, git_branch, model,
                 token_usage_json, message_count, subagent_count, status, activity,
-                slug, version, entrypoint, title, started_at, ended_at, created_at
+                slug, version, entrypoint, title, synced_file_path,
+                started_at, ended_at, created_at
          FROM synced_sessions
          WHERE provider = ?
          ORDER BY started_at DESC`

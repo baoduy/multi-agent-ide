@@ -8,6 +8,8 @@ declare global {
       off(listener: (payload: IpcResponse) => void): void;
       selectFolder(): Promise<string | null>;
       openInFileManager(dirPath: string): Promise<void>;
+      openInVscode(targetPath: string): Promise<void>;
+      pathExists(targetPath: string): Promise<boolean>;
       readLog(): Promise<{ content: string; path: string }>;
       onBeforeClose(callback: () => void): () => void;
       confirmClose(): void;

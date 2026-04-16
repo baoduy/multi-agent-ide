@@ -30,7 +30,7 @@ export function ClickableRow({
   leftBorder,
   selectedLeftBorder,
   borderBottom,
-  padding = "8px 12px",
+  padding = "5px 10px",
   gap = 0,
   alignItems = "center",
   justifyContent = "flex-start",

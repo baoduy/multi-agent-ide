@@ -44,6 +44,44 @@ export async function openInFileManager(dirPath: string): Promise<void> {
 }
 
 /**
+ * Opens the given path in VS Code. The main process tries the `code` CLI
+ * first (which opens folders as proper workspaces) and falls back to the
+ * `vscode://file/<path>` URL scheme if the CLI is unavailable.
+ */
+export async function openInVscode(targetPath: string): Promise<void> {
+  if (!ipcAvailable() || typeof window.magentaIpc.openInVscode !== "function") {
+    console.warn("[ipc] openInVscode not available");
+    return;
+  }
+  try {
+    await window.magentaIpc.openInVscode(targetPath);
+  } catch (error) {
+    console.error("[ipc] openInVscode failed:", error);
+  }
+}
+
+/**
+ * Returns true if the given filesystem path currently exists.
+ * Returns false when the bridge is unavailable, the path is empty, or any
+ * error occurs — callers should treat this as an optimistic check for UI
+ * state (e.g. greying out a menu item) and not a security gate.
+ */
+export async function pathExists(targetPath: string | null | undefined): Promise<boolean> {
+  if (!targetPath) return false;
+  if (!ipcAvailable() || typeof window.magentaIpc.pathExists !== "function") {
+    // Outside Electron we can't check — assume it exists so actions remain
+    // clickable in dev environments where the renderer is served standalone.
+    return true;
+  }
+  try {
+    return await window.magentaIpc.pathExists(targetPath);
+  } catch (error) {
+    console.error("[ipc] pathExists failed:", error);
+    return false;
+  }
+}
+
+/**
  * Reads today's application log file via Electron.
  */
 export async function readLog(): Promise<{ content: string; path: string }> {

@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
-import { X, Terminal, ChevronDown, Copy } from "lucide-react";
+import { X, Terminal, ChevronDown, Copy, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { viewRegistry } from "./ViewRegistry";
 import { useDockDrag } from "./useDockDrag";
@@ -89,6 +89,14 @@ function resolveTabIcon(tab: TabState, registryIcon?: React.ReactNode): React.Re
     return <Terminal size={14} strokeWidth={1.8} />;
   }
   return registryIcon;
+}
+
+/**
+ * Extract the branch/workspace label from a tab's props for agent-session tabs.
+ */
+function resolveTabBranchLabel(tab: TabState): string | null {
+  if (tab.viewId !== "agent-session") return null;
+  return (tab.props?.branchLabel as string | null | undefined) ?? null;
 }
 
 export const DockTabBar = React.memo(function DockTabBar({
@@ -246,6 +254,7 @@ export const DockTabBar = React.memo(function DockTabBar({
           const title = tab.title ?? descriptor?.title ?? tab.viewId;
           const closable = descriptor?.closable !== false;
           const icon = resolveTabIcon(tab, descriptor?.icon);
+          const branchLabel = resolveTabBranchLabel(tab);
 
           return (
             <TabItem
@@ -254,6 +263,7 @@ export const DockTabBar = React.memo(function DockTabBar({
               viewId={tab.viewId}
               title={title}
               icon={icon}
+              branchLabel={branchLabel}
               isActive={isActive}
               closable={closable}
               onSelect={onSelectTab}
@@ -357,6 +367,7 @@ const TabItem = React.memo(function TabItem({
   viewId,
   title,
   icon,
+  branchLabel,
   isActive,
   closable,
   onSelect,
@@ -368,6 +379,7 @@ const TabItem = React.memo(function TabItem({
   viewId: string;
   title: string;
   icon?: React.ReactNode;
+  branchLabel?: string | null;
   isActive: boolean;
   closable: boolean;
   onSelect: (tabId: string) => void;
@@ -454,9 +466,27 @@ const TabItem = React.memo(function TabItem({
           {icon}
         </span>
       )}
-      <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis" }}>
+      <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
         {title}
       </span>
+      {branchLabel && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 2,
+            opacity: isActive ? 0.65 : 0.5,
+            flexShrink: 0,
+            maxWidth: 100,
+            overflow: "hidden",
+          }}
+        >
+          <GitBranch size={10} strokeWidth={2} style={{ flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", fontSize: 10 }}>
+            {branchLabel}
+          </span>
+        </span>
+      )}
       {closable && onClose && (
         <TabCloseButton
           onClick={(e) => {
@@ -554,11 +584,13 @@ function TabOverflowButton({
             const title = tab.title ?? descriptor?.title ?? tab.viewId;
             const icon = resolveTabIcon(tab, descriptor?.icon);
             const isActive = tab.tabId === activeTabId;
+            const branchLabel = resolveTabBranchLabel(tab);
             return (
               <DropdownItem
                 key={tab.tabId}
                 title={title}
                 icon={icon}
+                branchLabel={branchLabel}
                 isActive={isActive}
                 onClick={() => onSelectTab(tab.tabId)}
               />
@@ -573,11 +605,13 @@ function TabOverflowButton({
 function DropdownItem({
   title,
   icon,
+  branchLabel,
   isActive,
   onClick,
 }: {
   title: string;
   icon?: React.ReactNode;
+  branchLabel?: string | null;
   isActive: boolean;
   onClick: () => void;
 }): React.ReactElement {
@@ -616,10 +650,31 @@ function DropdownItem({
           overflow: "hidden",
           textOverflow: "ellipsis",
           whiteSpace: "nowrap",
+          flex: 1,
+          minWidth: 0,
         }}
       >
         {title}
       </span>
+      {branchLabel && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 3,
+            flexShrink: 0,
+            opacity: 0.6,
+            fontSize: 10,
+            maxWidth: 100,
+            overflow: "hidden",
+          }}
+        >
+          <GitBranch size={10} strokeWidth={2} style={{ flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {branchLabel}
+          </span>
+        </span>
+      )}
     </button>
   );
 }

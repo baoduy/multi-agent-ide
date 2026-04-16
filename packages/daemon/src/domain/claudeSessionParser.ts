@@ -198,7 +198,7 @@ export function parseClaudeSessionLines(lines: string[]): ClaudeSessionMetadata 
  * Extracts a short title from user message content.
  * Strips command tags and truncates to ~80 chars.
  */
-function extractTitleFromContent(content: string): string | null {
+export function extractTitleFromContent(content: string): string | null {
   // Remove XML-like command tags
   let cleaned = content
     .replace(/<command-message>.*?<\/command-message>/gs, "")

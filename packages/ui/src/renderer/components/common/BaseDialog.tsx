@@ -125,7 +125,7 @@ export function BaseDialog({
         >
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             {icon}
-            <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: colors.text, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               {title}
             </span>
           </div>

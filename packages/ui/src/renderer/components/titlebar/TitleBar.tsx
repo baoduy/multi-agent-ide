@@ -65,8 +65,8 @@ function ToolbarButton({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 22,
-        height: 22,
+        width: 26,
+        height: 26,
         border: "none",
         borderRadius: 6,
         cursor: disabled ? "default" : "pointer",
@@ -190,7 +190,7 @@ function ChevronRightIcon(): React.ReactElement {
 
 /* ── Title Bar ── */
 
-const TITLE_BAR_HEIGHT = 30;
+const TITLE_BAR_HEIGHT = 36;
 
 export function TitleBar({
   sidebarCollapsed,

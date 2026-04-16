@@ -17,7 +17,7 @@ export function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.R
     <ClickableRow
       onClick={() => onSelect(spec.path)}
       selected={isSelected}
-      padding="7px 16px"
+      padding="4px 12px"
       justifyContent="space-between"
       defaultBackground="transparent"
       hoverBackground={colors.bgCodeInline}

@@ -50,8 +50,8 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 10,
-        padding: "8px 16px",
+        gap: 8,
+        padding: "5px 12px",
         borderBottom: `1px solid ${colors.border}`,
         background: hovered ? colors.bgHover : "transparent",
         border: "none",
@@ -152,8 +152,8 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 8,
-        padding: "8px 16px",
+        gap: 6,
+        padding: "5px 12px",
         borderBottom: `1px solid ${colors.border}`,
         background: hovered ? colors.bgHover : "transparent",
         border: "none",
@@ -313,7 +313,7 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       onMouseLeave={() => setHovered(false)}
       style={{
         width: "100%",
-        padding: "8px 16px 8px 54px",
+        padding: "4px 12px 4px 48px",
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -457,7 +457,7 @@ function SessionGroupNodeComponent({
           {hasHistory && (
             <div
               style={{
-                padding: "4px 16px 4px 54px",
+                padding: "3px 12px 3px 48px",
                 fontSize: 9,
                 fontWeight: 600,
                 textTransform: "uppercase",

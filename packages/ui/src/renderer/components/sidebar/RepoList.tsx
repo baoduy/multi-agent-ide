@@ -75,8 +75,8 @@ export function RepoList(): React.ReactElement {
               <>
                 <div
                   style={{
-                    padding: "8px 16px 4px",
-                    fontSize: 10,
+                    padding: "5px 12px 2px",
+                    fontSize: 9,
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.1em",
@@ -99,7 +99,7 @@ export function RepoList(): React.ReactElement {
                     onTogglePin={togglePin}
                   />
                 ))}
-                <div style={{ height: 1, background: colors.border, margin: "4px 16px 2px" }} />
+                <div style={{ height: 1, background: colors.border, margin: "2px 12px 1px" }} />
               </>
             )}
 

@@ -58,6 +58,7 @@ type RepoGroupHeaderProps = {
   totalCount: number;
   expanded: boolean;
   onToggle: () => void;
+  onCreateSession?: () => void;
 };
 
 const RepoGroupHeader = React.memo(function RepoGroupHeader({
@@ -66,56 +67,78 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
   totalCount,
   expanded,
   onToggle,
+  onCreateSession,
 }: RepoGroupHeaderProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
   const badge = getRepoBadge(repo);
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+
+  const contextMenuItems = useMemo<ContextMenuAction[]>(() => [
+    {
+      label: "New AI Session…",
+      emoji: "✨",
+      action: onCreateSession,
+      disabled: !onCreateSession,
+    },
+  ], [onCreateSession]);
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "5px 12px",
-        borderBottom: `1px solid ${colors.border}`,
-        background: hovered ? colors.bgHover : "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background 0.12s",
-      }}
-    >
-      {/* Chevron */}
-      {expanded ? (
-        <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      ) : (
-        <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      )}
+    <>
+      <button
+        type="button"
+        onClick={onToggle}
+        onContextMenu={openContextMenu}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "5px 12px",
+          borderBottom: `1px solid ${colors.border}`,
+          background: hovered ? colors.bgHover : "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "background 0.12s",
+        }}
+      >
+        {/* Chevron */}
+        {expanded ? (
+          <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        ) : (
+          <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        )}
 
-      <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-        <Tag tone={badge.tone} size="xs" fontWeight={500}>
-          {badge.label}
+        <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+          <Tag tone={badge.tone} size="xs" fontWeight={500}>
+            {badge.label}
+          </Tag>
+          <BranchLabel name={repo.branch} size="xs" />
+        </RepoLabel>
+
+        {/* Active indicator */}
+        {activeCount > 0 && (
+          <Tag tone="success" size="xs" fontWeight={700}>
+            {activeCount} active
+          </Tag>
+        )}
+
+        {/* Total session count — borderless muted chip */}
+        <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+          {totalCount}
         </Tag>
-        <BranchLabel name={repo.branch} size="xs" />
-      </RepoLabel>
+      </button>
 
-      {/* Active indicator */}
-      {activeCount > 0 && (
-        <Tag tone="success" size="xs" fontWeight={700}>
-          {activeCount} active
-        </Tag>
+      {contextMenu && (
+        <ContextMenu
+          position={contextMenu}
+          items={contextMenuItems}
+          onClose={closeContextMenu}
+        />
       )}
-
-      {/* Total session count — borderless muted chip */}
-      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
-        {totalCount}
-      </Tag>
-    </button>
+    </>
   );
 });
 
@@ -422,6 +445,8 @@ type SessionGroupNodeViewProps = {
   onDeleteSession: (sessionId: string) => void;
   /** Called when user clicks a synced (history) session to resume it */
   onResumeSyncedSession: (session: SyncedSessionRecord) => void;
+  /** Called when user right-clicks a repo group header and picks "New AI Session" */
+  onCreateSession?: (repoPath: string) => void;
 };
 
 function SessionGroupNodeComponent({
@@ -432,6 +457,7 @@ function SessionGroupNodeComponent({
   onResumeSession,
   onDeleteSession,
   onResumeSyncedSession,
+  onCreateSession,
 }: SessionGroupNodeViewProps): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -467,6 +493,7 @@ function SessionGroupNodeComponent({
           totalCount={node.totalCount}
           expanded={expanded}
           onToggle={toggleExpanded}
+          onCreateSession={onCreateSession ? () => onCreateSession(node.repo!.path) : undefined}
         />
       ) : (
         <WorkspaceGroupHeader

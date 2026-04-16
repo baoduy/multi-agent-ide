@@ -110,6 +110,8 @@ export type ActivityBarGroup = {
   iconViewId: string;
   /** Left-sidebar section viewIds that belong to this group */
   viewIds: string[];
+  /** Right-sidebar section viewIds that belong to this group. Empty/undefined = no right panel. */
+  rightViewIds?: string[];
 };
 
 export type ActivityBarState = {

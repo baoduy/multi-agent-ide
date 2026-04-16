@@ -73,7 +73,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
 
   registerRepoHandlers({ bridge, repoService });
   registerSpecHandlers({ bridge, specService });
-  registerGitMetadataHandlers({ bridge, specService });
+  registerGitMetadataHandlers({ bridge, specService, specGitGateway });
   registerConfigHandlers({ bridge, configManager: context.configManager });
   registerFileHandlers({ bridge, fileSystemGateway });
   registerWorktreeHandlers({ bridge, worktreeService });

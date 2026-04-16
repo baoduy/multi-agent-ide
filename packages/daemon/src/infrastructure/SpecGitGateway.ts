@@ -110,6 +110,27 @@ export class SpecGitGateway {
   }
 
   /**
+   * Lists tracked files matching a glob pattern.
+   * - Without `ref`: uses `git ls-files <pattern>` (current working tree).
+   * - With `ref`: uses `git ls-tree -r --name-only <ref>` and filters client-side.
+   * Returns relative paths sorted alphabetically.
+   */
+  async listFilesByPattern(repoPath: string, pattern: string, ref?: string): Promise<string[]> {
+    const git = createGit(repoPath);
+    try {
+      if (ref) {
+        const raw = await git.raw(["ls-tree", "-r", "--name-only", ref]);
+        const ext = pattern.replace("*", "").toLowerCase();
+        return parseLines(raw).filter((f) => f.toLowerCase().endsWith(ext)).sort();
+      }
+      const raw = await git.raw(["ls-files", "--", pattern]);
+      return parseLines(raw).sort();
+    } catch {
+      return [];
+    }
+  }
+
+  /**
    * Reads a file from a git ref (branch) without checkout.
    * @param repoPath Repository root
    * @param ref Branch or ref name

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { sanitizeName } from "../domain/sanitizeName";
+import { sanitizeWorktreeName } from "@magenta/shared/sanitize";
 import type { GitGateway, WorktreeEntry } from "../infrastructure/GitGateway";
 import type { RepoRepository } from "../services/RepoRepository";
 import { requireNonEmpty } from "../errors/validation";
@@ -98,7 +98,7 @@ export class WorktreeApplicationService {
     requireNonEmpty(branch, "branch");
     requireNonEmpty(name, "name");
 
-    const safeName = sanitizeName(name);
+    const safeName = sanitizeWorktreeName(name);
     if (!safeName) {
       throw new AppError("VALIDATION_ERROR", "Invalid worktree name after sanitization");
     }

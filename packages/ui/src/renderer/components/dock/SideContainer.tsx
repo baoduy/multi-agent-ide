@@ -33,11 +33,23 @@ export const SideContainer = React.memo(function SideContainer({
   const groups = useLayoutStore((s) => s.layout.activityBar.groups);
 
   const sections = useMemo(() => {
-    if (region !== "left") return container.sections;
     const activeGroup = groups.find((g: ActivityBarGroup) => g.id === activeGroupId);
     if (!activeGroup) return container.sections;
-    const allowedIds = new Set(activeGroup.viewIds);
-    return container.sections.filter((s: SectionState) => allowedIds.has(s.viewId));
+
+    if (region === "left") {
+      const allowedIds = new Set(activeGroup.viewIds);
+      return container.sections.filter((s: SectionState) => allowedIds.has(s.viewId));
+    }
+
+    // Right sidebar: filter by rightViewIds when present
+    if (region === "right") {
+      const rightIds = activeGroup.rightViewIds;
+      if (!rightIds || rightIds.length === 0) return [];
+      const allowedIds = new Set(rightIds);
+      return container.sections.filter((s: SectionState) => allowedIds.has(s.viewId));
+    }
+
+    return container.sections;
   }, [region, container.sections, activeGroupId, groups]);
 
   const expandedCount = useMemo(

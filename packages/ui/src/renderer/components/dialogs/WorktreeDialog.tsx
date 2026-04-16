@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GitBranch } from "lucide-react";
 
+import { isValidWorktreeName, sanitizeWorktreeName } from "@magenta/shared/sanitize";
 import { colors } from "../../utils/colors";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton, PrimaryButton } from "../common/DialogButtons";
@@ -28,7 +29,7 @@ export function WorktreeDialog({
   onConfirm,
   onCancel,
 }: WorktreeDialogProps): React.ReactElement {
-  const suggested = defaultName ?? branch.replace(/[^a-zA-Z0-9_-]/g, "-");
+  const suggested = defaultName ?? sanitizeWorktreeName(branch);
   const [name, setName] = useState(suggested);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +45,7 @@ export function WorktreeDialog({
       setError("Worktree name cannot be empty.");
       return;
     }
-    if (!/^[a-zA-Z0-9_-]+$/.test(trimmed)) {
+    if (!isValidWorktreeName(trimmed)) {
       setError("Only letters, numbers, dashes, and underscores are allowed.");
       return;
     }

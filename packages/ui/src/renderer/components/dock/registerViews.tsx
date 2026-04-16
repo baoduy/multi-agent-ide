@@ -18,11 +18,13 @@ import {
   List,
   Terminal,
   ScrollText,
+  BookText,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
 
 // Existing panel components (lazy references — imported at registration time)
 import { Sidebar } from "../sidebar/Sidebar";
+import { MarkdownFileTree } from "../sidebar/MarkdownFileTree";
 import { SpecTree } from "../sidebar/SpecTree";
 import { SpecFileList } from "../activity/SpecFileList";
 import { RepoFileChanges } from "../activity/RepoFileChanges";
@@ -77,6 +79,14 @@ function SpecsSidebarView(): React.ReactElement {
       onSelectSpec={handleSelectSpec}
     />
   );
+}
+
+/* ── Left Sidebar: Markdown File Tree ── */
+
+function MarkdownFileTreeView(props: {
+  onOpenFile?: (filePath: string) => void;
+}): React.ReactElement {
+  return <MarkdownFileTree onOpenFile={props.onOpenFile} />;
 }
 
 /* ── Right Sidebar: Repo File Changes ── */
@@ -304,6 +314,20 @@ export function registerAllViews(): void {
     activityOrder: 2,
     searchable: true,
     searchPlaceholder: "Search specs…",
+  });
+
+  viewRegistry.register({
+    id: "md-file-tree",
+    title: "Markdown Files",
+    icon: <BookText size={20} strokeWidth={1.5} />,
+    component: MarkdownFileTreeView,
+    defaultLocation: "left",
+    closable: false,
+    keepAlive: true,
+    activityGroup: "primary",
+    activityOrder: 10,
+    searchable: true,
+    searchPlaceholder: "Filter markdown files…",
   });
 
   // ── Right Sidebar Views ──

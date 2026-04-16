@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
 
+import { isValidWorktreeName } from "@magenta/shared/sanitize";
 import { sendOrThrow } from "../../services/ipcClient";
 import { ipc } from "../../utils/ipc";
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -365,7 +366,7 @@ export function NewSessionDialog({
 
     // Validate worktree name if custom
     if (workspaceTarget === "new-worktree" && worktreeCustomName.trim()) {
-      if (!/^[a-zA-Z0-9_-]+$/.test(worktreeCustomName.trim())) {
+      if (!isValidWorktreeName(worktreeCustomName.trim())) {
         setWorktreeNameError("Only letters, numbers, dashes, and underscores.");
         return;
       }

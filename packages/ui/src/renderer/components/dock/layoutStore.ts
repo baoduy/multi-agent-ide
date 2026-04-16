@@ -26,6 +26,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
     sections: [
       { viewId: "repos", expanded: true, size: 300 },
       { viewId: "specs", expanded: true, size: 220 },
+      { viewId: "md-file-tree", expanded: true, size: 400 },
     ],
   },
   right: {
@@ -56,6 +57,14 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         title: "Explorer",
         iconViewId: "repos",
         viewIds: ["repos", "specs"],
+        rightViewIds: ["spec-files", "repo-changes"],
+      },
+      {
+        id: "markdown-manager",
+        title: "Markdown Manager",
+        iconViewId: "md-file-tree",
+        viewIds: ["md-file-tree"],
+        rightViewIds: [],
       },
     ],
     activeGroupId: "explorer",
@@ -428,6 +437,29 @@ function loadPersistedLayout(): LayoutTree | null {
         ],
         activeGroupId: "explorer",
       };
+    }
+
+    // ── Migration: add rightViewIds to existing groups ──
+    for (const group of parsed.activityBar.groups) {
+      if (group.id === "explorer" && !group.rightViewIds) {
+        group.rightViewIds = ["spec-files", "repo-changes"];
+      }
+    }
+
+    // ── Migration: add markdown-manager group if missing ──
+    if (!parsed.activityBar.groups.some((g: ActivityBarGroup) => g.id === "markdown-manager")) {
+      parsed.activityBar.groups.push({
+        id: "markdown-manager",
+        title: "Markdown Manager",
+        iconViewId: "md-file-tree",
+        viewIds: ["md-file-tree"],
+        rightViewIds: [],
+      });
+    }
+
+    // ── Migration: add md-file-tree section to left sidebar if missing ──
+    if (!parsed.left.sections.some((s: SectionState) => s.viewId === "md-file-tree")) {
+      parsed.left.sections.push({ viewId: "md-file-tree", expanded: true, size: 400 });
     }
 
     return parsed;

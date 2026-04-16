@@ -154,6 +154,12 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     files: z.array(z.string()),
     push: z.boolean().optional(),
   }),
+  z.object({
+    type: z.literal("git:ls-files"),
+    repoPath: z.string(),
+    pattern: z.string().min(1).max(200),
+    ref: z.string().min(1).max(200).regex(/^[A-Za-z0-9._/\-]+$/, "ref contains invalid characters").optional(),
+  }),
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -319,6 +325,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     pushed: z.boolean(),
     message: z.string(),
   }),
+  z.object({ type: z.literal("git:ls-files:result"), repoPath: z.string(), files: z.array(z.string()) }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

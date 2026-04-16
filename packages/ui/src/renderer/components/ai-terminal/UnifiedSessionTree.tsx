@@ -3,10 +3,9 @@ import {
   ChevronDown,
   ChevronRight,
   Folder,
-  FolderOpen,
-  FileText,
   Clock,
 } from "lucide-react";
+import { VsCodeIcon, VisualStudioIcon } from "../common/VsCodeIcon";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
 import type { Repository } from "@magenta/shared/models";
@@ -374,8 +373,11 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
 
     return [
       {
-        label: "Open session directory in VS Code",
-        Icon: FileText,
+        // Visual Studio (purple) marks the session-level action — a secondary
+        // item that exposes the on-disk JSONL folder, distinct from the
+        // workspace the user normally edits.
+        label: "Open Session With Code",
+        Icon: VisualStudioIcon,
         disabled: !sessionDirReady,
         title: sessionDirTitle,
         action: () => {
@@ -383,8 +385,11 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         },
       },
       {
-        label: "Open working directory in VS Code",
-        Icon: FolderOpen,
+        // VS Code (blue) marks the primary "jump to my code" action — this is
+        // the one users reach for most often, so the brighter brand colour is
+        // warranted.
+        label: "Open workspace With Code",
+        Icon: VsCodeIcon,
         disabled: !workingDirReady,
         title: workingDirTitle,
         action: () => {

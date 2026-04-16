@@ -7,9 +7,32 @@ import { colors } from "../../utils/colors";
 
 export type ContextMenuPosition = { x: number; y: number };
 
+/**
+ * Component shape accepted by {@link ContextMenuAction.Icon}. `LucideIcon` is
+ * the common case, but custom SVG components (e.g. {@link VsCodeIcon}) are
+ * also supported as long as they accept the same prop trio. The signature is
+ * deliberately structural rather than nominal so callers don't have to
+ * `forwardRef` a one-off glyph.
+ */
+export type ContextMenuIconComponent =
+  | LucideIcon
+  | React.ComponentType<{
+      size?: number | string;
+      color?: string;
+      strokeWidth?: number | string;
+    }>;
+
 export type ContextMenuAction = {
   label: string;
-  Icon?: LucideIcon;
+  Icon?: ContextMenuIconComponent;
+  /**
+   * Optional color applied to the icon for this specific item. When omitted
+   * the icon uses {@link colors.textMuted} — i.e. the standard muted glyph
+   * tone that matches labels elsewhere in the menu. Use this to call out
+   * brand-coloured actions (e.g. a VS Code blue for "Open in VS Code").
+   * Ignored when the item is disabled.
+   */
+  iconColor?: string;
   /** Fallback emoji icon when no lucide Icon is provided */
   emoji?: string;
   /** Click handler. Ignored when `submenu` is provided. */
@@ -207,7 +230,18 @@ function ContextMenuItem({
         }}
       >
         <span style={{ display: "inline-flex", width: 18, justifyContent: "center", flexShrink: 0 }}>
-          {item.Icon ? <item.Icon size={14} color={colors.textMuted} strokeWidth={1.8} /> : item.emoji ? <span style={{ fontSize: 13 }}>{item.emoji}</span> : null}
+          {item.Icon ? (
+            <item.Icon
+              size={14}
+              // Disabled items always render in the muted tone regardless of
+              // the caller's `iconColor` — a bright-blue disabled icon would
+              // read as a live call-to-action.
+              color={isDisabled ? colors.textMuted : item.iconColor ?? colors.textMuted}
+              strokeWidth={1.8}
+            />
+          ) : item.emoji ? (
+            <span style={{ fontSize: 13 }}>{item.emoji}</span>
+          ) : null}
         </span>
         <span style={{ flex: 1 }}>{item.label}</span>
         {hasSubmenu && (

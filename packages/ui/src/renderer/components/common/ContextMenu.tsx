@@ -125,16 +125,16 @@ function MenuPanel({ position, items, onClose, panelRef }: MenuPanelProps): Reac
         zIndex: 9999,
         background: colors.bgSurface,
         border: `1px solid ${colors.border}`,
-        borderRadius: 8,
+        borderRadius: 6,
         boxShadow: colors.shadowContextMenu,
-        padding: "4px 0",
-        minWidth: 190,
+        padding: "3px 0",
+        minWidth: 160,
       }}
     >
       {items.map((item, i) => (
         <React.Fragment key={item.label}>
           {item.separator && i > 0 && (
-            <div style={{ height: 1, background: colors.border, margin: "4px 0" }} />
+            <div style={{ height: 1, background: colors.border, margin: "3px 0" }} />
           )}
           <ContextMenuItem item={item} onClose={onClose} />
         </React.Fragment>
@@ -214,25 +214,25 @@ function ContextMenuItem({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
+          gap: 6,
           width: "100%",
           border: "none",
           // Disabled items never show a hover highlight — they're inert.
           background:
             !isDisabled && (hovered || submenuOpen) ? colors.bgHover : "transparent",
-          padding: "7px 14px",
+          padding: "5px 10px",
           cursor: isDisabled ? "not-allowed" : hasSubmenu ? "default" : "pointer",
-          fontSize: 12,
+          fontSize: 11,
           color: isDisabled ? colors.textMuted : colors.text,
           opacity: isDisabled ? 0.55 : 1,
           textAlign: "left",
           transition: "background 0.08s",
         }}
       >
-        <span style={{ display: "inline-flex", width: 18, justifyContent: "center", flexShrink: 0 }}>
+        <span style={{ display: "inline-flex", width: 16, justifyContent: "center", flexShrink: 0 }}>
           {item.Icon ? (
             <item.Icon
-              size={14}
+              size={13}
               // Disabled items always render in the muted tone regardless of
               // the caller's `iconColor` — a bright-blue disabled icon would
               // read as a live call-to-action.
@@ -240,12 +240,12 @@ function ContextMenuItem({
               strokeWidth={1.8}
             />
           ) : item.emoji ? (
-            <span style={{ fontSize: 13 }}>{item.emoji}</span>
+            <span style={{ fontSize: 12 }}>{item.emoji}</span>
           ) : null}
         </span>
         <span style={{ flex: 1 }}>{item.label}</span>
         {hasSubmenu && (
-          <ChevronRight size={12} color={colors.textMuted} strokeWidth={1.8} style={{ marginLeft: 8, flexShrink: 0 }} />
+          <ChevronRight size={11} color={colors.textMuted} strokeWidth={1.8} style={{ marginLeft: 6, flexShrink: 0 }} />
         )}
       </button>
       {hasSubmenu && submenuOpen && submenuPos && item.submenu && (

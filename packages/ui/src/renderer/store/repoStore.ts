@@ -20,7 +20,6 @@ type RepoStoreState = {
   scanProgress: ScanProgress | null;
   error: string | null;
   subscriptionsReady: boolean;
-  searchQuery: string;
   setRepos: (repos: Repository[]) => void;
   setActiveRepoPath: (path: string | null) => void;
   togglePin: (repoPath: string) => void;
@@ -28,7 +27,6 @@ type RepoStoreState = {
   fetchRepos: () => Promise<void>;
   triggerScan: () => Promise<void>;
   initializeSubscriptions: () => void;
-  setSearchQuery: (query: string) => void;
 };
 
 // Persist pinned repos using the shared localStorage utility
@@ -54,7 +52,6 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
   scanProgress: null,
   error: null,
   subscriptionsReady: false,
-  searchQuery: "",
   setRepos: (repos) => set({ repos }),
   setActiveRepoPath(path: string | null) {
     set({ activeRepoPath: path });
@@ -80,9 +77,6 @@ export const useRepoStore = create<RepoStoreState>((set, get) => ({
     } catch (error) {
       set({ error: error instanceof Error ? error.message : String(error) });
     }
-  },
-  setSearchQuery(query: string) {
-    set({ searchQuery: query });
   },
   async triggerScan() {
     set({ isScanning: true, scanProgress: null, error: null });

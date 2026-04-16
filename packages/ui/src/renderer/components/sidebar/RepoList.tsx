@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo } from "react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useConfigStore } from "../../store/configStore";
+import { useViewSearchStore } from "../../store/viewSearchStore";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoItem } from "./RepoItem";
 import { DirectoryTree } from "./DirectoryTree";
@@ -15,7 +16,7 @@ export function RepoList(): React.ReactElement {
   const initializeSubscriptions = useRepoStore((state) => state.initializeSubscriptions);
   const togglePin = useRepoStore((state) => state.togglePin);
   const workingDirs = useConfigStore((state) => state.workingDirs);
-  const searchQuery = useRepoStore((state) => state.searchQuery);
+  const searchQuery = useViewSearchStore((s) => s.queries["repos"] ?? "");
 
   useEffect(() => {
     initializeSubscriptions();

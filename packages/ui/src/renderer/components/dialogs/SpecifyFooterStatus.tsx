@@ -22,6 +22,8 @@ type SpecifyFooterStatusProps = {
   repoPath: string;
   /** Called after a successful switch so the parent can refresh. */
   onSwitchComplete: () => void;
+  /** When true, auto-trigger the switch when a mismatch is detected. */
+  autoSwitch?: boolean;
 };
 
 type SwitchPhase = "idle" | "switching" | "success" | "error";
@@ -38,6 +40,7 @@ export const SpecifyFooterStatus = React.memo(function SpecifyFooterStatus({
   hasSpecs,
   repoPath,
   onSwitchComplete,
+  autoSwitch = false,
 }: SpecifyFooterStatusProps): React.ReactElement | null {
   const [phase, setPhase] = useState<SwitchPhase>("idle");
 
@@ -83,6 +86,15 @@ export const SpecifyFooterStatus = React.memo(function SpecifyFooterStatus({
       setPhase("error");
     }
   }, [repoPath, selectedProvider]);
+
+  // Auto-trigger switch when mismatch is detected and autoSwitch is enabled.
+  // Runs after the workspace/branch path is resolved so it targets the correct destination.
+  useEffect(() => {
+    if (!autoSwitch || !hasSpecs || phase !== "idle") return;
+    if (currentAgent != null && currentAgent !== selectedProvider) {
+      void handleSwitch();
+    }
+  }, [autoSwitch, hasSpecs, currentAgent, selectedProvider, phase, handleSwitch]);
 
   // Don't render anything if the repo isn't onboarded to Specify
   if (!hasSpecs) return null;

@@ -458,6 +458,7 @@ export function NewSessionDialog({
                 selectedProvider={provider}
                 hasSpecs={specifyStatus.hasSpecs}
                 repoPath={effectiveSpecifyPath}
+                autoSwitch
                 onSwitchComplete={() => {
                   setSpecifyStatus({ hasSpecs: true, currentAgent: provider });
                   sendOrThrow({ type: "repo:specify-status", repoPath: effectiveSpecifyPath })

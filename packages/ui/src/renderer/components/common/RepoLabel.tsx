@@ -46,8 +46,6 @@ function RepoLabelComponent({
         justifyContent: "center",
         width: b.box,
         height: b.box,
-        borderRadius: b.radius,
-        background: colors.bgMuted,
         flexShrink: 0,
       }}
     >
@@ -187,7 +185,8 @@ function BranchLabelComponent({
       <ScrollableText
         style={{
           fontSize: s.font,
-          color: BRANCH_INLINE_COLOR,
+          fontWeight: 600,
+          color: colors.text,
         }}
       >
         {name}

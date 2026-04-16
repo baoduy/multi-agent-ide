@@ -5,7 +5,6 @@ import {
   Folder,
   Clock,
 } from "lucide-react";
-import { VsCodeIcon, VisualStudioIcon } from "../common/VsCodeIcon";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
 import type { Repository } from "@magenta/shared/models";
@@ -19,12 +18,13 @@ import {
 } from "../common/ContextMenu";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime, formatTokens } from "../../utils/formatters";
-import { openInVscode, pathExists } from "../../utils/ipc";
+import { pathExists } from "../../utils/ipc";
+import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { Tag } from "../common/Tag";
-import type { SessionGroupNode } from "../../utils/sessionTreeBuilder";
-export { buildUnifiedGroups, type SessionGroupNode } from "../../utils/sessionTreeBuilder";
+import type { SessionGroupNode, BranchGroup } from "../../utils/sessionTreeBuilder";
+export { buildUnifiedGroups, type SessionGroupNode, type BranchGroup } from "../../utils/sessionTreeBuilder";
 
 /**
  * Derive the on-disk "session directory" for a synced session record — the
@@ -58,6 +58,7 @@ type RepoGroupHeaderProps = {
   totalCount: number;
   expanded: boolean;
   onToggle: () => void;
+  onCreateSession?: () => void;
 };
 
 const RepoGroupHeader = React.memo(function RepoGroupHeader({
@@ -66,56 +67,79 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
   totalCount,
   expanded,
   onToggle,
+  onCreateSession,
 }: RepoGroupHeaderProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
   const badge = getRepoBadge(repo);
+  const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+
+  const contextMenuItems = useMemo<ContextMenuAction[]>(() => [
+    {
+      label: "New AI Session…",
+      emoji: "✨",
+      action: onCreateSession,
+      disabled: !onCreateSession,
+    },
+    openWithVsCodeAction(repo.path),
+  ], [onCreateSession, repo.path]);
 
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "5px 12px",
-        borderBottom: `1px solid ${colors.border}`,
-        background: hovered ? colors.bgHover : "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background 0.12s",
-      }}
-    >
-      {/* Chevron */}
-      {expanded ? (
-        <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      ) : (
-        <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      )}
+    <>
+      <button
+        type="button"
+        onClick={onToggle}
+        onContextMenu={openContextMenu}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "5px 12px",
+          borderBottom: `1px solid ${colors.border}`,
+          background: hovered ? colors.bgHover : "transparent",
+          border: "none",
+          cursor: "pointer",
+          textAlign: "left",
+          transition: "background 0.12s",
+        }}
+      >
+        {/* Chevron */}
+        {expanded ? (
+          <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        ) : (
+          <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        )}
 
-      <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-        <Tag tone={badge.tone} size="xs" fontWeight={500}>
-          {badge.label}
+        <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+          <Tag tone={badge.tone} size="xs" fontWeight={500}>
+            {badge.label}
+          </Tag>
+          <BranchLabel name={repo.branch} size="xs" />
+        </RepoLabel>
+
+        {/* Active indicator */}
+        {activeCount > 0 && (
+          <Tag tone="success" size="xs" fontWeight={700}>
+            {activeCount} active
+          </Tag>
+        )}
+
+        {/* Total session count — borderless muted chip */}
+        <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+          {totalCount}
         </Tag>
-        <BranchLabel name={repo.branch} size="xs" />
-      </RepoLabel>
+      </button>
 
-      {/* Active indicator */}
-      {activeCount > 0 && (
-        <Tag tone="success" size="xs" fontWeight={700}>
-          {activeCount} active
-        </Tag>
+      {contextMenu && (
+        <ContextMenu
+          position={contextMenu}
+          items={contextMenuItems}
+          onClose={closeContextMenu}
+        />
       )}
-
-      {/* Total session count — borderless muted chip */}
-      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
-        {totalCount}
-      </Tag>
-    </button>
+    </>
   );
 });
 
@@ -200,6 +224,61 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
           {formatRelativeTime(latestTimestamp)}
         </span>
       )}
+    </button>
+  );
+});
+
+/* ── Collapsible branch/worktree sub-group header ── */
+
+type BranchGroupHeaderProps = {
+  branchName: string;
+  sessionCount: number;
+  expanded: boolean;
+  onToggle: () => void;
+};
+
+const BranchGroupHeader = React.memo(function BranchGroupHeader({
+  branchName,
+  sessionCount,
+  expanded,
+  onToggle,
+}: BranchGroupHeaderProps): React.ReactElement {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        padding: "3px 12px 3px 36px",
+        borderBottom: `1px solid ${colors.borderLight}`,
+        background: hovered ? colors.bgHover : "transparent",
+        border: "none",
+        cursor: "pointer",
+        textAlign: "left",
+        transition: "background 0.12s",
+      }}
+    >
+      {/* Chevron */}
+      {expanded ? (
+        <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+      ) : (
+        <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+      )}
+
+      {/* Branch name — plain icon + text, same size as repo label */}
+      <BranchLabel name={branchName} size="md" badge={false} style={{ flex: 1, minWidth: 0 }} />
+
+      {/* Session count */}
+      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+        {sessionCount}
+      </Tag>
     </button>
   );
 });
@@ -293,30 +372,17 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
           : workingDir;
 
     return [
-      {
-        // Visual Studio (purple) marks the session-level action — a secondary
-        // item that exposes the on-disk JSONL folder, distinct from the
-        // workspace the user normally edits.
+      openWithVsCodeAction(sessionDir ?? "", {
         label: "Open Session With Code",
-        Icon: VisualStudioIcon,
+        variant: "visual-studio",
         disabled: !sessionDirReady,
         title: sessionDirTitle,
-        action: () => {
-          if (sessionDir) void openInVscode(sessionDir);
-        },
-      },
-      {
-        // VS Code (blue) marks the primary "jump to my code" action — this is
-        // the one users reach for most often, so the brighter brand colour is
-        // warranted.
+      }),
+      openWithVsCodeAction(workingDir ?? "", {
         label: "Open workspace With Code",
-        Icon: VsCodeIcon,
         disabled: !workingDirReady,
         title: workingDirTitle,
-        action: () => {
-          if (workingDir) void openInVscode(workingDir);
-        },
-      },
+      }),
     ];
   }, [sessionDir, workingDir, sessionDirAvailable, workingDirAvailable]);
 
@@ -359,9 +425,6 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
     >
       {/* Provider badge */}
       <ProviderBadge provider={provider} iconSize={12} fontSize={11} color={colors.textSecondary} />
-
-      {/* Branch badge */}
-      {session.gitBranch && <BranchLabel name={session.gitBranch} size="xs" />}
 
       {/* Separator */}
       <span style={{ color: colors.textTertiary, fontSize: 11, flexShrink: 0 }}>·</span>
@@ -410,6 +473,62 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
   );
 });
 
+/* ── Collapsible branch group section ── */
+
+type BranchGroupSectionProps = {
+  group: BranchGroup;
+  onSelectSession: (sessionId: string) => void;
+  onResumeSession: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+  onResumeSyncedSession: (session: SyncedSessionRecord) => void;
+};
+
+const BranchGroupSection = React.memo(function BranchGroupSection({
+  group,
+  onSelectSession,
+  onResumeSession,
+  onDeleteSession,
+  onResumeSyncedSession,
+}: BranchGroupSectionProps): React.ReactElement {
+  const [expanded, setExpanded] = useState(false);
+
+  const toggleExpanded = useCallback(() => {
+    setExpanded((prev) => !prev);
+  }, []);
+
+  return (
+    <div>
+      <BranchGroupHeader
+        branchName={group.branchName}
+        sessionCount={group.items.length}
+        expanded={expanded}
+        onToggle={toggleExpanded}
+      />
+      {expanded && group.items.map((item) => {
+        if (item.kind === "live") {
+          return (
+            <div key={`live:${item.session.id}`} style={{ paddingLeft: 32 }}>
+              <AISessionListItem
+                session={item.session}
+                onSelect={onSelectSession}
+                onResume={onResumeSession}
+                onDelete={onDeleteSession}
+              />
+            </div>
+          );
+        }
+        return (
+          <SyncedSessionRow
+            key={`synced:${item.session.id}`}
+            session={item.session}
+            onResume={onResumeSyncedSession}
+          />
+        );
+      })}
+    </div>
+  );
+});
+
 /* ── Session group node view ── */
 
 type SessionGroupNodeViewProps = {
@@ -422,6 +541,8 @@ type SessionGroupNodeViewProps = {
   onDeleteSession: (sessionId: string) => void;
   /** Called when user clicks a synced (history) session to resume it */
   onResumeSyncedSession: (session: SyncedSessionRecord) => void;
+  /** Called when user right-clicks a repo group header and picks "New AI Session" */
+  onCreateSession?: (repoPath: string) => void;
 };
 
 function SessionGroupNodeComponent({
@@ -432,6 +553,7 @@ function SessionGroupNodeComponent({
   onResumeSession,
   onDeleteSession,
   onResumeSyncedSession,
+  onCreateSession,
 }: SessionGroupNodeViewProps): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -455,7 +577,7 @@ function SessionGroupNodeComponent({
   }, []);
 
   const hasActive = node.activeLiveSessions.length > 0;
-  const hasHistory = node.history.length > 0;
+  const hasBranchGroups = node.branchGroups.length > 0;
 
   return (
     <div ref={rootRef}>
@@ -467,6 +589,7 @@ function SessionGroupNodeComponent({
           totalCount={node.totalCount}
           expanded={expanded}
           onToggle={toggleExpanded}
+          onCreateSession={onCreateSession ? () => onCreateSession(node.repo!.path) : undefined}
         />
       ) : (
         <WorkspaceGroupHeader
@@ -479,9 +602,10 @@ function SessionGroupNodeComponent({
         />
       )}
 
-      {/* Expanded children — currently-running sessions first, then HISTORY */}
+      {/* Expanded children — active sessions at repo level, then branch groups */}
       {expanded && (
         <>
+          {/* Active sessions rendered directly under the repo header */}
           {hasActive && node.activeLiveSessions.map((session) => (
             <div key={session.id} style={{ paddingLeft: 16 }}>
               <AISessionListItem
@@ -493,47 +617,17 @@ function SessionGroupNodeComponent({
             </div>
           ))}
 
-          {/* HISTORY divider — always shown when there's any history to report. */}
-          {hasHistory && (
-            <div
-              style={{
-                padding: "3px 12px 3px 48px",
-                fontSize: 9,
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.5px",
-                color: colors.textTertiary,
-                borderBottom: `1px solid ${colors.borderLight}`,
-              }}
-            >
-              History
-            </div>
-          )}
-
-          {/* Unified history list — idle live sessions + synced-from-disk rows,
-              sorted by timestamp DESC, each rendered with the component that
-              matches its kind. */}
-          {hasHistory && node.history.map((item) => {
-            if (item.kind === "live") {
-              return (
-                <div key={`live:${item.session.id}`} style={{ paddingLeft: 16 }}>
-                  <AISessionListItem
-                    session={item.session}
-                    onSelect={onSelectSession}
-                    onResume={onResumeSession}
-                    onDelete={onDeleteSession}
-                  />
-                </div>
-              );
-            }
-            return (
-              <SyncedSessionRow
-                key={`synced:${item.session.id}`}
-                session={item.session}
-                onResume={onResumeSyncedSession}
-              />
-            );
-          })}
+          {/* Branch groups — collapsible sections grouping history sessions by branch */}
+          {hasBranchGroups && node.branchGroups.map((group) => (
+            <BranchGroupSection
+              key={`branch:${group.branchName}`}
+              group={group}
+              onSelectSession={onSelectSession}
+              onResumeSession={onResumeSession}
+              onDeleteSession={onDeleteSession}
+              onResumeSyncedSession={onResumeSyncedSession}
+            />
+          ))}
         </>
       )}
     </div>

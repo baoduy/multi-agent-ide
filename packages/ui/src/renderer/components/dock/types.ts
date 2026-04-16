@@ -37,6 +37,10 @@ export type ViewDescriptor = {
   activityGroup?: "primary" | "secondary";
   /** Order in activity bar (lower = higher) */
   activityOrder?: number;
+  /** If true, shows a search icon in the accordion header that toggles an inline filter input */
+  searchable?: boolean;
+  /** Placeholder text for the search input (defaults to "Filter…") */
+  searchPlaceholder?: string;
 };
 
 /* ── Layout Tree (serializable, persisted) ── */

@@ -5,8 +5,7 @@ import type { Repository } from "@magenta/shared/models";
 import { FileTree } from "../common/FileTree";
 import type { TreeEntry } from "../common/FileTree";
 import type { ContextMenuAction } from "../common/ContextMenu";
-import { openInVscode } from "../../utils/ipc";
-import { VsCodeIcon } from "../common/VsCodeIcon";
+import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { RepoItem } from "./RepoItem";
 
 /* ── Internal tree node (for building the tree from flat repos) ── */
@@ -215,11 +214,7 @@ export function DirectoryTree({
     return (entry: TreeEntry): ContextMenuAction[] => {
       if (!entry.isDirectory) return []; // repos have their own context menu in RepoItem
       return [
-        {
-          label: "Open with Code",
-          Icon: VsCodeIcon,
-          action: () => void openInVscode(entry.path),
-        },
+        openWithVsCodeAction(entry.path),
         {
           label: "Copy path",
           Icon: Clipboard,

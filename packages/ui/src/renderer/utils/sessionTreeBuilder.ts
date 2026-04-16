@@ -4,12 +4,25 @@ import type { Repository } from "@magenta/shared/models";
 import { extractDisplayName, resolveWorktreeParent } from "./formatters";
 
 /**
- * One row under the "HISTORY" section. Discriminated so the renderer knows
+ * One row under a branch group. Discriminated so the renderer knows
  * which component to render (live PTY row vs synced disk row).
  */
 export type HistoryItem =
   | { kind: "live"; session: AISessionRecord; timestamp: number }
   | { kind: "synced"; session: SyncedSessionRecord; timestamp: number };
+
+/**
+ * A collapsible group of sessions sharing the same branch/worktree,
+ * rendered as a sub-section under a repo group.
+ */
+export interface BranchGroup {
+  /** Branch or worktree display name */
+  branchName: string;
+  /** Sessions in this branch group, sorted by timestamp DESC */
+  items: HistoryItem[];
+  /** Most recent activity timestamp in this group */
+  latestTimestamp: number;
+}
 
 /** A unified group node in the session tree */
 export interface SessionGroupNode {
@@ -23,14 +36,18 @@ export interface SessionGroupNode {
   repo: Repository | null;
   /**
    * Currently-running PTY sessions (status "active" or "waiting-input").
-   * Rendered above the HISTORY divider. Always sorted by lastActiveAt DESC.
+   * Rendered at the repo level (above branch groups). Always sorted by lastActiveAt DESC.
    */
   activeLiveSessions: AISessionRecord[];
   /**
-   * Everything else: idle/exited live sessions + all synced sessions,
-   * merged and sorted by timestamp DESC. Synced rows are deduped against
-   * live rows via agent session UUID (live.id or live.providerSessionId ===
-   * synced.sessionId).
+   * History sessions grouped by branch/worktree. Each branch group is
+   * collapsible and contains sessions sorted by timestamp DESC.
+   * Branch groups themselves are sorted by latest activity DESC.
+   */
+  branchGroups: BranchGroup[];
+  /**
+   * @deprecated Use branchGroups instead. Kept for backward compatibility.
+   * Flat list of all history items across all branches.
    */
   history: HistoryItem[];
   /** Total session count (active + history, post-dedup) */
@@ -186,6 +203,35 @@ export function buildUnifiedGroups(
     }
     history.sort((a, b) => b.timestamp - a.timestamp);
 
+    // Group history items by branch/worktree name
+    const branchMap = new Map<string, HistoryItem[]>();
+    for (const item of history) {
+      let branch: string;
+      if (item.kind === "live") {
+        branch = item.session.worktreeName || item.session.branch || "default";
+      } else {
+        branch = item.session.gitBranch || "default";
+      }
+      let bucket = branchMap.get(branch);
+      if (!bucket) {
+        bucket = [];
+        branchMap.set(branch, bucket);
+      }
+      bucket.push(item);
+    }
+
+    // Build sorted branch groups (by latest timestamp DESC)
+    const branchGroups: BranchGroup[] = [];
+    for (const [branchName, items] of branchMap) {
+      // Items are already sorted DESC from the history sort above
+      branchGroups.push({
+        branchName,
+        items,
+        latestTimestamp: items[0]?.timestamp ?? 0,
+      });
+    }
+    branchGroups.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+
     const totalCount = activeLiveSessions.length + history.length;
     const activeCount = activeLiveSessions.length;
     const latestTimestamp = Math.max(
@@ -199,6 +245,7 @@ export function buildUnifiedGroups(
       path: acc.path,
       repo: acc.repo,
       activeLiveSessions,
+      branchGroups,
       history,
       totalCount,
       activeCount,

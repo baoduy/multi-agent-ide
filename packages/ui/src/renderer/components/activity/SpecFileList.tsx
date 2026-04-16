@@ -6,6 +6,7 @@ import { FileTree } from "../common/FileTree";
 import type { TreeEntry } from "../common/FileTree";
 import type { ContextMenuAction } from "../common/ContextMenu";
 import { ipc, openInFileManager } from "../../utils/ipc";
+import { useViewSearchStore } from "../../store/viewSearchStore";
 
 /* ── Convert flat spec file paths → TreeEntry[] ── */
 
@@ -47,7 +48,15 @@ type SpecFileListProps = {
 };
 
 export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.ReactElement {
-  const entries = useMemo(() => sortEntries(toEntries(files)), [files]);
+  const searchQuery = useViewSearchStore((s) => s.queries["spec-files"] ?? "");
+
+  const filteredFiles = useMemo(() => {
+    if (!searchQuery.trim()) return files;
+    const q = searchQuery.toLowerCase().trim();
+    return files.filter((f) => f.toLowerCase().includes(q));
+  }, [files, searchQuery]);
+
+  const entries = useMemo(() => sortEntries(toEntries(filteredFiles)), [filteredFiles]);
 
   /* Lazy-load folder children via IPC */
   const loadChildren = useCallback(async (dirPath: string): Promise<TreeEntry[]> => {
@@ -98,6 +107,14 @@ export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.Re
 
   if (files.length === 0) {
     return <div style={{ fontSize: 12, color: colors.textTertiary }}>No files in this spec.</div>;
+  }
+
+  if (filteredFiles.length === 0) {
+    return (
+      <div style={{ fontSize: 12, color: colors.textTertiary }}>
+        No matches for &ldquo;{searchQuery}&rdquo;
+      </div>
+    );
   }
 
   return (

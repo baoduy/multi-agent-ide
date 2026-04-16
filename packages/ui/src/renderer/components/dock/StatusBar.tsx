@@ -131,7 +131,7 @@ export const StatusBar = React.memo(function StatusBar({
       <div style={{ display: "flex", alignItems: "center", gap: 2, flex: 1, minWidth: 0 }}>
         <StatusBarButton
           icon={<RotateCcw size={11} />}
-          label="Reset Layout"
+          label="Reset"
           active={false}
           onClick={resetLayout}
         />

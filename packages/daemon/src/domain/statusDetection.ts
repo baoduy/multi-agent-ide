@@ -14,7 +14,20 @@ import type { AISessionStatus } from "@magenta/shared/aiTerminal";
  * `"error"` is now a terminal status set by `BaseAISession` only when the
  * PTY child process exits with a non-zero exit code. The on-data detectors
  * below only resolve `"waiting-input"` ↔ `"active"` transitions.
+ *
+ * All regex matching operates on ANSI-stripped text. Raw PTY data contains
+ * escape codes for colours, cursor control, etc. that would break prompt
+ * detection patterns (e.g. `\x1b[32m>\x1b[0m ` vs plain `> `).
  */
+
+/* eslint-disable no-control-regex */
+const ANSI_RE = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[()][A-B012]/g;
+/* eslint-enable no-control-regex */
+
+/** Strip ANSI escape sequences so regex matching operates on visible text. */
+function stripAnsi(text: string): string {
+  return text.replace(ANSI_RE, "");
+}
 
 /**
  * Detects Claude Code session status from PTY output.
@@ -26,13 +39,16 @@ export function detectClaudeStatus(data: string, currentStatus: AISessionStatus)
     return null;
   }
 
-  // Detect prompt patterns indicating waiting for input
-  if (/^>\s*$/m.test(data) || /\?\s*$/m.test(data)) {
-    if (currentStatus !== "waiting-input") return "waiting-input";
+  const visible = stripAnsi(data);
+
+  // Detect prompt patterns indicating waiting for input.
+  // Return early so the length check below cannot override a detected prompt.
+  if (/^>\s*$/m.test(visible) || /\?\s*$/m.test(visible)) {
+    return currentStatus !== "waiting-input" ? "waiting-input" : null;
   }
 
-  // If we see substantial output and status is idle or waiting, transition to active
-  if (data.length > 10 && (currentStatus === "idle" || currentStatus === "waiting-input")) {
+  // If we see substantial *visible* output and status is idle or waiting, transition to active
+  if (visible.length > 10 && (currentStatus === "idle" || currentStatus === "waiting-input")) {
     return "active";
   }
 
@@ -49,18 +65,21 @@ export function detectCopilotStatus(data: string, currentStatus: AISessionStatus
     return null;
   }
 
-  // Detect prompt patterns indicating waiting for input
-  if (/^>\s*$/m.test(data) || /\?\s*$/m.test(data)) {
-    if (currentStatus !== "waiting-input") return "waiting-input";
+  const visible = stripAnsi(data);
+
+  // Detect prompt patterns indicating waiting for input.
+  // Return early so the length check below cannot override a detected prompt.
+  if (/^>\s*$/m.test(visible) || /\?\s*$/m.test(visible)) {
+    return currentStatus !== "waiting-input" ? "waiting-input" : null;
   }
 
   // Detect GitHub OAuth device flow
-  if (/device code/i.test(data) || /github\.com\/login\/device/i.test(data)) {
-    if (currentStatus !== "waiting-input") return "waiting-input";
+  if (/device code/i.test(visible) || /github\.com\/login\/device/i.test(visible)) {
+    return currentStatus !== "waiting-input" ? "waiting-input" : null;
   }
 
-  // If we see substantial output and status is idle or waiting, transition to active
-  if (data.length > 10 && (currentStatus === "idle" || currentStatus === "waiting-input")) {
+  // If we see substantial *visible* output and status is idle or waiting, transition to active
+  if (visible.length > 10 && (currentStatus === "idle" || currentStatus === "waiting-input")) {
     return "active";
   }
 

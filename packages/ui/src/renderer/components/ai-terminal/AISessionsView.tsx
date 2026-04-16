@@ -57,6 +57,7 @@ export function AISessionsView({
   const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
 
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+  const [newSessionRepoPath, setNewSessionRepoPath] = useState<string | undefined>(repoPath);
 
   // Guard: only trigger the first-launch sync once per mount lifetime
   const hasTriggeredInitialSync = useRef(false);
@@ -108,11 +109,18 @@ export function AISessionsView({
   // ── Handlers ────────────────────────────────────────────────
 
   const handleNewSession = useCallback(() => {
+    setNewSessionRepoPath(repoPath);
     setNewSessionDialogOpen(true);
-  }, []);
+  }, [repoPath]);
 
   const handleCloseDialog = useCallback(() => {
     setNewSessionDialogOpen(false);
+    setNewSessionRepoPath(repoPath);
+  }, [repoPath]);
+
+  const handleCreateSessionForRepo = useCallback((targetRepoPath: string) => {
+    setNewSessionRepoPath(targetRepoPath);
+    setNewSessionDialogOpen(true);
   }, []);
 
   const handleSessionCreated = useCallback(
@@ -316,6 +324,7 @@ export function AISessionsView({
               onResumeSession={handleResumeSession}
               onDeleteSession={handleDeleteSession}
               onResumeSyncedSession={handleResumeSyncedSession}
+              onCreateSession={handleCreateSessionForRepo}
             />
           ))
         ) : (
@@ -361,7 +370,7 @@ export function AISessionsView({
         open={newSessionDialogOpen}
         onClose={handleCloseDialog}
         onSessionCreated={handleSessionCreated}
-        repoPath={repoPath}
+        repoPath={newSessionRepoPath}
         repoName={repoName}
       />
     </div>

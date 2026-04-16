@@ -75,6 +75,7 @@ type LayoutStoreState = {
 
   // ── Accordion section actions ──
   toggleSection: (region: "left" | "right", viewId: string) => void;
+  setSectionExpanded: (region: "left" | "right", viewId: string, expanded: boolean) => void;
   setSectionSize: (region: "left" | "right", viewId: string, size: number) => void;
 
   // ── Tab actions ──
@@ -142,6 +143,20 @@ export const useLayoutStore = create<LayoutStoreState>((set) => ({
       const container = state.layout[region];
       const sections = container.sections.map((s: SectionState) =>
         s.viewId === viewId ? { ...s, expanded: !s.expanded } : s
+      );
+      return {
+        layout: {
+          ...state.layout,
+          [region]: { ...container, sections },
+        },
+      };
+    }),
+
+  setSectionExpanded: (region, viewId, expanded) =>
+    set((state) => {
+      const container = state.layout[region];
+      const sections = container.sections.map((s: SectionState) =>
+        s.viewId === viewId ? { ...s, expanded } : s
       );
       return {
         layout: {

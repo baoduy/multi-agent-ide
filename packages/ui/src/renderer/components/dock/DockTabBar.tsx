@@ -15,6 +15,7 @@ import { useDockDrag } from "./useDockDrag";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
+import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import type { TabState, DockRegion } from "./types";
 
 type DockTabBarProps = {
@@ -152,6 +153,18 @@ export const DockTabBar = React.memo(function DockTabBar({
           Icon: Copy,
           action: () => onDuplicateTab(tab),
         });
+      }
+
+      // "Open with Code" — only for agent-session tabs with a cwd
+      if (tab.viewId === "agent-session") {
+        const cwd = tab.props?.cwd as string | undefined;
+        items.push(
+          openWithVsCodeAction(cwd ?? "", {
+            label: "Open with Code",
+            disabled: !cwd,
+            variant: "visual-studio",
+          }),
+        );
       }
 
       // "Close" — available for all closable tabs

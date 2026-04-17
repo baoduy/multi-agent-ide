@@ -35,6 +35,9 @@ import { GitGateway } from "./infrastructure/GitGateway";
 import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
 import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
 import { SpecReader } from "./services/SpecReader";
+import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
+import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
+import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
 
 // Track services for graceful shutdown
 let shutdownServices: {
@@ -190,6 +193,16 @@ async function main() {
       sessionSyncGateway.getCopilotSessionStateDir(),
     );
 
+    // CLI tool version tracking — on-demand check when the user opens the
+    // upgrade dialog; no background cadence.
+    const githubReleasesGateway = new GitHubReleasesGateway();
+    const npmRegistryGateway = new NpmRegistryGateway();
+    const cliVersionService = new CliVersionApplicationService(
+      ipcBridge,
+      githubReleasesGateway,
+      npmRegistryGateway,
+    );
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, databaseService, terminalService, aiSessionService };
 
@@ -208,6 +221,7 @@ async function main() {
       fileSystemGateway,
       specGitGateway,
       specReader,
+      cliVersionService,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -222,8 +236,6 @@ async function main() {
       "config:updated",
       "repo:onboard:output",
       "repo:onboard:complete",
-      "repo:upgrade-specify:output",
-      "repo:upgrade-specify:complete",
       "repo:onboard:cancelled",
       "terminal:data",
       "terminal:exited",
@@ -232,6 +244,9 @@ async function main() {
       "ai-session:exited",
       "ai-session:updated",
       "synced-session:sync:complete",
+      "cli:version-status-changed",
+      "cli:upgrade:output",
+      "cli:upgrade:complete",
     ];
 
     for (const eventType of pushEventTypes) {

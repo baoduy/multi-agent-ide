@@ -23,6 +23,7 @@ import { useConfigStore } from "../store/configStore";
 import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
+import { CliUpgradeDialog } from "../components/dialogs/CliUpgradeDialog";
 import { SettingsDialog } from "../components/settings/SettingsDialog";
 import { NewSessionDialog } from "../components/dialogs/NewSessionDialog";
 import { CloseWarningDialog } from "../components/dialogs/CloseWarningDialog";
@@ -147,6 +148,9 @@ export function DockMainPage(): React.ReactElement {
     s.layout.activityBar.groups.find((g) => g.id === s.layout.activityBar.activeGroupId),
   );
   const hasRightSidebar = (activeGroup?.rightViewIds?.length ?? 0) > 0;
+  // Groups that replace the pinned main tab (Markdown, Git) — the title bar's
+  // builtin buttons do not apply while one of these is active.
+  const titleBarBuiltinsDisabled = activeGroup?.hidesPinnedMain === true;
   const openTab = useLayoutStore((s) => s.openTab);
   const closeTab = useLayoutStore((s) => s.closeTab);
   const setActiveTab = useLayoutStore((s) => s.setActiveTab);
@@ -241,6 +245,15 @@ export function DockMainPage(): React.ReactElement {
     return { kind: "builtin", id: "specs" };
   }, [centerActiveTabId, mainTabId, mainViewId]);
 
+  // Title-bar button highlight is driven solely by the pinned main tab's
+  // viewId — opening a file/diff/agent/terminal/refdiff/group tab must NOT
+  // change which builtin button is lit. Kept separate from `activeTab` so the
+  // navigation history below can still record the real active tab.
+  const titleBarActiveTab = useMemo((): ActiveTab => {
+    const bid = viewIdToBuiltinId(mainViewId);
+    return { kind: "builtin", id: bid ?? "specs" };
+  }, [mainViewId]);
+
   // ── Fetch worktrees for pinned repos + active repo once repos are loaded ──
   useEffect(() => {
     if (repos.length === 0) return;
@@ -280,6 +293,25 @@ export function DockMainPage(): React.ReactElement {
     } else {
       // Entering a group with a right sidebar → restore saved state
       setRegionCollapsed("right", savedRightCollapsed.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroupId]);
+
+  // ── Auto-open a group's default center view (e.g. git-changes-center) ──
+  //
+  // When the user switches to a group that declares `defaultCenterViewId`, make
+  // sure that tab exists and is active. This lands the user on the group's
+  // primary surface without needing them to open a tab manually.
+  useEffect(() => {
+    if (!activeGroup?.defaultCenterViewId) return;
+    const defaultViewId = activeGroup.defaultCenterViewId;
+    const tabs = useLayoutStore.getState().layout.center.tabs;
+    const existing = tabs.find((t) => t.viewId === defaultViewId);
+    const tabId = existing?.tabId ?? `group-${activeGroup.id}-${defaultViewId}`;
+    if (!existing) {
+      openTab("center", { tabId, viewId: defaultViewId });
+    } else {
+      setActiveTab("center", tabId);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
@@ -466,6 +498,31 @@ export function DockMainPage(): React.ReactElement {
       });
     },
     [openTab, activeRepoPath]
+  );
+
+  const handleOpenRefDiff = useCallback(
+    (args: { repoPath: string; fromRef?: string; toRef: string; path: string; oldPath?: string }) => {
+      const shortTo = args.toRef.slice(0, 7);
+      const shortFrom = args.fromRef ? args.fromRef.slice(0, 7) : "∅";
+      const fileName = args.path.split("/").pop() ?? args.path;
+      const tabId = `refdiff-${args.toRef}-${args.path}`;
+      // Route through the existing diff-viewer — same CodeMirror Merge UI
+      // as working-tree diffs. Ref-mode is triggered by supplying both refs.
+      openTab("center", {
+        tabId,
+        viewId: "diff-viewer",
+        props: {
+          repoPath: args.repoPath,
+          filePath: args.path,
+          fileStatus: "modified",
+          fromRef: args.fromRef,
+          toRef: args.toRef,
+          oldPath: args.oldPath,
+        },
+        title: `${fileName} ${shortFrom}→${shortTo}`,
+      });
+    },
+    [openTab]
   );
 
   const terminalCounter = useRef(0);
@@ -671,11 +728,16 @@ export function DockMainPage(): React.ReactElement {
       onOpenAgentSession: handleOpenAgentSession,
       onOpenTerminalSession: handleOpenTerminalSession,
     },
+    "git-changes-center": {
+      onOpenDiff: handleOpenDiff,
+      onOpenRefDiff: handleOpenRefDiff,
+    },
   };
 
   return (
     <>
       <OnboardDialogManager />
+      <CliUpgradeDialog />
       {closeWarningCount > 0 && (
         <CloseWarningDialog
           runningCount={closeWarningCount}
@@ -710,9 +772,10 @@ export function DockMainPage(): React.ReactElement {
             canGoForward={nav.canGoForward}
             onGoBack={handleGoBack}
             onGoForward={handleGoForward}
-            activeTab={activeTab}
+            activeTab={titleBarActiveTab}
             onSelectBuiltinTab={handleSelectBuiltinTab}
             onNewSession={handleNewSession}
+            builtinsDisabled={titleBarBuiltinsDisabled}
           />
         }
         viewProps={viewProps}

@@ -10,7 +10,7 @@ import React, { useCallback, createElement, useMemo } from "react";
 import { useLayoutStore } from "./layoutStore";
 import { viewRegistry } from "./ViewRegistry";
 import { DockTabBar } from "./DockTabBar";
-import type { TabState, CenterState } from "./types";
+import type { TabState, CenterState, ActivityBarGroup } from "./types";
 import { colors } from "../../utils/colors";
 
 type TabViewProps = {
@@ -28,6 +28,14 @@ export const TabView = React.memo(function TabView({
   const setActiveTab = useLayoutStore((s) => s.setActiveTab);
   const closeTab = useLayoutStore((s) => s.closeTab);
 
+  // Active dock group — drives which tabs are visible in the center region.
+  const activeGroupId = useLayoutStore((s) => s.layout.activityBar.activeGroupId);
+  const groups = useLayoutStore((s) => s.layout.activityBar.groups);
+  const activeGroup = useMemo<ActivityBarGroup | undefined>(
+    () => groups.find((g) => g.id === activeGroupId),
+    [groups, activeGroupId],
+  );
+
   const handleSelectTab = useCallback(
     (tabId: string) => setActiveTab("center", tabId),
     [setActiveTab]
@@ -39,19 +47,55 @@ export const TabView = React.memo(function TabView({
   );
 
   // The first tab ("tab-main") is the pinned builtin view, controlled by the TitleBar.
-  // File tabs come after it. The DockTabBar only shows file tabs.
-  const mainTab = center.tabs[0] ?? null;
-  const fileTabs = useMemo(() => center.tabs.slice(1), [center.tabs]);
+  // File tabs come after it. Groups that declare `hidesPinnedMain` suppress the
+  // main pill entirely (so a Git / Markdown context doesn't leak the Specs tab).
+  const hideMain = activeGroup?.hidesPinnedMain === true;
+  const mainTab = hideMain ? null : (center.tabs[0] ?? null);
 
-  // Split tabs into keepAlive (always mounted) and normal
+  // File tabs: drop the pinned main tab, then filter to only those whose viewId
+  // is owned by the active group. `ownedCenterViewIds` undefined = unrestricted.
+  const ownedSet = useMemo(
+    () => (activeGroup?.ownedCenterViewIds ? new Set(activeGroup.ownedCenterViewIds) : null),
+    [activeGroup],
+  );
+
+  const fileTabs = useMemo(
+    () =>
+      center.tabs
+        .slice(1)
+        .filter((t: TabState) => (ownedSet ? ownedSet.has(t.viewId) : true)),
+    [center.tabs, ownedSet],
+  );
+
+  // Build the set of tab ids that are actually visible in this group. The
+  // active tab we render must be one of them (or the main tab, if not hidden).
+  const visibleTabIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (mainTab) ids.add(mainTab.tabId);
+    for (const t of fileTabs) ids.add(t.tabId);
+    return ids;
+  }, [mainTab, fileTabs]);
+
+  const effectiveActiveTabId = useMemo(() => {
+    if (center.activeTabId && visibleTabIds.has(center.activeTabId)) {
+      return center.activeTabId;
+    }
+    // Fall back to the first visible tab so the panel is never blank.
+    if (mainTab) return mainTab.tabId;
+    return fileTabs[0]?.tabId ?? null;
+  }, [center.activeTabId, visibleTabIds, mainTab, fileTabs]);
+
+  // Split tabs into keepAlive (always mounted) and normal — only within the
+  // visible set, so hidden-group tabs don't get mounted or run effects.
   const { keepAliveTabs, activeTab } = useMemo(() => {
-    const active = center.tabs.find((t: TabState) => t.tabId === center.activeTabId) ?? null;
-    const keepAlive = center.tabs.filter((t: TabState) => {
+    const visible = center.tabs.filter((t: TabState) => visibleTabIds.has(t.tabId));
+    const active = visible.find((t: TabState) => t.tabId === effectiveActiveTabId) ?? null;
+    const keepAlive = visible.filter((t: TabState) => {
       const desc = viewRegistry.get(t.viewId);
       return desc?.keepAlive === true;
     });
     return { keepAliveTabs: keepAlive, activeTab: active };
-  }, [center.tabs, center.activeTabId]);
+  }, [center.tabs, visibleTabIds, effectiveActiveTabId]);
 
   return (
     <div
@@ -62,18 +106,19 @@ export const TabView = React.memo(function TabView({
         overflow: "hidden",
       }}
     >
-      {/* Tab bar — only shown for file tabs (main tab is controlled by TitleBar) */}
-      {fileTabs.length > 0 && mainTab && (
+      {/* Tab bar — shown whenever we have any file tabs, OR when the pinned main tab
+          is present (so the main pill remains clickable even with no file tabs). */}
+      {(fileTabs.length > 0 || mainTab) && (
         <DockTabBar
           tabs={fileTabs}
-          activeTabId={center.activeTabId}
+          activeTabId={effectiveActiveTabId}
           onSelectTab={handleSelectTab}
           onCloseTab={handleCloseTab}
           variant="center"
           region="center"
-          mainTabActive={center.activeTabId === mainTab.tabId}
-          mainTabViewId={mainTab.viewId}
-          onSelectMainTab={() => handleSelectTab(mainTab.tabId)}
+          mainTabActive={mainTab ? effectiveActiveTabId === mainTab.tabId : false}
+          mainTabViewId={mainTab?.viewId}
+          onSelectMainTab={mainTab ? () => handleSelectTab(mainTab.tabId) : undefined}
           onDuplicateTab={onDuplicateTab}
         />
       )}
@@ -85,7 +130,7 @@ export const TabView = React.memo(function TabView({
         {keepAliveTabs.map((tab: TabState) => {
           const descriptor = viewRegistry.get(tab.viewId);
           if (!descriptor) return null;
-          const isActive = tab.tabId === center.activeTabId;
+          const isActive = tab.tabId === effectiveActiveTabId;
           const isTerminalView =
             tab.viewId === "agent-session" || tab.viewId === "terminal-session";
           const extraProps = {
@@ -147,8 +192,8 @@ export const TabView = React.memo(function TabView({
           </div>
         )}
 
-        {/* Empty state */}
-        {center.tabs.length === 0 && (
+        {/* Empty state — no tabs visible in the current group at all */}
+        {visibleTabIds.size === 0 && (
           <div
             style={{
               display: "flex",

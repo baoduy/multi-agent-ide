@@ -19,6 +19,7 @@ import {
   parseCopilotEventLines,
 } from "../domain/copilotSessionParser";
 import { isSessionPathRelevant, collectKnownPaths } from "../domain/sessionPathMatcher";
+import { AppError } from "../errors/AppError";
 
 const TAG = "[SessionSync]";
 const JOB_NAME = "session-sync";
@@ -159,6 +160,21 @@ export class SessionSyncApplicationService {
       return this.repository.listByProvider(provider);
     }
     return this.repository.list();
+  }
+
+  /**
+   * Mark a synced session as archived. Archived sessions are filtered out of
+   * every read path, so they disappear from the UI. The flag is preserved
+   * across resync cycles by the repository's `upsert` pre-select.
+   *
+   * Throws `AppError("NOT_FOUND")` if no row matched the id.
+   */
+  archiveSession(id: string): void {
+    const archived = this.repository.archiveById(id);
+    if (!archived) {
+      throw new AppError("NOT_FOUND", `Synced session not found: ${id}`);
+    }
+    this.repository.flush();
   }
 
   /**
@@ -463,6 +479,7 @@ export class SessionSyncApplicationService {
       startedAt: metadata.startTimestamp ?? now,
       endedAt: metadata.endTimestamp,
       createdAt: metadata.startTimestamp ?? now,
+      isArchived: false,
       syncedFilePath: entry.filePath,
       syncedFileMtime: entry.mtime,
       syncedFileSize: entry.size,
@@ -540,6 +557,7 @@ export class SessionSyncApplicationService {
       startedAt: metadata.startTimestamp ?? now,
       endedAt: metadata.endTimestamp,
       createdAt: metadata.startTimestamp ?? now,
+      isArchived: false,
       syncedFilePath: entry.eventsJsonlPath,
       syncedFileMtime: entry.mtime,
       syncedFileSize: entry.size,

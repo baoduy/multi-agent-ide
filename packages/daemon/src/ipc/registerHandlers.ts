@@ -29,10 +29,24 @@ import { OnboardApplicationService } from "../application/OnboardApplicationServ
 import type { GitGateway } from "../infrastructure/GitGateway";
 import { GitOperationsGateway } from "../infrastructure/GitOperationsGateway";
 import { GitApplicationService } from "../application/GitApplicationService";
+import { GitBlameGateway } from "../infrastructure/GitBlameGateway";
+import { GitCloneGateway } from "../infrastructure/GitCloneGateway";
+import { GitCloneApplicationService } from "../application/GitCloneApplicationService";
+import { registerGitCloneHandlers } from "./handlers/gitCloneHandlers";
+import { GitHistoryGateway } from "../infrastructure/GitHistoryGateway";
+import { GitHistoryApplicationService } from "../application/GitHistoryApplicationService";
+import { registerGitHistoryHandlers } from "./handlers/gitHistoryHandlers";
+import { GitStashRemoteGateway } from "../infrastructure/GitStashRemoteGateway";
+import { GitStashApplicationService } from "../application/GitStashApplicationService";
+import { GitRemoteApplicationService } from "../application/GitRemoteApplicationService";
+import { registerGitStashHandlers } from "./handlers/gitStashHandlers";
+import { registerGitRemoteHandlers } from "./handlers/gitRemoteHandlers";
 import type { SpecGitGateway } from "../infrastructure/SpecGitGateway";
 import type { FileSystemGateway } from "../infrastructure/FileSystemGateway";
 import type { SpecReader } from "../services/SpecReader";
 import type { RepoScanner } from "../services/RepoScanner";
+import type { CliVersionApplicationService } from "../application/CliVersionApplicationService";
+import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
 
 export type HandlerContext = {
   databaseService: DatabaseService;
@@ -51,6 +65,7 @@ export type HandlerContext = {
   fileSystemGateway: FileSystemGateway;
   specGitGateway: SpecGitGateway;
   specReader: SpecReader;
+  cliVersionService: CliVersionApplicationService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -88,6 +103,28 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerSyncedSessionHandlers({ bridge, sessionSyncService: context.sessionSyncService });
 
   const gitOpsGateway = new GitOperationsGateway();
-  const gitService = new GitApplicationService(gitOpsGateway);
+  const gitBlameGateway = new GitBlameGateway();
+  const gitService = new GitApplicationService(gitOpsGateway, gitBlameGateway);
   registerGitOperationHandlers({ bridge, gitService });
+
+  const gitCloneGateway = new GitCloneGateway();
+  const gitCloneService = new GitCloneApplicationService(
+    gitCloneGateway,
+    context.configManager,
+    context.scanQueue,
+    bridge,
+  );
+  registerGitCloneHandlers({ bridge, cloneService: gitCloneService });
+
+  const gitHistoryGateway = new GitHistoryGateway();
+  const gitHistoryService = new GitHistoryApplicationService(gitHistoryGateway);
+  registerGitHistoryHandlers({ bridge, historyService: gitHistoryService });
+
+  const stashRemoteGateway = new GitStashRemoteGateway();
+  const stashService = new GitStashApplicationService(stashRemoteGateway);
+  const remoteService = new GitRemoteApplicationService(stashRemoteGateway);
+  registerGitStashHandlers({ bridge, stashService });
+  registerGitRemoteHandlers({ bridge, remoteService });
+
+  registerCliVersionHandlers({ bridge, cliVersionService: context.cliVersionService });
 }

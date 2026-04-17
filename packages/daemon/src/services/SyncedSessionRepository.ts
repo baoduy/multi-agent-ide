@@ -12,6 +12,7 @@ export class SyncedSessionRepository {
 
   /**
    * List all synced sessions, ordered by started_at DESC.
+   * Archived sessions are excluded — archiving is one-way from the UI.
    */
   list(): SyncedSessionRecord[] {
     const rows = this.databaseService
@@ -20,8 +21,9 @@ export class SyncedSessionRepository {
         `SELECT id, provider, session_id, project_dir, cwd, git_branch, model,
                 token_usage_json, message_count, subagent_count, status, activity,
                 slug, version, entrypoint, title, synced_file_path,
-                started_at, ended_at, created_at
+                started_at, ended_at, created_at, is_archived
          FROM synced_sessions
+         WHERE is_archived = 0
          ORDER BY started_at DESC`
       )
       .all() as Array<Record<string, unknown>>;
@@ -31,6 +33,7 @@ export class SyncedSessionRepository {
 
   /**
    * List synced sessions filtered by provider.
+   * Archived sessions are excluded.
    */
   listByProvider(provider: SyncedSessionProvider): SyncedSessionRecord[] {
     const rows = this.databaseService
@@ -39,9 +42,9 @@ export class SyncedSessionRepository {
         `SELECT id, provider, session_id, project_dir, cwd, git_branch, model,
                 token_usage_json, message_count, subagent_count, status, activity,
                 slug, version, entrypoint, title, synced_file_path,
-                started_at, ended_at, created_at
+                started_at, ended_at, created_at, is_archived
          FROM synced_sessions
-         WHERE provider = ?
+         WHERE provider = ? AND is_archived = 0
          ORDER BY started_at DESC`
       )
       .all(provider) as Array<Record<string, unknown>>;
@@ -68,6 +71,10 @@ export class SyncedSessionRepository {
   /**
    * Upsert a synced session record.
    * Uses INSERT OR REPLACE on the unique synced_file_path.
+   *
+   * Preserves an existing `is_archived = 1` flag so a resync of the underlying
+   * JSONL does not un-archive a session the user explicitly archived. INSERT OR
+   * REPLACE wipes the row, so we read the prior archive state first.
    */
   upsert(record: SyncedSessionRecord & {
     syncedFilePath: string;
@@ -75,7 +82,13 @@ export class SyncedSessionRepository {
     syncedFileSize: number;
     lastSyncedAt: number;
   }): void {
-    const params = toSyncedSessionParams(record);
+    const existing = this.databaseService
+      .getSqlite()
+      .prepare(`SELECT is_archived FROM synced_sessions WHERE id = ?`)
+      .get(record.id) as { is_archived: number } | undefined;
+
+    const preservedArchived = existing?.is_archived === 1 ? true : record.isArchived;
+    const params = toSyncedSessionParams({ ...record, isArchived: preservedArchived });
 
     this.databaseService
       .getSqlite()
@@ -84,15 +97,30 @@ export class SyncedSessionRepository {
            id, provider, session_id, project_dir, cwd, git_branch, model,
            token_usage_json, message_count, subagent_count, status, activity,
            slug, version, entrypoint, title, synced_file_path, synced_file_mtime,
-           synced_file_size, started_at, ended_at, last_synced_at, created_at
+           synced_file_size, started_at, ended_at, last_synced_at, created_at,
+           is_archived
          ) VALUES (
            @id, @provider, @session_id, @project_dir, @cwd, @git_branch, @model,
            @token_usage_json, @message_count, @subagent_count, @status, @activity,
            @slug, @version, @entrypoint, @title, @synced_file_path, @synced_file_mtime,
-           @synced_file_size, @started_at, @ended_at, @last_synced_at, @created_at
+           @synced_file_size, @started_at, @ended_at, @last_synced_at, @created_at,
+           @is_archived
          )`
       )
       .run(params);
+  }
+
+  /**
+   * Mark a session as archived. Returns `true` if a row matched, `false` otherwise.
+   * Archived rows are filtered out of every read path.
+   */
+  archiveById(id: string): boolean {
+    const result = this.databaseService
+      .getSqlite()
+      .prepare(`UPDATE synced_sessions SET is_archived = 1 WHERE id = ?`)
+      .run(id);
+
+    return (result.changes ?? 0) > 0;
   }
 
   /**

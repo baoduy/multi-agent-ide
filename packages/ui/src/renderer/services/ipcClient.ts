@@ -38,7 +38,6 @@ type ResponseForRequest = {
   "worktree:branches": Extract<IpcResponse, { type: "worktree:branches:result" }>;
   "worktree:delete": Extract<IpcResponse, { type: "worktree:delete:result" }>;
   "repo:onboard": Extract<IpcResponse, { type: "repo:onboard:started" }>;
-  "repo:upgrade-specify": Extract<IpcResponse, { type: "repo:upgrade-specify:started" }>;
   "repo:onboard:cancel": Extract<IpcResponse, { type: "repo:onboard:cancelled" }>;
   "repo:specify-status": Extract<IpcResponse, { type: "repo:specify-status:result" }>;
   "repo:specify-switch": Extract<IpcResponse, { type: "repo:specify-switch:started" }>;
@@ -65,6 +64,7 @@ type ResponseForRequest = {
   "ai-session:check-worktree": Extract<IpcResponse, { type: "ai-session:check-worktree:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
   "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
+  "synced-session:archive": Extract<IpcResponse, { type: "synced-session:archived" }>;
   "ui:ai-tab-active": Extract<IpcResponse, { type: "ui:ai-tab-active:ack" }>;
   // Git operations
   "branch:create": Extract<IpcResponse, { type: "branch:create:result" }>;
@@ -74,6 +74,33 @@ type ResponseForRequest = {
   "git:status": Extract<IpcResponse, { type: "git:status:result" }>;
   "git:commit": Extract<IpcResponse, { type: "git:commit:result" }>;
   "git:ls-files": Extract<IpcResponse, { type: "git:ls-files:result" }>;
+  "git:clone": Extract<IpcResponse, { type: "git:clone:started" }>;
+  "git:log": Extract<IpcResponse, { type: "git:log:result" }>;
+  "git:commit-detail": Extract<IpcResponse, { type: "git:commit-detail:result" }>;
+  "git:diff": Extract<IpcResponse, { type: "git:diff:result" }>;
+  "stash:list": Extract<IpcResponse, { type: "stash:list:result" }>;
+  "stash:push": Extract<IpcResponse, { type: "stash:push:result" }>;
+  "stash:pop": Extract<IpcResponse, { type: "stash:pop:result" }>;
+  "stash:apply": Extract<IpcResponse, { type: "stash:apply:result" }>;
+  "stash:drop": Extract<IpcResponse, { type: "stash:drop:result" }>;
+  "stash:show": Extract<IpcResponse, { type: "stash:show:result" }>;
+  "remote:list": Extract<IpcResponse, { type: "remote:list:result" }>;
+  "remote:add": Extract<IpcResponse, { type: "remote:add:result" }>;
+  "remote:rename": Extract<IpcResponse, { type: "remote:rename:result" }>;
+  "remote:remove": Extract<IpcResponse, { type: "remote:remove:result" }>;
+  "remote:set-url": Extract<IpcResponse, { type: "remote:set-url:result" }>;
+  "branch:delete": Extract<IpcResponse, { type: "branch:delete:result" }>;
+  "branch:rename": Extract<IpcResponse, { type: "branch:rename:result" }>;
+  "file:create": Extract<IpcResponse, { type: "file:create:result" }>;
+  "dir:create": Extract<IpcResponse, { type: "dir:create:result" }>;
+  "git:reset": Extract<IpcResponse, { type: "git:reset:result" }>;
+  "git:revert": Extract<IpcResponse, { type: "git:revert:result" }>;
+  "git:blame": Extract<IpcResponse, { type: "git:blame:result" }>;
+  // CLI version tracking
+  "cli:get-version-status": Extract<IpcResponse, { type: "cli:get-version-status:result" }>;
+  "cli:recheck": Extract<IpcResponse, { type: "cli:recheck:started" }>;
+  "cli:upgrade": Extract<IpcResponse, { type: "cli:upgrade:started" }>;
+  "cli:upgrade:cancel": Extract<IpcResponse, { type: "cli:upgrade:cancel:ack" }>;
 };
 
 /**

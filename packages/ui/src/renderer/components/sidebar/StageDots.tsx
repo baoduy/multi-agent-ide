@@ -14,12 +14,8 @@ type StageDotsProps = {
  * Each dot's colour reflects its current status so the sidebar stays
  * visually consistent with the detailed stage pills in the Specs tab:
  *
- *  - missing  → hollow gray ring
- *  - draft    → amber
- *  - review   → blue
- *  - approved → green
- *  - idle     → light green
- *  - running  → amber (pulsing)
+ * Colours now resolve to muted tokens so the dots stay unobtrusive; the
+ * tooltip still shows the stage's precise status on hover.
  */
 export const StageDots = React.memo(function StageDots({ stages }: StageDotsProps): React.ReactElement {
   return (
@@ -27,8 +23,6 @@ export const StageDots = React.memo(function StageDots({ stages }: StageDotsProp
       {stages.map((stage) => {
         const isMissing = stage.status === "missing";
         const isPending = stage.status === "pending";
-        const isRunning = stage.status === "running";
-        const isInProgress = stage.status === "in-progress";
         const colors = stageStatusColor(stage.status as StageStatus);
 
         const dotStyle: React.CSSProperties = {
@@ -38,7 +32,6 @@ export const StageDots = React.memo(function StageDots({ stages }: StageDotsProp
           backgroundColor: isMissing || isPending ? "transparent" : colors.dot,
           border: isMissing || isPending ? `1.5px solid ${colors.borderMuted}` : "none",
           transition: "background-color 0.2s, border-color 0.2s",
-          ...(isRunning || isInProgress ? { animation: "stagePulse 1.4s ease-in-out infinite" } : {}),
         };
 
         return (

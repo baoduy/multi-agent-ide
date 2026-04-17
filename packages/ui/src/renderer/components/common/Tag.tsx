@@ -21,7 +21,7 @@ import { colors } from "../../utils/colors";
  *   - Any individual visual prop (bg, color, borderColor, padding,
  *     borderRadius, fontSize, fontWeight, letterSpacing) can be overridden
  *     per-call-site when a tone/size doesn't fit.
- *   - `dot` renders a small pulsing circle before the label (for "live"
+ *   - `dot` renders a small circle before the label (for "live"
  *     indicators like "Processing").
  *   - `block` fills its container and centres the content — for large
  *     card-level status badges (e.g. "Approved" on a pipeline node).
@@ -54,6 +54,13 @@ export type TagTone =
 export type TagSize = "xs" | "sm" | "md" | "lg";
 
 type TagPalette = { bg: string; text: string; border?: string };
+// Keep non-critical repository/branch chips visually quiet to avoid
+// distracting from code content in primary views.
+const subtlePalette: TagPalette = {
+  bg: colors.bgMuted,
+  text: colors.textTertiary,
+  border: colors.borderLight,
+};
 
 /**
  * Central tone → palette map. Keep this the single source of truth so
@@ -83,13 +90,9 @@ const tonePalettes: Record<TagTone, TagPalette> = {
     border: colors.errorSoftBorder,
   },
   primary: { bg: colors.bgPanelSoft, text: colors.primary },
-  // Amber branch palette — Tailwind amber-200 bg / amber-600 text in light
-  // mode, softened to translucent amber-500 / amber-300 in dark mode.
-  // Borderless to match the other sidebar status tags (spec/active/missing).
-  // Tokens defined in colours.css → --branch-bg / --branch-fg.
-  branch: { bg: colors.branchBg, text: colors.branchFg },
-  spec: { bg: colors.repoBadgeSpecBg, text: colors.repoBadgeSpecFg },
-  active: { bg: colors.repoBadgeActiveBg, text: colors.repoBadgeActiveFg },
+  branch: subtlePalette,
+  spec: subtlePalette,
+  active: subtlePalette,
   missing: { bg: colors.repoBadgeMissingBg, text: colors.repoBadgeMissingFg },
 };
 
@@ -125,7 +128,7 @@ export type TagProps = {
 
   /** Leading icon rendered before the label. */
   icon?: React.ReactNode;
-  /** Show an animated pulsing dot before the label (live indicators). */
+  /** Show a small dot before the label (live indicators). */
   dot?: boolean;
   /** Uppercase label with extra letter-spacing. */
   uppercase?: boolean;
@@ -224,8 +227,7 @@ function TagComponent({
   );
 }
 
-/** Small pulsing dot used by `dot` prop. Reuses the shared
- * `provider-pulse` keyframe defined in globals.css. */
+/** Small static dot used by `dot` prop. */
 function TagDot({ color }: { color: string }): React.ReactElement {
   return (
     <span
@@ -235,7 +237,6 @@ function TagDot({ color }: { color: string }): React.ReactElement {
         height: 6,
         borderRadius: "50%",
         background: color,
-        animation: "provider-pulse 1.2s ease-in-out infinite",
         flexShrink: 0,
       }}
     />

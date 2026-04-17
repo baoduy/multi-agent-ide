@@ -12,6 +12,7 @@ import {
   FileText,
   GitBranch,
   GitCompareArrows,
+  GitCommit,
   Workflow,
   Bot,
   FileCode,
@@ -40,6 +41,8 @@ import { MagentaTerminal } from "../common/MagentaTerminal";
 import { LogViewer } from "../common/LogViewer";
 import { useSpecStore } from "../../store/specStore";
 import { colors } from "../../utils/colors";
+import { GitChangesView } from "../git/GitChangesView";
+import { CommitComposerTab } from "../git/CommitComposerTab";
 
 /**
  * Thin wrapper components that adapt existing panels to the DockView system.
@@ -87,6 +90,40 @@ function MarkdownFileTreeView(props: {
   onOpenFile?: (filePath: string) => void;
 }): React.ReactElement {
   return <MarkdownFileTree onOpenFile={props.onOpenFile} />;
+}
+
+/* ── Git Management: Repositories ── */
+
+function GitReposSidebarView(): React.ReactElement {
+  // Reuse the existing Sidebar — same repo list, same behavior.
+  return <Sidebar />;
+}
+
+/* ── Git Management: Working tree changes + push/pull/fetch/commit buttons ── */
+
+function GitChangesCenterView(props: {
+  onOpenDiff?: (filePath: string, fileStatus: string) => void;
+  onOpenRefDiff?: (args: { repoPath: string; fromRef?: string; toRef: string; path: string; oldPath?: string }) => void;
+  onOpenCommitComposer?: (repoPath: string) => void;
+}): React.ReactElement {
+  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
+  return (
+    <GitChangesView
+      repoPath={activeRepoPath ?? undefined}
+      onOpenDiff={props.onOpenDiff}
+      onOpenRefDiff={props.onOpenRefDiff}
+      onOpenCommitComposer={props.onOpenCommitComposer}
+    />
+  );
+}
+
+/* ── Git Management: Commit composer center tab ── */
+
+function CommitComposerTabView(props: {
+  repoPath?: string;
+}): React.ReactElement {
+  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
+  return <CommitComposerTab repoPath={props.repoPath ?? activeRepoPath ?? undefined} />;
 }
 
 /* ── Right Sidebar: Repo File Changes ── */
@@ -328,6 +365,43 @@ export function registerAllViews(): void {
     activityOrder: 10,
     searchable: true,
     searchPlaceholder: "Filter markdown files…",
+  });
+
+  // ── Git Management views (Phase 1) ──
+
+  viewRegistry.register({
+    id: "git-repos",
+    title: "Repositories",
+    icon: <FolderGit2 size={20} strokeWidth={1.5} />,
+    component: GitReposSidebarView,
+    defaultLocation: "left",
+    closable: false,
+    keepAlive: true,
+    activityGroup: "primary",
+    activityOrder: 20,
+    searchable: true,
+    searchPlaceholder: "Search repositories…",
+  });
+
+  viewRegistry.register({
+    id: "git-changes-center",
+    title: "Changes",
+    icon: <GitBranch size={14} strokeWidth={1.8} />,
+    component: GitChangesCenterView,
+    defaultLocation: "center",
+    closable: false,
+    keepAlive: true,
+  });
+
+  viewRegistry.register({
+    id: "git-commit-composer",
+    title: "Commit",
+    icon: <GitCommit size={14} strokeWidth={1.8} />,
+    component: CommitComposerTabView,
+    defaultLocation: "center",
+    canHaveMultiple: true,
+    closable: true,
+    keepAlive: false,
   });
 
   // ── Right Sidebar Views ──

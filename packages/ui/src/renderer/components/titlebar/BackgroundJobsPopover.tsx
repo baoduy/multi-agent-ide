@@ -203,10 +203,7 @@ function OnboardJobRow({
   process: OnboardProcess;
   onViewOutput: () => void;
 }): React.ReactElement {
-  const label =
-    process.kind === "onboard"
-      ? `Onboard: ${process.repoName}`
-      : `Upgrade: ${process.repoName}`;
+  const label = `Onboard: ${process.repoName}`;
 
   const status: JobStatus =
     process.phase === "running"

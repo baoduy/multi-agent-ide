@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
+import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2, Sparkles, RotateCcw } from "lucide-react";
 
 import { isValidWorktreeName } from "@magenta/shared/sanitize";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -15,7 +15,7 @@ import { ProviderIcon } from "../common/ProviderIcon";
 import { ButtonGroup, type ButtonGroupOption } from "../common/ButtonGroup";
 import { DoublePicker, type DoublePickerOption } from "../common/DoublePicker";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
-import { BranchLabel } from "../common/RepoLabel";
+import { BranchLabel, RepoLabel } from "../common/RepoLabel";
 import { ScrollableText } from "../common/ScrollableText";
 import { colors } from "../../utils/colors";
 import { getProviderName } from "../common/providerConfig";
@@ -101,7 +101,9 @@ export function NewSessionDialog({
 
   /* ── Derived values ── */
 
-  /** Repo dropdown options for the DoublePicker — pinned repos first with star icon. */
+  /** Repo dropdown options for the DoublePicker — pinned repos first. The
+   *  item rows render a full RepoLabel (which owns the pinned-★ styling);
+   *  the trigger falls back to `icon` + `label`. */
   const repoOptions = useMemo((): readonly DoublePickerOption<string>[] => {
     const pinned: DoublePickerOption<string>[] = [];
     const unpinned: DoublePickerOption<string>[] = [];
@@ -112,7 +114,7 @@ export function NewSessionDialog({
         label: r.name,
         description: r.path,
         icon: <FolderGit2 size={14} color={colors.textTertiary} />,
-        suffix: isPinned ? <span style={{ color: colors.primary, fontSize: 10 }}>{"\u2605"}</span> : undefined,
+        content: <RepoLabel name={r.name} repoPath={r.path} size="md" />,
       };
       if (isPinned) {
         pinned.push(opt);
@@ -507,6 +509,11 @@ export function NewSessionDialog({
   return (
     <BaseDialog
       title={resumeContext ? "Resume Session" : "New Session"}
+      icon={
+        resumeContext
+          ? <RotateCcw size={16} color={colors.primary} strokeWidth={2} />
+          : <Sparkles size={16} color={colors.primary} strokeWidth={2} />
+      }
       width={680}
       scrollable
       minHeight="70vh"

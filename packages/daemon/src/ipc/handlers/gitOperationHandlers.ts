@@ -55,4 +55,36 @@ export function registerGitOperationHandlers({ bridge, gitService }: GitOperatio
       message: result.message,
     };
   });
+
+  safeHandle(bridge, "git:reset", async (msg) => {
+    const result = await gitService.reset(msg.repoPath, msg.mode, msg.ref, msg.confirmHard);
+    bridge.emit({ type: "repo:force-reload:started", repoPath: msg.repoPath });
+    return {
+      type: "git:reset:result",
+      repoPath: msg.repoPath,
+      success: result.success,
+      message: result.message,
+    };
+  });
+
+  safeHandle(bridge, "git:revert", async (msg) => {
+    const result = await gitService.revert(msg.repoPath, msg.sha, msg.noCommit);
+    bridge.emit({ type: "repo:force-reload:started", repoPath: msg.repoPath });
+    return {
+      type: "git:revert:result",
+      repoPath: msg.repoPath,
+      success: result.success,
+      message: result.message,
+    };
+  });
+
+  safeHandle(bridge, "git:blame", async (msg) => {
+    const lines = await gitService.blame(msg.repoPath, msg.path, msg.ref);
+    return {
+      type: "git:blame:result",
+      repoPath: msg.repoPath,
+      path: msg.path,
+      lines,
+    };
+  });
 }

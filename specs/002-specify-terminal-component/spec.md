@@ -1,8 +1,10 @@
 # Feature Specification: MagentaTerminal Reuse and Sidebar Terminal
 
+**Approved by:** Steven Hoang | **Date:** 2026-04-17
+
 **Feature Branch**: `002-run-feature-hook`  
 **Created**: 2026-04-11  
-**Status**: Draft  
+**Status**: Ready  
 **Input**: User description: "Build a reusable terminal component named MagentaTerminal. It must support full interaction with the OS terminal and also a readonly attribute that behaves like the current Specify onboarding/upgrade dialog output view. Reuse this component in Specify dialogs with readonly mode, and add one full functionality terminal in the right sidebar below the Legend section."
 
 ## User Scenarios & Testing *(mandatory)*

@@ -2,10 +2,9 @@ import React from "react";
 
 import { useOnboardStore } from "../../store/onboardStore";
 import { OnboardDialog } from "./OnboardDialog";
-import { UpgradeSpecifyDialog } from "./UpgradeSpecifyDialog";
 
 /**
- * Global dialog manager for onboard/upgrade processes.
+ * Global dialog manager for onboard processes.
  * Renders a dialog for any process that has `dialogOpen: true`.
  * Mount this once near the top of the component tree (e.g., in MainLayout).
  */
@@ -24,18 +23,8 @@ export function OnboardDialogManager(): React.ReactElement | null {
     setDialogOpen(proc.repoPath, false);
   };
 
-  if (proc.kind === "onboard") {
-    return (
-      <OnboardDialog
-        repoPath={proc.repoPath}
-        repoName={proc.repoName}
-        onClose={handleClose}
-      />
-    );
-  }
-
   return (
-    <UpgradeSpecifyDialog
+    <OnboardDialog
       repoPath={proc.repoPath}
       repoName={proc.repoName}
       onClose={handleClose}

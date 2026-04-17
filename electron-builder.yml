@@ -18,11 +18,12 @@ files:
   - packages/main/dist/**/*
   - packages/main/renderer/**/*
 
-  # UI bundle (loaded by renderer/index.html)
-  - packages/ui/dist/**/*
+  # UI bundle (loaded by renderer/index.html — only the esbuild bundle + CSS needed)
+  - packages/ui/dist/bundle.js
+  - packages/ui/dist/styles.css
 
-  # Daemon (forked as child process by main)
-  - packages/daemon/dist/**/*
+  # Daemon (forked as child process by main — only the esbuild bundle is needed)
+  - packages/daemon/dist/daemon-ipc-worker.js
 
   # Shared types/schemas (imported by main + daemon at runtime)
   - packages/shared/dist/**/*
@@ -42,6 +43,11 @@ files:
   - "!**/test/**"
   - "!**/tests/**"
   - "!**/.github/**"
+  - "!**/*.d.ts"
+  - "!**/*.d.ts.map"
+  - "!**/*.js.map"
+  - "!**/README*"
+  - "!**/CHANGELOG*"
 
 # ── Extra resources (outside the asar, accessible via process.resourcesPath) ─
 extraResources:
@@ -63,16 +69,33 @@ extraResources:
       - "**/*"
       - "!src/**"
       - "!*.ts"
+      # Exclude prebuilds for other platforms — saves ~65 MB on macOS builds.
+      # Each platform build only needs its own prebuilds/<os>-<arch>/ dir.
+      - "!prebuilds/win32-*/**"
+      - "!prebuilds/linux-*/**"
+      - "!prebuilds/darwin-x64/**"
+      # Strip build-time artifacts (Makefiles, gyp configs) — not needed at runtime
+      - "!build/Makefile"
+      - "!build/*.mk"
+      - "!build/*.gypi"
+      - "!build/gyp-mac-tool"
+      - "!build/binding.Makefile"
+      # Strip other non-runtime files
+      - "!deps/**"
+      - "!third_party/**"
+      - "!scripts/**"
+      - "!typings/**"
+      - "!binding.gyp"
+      - "!README.md"
 
 # ── asar ─────────────────────────────────────────────────────────────────────
 asar: true
 asarUnpack:
   # Native modules and binaries that need to run outside the archive
   - "**/*.node"
-  - "**/sql.js/**"
 
 # ── Compression ──────────────────────────────────────────────────────────────
-compression: normal
+compression: maximum
 
 # ── Publishing ───────────────────────────────────────────────────────────────
 # Publishing is handled by softprops/action-gh-release in the GitHub Actions

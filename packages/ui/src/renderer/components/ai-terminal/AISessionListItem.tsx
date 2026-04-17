@@ -1,20 +1,27 @@
 import React, { useMemo } from "react";
-import { Play, Trash2 } from "lucide-react";
+import { Play, Trash2, Pin, PinOff } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import { ContextMenu, useContextMenu, type ContextMenuAction } from "../common/ContextMenu";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { ClickableRow } from "../common/ClickableRow";
 import { StatusBadge } from "../common/StatusBadge";
+import { BranchLabel } from "../common/RepoLabel";
 import { colors } from "../../utils/colors";
 import { formatRelativeTime } from "../../utils/formatters";
 import { getStatusColor, isActiveStatus } from "../../utils/sessionStatus";
 import { ScrollableText } from "../common/ScrollableText";
+import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
+import { livePinKey } from "../../utils/sessionPinKey";
 
 type AISessionListItemProps = {
   session: AISessionRecord;
   onSelect: (sessionId: string) => void;
   onResume: (sessionId: string) => void;
   onDelete: (sessionId: string) => void;
+  /** Render a branch/worktree label next to the title. Used for rows rendered
+   *  outside a BranchGroup (Active + Pinned sections), where the branch is
+   *  otherwise not visible on the row. */
+  showBranch?: boolean;
 };
 
 
@@ -37,24 +44,33 @@ function AISessionListItemComponent({
   onSelect,
   onResume,
   onDelete,
+  showBranch = false,
 }: AISessionListItemProps): React.ReactElement {
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  const pinKey = livePinKey(session);
+  const isPinned = usePinnedSessionsStore((s) => s.pinnedKeys.has(pinKey));
+  const togglePin = usePinnedSessionsStore((s) => s.togglePin);
 
   const contextMenuItems: ContextMenuAction[] = useMemo(
     () => [
       {
+        label: isPinned ? "Unpin" : "Pin",
+        Icon: isPinned ? PinOff : Pin,
+        action: () => togglePin(pinKey),
+      },
+      {
         label: "Resume",
         Icon: Play,
+        separator: true,
         action: () => onResume(session.id),
       },
       {
         label: "Delete",
         Icon: Trash2,
-        separator: true,
         action: () => onDelete(session.id),
       },
     ],
-    [onResume, onDelete, session.id],
+    [isPinned, pinKey, togglePin, onResume, onDelete, session.id],
   );
 
   const showStatus = isActiveStatus(session.status);
@@ -62,6 +78,7 @@ function AISessionListItemComponent({
   const timeDisplay = formatRelativeTime(session.lastActiveAt);
   const statusText = showStatus ? formatStatus(session.status) : "";
   const sessionTitle = session.title || `Session ${session.id.slice(0, 8)}`;
+  const branchName = session.worktreeName || session.branch || null;
 
   return (
     <>
@@ -89,6 +106,10 @@ function AISessionListItemComponent({
               {sessionTitle}
             </ScrollableText>
           </>
+        )}
+
+        {showBranch && branchName && (
+          <BranchLabel name={branchName} size="xs" style={{ flexShrink: 0 }} />
         )}
 
         <span

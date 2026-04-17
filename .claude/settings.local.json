@@ -9,7 +9,25 @@
       "Bash(pnpm run:*)",
       "Bash(pnpm install:*)",
       "Bash(pnpm typecheck:*)",
-      "Bash(grep -rn '\"yaml\"' /Users/steven/_CODE/GIT/multi-agent-ide/package.json /Users/steven/_CODE/GIT/multi-agent-ide/packages/*/package.json)"
+      "Bash(grep -rn '\"yaml\"' /Users/steven/_CODE/GIT/multi-agent-ide/package.json /Users/steven/_CODE/GIT/multi-agent-ide/packages/*/package.json)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(yes)",
+      "Bash(pnpm --filter=@magenta/ui run typecheck)",
+      "Bash(git checkout:*)",
+      "Bash(pnpm --filter=@magenta/ui run build)",
+      "Bash(grep -oE \"\\\\.w-md-editor[^{,]{0,30}\" /Users/steven/_CODE/GIT/multi-agent-ide/packages/ui/dist/styles.css)",
+      "WebFetch(domain:heshify.github.io)",
+      "Bash(grep -oE \"\\\\.wmde-markdown[^,{]*\" /Users/steven/_CODE/GIT/multi-agent-ide/packages/ui/node_modules/@uiw/react-md-editor/markdown-editor.css)",
+      "Bash(pnpm -C packages/ui typecheck)",
+      "Bash(pnpm -r typecheck)",
+      "Bash(pnpm debug:launch)",
+      "Bash(node -e \"console.log\\(require.resolve\\('electron'\\)\\); console.log\\(require\\('electron'\\)\\)\")",
+      "Bash(/Users/steven/_CODE/GIT/multi-agent-ide/node_modules/.pnpm/electron@41.2.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --version)",
+      "Bash(node -e \"try { console.log\\(require.resolve\\('electron'\\)\\) } catch\\(e\\) { console.log\\('RESOLVE FAILED:', e.message\\) }\")",
+      "Bash(pnpm --filter @magenta/ui typecheck)",
+      "Bash(pnpm --filter @magenta/ui build)",
+      "Bash(npx tsc *)",
+      "Bash(curl -s -X POST \"http://127.0.0.1:50285/cmd\" -H content-type:application/json -d '{\"kind\":\"title\"}')"
     ]
   }
 }

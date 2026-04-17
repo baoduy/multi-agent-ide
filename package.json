@@ -6,21 +6,7 @@
   "author": "Steven Hoang <drunkcoding@outlook.com>",
   "main": "packages/main/dist/index.js",
   "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "packageExtensions": {
-      "@emoji-mart/react@1.1.1": {
-        "peerDependencies": {
-          "react": "^16.8 || ^17 || ^18 || ^19"
-        }
-      },
-      "react-avatar-editor@13.0.2": {
-        "peerDependencies": {
-          "react": "^0.14.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
-          "react-dom": "^0.14.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
-        }
-      }
-    }
-  },
+  "pnpm": {},
   "scripts": {
     "dev": "pnpm build && pnpm -C packages/main dev",
     "dev:watch": "pnpm -r --parallel dev",
@@ -32,7 +18,7 @@
     "test:e2e:headed": "pnpm build && pnpm -C packages/e2e test:headed",
     "test:e2e:debug": "pnpm build && pnpm -C packages/e2e test:debug",
     "debug:launch": "pnpm build && pnpm -C packages/e2e debug:launch",
-    "update": "npx npm-check-updates -u && pnpm install && sh ./update-packages.sh",
+    "update": "npx npm-check-updates -u && pnpm install && pnpm -r update",
     "pack": "pnpm build && pnpm exec electron-builder --dir",
     "dist": "pnpm build && pnpm exec electron-builder",
     "dist:mac": "pnpm build && pnpm exec electron-builder --mac",
@@ -42,15 +28,15 @@
     "postinstall": "electron-rebuild -f -w node-pty"
   },
   "devDependencies": {
-    "@electron/rebuild": "*",
+    "@electron/rebuild": "^4.0.3",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/sql.js": "^1.4.11",
-    "electron": "41.2.0",
+    "electron": "41.2.1",
     "electron-builder": "26.8.1",
     "esbuild": "^0.28.0",
-    "shadcn": "^4.2.0",
-    "typescript": "6.0.2"
+    "shadcn": "^4.3.0",
+    "typescript": "6.0.3"
   }
 }

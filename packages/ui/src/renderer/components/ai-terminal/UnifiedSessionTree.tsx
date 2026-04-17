@@ -4,6 +4,9 @@ import {
   ChevronRight,
   Folder,
   Clock,
+  Pin,
+  PinOff,
+  Archive,
 } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
@@ -23,7 +26,10 @@ import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { Tag } from "../common/Tag";
-import type { SessionGroupNode, BranchGroup } from "../../utils/sessionTreeBuilder";
+import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
+import { useSyncedSessionStore } from "../../store/syncedSessionStore";
+import { syncedPinKey } from "../../utils/sessionPinKey";
+import type { SessionGroupNode, BranchGroup, HistoryItem } from "../../utils/sessionTreeBuilder";
 export { buildUnifiedGroups, type SessionGroupNode, type BranchGroup } from "../../utils/sessionTreeBuilder";
 
 /**
@@ -317,14 +323,29 @@ type SyncedSessionRowProps = {
   session: SyncedSessionRecord;
   /** Called when the user clicks to resume this synced session */
   onResume: (session: SyncedSessionRecord) => void;
+  /** Render a branch label next to the title. Used outside branch groups. */
+  showBranch?: boolean;
 };
 
 const SyncedSessionRow = React.memo(function SyncedSessionRow({
   session,
   onResume,
+  showBranch = false,
 }: SyncedSessionRowProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  const pinKey = syncedPinKey(session);
+  const isPinned = usePinnedSessionsStore((s) => s.pinnedKeys.has(pinKey));
+  const togglePin = usePinnedSessionsStore((s) => s.togglePin);
+  const archiveSession = useSyncedSessionStore((s) => s.archiveSession);
+
+  const handleArchive = useCallback(() => {
+    const ok = window.confirm(
+      "Archive this session? It will be hidden from the list. This cannot be undone from the UI.",
+    );
+    if (!ok) return;
+    void archiveSession(session.id);
+  }, [archiveSession, session.id]);
 
   // Availability of the two paths we expose on the context menu. We track
   // `undefined` as "not yet checked" so the items aren't flashed enabled then
@@ -378,19 +399,33 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
           : workingDir;
 
     return [
-      openWithVsCodeAction(sessionDir ?? "", {
-        label: "Open Session With Code",
-        variant: "visual-studio",
-        disabled: !sessionDirReady,
-        title: sessionDirTitle,
-      }),
+      {
+        label: isPinned ? "Unpin" : "Pin",
+        Icon: isPinned ? PinOff : Pin,
+        action: () => togglePin(pinKey),
+      },
+      {
+        ...openWithVsCodeAction(sessionDir ?? "", {
+          label: "Open Session With Code",
+          variant: "visual-studio",
+          disabled: !sessionDirReady,
+          title: sessionDirTitle,
+        }),
+        separator: true,
+      },
       openWithVsCodeAction(workingDir ?? "", {
         label: "Open workspace With Code",
         disabled: !workingDirReady,
         title: workingDirTitle,
       }),
+      {
+        label: "Archive",
+        Icon: Archive,
+        action: handleArchive,
+        separator: true,
+      },
     ];
-  }, [sessionDir, workingDir, sessionDirAvailable, workingDirAvailable]);
+  }, [sessionDir, workingDir, sessionDirAvailable, workingDirAvailable, isPinned, pinKey, togglePin, handleArchive]);
 
   const timeDisplay = formatRelativeTime(session.startedAt);
 
@@ -446,6 +481,11 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       >
         {session.title || session.slug || session.sessionId.slice(0, 8)}
       </ScrollableText>
+
+      {/* Branch label (only rendered outside a BranchGroupSection) */}
+      {showBranch && session.gitBranch && (
+        <BranchLabel name={session.gitBranch} size="xs" style={{ flexShrink: 0 }} />
+      )}
 
       {/* Time */}
       <span
@@ -598,6 +638,7 @@ function SessionGroupNodeComponent({
 
   const hasActive = node.activeLiveSessions.length > 0;
   const hasBranchGroups = node.branchGroups.length > 0;
+  const hasPinned = node.pinnedActive.length > 0 || node.pinnedItems.length > 0;
 
   return (
     <div ref={rootRef}>
@@ -622,9 +663,21 @@ function SessionGroupNodeComponent({
         />
       )}
 
-      {/* Expanded children — active sessions at repo level, then branch groups */}
+      {/* Expanded children — pinned, then active sessions at repo level, then branch groups */}
       {expanded && (
         <>
+          {/* Pinned section — hoisted above active + branch groups */}
+          {hasPinned && (
+            <PinnedSection
+              pinnedActive={node.pinnedActive}
+              pinnedItems={node.pinnedItems}
+              onSelectSession={onSelectSession}
+              onResumeSession={onResumeSession}
+              onDeleteSession={onDeleteSession}
+              onResumeSyncedSession={onResumeSyncedSession}
+            />
+          )}
+
           {/* Active sessions rendered directly under the repo header */}
           {hasActive && node.activeLiveSessions.map((session) => (
             <div key={session.id} style={{ paddingLeft: 16 }}>
@@ -633,6 +686,7 @@ function SessionGroupNodeComponent({
                 onSelect={onSelectSession}
                 onResume={onResumeSession}
                 onDelete={onDeleteSession}
+                showBranch
               />
             </div>
           ))}
@@ -654,6 +708,86 @@ function SessionGroupNodeComponent({
     </div>
   );
 }
+
+/* ── Pinned section (hoisted above Active + branch groups) ── */
+
+type PinnedSectionProps = {
+  pinnedActive: AISessionRecord[];
+  pinnedItems: HistoryItem[];
+  onSelectSession: (sessionId: string) => void;
+  onResumeSession: (sessionId: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+  onResumeSyncedSession: (session: SyncedSessionRecord) => void;
+};
+
+const PinnedSection = React.memo(function PinnedSection({
+  pinnedActive,
+  pinnedItems,
+  onSelectSession,
+  onResumeSession,
+  onDeleteSession,
+  onResumeSyncedSession,
+}: PinnedSectionProps): React.ReactElement {
+  const total = pinnedActive.length + pinnedItems.length;
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          padding: "3px 12px 3px 36px",
+          borderBottom: `1px solid ${colors.borderLight}`,
+          color: colors.textSecondary,
+          fontSize: 11,
+          fontWeight: 600,
+          textTransform: "uppercase",
+          letterSpacing: 0.4,
+        }}
+      >
+        <Pin size={11} color={colors.primary} style={{ flexShrink: 0 }} />
+        <span style={{ flex: 1 }}>Pinned</span>
+        <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+          {total}
+        </Tag>
+      </div>
+      {pinnedActive.map((session) => (
+        <div key={`pin-live:${session.id}`} style={{ paddingLeft: 16 }}>
+          <AISessionListItem
+            session={session}
+            onSelect={onSelectSession}
+            onResume={onResumeSession}
+            onDelete={onDeleteSession}
+            showBranch
+          />
+        </div>
+      ))}
+      {pinnedItems.map((item) => {
+        if (item.kind === "live") {
+          return (
+            <div key={`pin-live:${item.session.id}`} style={{ paddingLeft: 16 }}>
+              <AISessionListItem
+                session={item.session}
+                onSelect={onSelectSession}
+                onResume={onResumeSession}
+                onDelete={onDeleteSession}
+                showBranch
+              />
+            </div>
+          );
+        }
+        return (
+          <SyncedSessionRow
+            key={`pin-synced:${item.session.id}`}
+            session={item.session}
+            onResume={onResumeSyncedSession}
+            showBranch
+          />
+        );
+      })}
+    </div>
+  );
+});
 
 export const SessionGroupNodeView = React.memo(SessionGroupNodeComponent);
 

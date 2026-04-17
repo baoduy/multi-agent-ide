@@ -39,6 +39,28 @@ export interface MagentaTerminalProps {
 const THEME = TERMINAL_THEMES.dark;
 const THEME_BG = THEME.background;
 
+/* ── Hoisted static styles for MagentaTerminalReadonly ── */
+const TERMINAL_HEADER_STYLE: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, marginBottom: 8 };
+const TERMINAL_ICON_STYLE: React.CSSProperties = { opacity: 0.6 };
+const TERMINAL_RUNNING_DOT_STYLE: React.CSSProperties = {
+  display: "inline-block",
+  width: 6,
+  height: 6,
+  borderRadius: "50%",
+  background: THEME.magenta,
+};
+const TERMINAL_PRE_BASE_STYLE: React.CSSProperties = {
+  background: THEME.background,
+  color: THEME.foreground,
+  padding: 12,
+  borderRadius: 8,
+  lineHeight: 1.6,
+  overflowY: "auto",
+  whiteSpace: "pre-wrap",
+  wordBreak: "break-word",
+  margin: 0,
+};
+
 // ── Readonly branch (batch output viewer) ────────────────────────────────────
 
 function MagentaTerminalReadonly({
@@ -59,40 +81,23 @@ function MagentaTerminalReadonly({
     }
   }, [output]);
 
+  const preStyle = useMemo<React.CSSProperties>(
+    () => ({ ...TERMINAL_PRE_BASE_STYLE, fontSize, fontFamily, maxHeight }),
+    [fontSize, fontFamily, maxHeight],
+  );
+
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-        <Terminal size={12} color={THEME.foreground} strokeWidth={2} style={{ opacity: 0.6 }} />
+      <div style={TERMINAL_HEADER_STYLE}>
+        <Terminal size={12} color={THEME.foreground} strokeWidth={2} style={TERMINAL_ICON_STYLE} />
         {label && <span style={{ fontSize: 11, fontWeight: 600, color: THEME.cyan }}>{label}</span>}
         {status === "running" && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: THEME.magenta,
-              animation: "magenta-terminal-pulse 1.2s infinite",
-            }}
-          />
+          <span style={TERMINAL_RUNNING_DOT_STYLE} />
         )}
       </div>
       <pre
         ref={preRef}
-        style={{
-          background: THEME.background,
-          color: THEME.foreground,
-          padding: 12,
-          borderRadius: 8,
-          fontSize,
-          fontFamily,
-          lineHeight: 1.6,
-          maxHeight,
-          overflowY: "auto",
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          margin: 0,
-        }}
+        style={preStyle}
       >
         {stripAnsi(output || (status === "running" ? "Starting...\n" : ""))}
         {status === "done" && !errorMessage && successMessage && (

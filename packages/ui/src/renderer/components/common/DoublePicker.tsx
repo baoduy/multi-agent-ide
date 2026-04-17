@@ -12,6 +12,13 @@ export type DoublePickerOption<T extends string = string> = {
   description?: string;
   icon?: React.ReactNode;
   suffix?: React.ReactNode;
+  /**
+   * When provided, replaces the dropdown item's icon + label + suffix block
+   * with this node (description still renders below). The trigger continues
+   * to use `icon` + `label`, so those fields should still be set for search
+   * and selected-state display.
+   */
+  content?: React.ReactNode;
 };
 
 export type DoublePickerSide<T extends string = string> = {
@@ -352,41 +359,62 @@ function DropdownItemComponent<T extends string>({
         fontFamily: "inherit",
       }}
     >
-      {option.icon && (
-        <span style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-          {option.icon}
-        </span>
-      )}
-      <span style={{ flex: 1, minWidth: 0 }}>
-        <ScrollableText
-          style={{
-            fontSize: 12,
-            fontWeight: 500,
-            color: colors.text,
-            lineHeight: 1.4,
-          }}
-        >
-          {option.label}
-          {option.suffix && (
-            <span style={{ fontWeight: 400, color: colors.textTertiary, marginLeft: 6 }}>
-              {option.suffix}
+      {option.content ? (
+        <span style={{ flex: 1, minWidth: 0 }}>
+          {option.content}
+          {option.description && (
+            <span
+              style={{
+                display: "block",
+                fontSize: 11,
+                color: colors.textTertiary,
+                marginTop: 1,
+                lineHeight: 1.3,
+              }}
+            >
+              {option.description}
             </span>
           )}
-        </ScrollableText>
-        {option.description && (
-          <span
-            style={{
-              display: "block",
-              fontSize: 11,
-              color: colors.textTertiary,
-              marginTop: 1,
-              lineHeight: 1.3,
-            }}
-          >
-            {option.description}
+        </span>
+      ) : (
+        <>
+          {option.icon && (
+            <span style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+              {option.icon}
+            </span>
+          )}
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <ScrollableText
+              style={{
+                fontSize: 12,
+                fontWeight: 500,
+                color: colors.text,
+                lineHeight: 1.4,
+              }}
+            >
+              {option.label}
+              {option.suffix && (
+                <span style={{ fontWeight: 400, color: colors.textTertiary, marginLeft: 6 }}>
+                  {option.suffix}
+                </span>
+              )}
+            </ScrollableText>
+            {option.description && (
+              <span
+                style={{
+                  display: "block",
+                  fontSize: 11,
+                  color: colors.textTertiary,
+                  marginTop: 1,
+                  lineHeight: 1.3,
+                }}
+              >
+                {option.description}
+              </span>
+            )}
           </span>
-        )}
-      </span>
+        </>
+      )}
       {isSelected && (
         <Check size={14} color={colors.primary} strokeWidth={2.5} style={{ flexShrink: 0 }} />
       )}

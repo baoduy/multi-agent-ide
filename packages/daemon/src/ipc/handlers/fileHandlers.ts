@@ -73,4 +73,22 @@ export function registerFileHandlers({ bridge, fileSystemGateway }: FileHandlerC
       entries,
     };
   });
+
+  safeHandle(bridge, "file:create", async (msg) => {
+    fileSystemGateway.createFile(msg.filePath, msg.content ?? "");
+    return {
+      type: "file:create:result",
+      filePath: msg.filePath,
+      success: true,
+    };
+  });
+
+  safeHandle(bridge, "dir:create", async (msg) => {
+    fileSystemGateway.createDirectory(msg.dirPath);
+    return {
+      type: "dir:create:result",
+      dirPath: msg.dirPath,
+      success: true,
+    };
+  });
 }

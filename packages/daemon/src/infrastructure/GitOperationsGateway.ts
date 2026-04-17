@@ -177,4 +177,30 @@ export class GitOperationsGateway {
     const result = await git.commit(message);
     return { sha: result.commit };
   }
+
+  /**
+   * Reset the current branch to a ref. Mode controls whether the working tree
+   * and index are also rewound:
+   *  - soft:  keep index + working tree
+   *  - mixed: reset index, keep working tree (default `git reset`)
+   *  - hard:  discard BOTH index and working tree changes — destructive
+   */
+  async reset(repoPath: string, mode: "soft" | "mixed" | "hard", ref: string): Promise<void> {
+    const git = createGit(path.resolve(repoPath));
+    const flag = mode === "soft" ? "--soft" : mode === "hard" ? "--hard" : "--mixed";
+    await git.raw(["reset", flag, ref]);
+  }
+
+  /**
+   * Revert a commit by generating a new commit that reverses its changes.
+   * `noCommit` stages the revert without committing (for review).
+   */
+  async revert(repoPath: string, sha: string, noCommit?: boolean): Promise<{ message: string }> {
+    const git = createGit(path.resolve(repoPath));
+    const args = ["revert"];
+    if (noCommit) args.push("--no-commit");
+    args.push(sha);
+    const out = await git.raw(args);
+    return { message: out.trim() || `Reverted ${sha.slice(0, 7)}.` };
+  }
 }

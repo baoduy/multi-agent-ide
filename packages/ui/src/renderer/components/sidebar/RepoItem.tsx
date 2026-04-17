@@ -11,6 +11,7 @@ import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
+import { useCliVersionStore } from "../../store/cliVersionStore";
 import { useRepoStore } from "../../store/repoStore";
 import { BranchSwitcherDialog } from "../dialogs/BranchSwitcherDialog";
 import { CreateBranchOrWorktreeDialog, type CreateKind } from "../dialogs/CreateBranchOrWorktreeDialog";
@@ -41,6 +42,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
   const startProcess = useOnboardStore((s) => s.startProcess);
   const setDialogOpen = useOnboardStore((s) => s.setDialogOpen);
   const existingProcess = useOnboardStore((s) => s.processes[repo.path]);
+  const openCliDialog = useCliVersionStore((s) => s.setDialogOpen);
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
 
   /** Fire-and-forget git action with post-action repo refresh. */
@@ -131,7 +133,9 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
     },
   });
 
-  // Show "Onboard to Specify" or "Upgrade Specify" last
+  // Show "Onboard to Specify" when the repo hasn't been onboarded yet, and
+  // always show "Upgrade Tools" — the global CLI version dialog for claude,
+  // copilot, and specify.
   if (!repo.hasSpecs) {
     ctxItems.push({
       label: existingProcess?.phase === "running"
@@ -146,21 +150,13 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
         }
       },
     });
-  } else {
-    ctxItems.push({
-      label: existingProcess?.phase === "running"
-        ? "View Upgrade..."
-        : "Upgrade Specify",
-      Icon: ArrowUpCircle,
-      action: () => {
-        if (existingProcess) {
-          setDialogOpen(repo.path, true);
-        } else {
-          startProcess("upgrade", repo.path, repo.name);
-        }
-      },
-    });
   }
+
+  ctxItems.push({
+    label: "Upgrade Tools",
+    Icon: ArrowUpCircle,
+    action: () => openCliDialog(true, repo.path),
+  });
 
   return (
     <div
@@ -190,7 +186,8 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           transition: "background 0.12s",
         }}
       >
-        <RepoLabel name={repo.name} repoPath={repo.path} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+        {/* Inline ★ suppressed here — the pin toggle on the right is the canonical control. */}
+        <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
           <Tag tone={badge.tone} size="xs" fontWeight={500}>
             {badge.label}
           </Tag>
@@ -221,14 +218,14 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             lineHeight: 1,
             display: "inline-flex",
             alignItems: "center",
-            color: pinned ? colors.primary : colors.borderMuted,
+            color: pinned ? colors.text : colors.borderMuted,
             transition: "color 0.12s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = colors.primary;
+            e.currentTarget.style.color = colors.text;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = pinned ? colors.primary : colors.borderMuted;
+            e.currentTarget.style.color = pinned ? colors.text : colors.borderMuted;
           }}
         >
           <Star size={12} fill={pinned ? "currentColor" : "none"} strokeWidth={1.8} />

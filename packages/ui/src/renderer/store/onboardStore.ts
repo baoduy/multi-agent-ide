@@ -5,7 +5,7 @@ import { createSubscriptionInitializer } from "../services/createSubscriptionIni
 
 /* ── Types ── */
 
-export type OnboardProcessKind = "onboard" | "upgrade";
+export type OnboardProcessKind = "onboard";
 export type OnboardPhase = "select" | "running" | "done";
 
 export type OnboardProcess = {
@@ -54,7 +54,7 @@ export const useOnboardStore = create<OnboardStoreState>((set, get) => ({
           kind,
           repoPath,
           repoName,
-          phase: kind === "onboard" ? "select" : "select",
+          phase: "select",
           output: "",
           success: null,
           error: null,
@@ -129,25 +129,11 @@ export const useOnboardStore = create<OnboardStoreState>((set, get) => ({
   },
 
   initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
-    // Onboard events
     ipc.on("repo:onboard:output", (msg) => {
       get().appendOutput(msg.repoPath, msg.data);
     });
 
     ipc.on("repo:onboard:complete", (msg) => {
-      get().setComplete(
-        msg.repoPath,
-        msg.success,
-        msg.success ? undefined : msg.error,
-      );
-    });
-
-    // Upgrade events
-    ipc.on("repo:upgrade-specify:output", (msg) => {
-      get().appendOutput(msg.repoPath, msg.data);
-    });
-
-    ipc.on("repo:upgrade-specify:complete", (msg) => {
       get().setComplete(
         msg.repoPath,
         msg.success,

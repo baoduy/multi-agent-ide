@@ -100,6 +100,40 @@ export class FileSystemGateway {
   }
 
   /**
+   * Create a new file. Fails if the file already exists so callers never
+   * silently clobber work.
+   */
+  createFile(filePath: string, content: string = ""): string {
+    const resolved = this.resolveAllowed(filePath);
+    if (fs.existsSync(resolved)) {
+      throw new AppError("FILE_EXISTS", `File already exists: ${resolved}`);
+    }
+    const parent = path.dirname(resolved);
+    if (!fs.existsSync(parent)) {
+      fs.mkdirSync(parent, { recursive: true });
+    }
+    fs.writeFileSync(resolved, content, "utf-8");
+    return resolved;
+  }
+
+  /**
+   * Create a directory (and any missing parents). Succeeds silently if it
+   * already exists — mirrors `mkdir -p`.
+   */
+  createDirectory(dirPath: string): string {
+    const resolved = this.resolveAllowed(dirPath);
+    if (fs.existsSync(resolved)) {
+      const stat = fs.statSync(resolved);
+      if (!stat.isDirectory()) {
+        throw new AppError("VALIDATION_ERROR", `Path exists but is not a directory: ${resolved}`);
+      }
+      return resolved;
+    }
+    fs.mkdirSync(resolved, { recursive: true });
+    return resolved;
+  }
+
+  /**
    * List directory contents, excluding hidden files.
    * Sorted with directories first, then alphabetically.
    */

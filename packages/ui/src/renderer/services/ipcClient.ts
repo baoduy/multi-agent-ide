@@ -75,6 +75,28 @@ type ResponseForRequest = {
   "git:status": Extract<IpcResponse, { type: "git:status:result" }>;
   "git:commit": Extract<IpcResponse, { type: "git:commit:result" }>;
   "git:ls-files": Extract<IpcResponse, { type: "git:ls-files:result" }>;
+  "git:clone": Extract<IpcResponse, { type: "git:clone:started" }>;
+  "git:log": Extract<IpcResponse, { type: "git:log:result" }>;
+  "git:commit-detail": Extract<IpcResponse, { type: "git:commit-detail:result" }>;
+  "git:diff": Extract<IpcResponse, { type: "git:diff:result" }>;
+  "stash:list": Extract<IpcResponse, { type: "stash:list:result" }>;
+  "stash:push": Extract<IpcResponse, { type: "stash:push:result" }>;
+  "stash:pop": Extract<IpcResponse, { type: "stash:pop:result" }>;
+  "stash:apply": Extract<IpcResponse, { type: "stash:apply:result" }>;
+  "stash:drop": Extract<IpcResponse, { type: "stash:drop:result" }>;
+  "stash:show": Extract<IpcResponse, { type: "stash:show:result" }>;
+  "remote:list": Extract<IpcResponse, { type: "remote:list:result" }>;
+  "remote:add": Extract<IpcResponse, { type: "remote:add:result" }>;
+  "remote:rename": Extract<IpcResponse, { type: "remote:rename:result" }>;
+  "remote:remove": Extract<IpcResponse, { type: "remote:remove:result" }>;
+  "remote:set-url": Extract<IpcResponse, { type: "remote:set-url:result" }>;
+  "branch:delete": Extract<IpcResponse, { type: "branch:delete:result" }>;
+  "branch:rename": Extract<IpcResponse, { type: "branch:rename:result" }>;
+  "file:create": Extract<IpcResponse, { type: "file:create:result" }>;
+  "dir:create": Extract<IpcResponse, { type: "dir:create:result" }>;
+  "git:reset": Extract<IpcResponse, { type: "git:reset:result" }>;
+  "git:revert": Extract<IpcResponse, { type: "git:revert:result" }>;
+  "git:blame": Extract<IpcResponse, { type: "git:blame:result" }>;
 };
 
 /**

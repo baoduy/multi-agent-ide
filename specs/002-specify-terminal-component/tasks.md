@@ -1,3 +1,5 @@
+**Approved by:** Steven Hoang | **Date:** 2026-04-17
+
 ---
 description: "Task list for MagentaTerminal Reuse and Sidebar Terminal"
 ---

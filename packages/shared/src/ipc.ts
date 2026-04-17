@@ -163,6 +163,98 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     pattern: z.string().min(1).max(200),
     ref: z.string().min(1).max(200).regex(/^[A-Za-z0-9._/\-]+$/, "ref contains invalid characters").optional(),
   }),
+  // Git clone. `targetDir` must be an existing allowlisted working-dir; the clone
+  // creates a child folder named `folderName` inside it.
+  z.object({
+    type: z.literal("git:clone"),
+    url: z.string().min(1).max(2048),
+    targetDir: z.string().min(1),
+    folderName: z.string().min(1).max(200).regex(/^[A-Za-z0-9._\-]+$/, "folder name contains invalid characters"),
+    depth: z.number().int().positive().max(10000).optional(),
+  }),
+  // Commit history — paginated. Limit capped at 500 to avoid blocking the daemon.
+  z.object({
+    type: z.literal("git:log"),
+    repoPath: z.string(),
+    branch: z.string().optional(),
+    path: z.string().optional(),
+    limit: z.number().int().positive().max(500).default(100),
+    skip: z.number().int().nonnegative().default(0),
+    search: z.string().max(200).optional(),
+  }),
+  // Detailed view of a single commit: message + file list with +/-.
+  z.object({
+    type: z.literal("git:commit-detail"),
+    repoPath: z.string(),
+    sha: z.string().regex(/^[a-f0-9]{4,40}$/),
+  }),
+  // Diff between two refs (or ref vs working tree) for a given path.
+  z.object({
+    type: z.literal("git:diff"),
+    repoPath: z.string(),
+    fromRef: z.string().max(200).optional(),
+    toRef: z.string().max(200).optional(),
+    path: z.string().min(1).max(2048),
+  }),
+  // Stash
+  z.object({ type: z.literal("stash:list"), repoPath: z.string() }),
+  z.object({
+    type: z.literal("stash:push"),
+    repoPath: z.string(),
+    message: z.string().max(500).optional(),
+    includeUntracked: z.boolean().optional(),
+  }),
+  z.object({ type: z.literal("stash:pop"), repoPath: z.string(), index: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("stash:apply"), repoPath: z.string(), index: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("stash:drop"), repoPath: z.string(), index: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("stash:show"), repoPath: z.string(), index: z.number().int().nonnegative() }),
+  // Remotes
+  z.object({ type: z.literal("remote:list"), repoPath: z.string() }),
+  z.object({
+    type: z.literal("remote:add"),
+    repoPath: z.string(),
+    name: z.string().min(1).max(100).regex(/^[A-Za-z0-9._\-]+$/, "remote name contains invalid characters"),
+    url: z.string().min(1).max(2048),
+  }),
+  z.object({
+    type: z.literal("remote:rename"),
+    repoPath: z.string(),
+    oldName: z.string().min(1).max(100),
+    newName: z.string().min(1).max(100).regex(/^[A-Za-z0-9._\-]+$/, "remote name contains invalid characters"),
+  }),
+  z.object({ type: z.literal("remote:remove"), repoPath: z.string(), name: z.string().min(1).max(100) }),
+  z.object({
+    type: z.literal("remote:set-url"),
+    repoPath: z.string(),
+    name: z.string().min(1).max(100),
+    url: z.string().min(1).max(2048),
+  }),
+  // Branch extras
+  z.object({ type: z.literal("branch:delete"), repoPath: z.string(), branch: z.string().min(1), force: z.boolean().optional() }),
+  z.object({ type: z.literal("branch:rename"), repoPath: z.string(), oldName: z.string().min(1), newName: z.string().min(1) }),
+  // File CRUD extras
+  z.object({ type: z.literal("file:create"), filePath: z.string(), content: z.string().optional() }),
+  z.object({ type: z.literal("dir:create"), dirPath: z.string() }),
+  // Reset / revert / blame
+  z.object({
+    type: z.literal("git:reset"),
+    repoPath: z.string(),
+    mode: z.enum(["soft", "mixed", "hard"]),
+    ref: z.string().min(1).max(200),
+    confirmHard: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("git:revert"),
+    repoPath: z.string(),
+    sha: z.string().regex(/^[a-f0-9]{4,40}$/),
+    noCommit: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("git:blame"),
+    repoPath: z.string(),
+    path: z.string().min(1).max(2048),
+    ref: z.string().max(200).optional(),
+  }),
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -171,6 +263,56 @@ export const GitFileStatusSchema = z.object({
   staged: z.boolean(),
   oldPath: z.string().optional(),
 });
+
+export const CommitSummarySchema = z.object({
+  sha: z.string(),
+  shortSha: z.string(),
+  authorName: z.string(),
+  authorEmail: z.string(),
+  timestamp: z.number().int().nonnegative(),
+  subject: z.string(),
+  body: z.string(),
+  parents: z.array(z.string()),
+  refs: z.array(z.string()),
+});
+
+export const CommitFileSchema = z.object({
+  path: z.string(),
+  oldPath: z.string().optional(),
+  status: z.enum(["added", "modified", "deleted", "renamed", "copied"]),
+  additions: z.number().int().nonnegative(),
+  deletions: z.number().int().nonnegative(),
+});
+
+export type CommitSummary = z.infer<typeof CommitSummarySchema>;
+export type CommitFile = z.infer<typeof CommitFileSchema>;
+
+export const StashEntrySchema = z.object({
+  index: z.number().int().nonnegative(),
+  message: z.string(),
+  branch: z.string().optional(),
+  timestamp: z.number().int().nonnegative(),
+});
+
+export const RemoteSchema = z.object({
+  name: z.string(),
+  fetchUrl: z.string(),
+  pushUrl: z.string(),
+});
+
+export type StashEntry = z.infer<typeof StashEntrySchema>;
+export type Remote = z.infer<typeof RemoteSchema>;
+
+export const BlameLineSchema = z.object({
+  lineNo: z.number().int().positive(),
+  sha: z.string(),
+  shortSha: z.string(),
+  author: z.string(),
+  timestamp: z.number().int().nonnegative(),
+  content: z.string(),
+});
+
+export type BlameLine = z.infer<typeof BlameLineSchema>;
 
 export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:list:result"), repos: z.array(RepositorySchema) }),
@@ -332,6 +474,67 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     message: z.string(),
   }),
   z.object({ type: z.literal("git:ls-files:result"), repoPath: z.string(), files: z.array(z.string()) }),
+  // Clone: fires immediately with a cloneId the UI can use to match progress/complete events.
+  z.object({
+    type: z.literal("git:clone:started"),
+    cloneId: z.string(),
+    targetPath: z.string(),
+  }),
+  // Streaming progress pushed while `git clone --progress` runs.
+  z.object({
+    type: z.literal("git:clone:progress"),
+    cloneId: z.string(),
+    phase: z.string(),
+    percent: z.number().min(0).max(100),
+    data: z.string(),
+  }),
+  // Terminal event: clone either succeeded and was scanned, or failed.
+  z.object({
+    type: z.literal("git:clone:complete"),
+    cloneId: z.string(),
+    repoPath: z.string(),
+    success: z.boolean(),
+    error: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal("git:log:result"),
+    repoPath: z.string(),
+    commits: z.array(CommitSummarySchema),
+    hasMore: z.boolean(),
+  }),
+  z.object({
+    type: z.literal("git:commit-detail:result"),
+    repoPath: z.string(),
+    commit: CommitSummarySchema,
+    files: z.array(CommitFileSchema),
+  }),
+  z.object({
+    type: z.literal("git:diff:result"),
+    repoPath: z.string(),
+    oldContent: z.string().nullable(),
+    newContent: z.string().nullable(),
+    oldPath: z.string().nullable(),
+    newPath: z.string().nullable(),
+    isBinary: z.boolean(),
+  }),
+  z.object({ type: z.literal("stash:list:result"), repoPath: z.string(), stashes: z.array(StashEntrySchema) }),
+  z.object({ type: z.literal("stash:push:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({ type: z.literal("stash:pop:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({ type: z.literal("stash:apply:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({ type: z.literal("stash:drop:result"), repoPath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("stash:show:result"), repoPath: z.string(), diff: z.string() }),
+  z.object({ type: z.literal("remote:list:result"), repoPath: z.string(), remotes: z.array(RemoteSchema) }),
+  z.object({ type: z.literal("remote:add:result"), repoPath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("remote:rename:result"), repoPath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("remote:remove:result"), repoPath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("remote:set-url:result"), repoPath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("branch:delete:result"), repoPath: z.string(), branch: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("branch:rename:result"), repoPath: z.string(), oldName: z.string(), newName: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("file:create:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("dir:create:result"), dirPath: z.string(), success: z.boolean() }),
+  z.object({ type: z.literal("git:reset:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({ type: z.literal("git:revert:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
+  z.object({ type: z.literal("git:blame:result"), repoPath: z.string(), path: z.string(), lines: z.array(BlameLineSchema) }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

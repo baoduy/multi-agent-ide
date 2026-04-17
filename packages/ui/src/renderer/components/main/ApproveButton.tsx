@@ -4,7 +4,9 @@ import { CheckCircle, GitBranch } from "lucide-react";
 import { ipc } from "../../utils/ipc";
 import { colors } from "../../utils/colors";
 import { useWorktreeStore } from "../../store/worktreeStore";
+import { useConfigStore } from "../../store/configStore";
 import { WorktreeDialog } from "../dialogs/WorktreeDialog";
+import { ApproverNameDialog } from "../dialogs/ApproverNameDialog";
 import { isGitRefPath, parseGitRef } from "./fileViewerUtils";
 
 type Props = {
@@ -41,21 +43,48 @@ export function ApproveButton({
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
   const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
+  const fallbackApproverName = useConfigStore((s) => s.fallbackApproverName);
+  const updateFallbackApproverName = useConfigStore((s) => s.updateFallbackApproverName);
+
   // NOTE: all hooks must be declared before any early return to preserve hook order.
-  const [gitUserName, setGitUserName] = useState<string>("");
+  const [gitIdentity, setGitIdentity] = useState<{ name: string; email: string } | null>(null);
+  const [promptingName, setPromptingName] = useState(false);
+  const [pendingWrite, setPendingWrite] = useState<((approver: string) => Promise<void>) | null>(null);
+
   useEffect(() => {
-    if (!repoPath) return;
+    // Resolve git user from the repo that actually owns this file — not
+    // whatever repo happens to be selected in the sidebar. For gitref://
+    // files we can't stat the virtual path, so we fall back to the explicit
+    // repoPath that FileViewer passes through.
+    //
+    // For real FS files we pass the file's containing directory as the git
+    // cwd; simple-git + `git config` walk up to find the owning repo.
+    let lookupPath: string | undefined;
+    if (isGitRefPath(filePath)) {
+      lookupPath = repoPath;
+    } else {
+      const lastSep = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+      lookupPath = lastSep > 0 ? filePath.slice(0, lastSep) : repoPath;
+    }
+    if (!lookupPath) return;
     ipc
-      .send({ type: "git:user", repoPath })
+      .send({ type: "git:user", repoPath: lookupPath })
       .then((resp) => {
         if (resp.type === "git:user:result") {
-          setGitUserName(resp.name || resp.email || "Unknown");
+          setGitIdentity({ name: resp.name, email: resp.email });
         }
       })
       .catch(() => {
-        /* fall back silently */
+        setGitIdentity({ name: "", email: "" });
       });
-  }, [repoPath]);
+  }, [filePath, repoPath]);
+
+  const resolvedApprover = (
+    gitIdentity?.name ||
+    gitIdentity?.email ||
+    fallbackApproverName ||
+    ""
+  ).trim();
 
   const isGitRef = isGitRefPath(filePath);
   const gitRef = isGitRef ? parseGitRef(filePath) : null;
@@ -95,10 +124,10 @@ export function ApproveButton({
     );
   }
 
-  const buildApprovedContent = (original: string): string => {
+  const buildApprovedContent = (original: string, approver: string): string => {
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
-    const approvalLine = `**Approved by:** ${gitUserName || "Unknown"} | **Date:** ${dateStr}`;
+    const approvalLine = `**Approved by:** ${approver || "Unknown"} | **Date:** ${dateStr}`;
 
     let result: string;
     const headingMatch = original.match(/^(#[^\n]*\n)/);
@@ -113,10 +142,24 @@ export function ApproveButton({
     return result.replace(/(\*\*Status\*\*:\s*)Draft/i, "$1Ready");
   };
 
-  const handleDirectApprove = async () => {
+  /**
+   * Run `writeFn` with the resolved approver. If no approver is known yet
+   * (git identity empty, fallback config empty), show the prompt dialog and
+   * resume once the user has entered a name.
+   */
+  const withApprover = (writeFn: (approver: string) => Promise<void>): void => {
+    if (resolvedApprover) {
+      void writeFn(resolvedApprover);
+      return;
+    }
+    setPendingWrite(() => writeFn);
+    setPromptingName(true);
+  };
+
+  const doDirectApprove = async (approver: string) => {
     setApproving(true);
     try {
-      const newContent = buildApprovedContent(content);
+      const newContent = buildApprovedContent(content, approver);
       const writeResp = await ipc.send({
         type: "file:write",
         filePath,
@@ -133,7 +176,7 @@ export function ApproveButton({
     setApproving(false);
   };
 
-  const handleWorktreeApproveWithPath = async (worktreePath: string) => {
+  const doWorktreeApproveWithPath = async (worktreePath: string, approver: string) => {
     if (!gitRef) return;
 
     setApproving(true);
@@ -151,7 +194,7 @@ export function ApproveButton({
         return;
       }
 
-      const newContent = buildApprovedContent(readResp.content);
+      const newContent = buildApprovedContent(readResp.content, approver);
       const writeResp = await ipc.send({
         type: "file:write",
         filePath: targetFilePath,
@@ -169,6 +212,14 @@ export function ApproveButton({
       setWorktreeError(err instanceof Error ? err.message : String(err));
     }
     setApproving(false);
+  };
+
+  const handleWorktreeApproveWithPath = (worktreePath: string): void => {
+    withApprover((approver) => doWorktreeApproveWithPath(worktreePath, approver));
+  };
+
+  const handleDirectApprove = (): void => {
+    withApprover((approver) => doDirectApprove(approver));
   };
 
   const handleWorktreeApprove = async (worktreeName: string) => {
@@ -209,7 +260,7 @@ export function ApproveButton({
       void fetchWorktrees(repoPath);
 
       setApproving(false); // handleWorktreeApproveWithPath sets it again
-      await handleWorktreeApproveWithPath(wtResp.worktreePath);
+      handleWorktreeApproveWithPath(wtResp.worktreePath);
     } catch (err) {
       console.error("Error during worktree creation:", err);
       setWorktreeError(err instanceof Error ? err.message : String(err));
@@ -219,12 +270,31 @@ export function ApproveButton({
 
   const handleClick = () => {
     if (isGitRef && existingWorktree) {
-      void handleWorktreeApproveWithPath(existingWorktree.worktreePath);
+      handleWorktreeApproveWithPath(existingWorktree.worktreePath);
     } else if (isGitRef) {
       setShowWorktreeDialog(true);
     } else {
-      void handleDirectApprove();
+      handleDirectApprove();
     }
+  };
+
+  const handleApproverNameSubmit = async (name: string) => {
+    setPromptingName(false);
+    try {
+      await updateFallbackApproverName(name);
+    } catch (err) {
+      console.error("Failed to save fallback approver name:", err);
+    }
+    const fn = pendingWrite;
+    setPendingWrite(null);
+    if (fn) {
+      void fn(name);
+    }
+  };
+
+  const handleApproverNameCancel = () => {
+    setPromptingName(false);
+    setPendingWrite(null);
   };
 
   let buttonLabel = "Approve";
@@ -283,6 +353,14 @@ export function ApproveButton({
           branch={gitRef.ref}
           onConfirm={handleWorktreeApprove}
           onCancel={() => setShowWorktreeDialog(false)}
+        />
+      )}
+
+      {promptingName && (
+        <ApproverNameDialog
+          initialValue={fallbackApproverName}
+          onSubmit={handleApproverNameSubmit}
+          onCancel={handleApproverNameCancel}
         />
       )}
 

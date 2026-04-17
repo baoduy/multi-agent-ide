@@ -27,6 +27,11 @@ export const DEFAULT_LAYOUT: LayoutTree = {
       { viewId: "repos", expanded: true, size: 300 },
       { viewId: "specs", expanded: true, size: 220 },
       { viewId: "md-file-tree", expanded: true, size: 400 },
+      { viewId: "git-repos", expanded: true, size: 240 },
+      { viewId: "git-file-tree", expanded: true, size: 300 },
+      { viewId: "git-changes", expanded: true, size: 260 },
+      { viewId: "git-branches", expanded: false, size: 220 },
+      { viewId: "git-history", expanded: false, size: 240 },
     ],
   },
   right: {
@@ -64,6 +69,13 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         title: "Markdown Manager",
         iconViewId: "md-file-tree",
         viewIds: ["md-file-tree"],
+        rightViewIds: [],
+      },
+      {
+        id: "git",
+        title: "Git Management",
+        iconViewId: "git-changes",
+        viewIds: ["git-repos", "git-file-tree", "git-changes", "git-branches", "git-history"],
         rightViewIds: [],
       },
     ],
@@ -475,6 +487,31 @@ function loadPersistedLayout(): LayoutTree | null {
     // ── Migration: add md-file-tree section to left sidebar if missing ──
     if (!parsed.left.sections.some((s: SectionState) => s.viewId === "md-file-tree")) {
       parsed.left.sections.push({ viewId: "md-file-tree", expanded: true, size: 400 });
+    }
+
+    // ── Migration: add Git Management group if missing ──
+    if (!parsed.activityBar.groups.some((g: ActivityBarGroup) => g.id === "git")) {
+      parsed.activityBar.groups.push({
+        id: "git",
+        title: "Git Management",
+        iconViewId: "git-changes",
+        viewIds: ["git-repos", "git-file-tree", "git-changes", "git-branches", "git-history"],
+        rightViewIds: [],
+      });
+    }
+
+    // ── Migration: add git-* sections to left sidebar if missing ──
+    const gitSections: Array<{ viewId: string; expanded: boolean; size: number }> = [
+      { viewId: "git-repos", expanded: true, size: 240 },
+      { viewId: "git-file-tree", expanded: true, size: 300 },
+      { viewId: "git-changes", expanded: true, size: 260 },
+      { viewId: "git-branches", expanded: false, size: 220 },
+      { viewId: "git-history", expanded: false, size: 240 },
+    ];
+    for (const sec of gitSections) {
+      if (!parsed.left.sections.some((s: SectionState) => s.viewId === sec.viewId)) {
+        parsed.left.sections.push(sec);
+      }
     }
 
     return parsed;

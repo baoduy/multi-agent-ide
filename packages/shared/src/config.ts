@@ -33,6 +33,12 @@ export const MagentaConfigSchema = z.object({
     .min(MIN_SYNC_INTERVAL_MINUTES)
     .max(MAX_SYNC_INTERVAL_MINUTES)
     .default(DEFAULT_SESSION_SYNC_INTERVAL_MINUTES),
+  /**
+   * Approver name used when the repo's git `user.name` / `user.email` are
+   * both empty. Populated the first time the user approves a Markdown file
+   * in a repo with no git identity.
+   */
+  fallbackApproverName: z.string().default(""),
 });
 
 export type MagentaConfig = z.infer<typeof MagentaConfigSchema>;

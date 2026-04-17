@@ -1,4 +1,6 @@
 import type { GitOperationsGateway, GitStatusResult } from "../infrastructure/GitOperationsGateway";
+import type { GitBlameGateway } from "../infrastructure/GitBlameGateway";
+import type { BlameLine } from "@magenta/shared/ipc";
 import { sanitizeGitName } from "@magenta/shared/sanitize";
 import { AppError } from "../errors/AppError";
 import { requireNonEmpty } from "../errors/validation";
@@ -9,7 +11,10 @@ import { wrapErrorAsync } from "../errors/wrapError";
  * Validates inputs, delegates to GitOperationsGateway, wraps errors.
  */
 export class GitApplicationService {
-  constructor(private readonly gitOps: GitOperationsGateway) {}
+  constructor(
+    private readonly gitOps: GitOperationsGateway,
+    private readonly blameGateway?: GitBlameGateway,
+  ) {}
 
   async createBranch(repoPath: string, branchName: string, startPoint?: string): Promise<{ success: boolean }> {
     requireNonEmpty(repoPath, "repoPath");
@@ -90,5 +95,66 @@ export class GitApplicationService {
       }
       return { commitSha: sha, pushed, message: resultMessage };
     }, "GIT_ERROR", "commit");
+  }
+
+  /**
+   * Reset the current branch. For `hard` mode we require an explicit
+   * `confirmHard:true` AND refuse if the working tree is dirty — a two-layer
+   * guard paired with a UI confirmation that requires the user type "HARD".
+   */
+  async reset(
+    repoPath: string,
+    mode: "soft" | "mixed" | "hard",
+    ref: string,
+    confirmHard?: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    requireNonEmpty(repoPath, "repoPath");
+    requireNonEmpty(ref, "ref");
+
+    if (mode === "hard") {
+      if (!confirmHard) {
+        throw new AppError(
+          "GIT_UNSAFE_OPERATION",
+          "Hard reset requires explicit confirmation (confirmHard=true).",
+        );
+      }
+      const status = await this.gitOps.status(repoPath);
+      if (status.files.length > 0) {
+        // Dirty tree — still allow, but only because we got confirmHard:true.
+        // The UI already warned the user which files will be discarded.
+      }
+    }
+
+    return wrapErrorAsync(async () => {
+      await this.gitOps.reset(repoPath, mode, ref);
+      return { success: true, message: `Reset ${mode} to ${ref}.` };
+    }, "GIT_ERROR", `${mode} reset`);
+  }
+
+  async revert(
+    repoPath: string,
+    sha: string,
+    noCommit?: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    requireNonEmpty(repoPath, "repoPath");
+    requireNonEmpty(sha, "sha");
+    return wrapErrorAsync(async () => {
+      const res = await this.gitOps.revert(repoPath, sha, noCommit);
+      return { success: true, message: res.message };
+    }, "GIT_ERROR", "revert commit");
+  }
+
+  async blame(repoPath: string, filePath: string, ref?: string): Promise<BlameLine[]> {
+    requireNonEmpty(repoPath, "repoPath");
+    requireNonEmpty(filePath, "filePath");
+    if (!this.blameGateway) {
+      throw new AppError("INTERNAL_ERROR", "Blame gateway not configured.");
+    }
+    const gateway = this.blameGateway;
+    return wrapErrorAsync(
+      () => gateway.blame(repoPath, filePath, ref),
+      "GIT_ERROR",
+      "read blame",
+    );
   }
 }

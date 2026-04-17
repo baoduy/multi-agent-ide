@@ -16,6 +16,7 @@ type ConfigStoreState = {
   specifyCommand: string;
   specSyncIntervalMinutes: number;
   sessionSyncIntervalMinutes: number;
+  fallbackApproverName: string;
   isLoading: boolean;
   error: string | null;
   subscriptionsReady: boolean;
@@ -24,6 +25,7 @@ type ConfigStoreState = {
   updateSpecifyCommand: (command: string) => Promise<void>;
   updateSpecSyncInterval: (minutes: number) => Promise<void>;
   updateSessionSyncInterval: (minutes: number) => Promise<void>;
+  updateFallbackApproverName: (name: string) => Promise<void>;
   fetchConfig: () => Promise<void>;
   initializeSubscriptions: () => void;
 };
@@ -36,6 +38,7 @@ function applyConfig(config: MagentaConfig): Partial<ConfigStoreState> {
       config.specSyncIntervalMinutes ?? DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
     sessionSyncIntervalMinutes:
       config.sessionSyncIntervalMinutes ?? DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
+    fallbackApproverName: config.fallbackApproverName ?? "",
   };
 }
 
@@ -44,6 +47,7 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
   specifyCommand: DEFAULT_SPECIFY_COMMAND,
   specSyncIntervalMinutes: DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
   sessionSyncIntervalMinutes: DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
+  fallbackApproverName: "",
   isLoading: false,
   error: null,
   subscriptionsReady: false,
@@ -97,6 +101,18 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
         sendOrThrow({
           type: "config:update",
           config: { sessionSyncIntervalMinutes: minutes },
+        }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
+  },
+
+  updateFallbackApproverName(name: string) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () =>
+        sendOrThrow({
+          type: "config:update",
+          config: { fallbackApproverName: name },
         }),
       onSuccess: (response) => applyConfig(response.config),
     })();

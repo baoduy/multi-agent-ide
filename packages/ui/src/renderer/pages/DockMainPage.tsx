@@ -23,6 +23,7 @@ import { useConfigStore } from "../store/configStore";
 import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
+import { CliUpgradeDialog } from "../components/dialogs/CliUpgradeDialog";
 import { SettingsDialog } from "../components/settings/SettingsDialog";
 import { NewSessionDialog } from "../components/dialogs/NewSessionDialog";
 import { CloseWarningDialog } from "../components/dialogs/CloseWarningDialog";
@@ -736,6 +737,7 @@ export function DockMainPage(): React.ReactElement {
   return (
     <>
       <OnboardDialogManager />
+      <CliUpgradeDialog />
       {closeWarningCount > 0 && (
         <CloseWarningDialog
           runningCount={closeWarningCount}

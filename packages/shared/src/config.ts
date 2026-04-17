@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CliToolStatusSchema } from "./cliTools";
 
 /**
  * Default command template for Specify onboarding and upgrades.
@@ -39,6 +40,17 @@ export const MagentaConfigSchema = z.object({
    * in a repo with no git identity.
    */
   fallbackApproverName: z.string().default(""),
+  /**
+   * Cached CLI version status snapshot from the last startup check. The
+   * daemon refreshes this at most once every `CLI_VERSION_CHECK_CACHE_MS`
+   * (24h) to avoid hammering the GitHub releases API on every restart.
+   */
+  cliVersions: z
+    .object({
+      checkedAt: z.number(),
+      tools: z.array(CliToolStatusSchema),
+    })
+    .optional(),
 });
 
 export type MagentaConfig = z.infer<typeof MagentaConfigSchema>;

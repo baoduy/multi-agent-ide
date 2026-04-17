@@ -54,6 +54,15 @@ if (require.main === module) {
       // Start watcher for live activity updates
       result.container.sessionFileWatcher.start();
 
+      // Low-priority CLI version check — runs 10s after boot so it never
+      // competes with startup-critical work. Cached for 24h inside the
+      // service, so quick restarts don't hammer the GitHub API.
+      setTimeout(() => {
+        result.container.jobManager.enqueue("cli:version-check", async () => {
+          await result.container.cliVersionService.runStartupCheck();
+        });
+      }, 10_000);
+
       console.log("Daemon listening...");
     })
     .catch((err) => {

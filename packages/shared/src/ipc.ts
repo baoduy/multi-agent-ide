@@ -3,6 +3,7 @@ import { MAIN_TABS, PIPELINE_STAGES, REPO_STATUSES, STAGE_STATUSES } from "./con
 import { MagentaConfigSchema } from "./config";
 import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
 import { SYNCED_SESSION_PROVIDERS, SyncedSessionRecordSchema } from "./syncedSession";
+import { CliToolIdSchema, CliToolStatusSchema } from "./cliTools";
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -255,6 +256,11 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     path: z.string().min(1).max(2048),
     ref: z.string().max(200).optional(),
   }),
+  // CLI tool version tracking
+  z.object({ type: z.literal("cli:get-version-status") }),
+  z.object({ type: z.literal("cli:recheck") }),
+  z.object({ type: z.literal("cli:upgrade"), tool: CliToolIdSchema }),
+  z.object({ type: z.literal("cli:upgrade:cancel"), tool: CliToolIdSchema }),
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -535,6 +541,22 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("git:reset:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
   z.object({ type: z.literal("git:revert:result"), repoPath: z.string(), success: z.boolean(), message: z.string() }),
   z.object({ type: z.literal("git:blame:result"), repoPath: z.string(), path: z.string(), lines: z.array(BlameLineSchema) }),
+  // CLI tool version tracking — request replies
+  z.object({
+    type: z.literal("cli:get-version-status:result"),
+    tools: z.array(CliToolStatusSchema),
+  }),
+  z.object({ type: z.literal("cli:recheck:started") }),
+  z.object({ type: z.literal("cli:upgrade:started"), tool: CliToolIdSchema }),
+  z.object({ type: z.literal("cli:upgrade:cancel:ack"), tool: CliToolIdSchema }),
+  // CLI tool version tracking — push events (daemon → renderer)
+  z.object({
+    type: z.literal("cli:version-status-changed"),
+    tools: z.array(CliToolStatusSchema),
+    updateCount: z.number().int().nonnegative(),
+  }),
+  z.object({ type: z.literal("cli:upgrade:output"), tool: CliToolIdSchema, data: z.string() }),
+  z.object({ type: z.literal("cli:upgrade:complete"), tool: CliToolIdSchema, success: z.boolean(), error: z.string().optional() }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

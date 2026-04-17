@@ -20,6 +20,8 @@ import { useConfigStore } from "../store/configStore";
 import { useWorktreeStore } from "../store/worktreeStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
+import { CliUpgradeDialog } from "../components/dialogs/CliUpgradeDialog";
+import { useCliVersionStore } from "../store/cliVersionStore";
 import { AISessionsView } from "../components/ai-terminal/AISessionsView";
 import { NewSessionDialog } from "../components/dialogs/NewSessionDialog";
 
@@ -423,6 +425,7 @@ export function MainPage(): React.ReactElement {
   return (
     <>
     <OnboardDialogManager />
+    <CliUpgradeDialog />
     <MainLayout
       titleBar={
         <TitleBar

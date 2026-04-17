@@ -21,6 +21,8 @@ import { GitGateway } from "./infrastructure/GitGateway";
 import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
 import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
 import { SpecReader } from "./services/SpecReader";
+import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
+import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -55,6 +57,8 @@ export class DaemonContainer {
   readonly fileSystemGateway: FileSystemGateway;
   readonly specGitGateway: SpecGitGateway;
   readonly specReader: SpecReader;
+  readonly githubReleasesGateway: GitHubReleasesGateway;
+  readonly cliVersionService: CliVersionApplicationService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -128,6 +132,15 @@ export class DaemonContainer {
       this.sessionSyncGateway.getClaudeProjectsDir(),
       this.sessionSyncGateway.getCopilotSessionStateDir(),
     );
+
+    // CLI tool version tracking — checks installed CLI versions against
+    // GitHub releases on startup and orchestrates user-triggered upgrades.
+    this.githubReleasesGateway = new GitHubReleasesGateway();
+    this.cliVersionService = new CliVersionApplicationService(
+      this.bridge,
+      this.configManager,
+      this.githubReleasesGateway,
+    );
   }
 
   /**
@@ -157,6 +170,7 @@ export class DaemonContainer {
       fileSystemGateway: this.fileSystemGateway,
       specGitGateway: this.specGitGateway,
       specReader: this.specReader,
+      cliVersionService: this.cliVersionService,
     });
   }
 

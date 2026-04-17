@@ -35,6 +35,10 @@
     "./sanitize": {
       "types": "./dist/sanitize.d.ts",
       "default": "./dist/sanitize.js"
+    },
+    "./cliTools": {
+      "types": "./dist/cliTools.d.ts",
+      "default": "./dist/cliTools.js"
     }
   },
   "scripts": {

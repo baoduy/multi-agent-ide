@@ -233,6 +233,20 @@
   }
 }
 
+/*
+ * @uiw/react-md-editor — enlarge the edit-side font.
+ * The editor layers a transparent <textarea> on top of a highlighted <pre>
+ * mirror; font-size / line-height MUST match across all three selectors or
+ * the caret will drift out of alignment with the rendered text.
+ */
+.w-md-editor-text,
+.w-md-editor-text-pre,
+.w-md-editor-text-input,
+.w-md-editor-text-pre > code {
+  font-size: 15px !important;
+  line-height: 1.6 !important;
+}
+
 /* Hide scrollbar on dock tab bars while keeping scroll functionality */
 .dock-tab-bar-no-scrollbar {
   scrollbar-width: none; /* Firefox */

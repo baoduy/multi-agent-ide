@@ -97,6 +97,11 @@ type ResponseForRequest = {
   "git:reset": Extract<IpcResponse, { type: "git:reset:result" }>;
   "git:revert": Extract<IpcResponse, { type: "git:revert:result" }>;
   "git:blame": Extract<IpcResponse, { type: "git:blame:result" }>;
+  // CLI version tracking
+  "cli:get-version-status": Extract<IpcResponse, { type: "cli:get-version-status:result" }>;
+  "cli:recheck": Extract<IpcResponse, { type: "cli:recheck:started" }>;
+  "cli:upgrade": Extract<IpcResponse, { type: "cli:upgrade:started" }>;
+  "cli:upgrade:cancel": Extract<IpcResponse, { type: "cli:upgrade:cancel:ack" }>;
 };
 
 /**

@@ -35,6 +35,8 @@ import { GitGateway } from "./infrastructure/GitGateway";
 import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
 import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
 import { SpecReader } from "./services/SpecReader";
+import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
+import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
 
 // Track services for graceful shutdown
 let shutdownServices: {
@@ -190,6 +192,14 @@ async function main() {
       sessionSyncGateway.getCopilotSessionStateDir(),
     );
 
+    // CLI tool version tracking — low-priority startup check + upgrade handler.
+    const githubReleasesGateway = new GitHubReleasesGateway();
+    const cliVersionService = new CliVersionApplicationService(
+      ipcBridge,
+      configManager,
+      githubReleasesGateway,
+    );
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, databaseService, terminalService, aiSessionService };
 
@@ -208,6 +218,7 @@ async function main() {
       fileSystemGateway,
       specGitGateway,
       specReader,
+      cliVersionService,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -232,6 +243,9 @@ async function main() {
       "ai-session:exited",
       "ai-session:updated",
       "synced-session:sync:complete",
+      "cli:version-status-changed",
+      "cli:upgrade:output",
+      "cli:upgrade:complete",
     ];
 
     for (const eventType of pushEventTypes) {
@@ -316,6 +330,15 @@ async function main() {
     //     reflects within ~300ms of any JSONL append. Additive to the recurring
     //     sync — fs.watch is best-effort on some volumes.
     sessionFileWatcher.start();
+
+    // 4c. Low-priority CLI version check — runs 10s after boot so it never
+    //     competes with startup-critical work. Cached for 24h inside the
+    //     service, so quick restarts don't hammer the GitHub API.
+    setTimeout(() => {
+      jobManager.enqueue("cli:version-check", async () => {
+        await cliVersionService.runStartupCheck();
+      });
+    }, 10_000);
 
     // 5. Reconfigure both sync services whenever config changes so users can
     //    change the interval from the Settings dialog without restarting the app.

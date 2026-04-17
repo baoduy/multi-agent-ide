@@ -45,6 +45,8 @@ import type { SpecGitGateway } from "../infrastructure/SpecGitGateway";
 import type { FileSystemGateway } from "../infrastructure/FileSystemGateway";
 import type { SpecReader } from "../services/SpecReader";
 import type { RepoScanner } from "../services/RepoScanner";
+import type { CliVersionApplicationService } from "../application/CliVersionApplicationService";
+import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
 
 export type HandlerContext = {
   databaseService: DatabaseService;
@@ -63,6 +65,7 @@ export type HandlerContext = {
   fileSystemGateway: FileSystemGateway;
   specGitGateway: SpecGitGateway;
   specReader: SpecReader;
+  cliVersionService: CliVersionApplicationService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -122,4 +125,6 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   const remoteService = new GitRemoteApplicationService(stashRemoteGateway);
   registerGitStashHandlers({ bridge, stashService });
   registerGitRemoteHandlers({ bridge, remoteService });
+
+  registerCliVersionHandlers({ bridge, cliVersionService: context.cliVersionService });
 }

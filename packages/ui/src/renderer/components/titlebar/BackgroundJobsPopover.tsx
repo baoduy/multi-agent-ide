@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUpCircle } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { ipc } from "../../utils/ipc";
@@ -7,7 +6,6 @@ import { ActionButton } from "../common/ActionButton";
 import { ScrollableText } from "../common/ScrollableText";
 import { useOnboardStore } from "../../store/onboardStore";
 import type { OnboardProcess } from "../../store/onboardStore";
-import { selectCliUpdateCount, useCliVersionStore } from "../../store/cliVersionStore";
 
 /* ── Types ── */
 
@@ -25,13 +23,6 @@ export type BackgroundJob = {
 
 export function useBackgroundJobs() {
   const [jobs, setJobs] = useState<BackgroundJob[]>([]);
-  const initCliSubs = useCliVersionStore((s) => s.initializeSubscriptions);
-  const fetchCliStatus = useCliVersionStore((s) => s.fetchStatus);
-
-  useEffect(() => {
-    initCliSubs();
-    void fetchCliStatus();
-  }, [initCliSubs, fetchCliStatus]);
 
   useEffect(() => {
     const unsubs: (() => void)[] = [];
@@ -93,16 +84,13 @@ export function useBackgroundJobs() {
     (p) => p.phase === "done",
   ).length;
 
-  // CLI update availability — each pending update adds one to the badge.
-  const cliUpdateCount = useCliVersionStore(selectCliUpdateCount);
-
   const runningCount = jobs.filter((j) => j.status === "running").length + onboardRunning;
   const completedCount = jobs.filter((j) => j.status === "completed").length + onboardDone - onboardFailed;
   const failedCount = jobs.filter((j) => j.status === "failed").length + onboardFailed;
-  // Badge shows all uncleared notifications (running + completed + failed + CLI updates)
-  const totalCount = runningCount + completedCount + failedCount + cliUpdateCount;
+  // Badge shows all uncleared notifications (running + completed + failed)
+  const totalCount = runningCount + completedCount + failedCount;
 
-  return { jobs, runningCount, failedCount, totalCount, clearCompleted, cliUpdateCount };
+  return { jobs, runningCount, failedCount, totalCount, clearCompleted };
 }
 
 /* ── Status dot colors ── */
@@ -215,10 +203,7 @@ function OnboardJobRow({
   process: OnboardProcess;
   onViewOutput: () => void;
 }): React.ReactElement {
-  const label =
-    process.kind === "onboard"
-      ? `Onboard: ${process.repoName}`
-      : `Upgrade: ${process.repoName}`;
+  const label = `Onboard: ${process.repoName}`;
 
   const status: JobStatus =
     process.phase === "running"
@@ -294,52 +279,6 @@ function OnboardJobRow({
   );
 }
 
-/* ── CLI update row ── */
-
-function CliUpdatesRow({
-  count,
-  onClick,
-}: {
-  count: number;
-  onClick: () => void;
-}): React.ReactElement {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        width: "100%",
-        padding: "10px 14px",
-        borderBottom: `1px solid ${colors.borderLight}`,
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        background: "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        color: colors.text,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = colors.bgHover;
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      <ArrowUpCircle size={14} strokeWidth={2} style={{ color: colors.repoBadgeSpecFg, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 500 }}>
-          {count} CLI update{count === 1 ? "" : "s"} available
-        </div>
-        <div style={{ fontSize: 10, color: colors.textTertiary, marginTop: 1 }}>
-          Click to review and upgrade
-        </div>
-      </div>
-    </button>
-  );
-}
-
 /* ── Popover ── */
 
 type BackgroundJobsPopoverProps = {
@@ -357,15 +296,8 @@ export function BackgroundJobsPopover({
   const onboardProcesses = useOnboardStore((s) => s.processes);
   const setDialogOpen = useOnboardStore((s) => s.setDialogOpen);
   const dismiss = useOnboardStore((s) => s.dismiss);
-  const cliUpdateCount = useCliVersionStore(selectCliUpdateCount);
-  const openCliDialog = useCliVersionStore((s) => s.setDialogOpen);
 
   const processList = Object.values(onboardProcesses);
-
-  const handleOpenCliDialog = useCallback(() => {
-    openCliDialog(true);
-    onClose();
-  }, [openCliDialog, onClose]);
 
   // Close on click outside
   useEffect(() => {
@@ -399,7 +331,7 @@ export function BackgroundJobsPopover({
     [setDialogOpen, onClose],
   );
 
-  const isEmpty = jobs.length === 0 && processList.length === 0 && cliUpdateCount === 0;
+  const isEmpty = jobs.length === 0 && processList.length === 0;
 
   return (
     <div
@@ -478,11 +410,6 @@ export function BackgroundJobsPopover({
           </div>
         ) : (
           <>
-            {/* CLI tool update row — shown above other jobs when updates are pending */}
-            {cliUpdateCount > 0 && (
-              <CliUpdatesRow count={cliUpdateCount} onClick={handleOpenCliDialog} />
-            )}
-
             {/* Onboard/Upgrade processes */}
             {processList.map((proc) => (
               <OnboardJobRow

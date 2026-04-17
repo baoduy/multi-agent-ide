@@ -38,7 +38,6 @@ type ResponseForRequest = {
   "worktree:branches": Extract<IpcResponse, { type: "worktree:branches:result" }>;
   "worktree:delete": Extract<IpcResponse, { type: "worktree:delete:result" }>;
   "repo:onboard": Extract<IpcResponse, { type: "repo:onboard:started" }>;
-  "repo:upgrade-specify": Extract<IpcResponse, { type: "repo:upgrade-specify:started" }>;
   "repo:onboard:cancel": Extract<IpcResponse, { type: "repo:onboard:cancelled" }>;
   "repo:specify-status": Extract<IpcResponse, { type: "repo:specify-status:result" }>;
   "repo:specify-switch": Extract<IpcResponse, { type: "repo:specify-switch:started" }>;

@@ -93,38 +93,6 @@ export class OnboardApplicationService {
   }
 
   /**
-   * Upgrades Specify for a repo that already has a .specify folder.
-   * Uses the same configured command template as onboard.
-   * Reads the existing AI agent from .specify/init-options.json.
-   */
-  async upgrade(repoPath: string): Promise<void> {
-    if (this.activeProcesses.has(repoPath)) {
-      throw new AppError("VALIDATION_ERROR", `Upgrade already in progress for ${repoPath}`);
-    }
-
-    const aiAgent = this.readInitOptionsAgent(repoPath) ?? "claude";
-
-    console.log(`[onboard-service] Starting upgrade for ${repoPath} (agent: ${aiAgent})`);
-    this.bridge.emit({ type: "repo:upgrade-specify:started", repoPath });
-
-    const fullCommand = this.buildCommand(aiAgent);
-
-    this.bridge.emit({
-      type: "repo:upgrade-specify:output",
-      repoPath,
-      data: `$ ${fullCommand}\n`,
-    });
-
-    await this.runCommand(
-      repoPath,
-      repoPath,
-      fullCommand,
-      "repo:upgrade-specify:output",
-      "repo:upgrade-specify:complete",
-    );
-  }
-
-  /**
    * Switches the Specify integration to a different AI agent using
    * `specify integration switch {agent}`. Much lighter than a full re-onboard.
    */
@@ -393,8 +361,8 @@ export class OnboardApplicationService {
     repoPath: string,
     cwd: string,
     fullCommand: string,
-    outputEvent: "repo:onboard:output" | "repo:upgrade-specify:output",
-    completeEvent?: "repo:onboard:complete" | "repo:upgrade-specify:complete",
+    outputEvent: "repo:onboard:output",
+    completeEvent?: "repo:onboard:complete",
   ): Promise<boolean> {
     return new Promise<boolean>((resolve, reject) => {
       // Tokenize + validate, then spawn with `shell: false` so none of the

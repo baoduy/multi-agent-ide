@@ -5,13 +5,23 @@ export type CliToolId = (typeof CLI_TOOL_IDS)[number];
 
 export const CliToolIdSchema = z.enum(CLI_TOOL_IDS);
 
+/**
+ * Where to look up the latest published version of a CLI.
+ * - `github` reads `/repos/<repo>/releases/latest`
+ * - `npm` reads `registry.npmjs.org/<package>/latest`
+ */
+export type CliVersionSource =
+  | { kind: "github"; repo: string }
+  | { kind: "npm"; package: string };
+
 export interface CliToolSpec {
   id: CliToolId;
   displayName: string;
   binary: string;
   versionArgs: string[];
-  githubRepo: string;
-  releaseUrl: string;
+  source: CliVersionSource;
+  /** Public page to link the user to when they want to learn more. */
+  infoUrl: string;
   upgradeCommand: string;
 }
 
@@ -21,8 +31,8 @@ export const CLI_TOOLS: Record<CliToolId, CliToolSpec> = {
     displayName: "Claude Code",
     binary: "claude",
     versionArgs: ["--version"],
-    githubRepo: "anthropics/claude-code",
-    releaseUrl: "https://github.com/anthropics/claude-code/releases",
+    source: { kind: "npm", package: "@anthropic-ai/claude-code" },
+    infoUrl: "https://www.npmjs.com/package/@anthropic-ai/claude-code",
     upgradeCommand: "npm install -g @anthropic-ai/claude-code@latest",
   },
   copilot: {
@@ -30,8 +40,8 @@ export const CLI_TOOLS: Record<CliToolId, CliToolSpec> = {
     displayName: "GitHub Copilot CLI",
     binary: "copilot",
     versionArgs: ["--version"],
-    githubRepo: "github/copilot-cli",
-    releaseUrl: "https://github.com/github/copilot-cli/releases",
+    source: { kind: "npm", package: "@github/copilot" },
+    infoUrl: "https://www.npmjs.com/package/@github/copilot",
     upgradeCommand: "npm install -g @github/copilot@latest",
   },
   specify: {
@@ -39,8 +49,8 @@ export const CLI_TOOLS: Record<CliToolId, CliToolSpec> = {
     displayName: "Specify (spec-kit)",
     binary: "specify",
     versionArgs: ["--version"],
-    githubRepo: "github/spec-kit",
-    releaseUrl: "https://github.com/github/spec-kit/releases",
+    source: { kind: "github", repo: "github/spec-kit" },
+    infoUrl: "https://github.com/github/spec-kit",
     upgradeCommand: "uv tool upgrade specify-cli",
   },
 };
@@ -57,12 +67,3 @@ export const CliToolStatusSchema = z.object({
 });
 
 export type CliToolStatus = z.infer<typeof CliToolStatusSchema>;
-
-export const CliVersionsSnapshotSchema = z.object({
-  checkedAt: z.number(),
-  tools: z.array(CliToolStatusSchema),
-});
-
-export type CliVersionsSnapshot = z.infer<typeof CliVersionsSnapshotSchema>;
-
-export const CLI_VERSION_CHECK_CACHE_MS = 24 * 60 * 60 * 1000;

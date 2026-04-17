@@ -22,6 +22,7 @@ import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
 import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
 import { SpecReader } from "./services/SpecReader";
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
+import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
 
 /**
@@ -58,6 +59,7 @@ export class DaemonContainer {
   readonly specGitGateway: SpecGitGateway;
   readonly specReader: SpecReader;
   readonly githubReleasesGateway: GitHubReleasesGateway;
+  readonly npmRegistryGateway: NpmRegistryGateway;
   readonly cliVersionService: CliVersionApplicationService;
 
   private constructor(databaseService: DatabaseService) {
@@ -133,13 +135,14 @@ export class DaemonContainer {
       this.sessionSyncGateway.getCopilotSessionStateDir(),
     );
 
-    // CLI tool version tracking — checks installed CLI versions against
-    // GitHub releases on startup and orchestrates user-triggered upgrades.
+    // CLI tool version tracking — on-demand check when the user opens
+    // the upgrade dialog; no background cadence.
     this.githubReleasesGateway = new GitHubReleasesGateway();
+    this.npmRegistryGateway = new NpmRegistryGateway();
     this.cliVersionService = new CliVersionApplicationService(
       this.bridge,
-      this.configManager,
       this.githubReleasesGateway,
+      this.npmRegistryGateway,
     );
   }
 

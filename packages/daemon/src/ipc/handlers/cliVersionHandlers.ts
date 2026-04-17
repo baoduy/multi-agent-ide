@@ -16,10 +16,10 @@ export function registerCliVersionHandlers({
     return { type: "cli:get-version-status:result", tools };
   });
 
-  safeHandle(bridge, "cli:recheck", async () => {
+  safeHandle(bridge, "cli:recheck", async (msg) => {
     // Fire-and-forget — the refresh pushes a `cli:version-status-changed`
     // event when it completes, which is how the UI stays in sync.
-    cliVersionService.refresh().catch((err) => {
+    cliVersionService.refresh(msg.repoPath).catch((err) => {
       console.warn("[cli-version] manual recheck failed:", err);
     });
     return { type: "cli:recheck:started" };

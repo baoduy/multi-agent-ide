@@ -21,7 +21,7 @@ type OnboardHandlerContext = {
  */
 function emitFailure(
   bridge: IPCBridge,
-  type: "repo:onboard:complete" | "repo:upgrade-specify:complete",
+  type: "repo:onboard:complete",
   repoPath: string,
   error: unknown,
 ): void {
@@ -36,14 +36,6 @@ export function registerOnboardHandlers({ bridge, onboardService }: OnboardHandl
       .onboard(msg.repoPath, msg.aiAgent, msg.useWorktree)
       .catch((err) => emitFailure(bridge, "repo:onboard:complete", msg.repoPath, err));
     return { type: "repo:onboard:started", repoPath: msg.repoPath };
-  });
-
-  safeHandle(bridge, "repo:upgrade-specify", async (msg) => {
-    // Fire-and-forget: the process streams output via bridge events
-    onboardService
-      .upgrade(msg.repoPath)
-      .catch((err) => emitFailure(bridge, "repo:upgrade-specify:complete", msg.repoPath, err));
-    return { type: "repo:upgrade-specify:started", repoPath: msg.repoPath };
   });
 
   safeHandle(bridge, "repo:onboard:cancel", async (msg) => {

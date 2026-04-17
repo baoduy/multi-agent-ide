@@ -11,6 +11,7 @@ import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
+import { useCliVersionStore } from "../../store/cliVersionStore";
 import { useRepoStore } from "../../store/repoStore";
 import { BranchSwitcherDialog } from "../dialogs/BranchSwitcherDialog";
 import { CreateBranchOrWorktreeDialog, type CreateKind } from "../dialogs/CreateBranchOrWorktreeDialog";
@@ -41,6 +42,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
   const startProcess = useOnboardStore((s) => s.startProcess);
   const setDialogOpen = useOnboardStore((s) => s.setDialogOpen);
   const existingProcess = useOnboardStore((s) => s.processes[repo.path]);
+  const openCliDialog = useCliVersionStore((s) => s.setDialogOpen);
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
 
   /** Fire-and-forget git action with post-action repo refresh. */
@@ -131,7 +133,9 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
     },
   });
 
-  // Show "Onboard to Specify" or "Upgrade Specify" last
+  // Show "Onboard to Specify" when the repo hasn't been onboarded yet, and
+  // always show "Upgrade Tools" — the global CLI version dialog for claude,
+  // copilot, and specify.
   if (!repo.hasSpecs) {
     ctxItems.push({
       label: existingProcess?.phase === "running"
@@ -146,21 +150,13 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
         }
       },
     });
-  } else {
-    ctxItems.push({
-      label: existingProcess?.phase === "running"
-        ? "View Upgrade..."
-        : "Upgrade Specify",
-      Icon: ArrowUpCircle,
-      action: () => {
-        if (existingProcess) {
-          setDialogOpen(repo.path, true);
-        } else {
-          startProcess("upgrade", repo.path, repo.name);
-        }
-      },
-    });
   }
+
+  ctxItems.push({
+    label: "Upgrade Tools",
+    Icon: ArrowUpCircle,
+    action: () => openCliDialog(true),
+  });
 
   return (
     <div

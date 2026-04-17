@@ -105,12 +105,13 @@ jobs:
           - os: macos-latest
             os-name: macOS
             build-args: --mac
-          - os: ubuntu-latest
-            os-name: Linux
-            build-args: --linux
-          - os: windows-latest
-            os-name: Windows
-            build-args: --win
+          # Haven't tested Linux and Windows builds in CI yet — enable when ready
+          # - os: ubuntu-latest
+          #   os-name: Linux
+          #   build-args: --linux
+          # - os: windows-latest
+          #   os-name: Windows
+          #   build-args: --win
 
     runs-on: ${{ matrix.os }}
 

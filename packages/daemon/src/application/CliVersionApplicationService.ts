@@ -1,17 +1,19 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   CLI_TOOLS,
-  CLI_VERSION_CHECK_CACHE_MS,
   type CliToolId,
   type CliToolStatus,
+  type CliToolSpec,
 } from "@magenta/shared/cliTools";
 
-import type { ConfigManager } from "../config/ConfigManager";
 import { AppError } from "../errors/AppError";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import { CliVersionProbe, isNewerVersion, normalizeReleaseTag } from "../infrastructure/CliVersionProbe";
 import type { GitHubReleasesGateway } from "../infrastructure/GitHubReleasesGateway";
+import type { NpmRegistryGateway } from "../infrastructure/NpmRegistryGateway";
 
 /**
  * Shell-metacharacter allowlist copied verbatim from OnboardApplicationService
@@ -47,84 +49,57 @@ function countUpdates(tools: CliToolStatus[]): number {
 export class CliVersionApplicationService {
   private readonly probe = new CliVersionProbe();
   private readonly activeUpgrades = new Map<CliToolId, ChildProcess>();
+  private lastStatus: CliToolStatus[] = (Object.keys(CLI_TOOLS) as CliToolId[]).map(
+    (id) => initialStatus(id),
+  );
 
   constructor(
     private readonly bridge: IPCBridge,
-    private readonly configManager: ConfigManager,
     private readonly releasesGateway: GitHubReleasesGateway,
+    private readonly npmGateway: NpmRegistryGateway,
   ) {}
 
   /**
-   * Returns the last-known cached status. Used by the renderer on mount so
-   * that the bell badge populates even before the first fresh check lands.
-   * If no cache exists the list is returned with all tools marked
-   * `installed: false, updateAvailable: false`.
+   * Returns the last computed status without hitting the network. The
+   * renderer calls this on dialog open to render a skeleton immediately
+   * while `refresh()` fetches fresh numbers.
    */
   getStatus(): CliToolStatus[] {
-    const cached = this.configManager.getConfig().cliVersions;
-    if (cached && Array.isArray(cached.tools) && cached.tools.length > 0) {
-      return cached.tools;
-    }
-    return (Object.keys(CLI_TOOLS) as CliToolId[]).map((id) => ({
-      tool: id,
-      installed: false,
-      currentVersion: null,
-      latestVersion: null,
-      updateAvailable: false,
-      releaseUrl: null,
-      checkedAt: null,
-      checkError: null,
-    }));
+    return this.lastStatus;
   }
 
   /**
-   * Runs the startup check. Short-circuits to the cached snapshot when it
-   * was taken within the last 24h — restarting the app repeatedly shouldn't
-   * hammer the releases API.
+   * Probes every tool and queries its version source, then emits the
+   * resulting snapshot. Called on demand when the user opens the upgrade
+   * dialog — there is no automatic background cadence.
+   *
+   * `repoPath` (optional) is used only for Specify: when present, the
+   * service reads `<repoPath>/.specify/init-options.json`'s
+   * `speckit_version` instead of spawning `specify --version`.
    */
-  async runStartupCheck(): Promise<void> {
-    const cached = this.configManager.getConfig().cliVersions;
-    const now = Date.now();
-    if (cached && now - cached.checkedAt < CLI_VERSION_CHECK_CACHE_MS) {
-      console.log(
-        `[cli-version] Using cached snapshot from ${new Date(cached.checkedAt).toISOString()} (age ${Math.round((now - cached.checkedAt) / 1000)}s)`,
-      );
-      this.emitStatus(cached.tools);
-      return;
-    }
-    await this.refresh();
-  }
-
-  /**
-   * Forces a fresh check bypassing the 24h cache. Triggered by `cli:recheck`.
-   */
-  async refresh(): Promise<CliToolStatus[]> {
+  async refresh(repoPath?: string): Promise<CliToolStatus[]> {
     const statuses = await Promise.all(
-      (Object.keys(CLI_TOOLS) as CliToolId[]).map((id) => this.checkOne(id)),
+      (Object.keys(CLI_TOOLS) as CliToolId[]).map((id) => this.checkOne(id, repoPath)),
     );
-
-    const checkedAt = Date.now();
-    this.configManager.updateConfig({ cliVersions: { checkedAt, tools: statuses } });
+    this.lastStatus = statuses;
     this.emitStatus(statuses);
     return statuses;
   }
 
   /**
-   * Re-probes a single tool after an upgrade completes so the UI can update
-   * the displayed current version in place.
+   * Re-probes a single tool after an upgrade completes so the UI can
+   * update the displayed current version in place without a full refresh.
    */
-  async refreshOne(tool: CliToolId): Promise<CliToolStatus> {
-    const status = await this.checkOne(tool);
-    const current = this.getStatus();
-    const merged = current.map((s) => (s.tool === tool ? status : s));
-    this.configManager.updateConfig({ cliVersions: { checkedAt: Date.now(), tools: merged } });
-    this.emitStatus(merged);
+  async refreshOne(tool: CliToolId, repoPath?: string): Promise<CliToolStatus> {
+    const status = await this.checkOne(tool, repoPath);
+    this.lastStatus = this.lastStatus.map((s) => (s.tool === tool ? status : s));
+    this.emitStatus(this.lastStatus);
     return status;
   }
 
-  private async checkOne(tool: CliToolId): Promise<CliToolStatus> {
+  private async checkOne(tool: CliToolId, repoPath?: string): Promise<CliToolStatus> {
     const spec = CLI_TOOLS[tool];
-    const probe = await this.probe.probe(spec.binary, spec.versionArgs);
+    const probe = await this.probeCurrentVersion(tool, repoPath);
 
     if (!probe.installed) {
       return {
@@ -133,14 +108,14 @@ export class CliVersionApplicationService {
         currentVersion: null,
         latestVersion: null,
         updateAvailable: false,
-        releaseUrl: spec.releaseUrl,
+        releaseUrl: spec.infoUrl,
         checkedAt: Date.now(),
         checkError: probe.error,
       };
     }
 
-    const release = await this.releasesGateway.getLatestRelease(spec.githubRepo);
-    const latest = release ? normalizeReleaseTag(release.tagName) : null;
+    const latestInfo = await this.fetchLatest(spec);
+    const latest = latestInfo ? normalizeReleaseTag(latestInfo.version) : null;
     const updateAvailable = isNewerVersion(probe.version, latest);
 
     return {
@@ -149,10 +124,45 @@ export class CliVersionApplicationService {
       currentVersion: probe.version,
       latestVersion: latest,
       updateAvailable,
-      releaseUrl: release?.htmlUrl ?? spec.releaseUrl,
+      releaseUrl: latestInfo?.url ?? spec.infoUrl,
       checkedAt: Date.now(),
-      checkError: release ? null : "unable to fetch latest release",
+      checkError: latestInfo ? null : "unable to fetch latest version",
     };
+  }
+
+  /**
+   * Resolves the locally-installed version of a tool.
+   *
+   * For Specify, the version lives in the repo's `.specify/init-options.json`
+   * (the `speckit_version` field written by `specify init`). Reading it
+   * from disk is cheaper and more accurate than spawning the CLI, which
+   * needs `uvx` resolution and may report a different version than what's
+   * actually initialised in the repo. Falls back to the normal spawn probe
+   * if no `repoPath` was supplied or the file isn't present.
+   */
+  private async probeCurrentVersion(
+    tool: CliToolId,
+    repoPath?: string,
+  ) {
+    const spec = CLI_TOOLS[tool];
+    if (tool === "specify" && repoPath) {
+      const version = readSpeckitVersion(repoPath);
+      if (version) {
+        return { installed: true, version, error: null };
+      }
+    }
+    return this.probe.probe(spec.binary, spec.versionArgs);
+  }
+
+  private async fetchLatest(
+    spec: CliToolSpec,
+  ): Promise<{ version: string; url: string } | null> {
+    if (spec.source.kind === "github") {
+      const release = await this.releasesGateway.getLatestRelease(spec.source.repo);
+      return release ? { version: release.tagName, url: release.htmlUrl } : null;
+    }
+    const info = await this.npmGateway.getLatestVersion(spec.source.package);
+    return info ? { version: info.version, url: info.htmlUrl } : null;
   }
 
   private emitStatus(tools: CliToolStatus[]): void {
@@ -235,5 +245,35 @@ export class CliVersionApplicationService {
         child.kill("SIGKILL");
       }
     }, 5_000);
+  }
+}
+
+function initialStatus(tool: CliToolId): CliToolStatus {
+  return {
+    tool,
+    installed: false,
+    currentVersion: null,
+    latestVersion: null,
+    updateAvailable: false,
+    releaseUrl: CLI_TOOLS[tool].infoUrl,
+    checkedAt: null,
+    checkError: null,
+  };
+}
+
+/**
+ * Reads the `speckit_version` field from `<repoPath>/.specify/init-options.json`.
+ * Returns `null` when the file is missing, malformed, or the field is absent.
+ */
+function readSpeckitVersion(repoPath: string): string | null {
+  const optionsPath = join(repoPath, ".specify", "init-options.json");
+  try {
+    if (!existsSync(optionsPath)) return null;
+    const content = readFileSync(optionsPath, "utf-8");
+    const data = JSON.parse(content) as Record<string, unknown>;
+    return typeof data.speckit_version === "string" ? data.speckit_version : null;
+  } catch (err) {
+    console.warn(`[cli-version] Could not read init-options.json: ${err}`);
+    return null;
   }
 }

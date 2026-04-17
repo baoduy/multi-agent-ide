@@ -106,7 +106,6 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:onboard"), repoPath: z.string(), aiAgent: z.string().regex(/^[a-z0-9_-]+$/, "aiAgent must be a simple identifier"), useWorktree: z.boolean().optional() }),
   z.object({ type: z.literal("repo:specify-status"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:specify-switch"), repoPath: z.string(), aiAgent: z.string().regex(/^[a-z0-9_-]+$/, "aiAgent must be a simple identifier") }),
-  z.object({ type: z.literal("repo:upgrade-specify"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:onboard:cancel"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:force-reload"), repoPath: z.string() }),
   z.object({ type: z.literal("git:user"), repoPath: z.string() }),
@@ -256,9 +255,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     path: z.string().min(1).max(2048),
     ref: z.string().max(200).optional(),
   }),
-  // CLI tool version tracking
-  z.object({ type: z.literal("cli:get-version-status") }),
-  z.object({ type: z.literal("cli:recheck") }),
+  // CLI tool version tracking — `repoPath` is optional and only used to
+  // detect Specify's current version from `<repo>/.specify/init-options.json`.
+  z.object({ type: z.literal("cli:get-version-status"), repoPath: z.string().optional() }),
+  z.object({ type: z.literal("cli:recheck"), repoPath: z.string().optional() }),
   z.object({ type: z.literal("cli:upgrade"), tool: CliToolIdSchema }),
   z.object({ type: z.literal("cli:upgrade:cancel"), tool: CliToolIdSchema }),
 ]);
@@ -368,9 +368,6 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:onboard:started"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:onboard:output"), repoPath: z.string(), data: z.string() }),
   z.object({ type: z.literal("repo:onboard:complete"), repoPath: z.string(), success: z.boolean(), error: z.string().optional() }),
-  z.object({ type: z.literal("repo:upgrade-specify:started"), repoPath: z.string() }),
-  z.object({ type: z.literal("repo:upgrade-specify:output"), repoPath: z.string(), data: z.string() }),
-  z.object({ type: z.literal("repo:upgrade-specify:complete"), repoPath: z.string(), success: z.boolean(), error: z.string().optional() }),
   z.object({ type: z.literal("repo:onboard:cancelled"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:specify-status:result"), repoPath: z.string(), hasSpecs: z.boolean(), currentAgent: z.string().nullable() }),
   z.object({ type: z.literal("repo:specify-switch:started"), repoPath: z.string() }),

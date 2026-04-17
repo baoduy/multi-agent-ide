@@ -17,8 +17,10 @@ export interface CliUpgradeState {
 type CliVersionStoreState = {
   tools: CliToolStatus[];
   upgrades: Partial<Record<CliToolId, CliUpgradeState>>;
-  /** True while the upgrade dialog is open (any tool) */
+  /** True while the upgrade dialog is open */
   dialogOpen: boolean;
+  /** True while a fresh version check is in flight */
+  isChecking: boolean;
   subscriptionsReady: boolean;
 
   fetchStatus: () => Promise<void>;
@@ -30,14 +32,11 @@ type CliVersionStoreState = {
   initializeSubscriptions: () => void;
 };
 
-function countUpdates(tools: CliToolStatus[]): number {
-  return tools.filter((t) => t.updateAvailable).length;
-}
-
 export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
   tools: [],
   upgrades: {},
   dialogOpen: false,
+  isChecking: false,
   subscriptionsReady: false,
 
   fetchStatus: async () => {
@@ -50,9 +49,11 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
   },
 
   recheck: async () => {
+    set({ isChecking: true });
     try {
       await sendOrThrow({ type: "cli:recheck" });
     } catch (err) {
+      set({ isChecking: false });
       console.warn("[cli-version] recheck failed:", err);
     }
   },
@@ -96,7 +97,7 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
 
   initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
     ipc.on("cli:version-status-changed", (msg) => {
-      set({ tools: msg.tools });
+      set({ tools: msg.tools, isChecking: false });
     });
 
     ipc.on("cli:upgrade:output", (msg) => {
@@ -129,14 +130,6 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
     });
   }),
 }));
-
-/**
- * Selector: number of tools with a pending update. Returns a primitive
- * (number), safe to pass to `useCliVersionStore` without `useShallow`.
- */
-export function selectCliUpdateCount(state: CliVersionStoreState): number {
-  return countUpdates(state.tools);
-}
 
 /**
  * Computes the tool rows to render in the upgrade dialog: installed CLIs

@@ -54,6 +54,13 @@ export type TagTone =
 export type TagSize = "xs" | "sm" | "md" | "lg";
 
 type TagPalette = { bg: string; text: string; border?: string };
+// Keep non-critical repository/branch chips visually quiet to avoid
+// distracting from code content in primary views.
+const subtlePalette: TagPalette = {
+  bg: colors.bgMuted,
+  text: colors.textTertiary,
+  border: colors.borderLight,
+};
 
 /**
  * Central tone → palette map. Keep this the single source of truth so
@@ -83,13 +90,9 @@ const tonePalettes: Record<TagTone, TagPalette> = {
     border: colors.errorSoftBorder,
   },
   primary: { bg: colors.bgPanelSoft, text: colors.primary },
-  // Amber branch palette — Tailwind amber-200 bg / amber-600 text in light
-  // mode, softened to translucent amber-500 / amber-300 in dark mode.
-  // Borderless to match the other sidebar status tags (spec/active/missing).
-  // Tokens defined in colours.css → --branch-bg / --branch-fg.
-  branch: { bg: colors.branchBg, text: colors.branchFg },
-  spec: { bg: colors.repoBadgeSpecBg, text: colors.repoBadgeSpecFg },
-  active: { bg: colors.repoBadgeActiveBg, text: colors.repoBadgeActiveFg },
+  branch: subtlePalette,
+  spec: subtlePalette,
+  active: subtlePalette,
   missing: { bg: colors.repoBadgeMissingBg, text: colors.repoBadgeMissingFg },
 };
 

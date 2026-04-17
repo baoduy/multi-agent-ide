@@ -139,6 +139,7 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   z.object({ type: z.literal("synced-session:trigger-sync") }),
+  z.object({ type: z.literal("synced-session:archive"), id: z.string() }),
   // UI visibility signal — the renderer tells the daemon whether the AI title-bar
   // tab is currently the active top-level tab. The session sync job only runs
   // while the AI tab is active; switching away pauses the recurring sweep.
@@ -305,6 +306,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("synced-session:list:result"), sessions: z.array(SyncedSessionRecordSchema) }),
   z.object({ type: z.literal("synced-session:sync:triggered") }),
   z.object({ type: z.literal("synced-session:sync:complete"), claudeCount: z.number().int().nonnegative(), copilotCount: z.number().int().nonnegative() }),
+  z.object({ type: z.literal("synced-session:archived"), id: z.string() }),
   // UI visibility ack for the AI-tab-active signal.
   z.object({ type: z.literal("ui:ai-tab-active:ack"), active: z.boolean() }),
   z.object({ type: z.literal("error"), message: z.string() }),

@@ -35,6 +35,7 @@ export function mapSyncedSessionRow(row: Record<string, unknown>): SyncedSession
     startedAt: row.started_at as number,
     endedAt: (row.ended_at as number) ?? null,
     createdAt: row.created_at as number,
+    isArchived: (row.is_archived as number) === 1,
   };
 }
 
@@ -72,5 +73,6 @@ export function toSyncedSessionParams(record: SyncedSessionRecord & {
     ended_at: record.endedAt,
     last_synced_at: record.lastSyncedAt,
     created_at: record.createdAt,
+    is_archived: record.isArchived ? 1 : 0,
   };
 }

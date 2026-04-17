@@ -53,6 +53,7 @@ export const SyncedSessionRecordSchema = z.object({
   startedAt: z.number().int().nonnegative(),
   endedAt: z.number().int().nonnegative().nullable(),
   createdAt: z.number().int().nonnegative(),
+  isArchived: z.boolean(),
 });
 
 export type SyncedSessionRecord = z.infer<typeof SyncedSessionRecordSchema>;

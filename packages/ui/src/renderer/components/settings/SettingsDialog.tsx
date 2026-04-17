@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Settings } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
@@ -30,6 +31,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
   return (
     <BaseDialog
       title="Settings"
+      icon={<Settings size={16} color={colors.primary} strokeWidth={2} />}
       width={500}
       onClose={onClose}
       footer={<CancelButton onClick={onClose}>Close</CancelButton>}

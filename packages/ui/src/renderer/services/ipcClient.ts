@@ -65,6 +65,7 @@ type ResponseForRequest = {
   "ai-session:check-worktree": Extract<IpcResponse, { type: "ai-session:check-worktree:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
   "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
+  "synced-session:archive": Extract<IpcResponse, { type: "synced-session:archived" }>;
   "ui:ai-tab-active": Extract<IpcResponse, { type: "ui:ai-tab-active:ack" }>;
   // Git operations
   "branch:create": Extract<IpcResponse, { type: "branch:create:result" }>;

@@ -6,6 +6,7 @@ import {
   Clock,
   Pin,
   PinOff,
+  Archive,
 } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
@@ -26,6 +27,7 @@ import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { Tag } from "../common/Tag";
 import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
+import { useSyncedSessionStore } from "../../store/syncedSessionStore";
 import { syncedPinKey } from "../../utils/sessionPinKey";
 import type { SessionGroupNode, BranchGroup, HistoryItem } from "../../utils/sessionTreeBuilder";
 export { buildUnifiedGroups, type SessionGroupNode, type BranchGroup } from "../../utils/sessionTreeBuilder";
@@ -335,6 +337,15 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
   const pinKey = syncedPinKey(session);
   const isPinned = usePinnedSessionsStore((s) => s.pinnedKeys.has(pinKey));
   const togglePin = usePinnedSessionsStore((s) => s.togglePin);
+  const archiveSession = useSyncedSessionStore((s) => s.archiveSession);
+
+  const handleArchive = useCallback(() => {
+    const ok = window.confirm(
+      "Archive this session? It will be hidden from the list. This cannot be undone from the UI.",
+    );
+    if (!ok) return;
+    void archiveSession(session.id);
+  }, [archiveSession, session.id]);
 
   // Availability of the two paths we expose on the context menu. We track
   // `undefined` as "not yet checked" so the items aren't flashed enabled then
@@ -407,8 +418,14 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         disabled: !workingDirReady,
         title: workingDirTitle,
       }),
+      {
+        label: "Archive",
+        Icon: Archive,
+        action: handleArchive,
+        separator: true,
+      },
     ];
-  }, [sessionDir, workingDir, sessionDirAvailable, workingDirAvailable, isPinned, pinKey, togglePin]);
+  }, [sessionDir, workingDir, sessionDirAvailable, workingDirAvailable, isPinned, pinKey, togglePin, handleArchive]);
 
   const timeDisplay = formatRelativeTime(session.startedAt);
 

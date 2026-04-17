@@ -21,6 +21,7 @@ type SyncedSessionStoreState = {
   // ── Actions ──
   fetchSessions: (provider?: SyncedSessionProvider) => Promise<void>;
   triggerSync: () => Promise<void>;
+  archiveSession: (id: string) => Promise<void>;
   initializeSubscriptions: () => void;
 };
 
@@ -112,6 +113,14 @@ export const useSyncedSessionStore = create<SyncedSessionStoreState>((set, get) 
     } catch (err) {
       console.error("[SyncedSessionStore] Trigger sync failed:", err);
     }
+  },
+
+  archiveSession: async (id: string) => {
+    await sendOrThrow({ type: "synced-session:archive", id });
+    // Optimistic removal — the next sync completion will re-pull from the daemon
+    // and archived rows stay absent because the repository filters them out.
+    const remaining = get().sessions.filter((s) => s.id !== id);
+    set({ sessions: remaining, groups: groupSessions(remaining) });
   },
 
   initializeSubscriptions: createSubscriptionInitializer(get, set, () => {

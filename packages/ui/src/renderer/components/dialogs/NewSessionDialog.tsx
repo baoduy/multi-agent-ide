@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2 } from "lucide-react";
+import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2, Sparkles, RotateCcw } from "lucide-react";
 
 import { isValidWorktreeName } from "@magenta/shared/sanitize";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -507,6 +507,11 @@ export function NewSessionDialog({
   return (
     <BaseDialog
       title={resumeContext ? "Resume Session" : "New Session"}
+      icon={
+        resumeContext
+          ? <RotateCcw size={16} color={colors.primary} strokeWidth={2} />
+          : <Sparkles size={16} color={colors.primary} strokeWidth={2} />
+      }
       width={680}
       scrollable
       minHeight="70vh"

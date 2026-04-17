@@ -19,6 +19,11 @@ export function registerSyncedSessionHandlers({
     return { type: "synced-session:sync:triggered" as const };
   });
 
+  safeHandle(bridge, "synced-session:archive", async (msg) => {
+    sessionSyncService.archiveSession(msg.id);
+    return { type: "synced-session:archived" as const, id: msg.id };
+  });
+
   // Renderer tells us whether the AI title-bar tab is currently visible. The
   // recurring session sync sweep only runs while this is `true`; it pauses
   // when the user switches to another top-level tab.

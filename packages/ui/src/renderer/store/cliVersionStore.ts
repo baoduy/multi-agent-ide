@@ -19,6 +19,12 @@ type CliVersionStoreState = {
   upgrades: Partial<Record<CliToolId, CliUpgradeState>>;
   /** True while the upgrade dialog is open */
   dialogOpen: boolean;
+  /**
+   * Repo the dialog was opened from. Only used to read Specify's current
+   * version out of `<repo>/.specify/init-options.json`. `null` when the
+   * dialog was opened from a non-repo context.
+   */
+  sourceRepoPath: string | null;
   /** True while a fresh version check is in flight */
   isChecking: boolean;
   subscriptionsReady: boolean;
@@ -27,7 +33,7 @@ type CliVersionStoreState = {
   recheck: () => Promise<void>;
   startUpgrade: (tool: CliToolId) => Promise<void>;
   cancelUpgrade: (tool: CliToolId) => Promise<void>;
-  setDialogOpen: (open: boolean) => void;
+  setDialogOpen: (open: boolean, repoPath?: string | null) => void;
   dismissUpgrade: (tool: CliToolId) => void;
   initializeSubscriptions: () => void;
 };
@@ -36,12 +42,16 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
   tools: [],
   upgrades: {},
   dialogOpen: false,
+  sourceRepoPath: null,
   isChecking: false,
   subscriptionsReady: false,
 
   fetchStatus: async () => {
     try {
-      const response = await sendOrThrow({ type: "cli:get-version-status" });
+      const response = await sendOrThrow({
+        type: "cli:get-version-status",
+        repoPath: get().sourceRepoPath ?? undefined,
+      });
       set({ tools: response.tools });
     } catch (err) {
       console.warn("[cli-version] fetchStatus failed:", err);
@@ -51,7 +61,10 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
   recheck: async () => {
     set({ isChecking: true });
     try {
-      await sendOrThrow({ type: "cli:recheck" });
+      await sendOrThrow({
+        type: "cli:recheck",
+        repoPath: get().sourceRepoPath ?? undefined,
+      });
     } catch (err) {
       set({ isChecking: false });
       console.warn("[cli-version] recheck failed:", err);
@@ -86,7 +99,13 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
     }
   },
 
-  setDialogOpen: (open) => set({ dialogOpen: open }),
+  setDialogOpen: (open, repoPath) => {
+    if (open) {
+      set({ dialogOpen: true, sourceRepoPath: repoPath ?? null });
+    } else {
+      set({ dialogOpen: false });
+    }
+  },
 
   dismissUpgrade: (tool) => {
     set((state) => {

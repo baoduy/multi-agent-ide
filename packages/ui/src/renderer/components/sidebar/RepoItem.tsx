@@ -155,7 +155,7 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
   ctxItems.push({
     label: "Upgrade Tools",
     Icon: ArrowUpCircle,
-    action: () => openCliDialog(true),
+    action: () => openCliDialog(true, repo.path),
   });
 
   return (

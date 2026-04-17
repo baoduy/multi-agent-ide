@@ -125,43 +125,69 @@ const ActivityBarItem = React.memo(function ActivityBarItem({
   const [hovered, setHovered] = useState(false);
 
   return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 32,
-        height: 32,
-        borderRadius: 6,
-        border: "none",
-        background: hovered ? colors.bgHover : "transparent",
-        color: isActive ? colors.textStrong : colors.textTertiary,
-        cursor: "pointer",
-        transition: "background 0.1s, color 0.1s",
-        position: "relative",
-        opacity: isActive ? 1 : 0.7,
-      }}
-    >
-      {/* Active indicator bar (left edge) */}
-      {isActive && (
+    <div style={{ position: "relative" }}>
+      <button
+        type="button"
+        aria-label={title}
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 32,
+          height: 32,
+          borderRadius: 6,
+          border: "none",
+          background: hovered ? colors.bgHover : "transparent",
+          color: isActive ? colors.textStrong : colors.textTertiary,
+          cursor: "pointer",
+          transition: "background 0.1s, color 0.1s",
+          position: "relative",
+          opacity: isActive ? 1 : 0.7,
+        }}
+      >
+        {/* Active indicator bar (left edge) */}
+        {isActive && (
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 8,
+              bottom: 8,
+              width: 2,
+              borderRadius: 1,
+              background: colors.primary,
+            }}
+          />
+        )}
+        {icon}
+      </button>
+      {hovered && (
         <div
+          role="tooltip"
           style={{
             position: "absolute",
-            left: 0,
-            top: 8,
-            bottom: 8,
-            width: 2,
-            borderRadius: 1,
-            background: colors.primary,
+            left: "calc(100% + 6px)",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: colors.bgPanel,
+            color: colors.textStrong,
+            border: `1px solid ${colors.border}`,
+            borderRadius: 4,
+            padding: "4px 8px",
+            fontSize: 12,
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+            zIndex: 1000,
           }}
-        />
+        >
+          {title}
+        </div>
       )}
-      {icon}
-    </button>
+    </div>
   );
 });

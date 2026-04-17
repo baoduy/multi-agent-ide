@@ -55,7 +55,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
     groups: [
       {
         id: "explorer",
-        title: "Explorer",
+        title: "Specify Explorer",
         iconViewId: "repos",
         viewIds: ["repos", "specs"],
         rightViewIds: ["spec-files", "repo-changes"],

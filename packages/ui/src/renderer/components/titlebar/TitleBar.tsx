@@ -27,6 +27,12 @@ type TitleBarProps = {
   onSelectBuiltinTab: (id: BuiltinTabId) => void;
   /** Optional callback shown as a "+" button next to the AI tab when AI tab is active */
   onNewSession?: () => void;
+  /**
+   * When true, the four built-in tab buttons (Specs/Workflow/Worktrees/AI)
+   * are rendered in a disabled state. Used when the active activity-bar group
+   * hides the pinned main tab (e.g. Markdown Manager, Git Management).
+   */
+  builtinsDisabled?: boolean;
 };
 
 /* ── Built-in tab definitions ── */
@@ -97,6 +103,7 @@ type TitleBarTabGroupProps = {
   activeTab: ActiveTab;
   onSelectTab: (id: BuiltinTabId) => void;
   onPlus?: () => void;
+  disabled?: boolean;
 };
 
 function TitleBarTabGroup({
@@ -104,17 +111,22 @@ function TitleBarTabGroup({
   activeTab,
   onSelectTab,
   onPlus,
+  disabled,
 }: TitleBarTabGroupProps): React.ReactElement {
   return (
     <ButtonGroup style={{ ...noDrag, alignItems: "center" }}>
       {tabs.map((tab) => {
-        const isActive = activeTab.kind === "builtin" && activeTab.id === tab.id;
+        // When the group is disabled, no builtin is considered active —
+        // the pinned main tab is hidden by the current dock group.
+        const isActive =
+          !disabled && activeTab.kind === "builtin" && activeTab.id === tab.id;
         return (
           <Button
             key={tab.id}
             variant={isActive ? "default" : "outline"}
             //size="lg"
             onClick={() => onSelectTab(tab.id)}
+            disabled={disabled}
             style={{ ...noDrag, paddingLeft: 15, paddingRight: 15 }}
           >
             {tab.icon}
@@ -205,6 +217,7 @@ export function TitleBar({
   activeTab,
   onSelectBuiltinTab,
   onNewSession,
+  builtinsDisabled,
 }: TitleBarProps): React.ReactElement {
   const { jobs, runningCount, failedCount, totalCount, clearCompleted } = useBackgroundJobs();
   const [jobsOpen, setJobsOpen] = useState(false);
@@ -310,6 +323,7 @@ export function TitleBar({
           activeTab={activeTab}
           onSelectTab={onSelectBuiltinTab}
           onPlus={onNewSession}
+          disabled={builtinsDisabled}
         />
       </div>
 

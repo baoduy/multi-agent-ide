@@ -147,6 +147,9 @@ export function DockMainPage(): React.ReactElement {
     s.layout.activityBar.groups.find((g) => g.id === s.layout.activityBar.activeGroupId),
   );
   const hasRightSidebar = (activeGroup?.rightViewIds?.length ?? 0) > 0;
+  // Groups that replace the pinned main tab (Markdown, Git) — the title bar's
+  // builtin buttons do not apply while one of these is active.
+  const titleBarBuiltinsDisabled = activeGroup?.hidesPinnedMain === true;
   const openTab = useLayoutStore((s) => s.openTab);
   const closeTab = useLayoutStore((s) => s.closeTab);
   const setActiveTab = useLayoutStore((s) => s.setActiveTab);
@@ -240,6 +243,15 @@ export function DockMainPage(): React.ReactElement {
     }
     return { kind: "builtin", id: "specs" };
   }, [centerActiveTabId, mainTabId, mainViewId]);
+
+  // Title-bar button highlight is driven solely by the pinned main tab's
+  // viewId — opening a file/diff/agent/terminal/refdiff/group tab must NOT
+  // change which builtin button is lit. Kept separate from `activeTab` so the
+  // navigation history below can still record the real active tab.
+  const titleBarActiveTab = useMemo((): ActiveTab => {
+    const bid = viewIdToBuiltinId(mainViewId);
+    return { kind: "builtin", id: bid ?? "specs" };
+  }, [mainViewId]);
 
   // ── Fetch worktrees for pinned repos + active repo once repos are loaded ──
   useEffect(() => {
@@ -758,9 +770,10 @@ export function DockMainPage(): React.ReactElement {
             canGoForward={nav.canGoForward}
             onGoBack={handleGoBack}
             onGoForward={handleGoForward}
-            activeTab={activeTab}
+            activeTab={titleBarActiveTab}
             onSelectBuiltinTab={handleSelectBuiltinTab}
             onNewSession={handleNewSession}
+            builtinsDisabled={titleBarBuiltinsDisabled}
           />
         }
         viewProps={viewProps}

@@ -2,8 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GitCommit, Download, ArrowDown, ArrowUp, Loader2, FolderPlus, Archive, Globe, RotateCcw } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { ipc } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useRepoStore } from "../../store/repoStore";
+import { useGitHistoryStore } from "../../store/gitHistoryStore";
 import { localStore } from "../../services/localStorage";
 import { CommitDialog } from "../dialogs/CommitDialog";
 import { CloneRepoDialog } from "../dialogs/CloneRepoDialog";
@@ -52,8 +54,9 @@ type ToastState = { kind: "success" | "error"; text: string } | null;
 
 const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
 
-/** Working-tree file count refresh cadence (mirrors RepoFileChanges' 60s). */
-const STATUS_REFRESH_INTERVAL = 60_000;
+/** Working-tree file count refresh cadence. Commit/pull/reset are already
+ *  reactive via `repo:force-reload:started`; this covers external edits. */
+const STATUS_REFRESH_INTERVAL = 15_000;
 
 export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenCommitComposer }: GitChangesViewProps): React.ReactElement {
   const repos = useRepoStore((s) => s.repos);
@@ -85,20 +88,48 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenComm
   const currentBranch = repo?.branch ?? "";
 
   // ── Keep the Uncommitted row's badge in sync with `git status` ────────
+  //
+  // Three sources of truth, in precedence order:
+  //   1. `repo:force-reload:started` push events (commit/pull/reset/revert) —
+  //      immediate, reactive, no polling delay. Also refreshes the commit graph.
+  //   2. `busy` transitions — re-poll right after fetch finishes (covers the
+  //      rare case where fetch surfaces working-tree changes via submodules).
+  //   3. Background poll every 60s — catches edits made outside the app.
+  const refreshStatus = useCallback(async () => {
+    if (!repoPath) return;
+    try {
+      const res = await sendOrThrow({ type: "git:status", repoPath });
+      setWorkingTreeCount(res.files.length);
+    } catch {
+      // silent — the panel below surfaces errors
+    }
+  }, [repoPath]);
+
   useEffect(() => {
     if (!repoPath) { setWorkingTreeCount(null); return; }
     let cancelled = false;
 
     const poll = () => {
-      sendOrThrow({ type: "git:status", repoPath })
-        .then((res) => { if (!cancelled) setWorkingTreeCount(res.files.length); })
-        .catch(() => { /* silent — the panel below surfaces errors */ });
+      if (cancelled) return;
+      void refreshStatus();
     };
 
     poll();
     const interval = setInterval(poll, STATUS_REFRESH_INTERVAL);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [repoPath, busy]);
+  }, [repoPath, busy, refreshStatus]);
+
+  useEffect(() => {
+    if (!repoPath) return;
+    const off = ipc.on("repo:force-reload:started", (payload) => {
+      if (payload.repoPath !== repoPath) return;
+      // Commit/pull/reset/revert just landed — the working tree and commit
+      // graph both changed. Refresh both immediately.
+      void refreshStatus();
+      void useGitHistoryStore.getState().refresh({ repoPath });
+    });
+    return off;
+  }, [repoPath, refreshStatus]);
 
   // ── Reset selection when the active repo changes ─────────────────────
   useEffect(() => {

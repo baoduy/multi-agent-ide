@@ -25,7 +25,8 @@
       "Bash(/Users/steven/_CODE/GIT/multi-agent-ide/node_modules/.pnpm/electron@41.2.0/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron --version)",
       "Bash(node -e \"try { console.log\\(require.resolve\\('electron'\\)\\) } catch\\(e\\) { console.log\\('RESOLVE FAILED:', e.message\\) }\")",
       "Bash(pnpm --filter @magenta/ui typecheck)",
-      "Bash(pnpm --filter @magenta/ui build)"
+      "Bash(pnpm --filter @magenta/ui build)",
+      "Bash(npx tsc *)"
     ]
   }
 }

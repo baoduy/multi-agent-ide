@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import type { CommitFile, GitFileStatus } from "@magenta/shared/ipc";
+import type { CommitFile } from "@magenta/shared/ipc";
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { FileStatusBadge } from "../common/FileStatusBadge";
@@ -217,7 +217,7 @@ function CommitFileRow({ file, onClick }: { file: CommitFile; onClick: () => voi
         <span style={{ fontSize: 10, color: colors.error, fontFamily: "var(--font-mono)" }}>
           -{file.deletions}
         </span>
-        <FileStatusBadge status={badgeStatus as GitFileStatus["status"]} />
+        <FileStatusBadge status={badgeStatus} />
       </div>
     </div>
   );

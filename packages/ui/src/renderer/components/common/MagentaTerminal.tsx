@@ -72,7 +72,6 @@ function MagentaTerminalReadonly({
               height: 6,
               borderRadius: "50%",
               background: THEME.magenta,
-              animation: "magenta-terminal-pulse 1.2s infinite",
             }}
           />
         )}

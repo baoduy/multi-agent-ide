@@ -21,7 +21,7 @@ import { colors } from "../../utils/colors";
  *   - Any individual visual prop (bg, color, borderColor, padding,
  *     borderRadius, fontSize, fontWeight, letterSpacing) can be overridden
  *     per-call-site when a tone/size doesn't fit.
- *   - `dot` renders a small pulsing circle before the label (for "live"
+ *   - `dot` renders a small circle before the label (for "live"
  *     indicators like "Processing").
  *   - `block` fills its container and centres the content — for large
  *     card-level status badges (e.g. "Approved" on a pipeline node).
@@ -128,7 +128,7 @@ export type TagProps = {
 
   /** Leading icon rendered before the label. */
   icon?: React.ReactNode;
-  /** Show an animated pulsing dot before the label (live indicators). */
+  /** Show a small dot before the label (live indicators). */
   dot?: boolean;
   /** Uppercase label with extra letter-spacing. */
   uppercase?: boolean;
@@ -227,8 +227,7 @@ function TagComponent({
   );
 }
 
-/** Small pulsing dot used by `dot` prop. Reuses the shared
- * `provider-pulse` keyframe defined in globals.css. */
+/** Small static dot used by `dot` prop. */
 function TagDot({ color }: { color: string }): React.ReactElement {
   return (
     <span
@@ -238,7 +237,6 @@ function TagDot({ color }: { color: string }): React.ReactElement {
         height: 6,
         borderRadius: "50%",
         background: color,
-        animation: "provider-pulse 1.2s ease-in-out infinite",
         flexShrink: 0,
       }}
     />

@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "./github-markdown-light.css";
-@import "./github-markdown-dark.css";
+@import "@uiw/react-md-editor/markdown-editor.css";
+@import "@uiw/react-markdown-preview/markdown.css";
 /* Generated shadcn theme tokens (base colors/fonts/radii/shadows). */
 @import "./colours.css";
 
@@ -43,11 +43,13 @@
   --stage-approved-dot: var(--success);
   --stage-approved-border-muted: var(--success-muted);
 
-  /* ── Icon family tokens ── */
+  /* ── Icon family tokens ──
+     All file-type icons resolve to muted-foreground so the file tree reads
+     as monochrome. Icon shape + extension label still differentiates types. */
   --icon-neutral: var(--muted-foreground);
-  --icon-green: var(--success);
-  --icon-orange: var(--info);
-  --icon-red: var(--destructive);
+  --icon-green: var(--muted-foreground);
+  --icon-orange: var(--muted-foreground);
+  --icon-red: var(--muted-foreground);
   --animation-duration-fast: 0.1s;
   --animation-duration-normal: 0.15s;
   --animation-duration-spinner: 1s;
@@ -194,83 +196,10 @@
     scrollbar-color: var(--scrollbar-xterm-thumb) transparent !important;
   }
 
-  /* FileViewer custom components (code blocks, mermaid, raw viewer).
-   * These stay in @layer components because they don't conflict with
-   * github-markdown-css (they target .md-* classes, not .markdown-body).
-   */
-  .md-viewer {
-    font-size: 13.5px;
-  }
-
-  .md-viewer .md-code-block {
-    position: relative;
-    background: var(--code-block-bg);
-    border: 1px solid var(--code-block-border);
-    border-radius: 8px;
-    margin: 16px 0;
-    overflow: hidden;
-  }
-
-  .md-viewer .md-code-block .md-code-lang {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--code-block-label);
-    padding: 8px 14px 0;
-    font-family: var(--font-mono);
-  }
-
-  .md-viewer .md-code-block pre {
-    margin: 0;
-    padding: 12px 14px;
-    overflow-x: auto;
-  }
-
-  .md-viewer .md-code-block code {
-    font-family: var(--font-mono);
-    font-size: 12.5px;
-    color: var(--code-block-fg);
-    line-height: 1.55;
-    background: transparent;
-    padding: 0;
-  }
-
-  .md-viewer .md-copy-btn {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    background: var(--code-block-btn-bg);
-    color: var(--code-block-btn-fg);
-    border: 1px solid var(--code-block-btn-border);
-    border-radius: 4px;
-    padding: 2px 8px;
-    font-size: 10px;
-    font-weight: 500;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s, background 0.15s, color 0.15s;
-    font-family: var(--font-sans);
-    z-index: 2;
-  }
-
-  .md-viewer .md-code-block:hover .md-copy-btn {
-    opacity: 1;
-  }
-
-  .md-viewer .md-copy-btn:hover {
-    background: var(--code-block-btn-hover-bg);
-    color: var(--code-block-btn-hover-fg);
-  }
-
-  .md-viewer .md-copy-btn.copied {
-    background: color-mix(in srgb, var(--success) 18%, transparent);
-    color: var(--success);
-    border-color: color-mix(in srgb, var(--success) 31%, transparent);
-  }
-
-  .md-viewer .md-mermaid {
+  /* Mermaid diagram blocks embedded inside markdown previews.
+   * MDEditor's markdown preview provides its own theme; these rules only
+   * style the fenced `mermaid` block that we intercept in FileViewer. */
+  .md-mermaid {
     background: var(--background);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -284,149 +213,24 @@
     white-space: pre;
   }
 
-  .md-viewer .md-mermaid-rendered {
+  .md-mermaid-rendered {
     white-space: normal;
     font-family: var(--font-sans);
     color: var(--foreground);
   }
 
-  .md-viewer .md-mermaid-rendered svg {
+  .md-mermaid-rendered svg {
     max-width: 100%;
     height: auto;
   }
 
-  .md-viewer .md-mermaid-error {
+  .md-mermaid-error {
     color: var(--destructive);
     font-size: 11px;
     font-weight: 500;
     margin-bottom: 8px;
     font-family: var(--font-sans);
   }
-
-
-  /* Syntax highlighting — uses CSS variables defined in :root / .dark */
-  .hljs {
-    color: var(--hljs-fg);
-  }
-
-  .hljs-keyword,
-  .hljs-selector-tag,
-  .hljs-built_in {
-    color: var(--hljs-keyword);
-  }
-
-  .hljs-string,
-  .hljs-attr {
-    color: var(--hljs-string);
-  }
-
-  .hljs-number,
-  .hljs-literal {
-    color: var(--hljs-number);
-  }
-
-  .hljs-comment,
-  .hljs-quote {
-    color: var(--hljs-comment);
-    font-style: italic;
-  }
-
-  .hljs-function .hljs-title,
-  .hljs-title.function_ {
-    color: var(--hljs-function);
-  }
-
-  .hljs-type,
-  .hljs-class .hljs-title {
-    color: var(--hljs-type);
-  }
-
-  .hljs-variable,
-  .hljs-template-variable {
-    color: var(--hljs-variable);
-  }
-
-  .hljs-property {
-    color: var(--hljs-property);
-  }
-
-  .hljs-meta {
-    color: var(--hljs-meta);
-  }
-
-  .hljs-tag {
-    color: var(--hljs-keyword);
-  }
-
-  .hljs-name {
-    color: var(--hljs-function);
-  }
-
-  .hljs-attribute {
-    color: var(--hljs-type);
-  }
-
-  .hljs-selector-class {
-    color: var(--hljs-string);
-  }
-
-  .hljs-selector-id {
-    color: var(--hljs-number);
-  }
-
-  .hljs-regexp {
-    color: var(--hljs-variable);
-  }
-
-  .hljs-symbol {
-    color: var(--hljs-symbol);
-  }
-
-  .hljs-params {
-    color: var(--hljs-fg);
-  }
-
-  .hljs-punctuation {
-    color: var(--hljs-punctuation);
-  }
-
-  .hljs-addition {
-    color: var(--hljs-addition);
-    background: var(--hljs-addition-bg);
-  }
-
-  .hljs-deletion {
-    color: var(--hljs-deletion);
-    background: var(--hljs-deletion-bg);
-  }
-
-  .md-raw-viewer {
-    display: flex;
-    font-family: var(--font-mono);
-    font-size: 16px;
-    line-height: 1.55;
-    background: var(--background);
-  }
-
-  .md-raw-gutter {
-    padding: 16px 12px 16px 16px;
-    text-align: right;
-    color: var(--border-muted);
-    user-select: none;
-    border-right: 1px solid var(--border);
-    min-width: 36px;
-    flex-shrink: 0;
-  }
-
-  .md-raw-content {
-    flex: 1;
-    padding: 16px 20px;
-    color: var(--foreground);
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-x: auto;
-  }
-
 }
 
 /* Hide scrollbar on dock tab bars while keeping scroll functionality */
@@ -439,102 +243,17 @@
 }
 
 /*
- * Markdown viewer theme overrides.
- *
- * These MUST be outside @layer so they can beat the unlayered
- * github-markdown-{light,dark}.css rules by source order.
- * Uses CSS variables so both light and dark modes resolve automatically.
+ * react-codemirror-merge: the .cm-merge-theme wrapper gets height:100% from
+ * props, but the inner .cm-mergeView (which owns overflow-y:auto) has no
+ * height by default, so it stretches to content and never scrolls. Flex the
+ * wrapper so .cm-mergeView fills it and its built-in scroll kicks in.
  */
-.markdown-body.md-viewer {
-  background-color: transparent;
-  color: var(--foreground);
-  font-family: var(--font-sans);
-  font-size: 13.5px;
+.cm-merge-theme {
+  display: flex;
+  flex-direction: column;
+}
+.cm-merge-theme > .cm-mergeView {
+  flex: 1;
+  min-height: 0;
 }
 
-.markdown-body.md-viewer h1,
-.markdown-body.md-viewer h2,
-.markdown-body.md-viewer h3,
-.markdown-body.md-viewer h4,
-.markdown-body.md-viewer h5,
-.markdown-body.md-viewer h6 {
-  color: var(--foreground);
-}
-
-.markdown-body.md-viewer h1,
-.markdown-body.md-viewer h2 {
-  border-bottom-color: var(--border);
-}
-
-/* Links */
-.markdown-body.md-viewer a {
-  color: var(--primary);
-}
-
-.markdown-body.md-viewer a:hover {
-  color: color-mix(in srgb, var(--primary) 80%, black);
-}
-
-.dark .markdown-body.md-viewer a:hover {
-  color: color-mix(in srgb, var(--primary) 85%, white);
-}
-
-/* Inline code */
-.markdown-body.md-viewer code:not(pre code),
-.markdown-body.md-viewer tt:not(pre tt) {
-  background: var(--muted);
-  color: var(--primary);
-}
-
-/* Pre / code blocks (fallback — custom .md-code-block handled in layer) */
-.markdown-body.md-viewer .highlight pre,
-.markdown-body.md-viewer pre:not(.md-code-block pre) {
-  color: var(--foreground);
-  background-color: var(--muted);
-}
-
-/* Blockquotes */
-.markdown-body.md-viewer blockquote {
-  color: var(--muted-foreground);
-  border-left-color: var(--border);
-}
-
-/* Horizontal rules */
-.markdown-body.md-viewer hr {
-  background-color: var(--border);
-}
-
-/* Tables */
-.markdown-body.md-viewer table th,
-.markdown-body.md-viewer table td {
-  border-color: var(--border);
-}
-
-.markdown-body.md-viewer table tr {
-  background-color: var(--background);
-  border-top-color: var(--border);
-}
-
-.markdown-body.md-viewer table tr:nth-child(2n) {
-  background-color: var(--muted);
-}
-
-/* Images */
-.markdown-body.md-viewer img {
-  background-color: transparent;
-}
-
-/* Markdown alerts */
-.markdown-body.md-viewer .markdown-alert {
-  border-left-color: var(--border);
-}
-
-/* Strong text */
-.markdown-body.md-viewer strong {
-  color: var(--foreground);
-}
-
-/* Task list checkbox accent */
-.markdown-body.md-viewer input[type="checkbox"] {
-  accent-color: var(--primary);
-}

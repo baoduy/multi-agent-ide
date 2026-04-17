@@ -1,5 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
-import ReactDiffViewer from "react-diff-viewer-continued";
+import CodeMirrorMerge from "react-codemirror-merge";
+import { EditorState, type Extension } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+import { markdown } from "@codemirror/lang-markdown";
+import { javascript } from "@codemirror/lang-javascript";
+import { json } from "@codemirror/lang-json";
+import { python } from "@codemirror/lang-python";
+import { html } from "@codemirror/lang-html";
+import { css } from "@codemirror/lang-css";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
 import { Loader2 } from "lucide-react";
 
 import { ipc } from "../../utils/ipc";
@@ -17,10 +26,35 @@ export type DiffViewerProps = {
   fileStatus: string;
 };
 
-function readCssVar(name: string, fallback: string): string {
-  if (typeof window === "undefined") return fallback;
-  const value = window.getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
+/** Pick a CodeMirror language extension based on the file extension. */
+function languageExtensions(filePath: string): Extension[] {
+  const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+  switch (ext) {
+    case "md":
+    case "mdx":
+      return [markdown()];
+    case "js":
+    case "jsx":
+    case "mjs":
+    case "cjs":
+      return [javascript()];
+    case "ts":
+    case "tsx":
+      return [javascript({ jsx: true, typescript: true })];
+    case "json":
+      return [json()];
+    case "py":
+      return [python()];
+    case "html":
+    case "htm":
+      return [html()];
+    case "css":
+    case "scss":
+    case "less":
+      return [css()];
+    default:
+      return [];
+  }
 }
 
 export function DiffViewer({
@@ -30,29 +64,6 @@ export function DiffViewer({
 }: DiffViewerProps): React.ReactElement {
   const { resolved } = useTheme();
   const isDark = resolved === "dark";
-
-  const t = useMemo(() => {
-    // react-diff-viewer uses CSS-in-JS and cannot resolve var(--token) directly,
-    // so we read concrete values from computed CSS variables.
-    return {
-      bg: readCssVar("--diff-viewer-bg", colors.bgSurface),
-      fg: readCssVar("--diff-viewer-fg", colors.text),
-      muted: readCssVar("--diff-viewer-muted", colors.bgMuted),
-      mutedFg: readCssVar("--diff-viewer-muted-fg", colors.textTertiary),
-      panel: readCssVar("--diff-viewer-panel", colors.bgPanel),
-      border: readCssVar("--diff-viewer-border", colors.border),
-      addedBg: readCssVar("--diff-added-bg", "color-mix(in srgb, var(--success) 20%, transparent)"),
-      removedBg: readCssVar("--diff-removed-bg", "color-mix(in srgb, var(--destructive) 20%, transparent)"),
-      addedWordBg: readCssVar("--diff-added-word-bg", "color-mix(in srgb, var(--success) 35%, transparent)"),
-      removedWordBg: readCssVar("--diff-removed-word-bg", "color-mix(in srgb, var(--destructive) 35%, transparent)"),
-      addedGutterBg: readCssVar("--diff-added-gutter-bg", "color-mix(in srgb, var(--success) 26%, transparent)"),
-      removedGutterBg: readCssVar("--diff-removed-gutter-bg", "color-mix(in srgb, var(--destructive) 26%, transparent)"),
-      highlightBg: readCssVar("--diff-highlight-bg", "color-mix(in srgb, var(--muted-foreground) 18%, transparent)"),
-      highlightGutterBg: readCssVar("--diff-highlight-gutter-bg", "color-mix(in srgb, var(--muted-foreground) 24%, transparent)"),
-      addedText: readCssVar("--diff-added-text", colors.success),
-      removedText: readCssVar("--diff-removed-text", colors.error),
-    };
-  }, [resolved]);
 
   const [oldValue, setOldValue] = useState<string>("");
   const [newValue, setNewValue] = useState<string>("");
@@ -75,6 +86,19 @@ export function DiffViewer({
     return { added, removed };
   }, [oldValue, newValue]);
 
+  const extensions = useMemo<Extension[]>(() => {
+    return [
+      ...languageExtensions(filePath),
+      isDark ? githubDark : githubLight,
+      EditorView.theme({
+        "&": { height: "100%", fontSize: "12px" },
+        ".cm-content": { fontFamily: "var(--font-mono)", lineHeight: "1.55" },
+      }),
+      EditorState.readOnly.of(true),
+      EditorView.editable.of(false),
+    ];
+  }, [filePath, isDark]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -86,7 +110,6 @@ export function DiffViewer({
         const isNew = fileStatus === "added" || fileStatus === "untracked";
         const isDeleted = fileStatus === "deleted";
 
-        // Fetch old (HEAD) version — skip for new files
         let old = "";
         if (!isNew) {
           try {
@@ -96,25 +119,17 @@ export function DiffViewer({
               ref: "HEAD",
               relativePath,
             });
-            if (resp.type === "gitfile:read:result") {
-              old = resp.content;
-            }
+            if (resp.type === "gitfile:read:result") old = resp.content;
           } catch {
             // File doesn't exist in HEAD (new file) — leave empty
           }
         }
 
-        // Fetch new (working tree) version — skip for deleted files
         let current = "";
         if (!isDeleted) {
           try {
-            const resp = await ipc.send({
-              type: "file:read",
-              filePath,
-            });
-            if (resp.type === "file:read:result") {
-              current = resp.content;
-            }
+            const resp = await ipc.send({ type: "file:read", filePath });
+            if (resp.type === "file:read:result") current = resp.content;
           } catch {
             // File might not be readable — leave empty
           }
@@ -125,13 +140,9 @@ export function DiffViewer({
           setNewValue(current);
         }
       } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     }
 
@@ -166,13 +177,7 @@ export function DiffViewer({
 
   if (error) {
     return (
-      <div
-        style={{
-          padding: 12,
-          color: colors.error,
-          fontSize: 11,
-        }}
-      >
+      <div style={{ padding: 12, color: colors.error, fontSize: 11 }}>
         Failed to load diff: {error}
       </div>
     );
@@ -180,6 +185,7 @@ export function DiffViewer({
 
   return (
     <div
+      data-color-mode={resolved}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -187,7 +193,6 @@ export function DiffViewer({
         overflow: "hidden",
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -200,9 +205,7 @@ export function DiffViewer({
         }}
       >
         <FileIconBadge fileName={fileName} />
-        <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
-          {fileName}
-        </span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>{fileName}</span>
         <span
           style={{
             fontSize: 10,
@@ -214,103 +217,45 @@ export function DiffViewer({
         </span>
         <FileStatusBadge status={fileStatus as any} />
 
-        {/* Spacer */}
         <div style={{ flex: 1 }} />
 
-        {/* Line change stats */}
-        {!isLoading && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-            {diffStats.added > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: t.addedText, fontFamily: "var(--font-mono)" }}>
-                +{diffStats.added}
-              </span>
-            )}
-            {diffStats.removed > 0 && (
-              <span style={{ fontSize: 11, fontWeight: 600, color: t.removedText, fontFamily: "var(--font-mono)" }}>
-                -{diffStats.removed}
-              </span>
-            )}
-          </div>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {diffStats.added > 0 && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: colors.success,
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              +{diffStats.added}
+            </span>
+          )}
+          {diffStats.removed > 0 && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: colors.error,
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              -{diffStats.removed}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Diff content */}
-      <div style={{ flex: 1, overflow: "auto" }}>
-        <ReactDiffViewer
-          oldValue={oldValue}
-          newValue={newValue}
-          splitView={true}
-          useDarkTheme={isDark}
-          leftTitle="HEAD"
-          rightTitle="Working Tree"
-          hideSummary
-          styles={{
-            variables: {
-              light: {
-                diffViewerBackground: t.bg,
-                diffViewerColor: t.fg,
-                addedBackground: t.addedBg,
-                addedColor: t.fg,
-                removedBackground: t.removedBg,
-                removedColor: t.fg,
-                wordAddedBackground: t.addedWordBg,
-                wordRemovedBackground: t.removedWordBg,
-                addedGutterBackground: t.addedGutterBg,
-                removedGutterBackground: t.removedGutterBg,
-                gutterBackground: t.muted,
-                gutterBackgroundDark: t.muted,
-                highlightBackground: t.highlightBg,
-                highlightGutterBackground: t.highlightGutterBg,
-                codeFoldGutterBackground: t.muted,
-                codeFoldBackground: t.muted,
-                emptyLineBackground: t.bg,
-                gutterColor: t.mutedFg,
-                addedGutterColor: t.fg,
-                removedGutterColor: t.fg,
-                codeFoldContentColor: t.mutedFg,
-              },
-              dark: {
-                diffViewerBackground: t.bg,
-                diffViewerColor: t.fg,
-                addedBackground: t.addedBg,
-                addedColor: t.fg,
-                removedBackground: t.removedBg,
-                removedColor: t.fg,
-                wordAddedBackground: t.addedWordBg,
-                wordRemovedBackground: t.removedWordBg,
-                addedGutterBackground: t.addedGutterBg,
-                removedGutterBackground: t.removedGutterBg,
-                gutterBackground: t.muted,
-                gutterBackgroundDark: t.muted,
-                highlightBackground: t.highlightBg,
-                highlightGutterBackground: t.highlightGutterBg,
-                codeFoldGutterBackground: t.muted,
-                codeFoldBackground: t.muted,
-                emptyLineBackground: t.bg,
-                gutterColor: t.mutedFg,
-                addedGutterColor: t.fg,
-                removedGutterColor: t.fg,
-                codeFoldContentColor: t.mutedFg,
-              },
-            },
-            contentText: {
-              fontFamily: "var(--font-mono)",
-              fontSize: "12px",
-              lineHeight: "20px",
-            },
-            gutter: {
-              minWidth: "40px",
-              padding: "0 8px",
-            },
-            titleBlock: {
-              fontFamily: "var(--font-mono)",
-              fontSize: "11px",
-              padding: "6px 12px",
-              background: t.panel,
-              borderBottom: `1px solid ${t.border}`,
-            },
-          }}
-        />
+      <div style={{ flex: 1, overflow: "hidden" }}>
+        <CodeMirrorMerge
+          orientation="a-b"
+          theme={isDark ? "dark" : "light"}
+          style={{ height: "100%" }}
+        >
+          <CodeMirrorMerge.Original value={oldValue} extensions={extensions} />
+          <CodeMirrorMerge.Modified value={newValue} extensions={extensions} />
+        </CodeMirrorMerge>
       </div>
     </div>
   );

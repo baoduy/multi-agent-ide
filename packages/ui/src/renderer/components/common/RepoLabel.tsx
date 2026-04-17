@@ -79,7 +79,7 @@ function RepoLabelComponent({
     >
       {name}
       {isPinned && (
-        <span style={{ color: colors.primary, fontSize: sz.font - 2, marginLeft: 4 }}>
+        <span style={{ color: colors.text, fontSize: sz.font - 2, marginLeft: 4 }}>
           {PINNED_STAR}
         </span>
       )}

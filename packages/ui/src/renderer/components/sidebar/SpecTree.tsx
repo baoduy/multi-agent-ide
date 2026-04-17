@@ -22,21 +22,10 @@ function LoadingBar(): React.ReactElement {
           height: 2,
           width: "100%",
           background: colors.border,
-          overflow: "hidden",
           borderRadius: 1,
           flexShrink: 0,
         }}
-      >
-        <div
-          style={{
-            width: "50%",
-            height: "100%",
-            background: colors.primary,
-            borderRadius: 1,
-            animation: "specLoadingBar 1.2s ease-in-out infinite",
-          }}
-        />
-      </div>
+      />
     </>
   );
 }

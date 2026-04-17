@@ -1,460 +1,107 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, FileCode, Copy, Check, Clipboard, CheckCircle, GitBranch, Save } from "lucide-react";
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeHighlight from "rehype-highlight";
-import rehypeSlug from "rehype-slug";
+import { Eye, FileCode, Check, ChevronDown, Clipboard } from "lucide-react";
+import MDEditor from "@uiw/react-md-editor";
 
 import { ipc } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
-import { ScrollableText } from "../common/ScrollableText";
-import { WorktreeDialog } from "../dialogs/WorktreeDialog";
-import { useWorktreeStore } from "../../store/worktreeStore";
 import { colors } from "../../utils/colors";
+import { useTheme } from "../../theme/ThemeProvider";
+import {
+  extractHeadings,
+  getFileName,
+  isGitRefPath,
+  isMarkdownFile,
+  parseGitRef,
+  slugify,
+} from "./fileViewerUtils";
+import {
+  MarkdownTableOfContents,
+  useActiveHeading,
+} from "./MarkdownTableOfContents";
+import { MermaidDiagram } from "./MermaidDiagram";
+import { ApproveButton } from "./ApproveButton";
+import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
 
-/* ═══════════════════════════════════════════════════════
-   Remark / Rehype plugin instances (stable references)
-   ═══════════════════════════════════════════════════════ */
+type ViewMode = "preview" | "edit";
+type SaveStatus = "idle" | "saving" | "saved";
 
-const remarkPlugins = [remarkGfm];
-const rehypePlugins = [rehypeHighlight, rehypeSlug];
+type FileViewerProps = {
+  filePath: string;
+  /** Required for reading files from non-current branches (gitref:// paths). */
+  repoPath?: string;
+};
 
-/* ═══════════════════════════════════════════════════════
-   Helpers
-   ═══════════════════════════════════════════════════════ */
-
-function isMarkdownFile(filePath: string): boolean {
-  return /\.(md|mdx)$/i.test(filePath);
-}
-
-function getFileName(filePath: string): string {
-  return filePath.split("/").pop() ?? filePath;
-}
-
-/**
- * Parses a gitref:// virtual path into its components.
- * Format: gitref://<branch>/relative/path
- * Returns null for regular filesystem paths.
- */
-function parseGitRef(filePath: string): { ref: string; relativePath: string } | null {
-  const match = filePath.match(/^gitref:\/\/([^/]+)\/(.+)$/);
-  if (!match) return null;
-  return { ref: match[1], relativePath: match[2] };
-}
-
-function isGitRefPath(filePath: string): boolean {
-  return filePath.startsWith("gitref://");
-}
-
-/** Generate a slug from heading text (for anchor IDs). */
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .trim();
-}
-
-/* ═══════════════════════════════════════════════════════
-   Mermaid block — lazy-rendered React component
-   ═══════════════════════════════════════════════════════ */
-
-const MermaidBlock = React.memo(function MermaidBlock({ chart }: { chart: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const mermaid = (await import("mermaid")).default;
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: "neutral",
-          fontFamily: "var(--font-sans)",
-          securityLevel: "strict",
-        });
-
-        const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-        const { svg } = await mermaid.render(id, chart);
-
-        if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
-          containerRef.current.classList.add("md-mermaid-rendered");
-        }
-      } catch {
-        if (!cancelled) setError("Mermaid diagram error");
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [chart]);
-
-  if (error) {
-    return (
-      <div className="md-mermaid">
-        <div className="md-mermaid-error">{error}</div>
-        <pre>{chart}</pre>
-      </div>
-    );
-  }
-
-  return <div ref={containerRef} className="md-mermaid" />;
-});
-
-/* ═══════════════════════════════════════════════════════
-   Code block with copy button + language label
-   ═══════════════════════════════════════════════════════ */
-
-const CodeBlock = React.memo(function CodeBlock({
-  className,
-  children,
-}: {
-  className?: string;
-  children?: React.ReactNode;
-}) {
-  const [copied, setCopied] = useState(false);
-
-  // Extract language from className (e.g. "hljs language-typescript" → "typescript")
-  const lang = className?.match(/language-(\S+)/)?.[1] ?? "";
-  const codeText = extractTextFromChildren(children);
-
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(codeText).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    });
-  }, [codeText]);
-
-  // Mermaid diagrams — render as diagram instead of code block
-  if (lang === "mermaid") {
-    return <MermaidBlock chart={codeText} />;
-  }
-
-  return (
-    <div className="md-code-block">
-      {lang && <span className="md-code-lang">{lang}</span>}
-      <button
-        type="button"
-        className={`md-copy-btn${copied ? " copied" : ""}`}
-        onClick={handleCopy}
-        title="Copy code"
-      >
-        {copied ? "Copied!" : "Copy"}
-      </button>
-      <pre>
-        <code className={className}>{children}</code>
-      </pre>
-    </div>
-  );
-});
-
-/** Recursively extract text content from React children. */
-function extractTextFromChildren(children: React.ReactNode): string {
-  if (typeof children === "string") return children;
-  if (typeof children === "number") return String(children);
-  if (!children) return "";
-  if (Array.isArray(children)) return children.map(extractTextFromChildren).join("");
-  if (React.isValidElement(children) && children.props) {
-    return extractTextFromChildren((children.props as { children?: React.ReactNode }).children);
-  }
-  return "";
-}
-
-/* ═══════════════════════════════════════════════════════
-   react-markdown custom component overrides
-   ═══════════════════════════════════════════════════════ */
-
-const markdownComponents: Components = {
-  // Code — inline or block
-  code({ className, children, ...props }) {
-    // If the code is inside a <pre>, it's a fenced code block
-    // react-markdown wraps fenced blocks in <pre><code>
-    const isBlock = className?.includes("language-") || className?.includes("hljs");
-
-    if (isBlock) {
-      return <CodeBlock className={className}>{children}</CodeBlock>;
+/* ─────────────────────────────────────────────
+   Markdown preview component overrides
+   ─────────────────────────────────────────────
+   The MDEditor.Markdown preview pipes a React Markdown `components` map
+   through. We intercept fenced code blocks so ```mermaid renders as a
+   diagram and every other block gets a heading-anchor `id` (so the ToC
+   can jump to it) — matching the behaviour of the previous rehype-slug
+   setup.
+*/
+const markdownComponents = {
+  code({ className, children, ...props }: {
+    className?: string;
+    children?: React.ReactNode;
+  } & React.HTMLAttributes<HTMLElement>) {
+    const lang = className?.match(/language-(\S+)/)?.[1] ?? "";
+    if (lang === "mermaid") {
+      const chart = Array.isArray(children)
+        ? children.join("")
+        : String(children ?? "");
+      return <MermaidDiagram chart={chart} />;
     }
-
-    // Inline code
     return (
       <code className={className} {...props}>
         {children}
       </code>
     );
   },
-
-  // Override <pre> to pass through — our CodeBlock handles the wrapper
-  pre({ children }) {
-    return <>{children}</>;
-  },
+  // Add stable slug ids so the ToC can smooth-scroll to headings.
+  h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h1 id={slugify(extractText(children))} {...props}>{children}</h1>
+  ),
+  h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h2 id={slugify(extractText(children))} {...props}>{children}</h2>
+  ),
+  h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h3 id={slugify(extractText(children))} {...props}>{children}</h3>
+  ),
+  h4: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h4 id={slugify(extractText(children))} {...props}>{children}</h4>
+  ),
+  h5: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h5 id={slugify(extractText(children))} {...props}>{children}</h5>
+  ),
+  h6: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
+    <h6 id={slugify(extractText(children))} {...props}>{children}</h6>
+  ),
 };
 
-/* ═══════════════════════════════════════════════════════
-   Table of Contents — types, extraction, active tracking
-   ═══════════════════════════════════════════════════════ */
-
-type TocHeading = {
-  id: string;
-  text: string;
-  level: number;
-};
-
-/** Parse raw markdown and extract headings for the ToC. */
-function extractHeadings(md: string): TocHeading[] {
-  const headings: TocHeading[] = [];
-  let inCodeBlock = false;
-
-  for (const line of md.split("\n")) {
-    if (line.trimStart().startsWith("```")) {
-      inCodeBlock = !inCodeBlock;
-      continue;
-    }
-    if (inCodeBlock) continue;
-
-    const match = line.match(/^(#{1,6})\s+(.+)$/);
-    if (match) {
-      const level = match[1].length;
-      const text = match[2].replace(/\*\*/g, "").replace(/\*/g, "").trim();
-      // rehype-slug generates IDs by slugifying heading text (lowercase, hyphenated)
-      const id = slugify(text);
-      headings.push({ id, text, level });
-    }
+function extractText(node: React.ReactNode): string {
+  if (typeof node === "string") return node;
+  if (typeof node === "number") return String(node);
+  if (!node) return "";
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  if (React.isValidElement(node) && node.props) {
+    return extractText((node.props as { children?: React.ReactNode }).children);
   }
-
-  return headings;
+  return "";
 }
 
-/**
- * Hook that watches scroll position inside a container and returns
- * the `id` of the heading currently at (or just above) the viewport top.
- */
-function useActiveHeading(
-  containerRef: React.RefObject<HTMLDivElement | null>,
-  headings: TocHeading[],
-  viewMode: string,
-): string | null {
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || viewMode !== "preview" || headings.length === 0) {
-      setActiveId(null);
-      return;
-    }
-
-    const handleScroll = () => {
-      const offset = 80;
-      let current: string | null = null;
-
-      for (const h of headings) {
-        const el = container.querySelector(`#${CSS.escape(h.id)}`);
-        if (!el) continue;
-        const rect = el.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        const relativeTop = rect.top - containerRect.top;
-
-        if (relativeTop <= offset) {
-          current = h.id;
-        }
-      }
-
-      setActiveId(current);
-    };
-
-    handleScroll();
-    container.addEventListener("scroll", handleScroll, { passive: true });
-    return () => container.removeEventListener("scroll", handleScroll);
-  }, [containerRef, headings, viewMode]);
-
-  return activeId;
-}
-
-/** Table of Contents sidebar component. */
-const TOC_MIN_WIDTH = 120;
-const TOC_MAX_WIDTH = 400;
-const TOC_DEFAULT_WIDTH = 220;
-
-const TableOfContents = React.memo(function TableOfContents({
-  headings,
-  activeId,
-  containerRef,
-}: {
-  headings: TocHeading[];
-  activeId: string | null;
-  containerRef: React.RefObject<HTMLDivElement | null>;
-}): React.ReactElement | null {
-  const [width, setWidth] = useState(TOC_DEFAULT_WIDTH);
-  const draggingRef = useRef(false);
-  const lastXRef = useRef(0);
-
-  if (headings.length === 0) return null;
-
-  const minLevel = Math.min(...headings.map((h) => h.level));
-
-  const handleClick = (id: string) => {
-    const container = containerRef.current;
-    if (!container) return;
-    const el = container.querySelector(`#${CSS.escape(id)}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
-
-  /* ── Resize handle logic (drag left edge) ── */
-  const onHandleMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault();
-    draggingRef.current = true;
-    lastXRef.current = e.clientX;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!draggingRef.current) return;
-      // Dragging left → delta negative → width grows (ToC is on the right)
-      const delta = lastXRef.current - ev.clientX;
-      lastXRef.current = ev.clientX;
-      setWidth((prev) => Math.min(TOC_MAX_WIDTH, Math.max(TOC_MIN_WIDTH, prev + delta)));
-    };
-
-    const onMouseUp = () => {
-      draggingRef.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-    };
-
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-  };
-
-  return (
-    <div
-      style={{
-        width,
-        minWidth: TOC_MIN_WIDTH,
-        maxWidth: TOC_MAX_WIDTH,
-        flexShrink: 0,
-        position: "sticky",
-        top: 0,
-        alignSelf: "stretch",
-        display: "flex",
-        height: "100vh",
-      }}
-    >
-      {/* Resize handle — left edge */}
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        onMouseDown={onHandleMouseDown}
-        style={{
-          width: 5,
-          flexShrink: 0,
-          cursor: "col-resize",
-          position: "relative",
-          borderLeft: `1px solid ${colors.border}`,
-        }}
-      >
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: 2,
-            background: "transparent",
-            transition: "background 0.15s",
-            borderRadius: 1,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = colors.primary;
-          }}
-          onMouseLeave={(e) => {
-            if (!draggingRef.current) e.currentTarget.style.background = "transparent";
-          }}
-        />
-      </div>
-
-      {/* Scrollable ToC content */}
-      <nav
-        style={{
-          flex: 1,
-          minWidth: 0,
-          overflowY: "auto",
-          padding: "20px 12px 20px 0",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            color: colors.textTertiary,
-            padding: "0 12px 8px",
-          }}
-        >
-          On this page
-        </div>
-        {headings.map((h) => {
-          const isActive = h.id === activeId;
-          const indent = (h.level - minLevel) * 12;
-
-          return (
-            <button
-              key={h.id}
-              type="button"
-              onClick={() => handleClick(h.id)}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                padding: "4px 12px",
-                paddingLeft: 12 + indent,
-                fontSize: 11,
-                lineHeight: 1.4,
-                fontWeight: isActive ? 600 : 400,
-                color: isActive ? colors.primary : colors.textMuted,
-                background: "transparent",
-                border: "none",
-                borderLeft: isActive ? `2px solid ${colors.primary}` : "2px solid transparent",
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "color 0.12s",
-                overflow: "hidden",
-              }}
-              title={h.text}
-              onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.color = colors.text;
-              }}
-              onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.color = colors.textMuted;
-              }}
-            >
-              <ScrollableText>{h.text}</ScrollableText>
-            </button>
-          );
-        })}
-      </nav>
-    </div>
-  );
-});
-
-/* ═══════════════════════════════════════════════════════
-   View mode toggle button
-   ═══════════════════════════════════════════════════════ */
-
-type ViewMode = "preview" | "raw";
+/* ─────────────────────────────────────────────
+   Small UI primitives
+   ───────────────────────────────────────────── */
 
 function ViewModeToggle({
   mode,
   onChange,
+  canEdit,
 }: {
   mode: ViewMode;
   onChange: (mode: ViewMode) => void;
+  canEdit: boolean;
 }): React.ReactElement {
   return (
     <div
@@ -474,14 +121,16 @@ function ViewModeToggle({
         <Eye size={13} strokeWidth={1.8} />
         <span>Preview</span>
       </ToggleBtn>
-      <ToggleBtn
-        active={mode === "raw"}
-        onClick={() => onChange("raw")}
-        title="Raw"
-      >
-        <FileCode size={13} strokeWidth={1.8} />
-        <span>Raw</span>
-      </ToggleBtn>
+      {canEdit && (
+        <ToggleBtn
+          active={mode === "edit"}
+          onClick={() => onChange("edit")}
+          title="Edit"
+        >
+          <FileCode size={13} strokeWidth={1.8} />
+          <span>Edit</span>
+        </ToggleBtn>
+      )}
     </div>
   );
 }
@@ -526,13 +175,34 @@ function ToggleBtn({
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Copy content button
-   ═══════════════════════════════════════════════════════ */
-
-function CopyContentButton({ content }: { content: string }): React.ReactElement {
-  const [copied, setCopied] = useState(false);
+/**
+ * Trailing chevron button for the ApproveButton split-button group.
+ * Opens a ContextMenu anchored below the button with the Copy action.
+ * Visually fuses with the ApproveButton — uses solid green while approval is
+ * pending and muted-green once the file has been approved, matching the main
+ * button's visual state on either side of the seam.
+ */
+function ApproveActionsChevron({
+  content,
+  approved,
+}: {
+  content: string;
+  approved: boolean;
+}): React.ReactElement {
+  const [menuPos, setMenuPos] = useState<ContextMenuPosition | null>(null);
   const [hovered, setHovered] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+
+  const handleToggle = useCallback(() => {
+    if (menuPos) {
+      setMenuPos(null);
+      return;
+    }
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setMenuPos({ x: rect.right - 160, y: rect.bottom + 4 });
+  }, [menuPos]);
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(content).then(() => {
@@ -541,448 +211,63 @@ function CopyContentButton({ content }: { content: string }): React.ReactElement
     });
   }, [content]);
 
-  return (
-    <button
-      type="button"
-      title="Copy content"
-      onClick={handleCopy}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 5,
-        padding: "4px 10px",
-        fontSize: 11,
-        fontWeight: 500,
-        color: copied ? colors.success : hovered ? colors.textMuted : colors.textTertiary,
-        background: copied ? colors.successSoft : hovered ? colors.bgHover : "transparent",
-        border: "1px solid",
-        borderColor: copied ? colors.successSoftBorder : colors.border,
-        borderRadius: 6,
-        cursor: "pointer",
-        transition: "all 0.15s",
-        fontFamily: "inherit",
-      }}
-    >
-      {copied ? <Check size={13} strokeWidth={2} /> : <Clipboard size={13} strokeWidth={1.8} />}
-      <span>{copied ? "Copied!" : "Copy"}</span>
-    </button>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════
-   Approve button
-   ═══════════════════════════════════════════════════════ */
-
-function ApproveButton({
-  filePath,
-  content,
-  repoPath,
-  onApproved,
-}: {
-  filePath: string;
-  content: string;
-  /** Required for gitref:// files — the repo root path */
-  repoPath?: string;
-  onApproved: (newContent: string) => void;
-}): React.ReactElement | null {
-  const [approving, setApproving] = useState(false);
-  const [approved, setApproved] = useState(false);
-  const [hovered, setHovered] = useState(false);
-  const [showWorktreeDialog, setShowWorktreeDialog] = useState(false);
-  const [worktreeError, setWorktreeError] = useState<string | null>(null);
-
-  // Look up existing worktree from the global store
-  const getWorktreeForBranch = useWorktreeStore((s) => s.getWorktreeForBranch);
-  const addWorktree = useWorktreeStore((s) => s.addWorktree);
-  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
-
-  // Fetch git user name/email when repoPath is available
-  // NOTE: all hooks must be declared before any early return to preserve hook order.
-  const [gitUserName, setGitUserName] = useState<string>("");
-  useEffect(() => {
-    if (!repoPath) return;
-    ipc.send({ type: "git:user", repoPath }).then((resp) => {
-      if (resp.type === "git:user:result") {
-        setGitUserName(resp.name || resp.email || "Unknown");
-      }
-    }).catch(() => {
-      // Fallback silently
-    });
-  }, [repoPath]);
-
-  const isGitRef = isGitRefPath(filePath);
-  const gitRef = isGitRef ? parseGitRef(filePath) : null;
-
-  // Check if a worktree already exists for this repo+branch
-  const existingWorktree =
-    isGitRef && gitRef && repoPath
-      ? getWorktreeForBranch(repoPath, gitRef.ref)
-      : null;
-
-  // Check if already approved
-  const isAlreadyApproved = /\*\*Approved by:\*\*/.test(content);
-  if (isAlreadyApproved || approved) {
-    const match = content.match(
-      /\*\*Approved by:\*\*\s*([^|]+?)\s*\|\s*\*\*Date:\*\*\s*(\S+)/
-    );
-    const approverName = match ? match[1].trim() : "—";
-
-    return (
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "4px 10px",
-          fontSize: 11,
-          fontWeight: 600,
-          color: colors.success,
-          background: colors.successSoft,
-          border: `1px solid ${colors.successSoftBorder}`,
-          borderRadius: 6,
-        }}
-      >
-        <CheckCircle size={13} strokeWidth={2} />
-        <span>Approved by {approverName}</span>
-      </div>
-    );
-  }
-
-  /** Build the new content with the approval line inserted and status promoted. */
-  const buildApprovedContent = (original: string): string => {
-    const now = new Date();
-    const dateStr = now.toISOString().split("T")[0];
-    const approvalLine = `**Approved by:** ${gitUserName || "Unknown"} | **Date:** ${dateStr}`;
-
-    let result: string;
-    const headingMatch = original.match(/^(#[^\n]*\n)/);
-    if (headingMatch) {
-      const idx = (headingMatch.index ?? 0) + headingMatch[0].length;
-      result = original.slice(0, idx) + "\n" + approvalLine + "\n" + original.slice(idx);
-    } else {
-      result = approvalLine + "\n\n" + original;
-    }
-
-    // Promote Draft status to Ready on approval
-    result = result.replace(/(\*\*Status\*\*:\s*)Draft/i, "$1Ready");
-    return result;
-  };
-
-  /** Approve a local (current-branch) file directly. */
-  const handleDirectApprove = async () => {
-    setApproving(true);
-    try {
-      const newContent = buildApprovedContent(content);
-      const writeResp = await ipc.send({
-        type: "file:write",
-        filePath,
-        content: newContent,
-      });
-
-      if (writeResp.type === "file:write:result" && writeResp.success) {
-        setApproved(true);
-        onApproved(newContent);
-      }
-    } catch (err) {
-      console.error("Error during approval:", err);
-    }
-    setApproving(false);
-  };
-
-  /**
-   * Approve via an existing or newly-created worktree.
-   * If worktreePath is provided, use it directly (skip IPC create).
-   */
-  const handleWorktreeApproveWithPath = async (worktreePath: string) => {
-    if (!gitRef) return;
-
-    setApproving(true);
-    setWorktreeError(null);
-
-    try {
-      const targetFilePath = `${worktreePath}/${gitRef.relativePath}`;
-
-      // Read file from worktree
-      const readResp = await ipc.send({ type: "file:read", filePath: targetFilePath });
-      if (readResp.type !== "file:read:result") {
-        setWorktreeError(`Could not read file in worktree: ${readResp.type === "error" ? readResp.message : "Unknown error"}`);
-        setApproving(false);
-        return;
-      }
-
-      // Write approved content
-      const newContent = buildApprovedContent(readResp.content);
-      const writeResp = await ipc.send({
-        type: "file:write",
-        filePath: targetFilePath,
-        content: newContent,
-      });
-
-      if (writeResp.type === "file:write:result" && writeResp.success) {
-        setApproved(true);
-        onApproved(newContent);
-      } else {
-        setWorktreeError("Failed to write approval to the worktree file.");
-      }
-    } catch (err) {
-      console.error("Error during worktree approval:", err);
-      setWorktreeError(err instanceof Error ? err.message : String(err));
-    }
-    setApproving(false);
-  };
-
-  /** Approve a gitref file via a new worktree (after user confirms name in dialog). */
-  const handleWorktreeApprove = async (worktreeName: string) => {
-    if (!gitRef || !repoPath) return;
-
-    setShowWorktreeDialog(false);
-    setApproving(true);
-    setWorktreeError(null);
-
-    try {
-      // 1. Create the worktree
-      const wtResp = await ipc.send({
-        type: "worktree:create",
-        repoPath,
-        branch: gitRef.ref,
-        name: worktreeName,
-      });
-
-      if (wtResp.type === "error") {
-        setWorktreeError(wtResp.message);
-        setApproving(false);
-        return;
-      }
-
-      if (wtResp.type !== "worktree:create:result") {
-        setWorktreeError("Unexpected response when creating worktree.");
-        setApproving(false);
-        return;
-      }
-
-      // Register the new worktree in the store so future approvals skip the dialog
-      addWorktree({
-        repoPath,
-        worktreePath: wtResp.worktreePath,
-        branch: gitRef.ref,
-        name: worktreeName,
-        createdAt: Date.now(),
-      });
-
-      // Also refresh the full list from the daemon
-      void fetchWorktrees(repoPath);
-
-      // 2. Approve using the newly created worktree path
-      setApproving(false); // handleWorktreeApproveWithPath sets it again
-      await handleWorktreeApproveWithPath(wtResp.worktreePath);
-    } catch (err) {
-      console.error("Error during worktree creation:", err);
-      setWorktreeError(err instanceof Error ? err.message : String(err));
-      setApproving(false);
-    }
-  };
-
-  const handleClick = () => {
-    if (isGitRef && existingWorktree) {
-      // Worktree already exists — approve directly, no dialog
-      void handleWorktreeApproveWithPath(existingWorktree.worktreePath);
-    } else if (isGitRef) {
-      // No worktree yet — show dialog
-      setShowWorktreeDialog(true);
-    } else {
-      // Current branch — approve directly
-      void handleDirectApprove();
-    }
-  };
-
-  // Determine button label
-  let buttonLabel = "Approve";
-  if (approving) {
-    buttonLabel = "Approving...";
-  } else if (isGitRef && existingWorktree) {
-    buttonLabel = "Approve";
-  } else if (isGitRef) {
-    buttonLabel = "Approve via Worktree";
-  }
+  const baseBg = approved ? colors.successSoft : colors.success;
+  const hoverBg = approved ? colors.successSoftBorder : colors.successHover;
+  const fg = approved ? colors.success : colors.primaryForeground;
+  const seam = approved
+    ? `1px solid ${colors.successSoftBorder}`
+    : `1px solid color-mix(in srgb, ${colors.primaryForeground} 25%, transparent)`;
 
   return (
     <>
+    {menuPos && (
+        <ContextMenu
+          position={menuPos}
+          items={[
+            {
+              label: copied ? "Copied!" : "Copy content",
+              Icon: copied ? Check : Clipboard,
+              action: handleCopy,
+            },
+          ]}
+          onClose={() => setMenuPos(null)}
+        />
+      )}
       <button
+        ref={buttonRef}
         type="button"
-        title={
-          isGitRef && !existingWorktree
-            ? "Create worktree and approve this file"
-            : "Approve this file"
-        }
-        onClick={handleClick}
-        disabled={approving}
+        title="More actions"
+        onClick={handleToggle}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 5,
-          padding: "4px 10px",
-          fontSize: 11,
-          fontWeight: 600,
-          color: colors.primaryForeground,
-          background: approving ? colors.successMuted : hovered ? colors.successHover : colors.success,
-          border: "none",
-          borderRadius: 6,
-          cursor: approving ? "wait" : "pointer",
-          transition: "all 0.15s",
+          justifyContent: "center",
+          padding: "4px 6px",
+          color: fg,
+          background: hovered || menuPos ? hoverBg : baseBg,
+          border: approved ? `1px solid ${colors.successSoftBorder}` : "none",
+          borderLeft: seam,
+          borderRadius: "0 6px 6px 0",
+          cursor: "pointer",
+          transition: "background 0.15s",
           fontFamily: "inherit",
         }}
       >
-        {isGitRef && !existingWorktree ? (
-          <GitBranch size={13} strokeWidth={2} />
-        ) : (
-          <CheckCircle size={13} strokeWidth={2} />
-        )}
-        <span>{buttonLabel}</span>
+        <ChevronDown size={13} strokeWidth={2} />
       </button>
-
-      {/* Worktree name dialog — only shown when no existing worktree */}
-      {showWorktreeDialog && gitRef && (
-        <WorktreeDialog
-          branch={gitRef.ref}
-          onConfirm={handleWorktreeApprove}
-          onCancel={() => setShowWorktreeDialog(false)}
-        />
-      )}
-
-      {/* Error toast */}
-      {worktreeError && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            background: colors.errorSoft,
-            border: `1px solid ${colors.errorSoftBorder}`,
-            borderRadius: 8,
-            padding: "10px 16px",
-            fontSize: 12,
-            color: colors.errorDark,
-            maxWidth: 360,
-            zIndex: 10000,
-            boxShadow: colors.shadowSoft,
-            cursor: "pointer",
-          }}
-          onClick={() => setWorktreeError(null)}
-        >
-          {worktreeError}
-        </div>
-      )}
     </>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Editable raw markdown view with line numbers
-   ═══════════════════════════════════════════════════════ */
-
-function EditableRawView({
-  content,
-  onChange,
-  onBlur,
-  readOnly,
-}: {
-  content: string;
-  onChange: (value: string) => void;
-  onBlur: () => void;
-  readOnly: boolean;
-}): React.ReactElement {
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const gutterRef = useRef<HTMLDivElement>(null);
-  const lineCount = content.split("\n").length;
-
-  // Sync gutter scroll with textarea scroll
-  const handleScroll = useCallback(() => {
-    if (textareaRef.current && gutterRef.current) {
-      gutterRef.current.scrollTop = textareaRef.current.scrollTop;
-    }
-  }, []);
-
-  // Handle Tab key for indentation
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (readOnly) return;
-      if (e.key === "Tab") {
-        e.preventDefault();
-        const ta = e.currentTarget;
-        const start = ta.selectionStart;
-        const end = ta.selectionEnd;
-        const value = ta.value;
-        const newValue = value.substring(0, start) + "  " + value.substring(end);
-        onChange(newValue);
-        // Restore cursor position after React re-render
-        requestAnimationFrame(() => {
-          ta.selectionStart = ta.selectionEnd = start + 2;
-        });
-      }
-    },
-    [readOnly, onChange],
-  );
-
-  return (
-    <div className="md-raw-viewer" style={{ position: "relative" }}>
-      <div
-        ref={gutterRef}
-        className="md-raw-gutter"
-        style={{ overflow: "hidden", pointerEvents: "none" }}
-      >
-        {Array.from({ length: lineCount }, (_, i) => (
-          <div key={i}>{i + 1}</div>
-        ))}
-      </div>
-      <textarea
-        ref={textareaRef}
-        className="md-raw-content"
-        value={content}
-        onChange={(e) => onChange(e.target.value)}
-        onBlur={onBlur}
-        onScroll={handleScroll}
-        onKeyDown={handleKeyDown}
-        readOnly={readOnly}
-        spellCheck={false}
-        style={{
-          flex: 1,
-          resize: "none",
-          border: "none",
-          outline: "none",
-          background: "transparent",
-          color: "inherit",
-          font: "inherit",
-          lineHeight: "inherit",
-          padding: "inherit",
-          margin: 0,
-          whiteSpace: "pre",
-          overflowX: "auto",
-          overflowY: "auto",
-          tabSize: 2,
-          cursor: readOnly ? "default" : "text",
-        }}
-      />
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════
-   FileViewer component
-   ═══════════════════════════════════════════════════════ */
-
-type FileViewerProps = {
-  filePath: string;
-  /** Required for reading files from non-current branches (gitref:// paths). */
-  repoPath?: string;
-};
-
-type SaveStatus = "idle" | "saving" | "saved";
+/* ─────────────────────────────────────────────
+   FileViewer
+   ───────────────────────────────────────────── */
 
 export function FileViewer({ filePath, repoPath }: FileViewerProps): React.ReactElement {
+  const { resolved } = useTheme();
+
   const [content, setContent] = useState<string | null>(null);
   const [editedContent, setEditedContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -996,7 +281,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   const canEdit = !isGitRef && isMarkdownFile(filePath);
   const isDirty = canEdit && editedContent !== null && editedContent !== content;
 
-  // Save edited content to disk
   const save = useCallback(async () => {
     if (!isDirty || editedContent === null) return;
     setSaveStatus("saving");
@@ -1004,7 +288,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
       await sendOrThrow({ type: "file:write", filePath, content: editedContent });
       setContent(editedContent);
       setSaveStatus("saved");
-      // Clear "saved" indicator after a short delay
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => setSaveStatus("idle"), 1500);
     } catch {
@@ -1012,23 +295,14 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
     }
   }, [isDirty, editedContent, filePath]);
 
-  // Auto-save when switching from raw to preview
+  // Auto-save when switching away from edit mode.
   const handleViewModeChange = useCallback(
     (mode: ViewMode) => {
-      if (mode === "preview" && isDirty) {
-        void save();
-      }
+      if (mode === "preview" && isDirty) void save();
       setViewMode(mode);
     },
     [isDirty, save],
   );
-
-  // Auto-save on editor blur
-  const handleEditorBlur = useCallback(() => {
-    if (isDirty) {
-      void save();
-    }
-  }, [isDirty, save]);
 
   // Load file content
   useEffect(() => {
@@ -1041,18 +315,15 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
     void (async () => {
       const gitRef = parseGitRef(filePath);
-
-      let response;
-      if (gitRef && repoPath) {
-        response = await ipc.send({
-          type: "gitfile:read",
-          repoPath,
-          ref: gitRef.ref,
-          relativePath: gitRef.relativePath,
-        });
-      } else {
-        response = await ipc.send({ type: "file:read", filePath });
-      }
+      const response =
+        gitRef && repoPath
+          ? await ipc.send({
+              type: "gitfile:read",
+              repoPath,
+              ref: gitRef.ref,
+              relativePath: gitRef.relativePath,
+            })
+          : await ipc.send({ type: "file:read", filePath });
 
       if (cancelled) return;
 
@@ -1071,20 +342,20 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
     };
   }, [filePath, repoPath]);
 
-  // Cleanup save timer
   useEffect(() => () => clearTimeout(saveTimerRef.current), []);
 
-  // The content to display — use editedContent if available (for live preview after edits)
   const displayContent = editedContent ?? content;
 
-  // Extract headings for Table of Contents
-  const headings = useMemo(() => {
-    if (!displayContent) return [];
-    return extractHeadings(displayContent);
-  }, [displayContent]);
+  const headings = useMemo(
+    () => (displayContent ? extractHeadings(displayContent) : []),
+    [displayContent],
+  );
 
-  // Track which heading is currently in view
-  const activeHeadingId = useActiveHeading(contentRef, headings, viewMode);
+  const activeHeadingId = useActiveHeading(
+    contentRef,
+    headings,
+    viewMode === "preview",
+  );
 
   const isMd = displayContent !== null && isMarkdownFile(filePath);
   const showToc = isMd && viewMode === "preview" && headings.length > 1;
@@ -1119,8 +390,10 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   if (displayContent === null) return <div />;
 
   return (
-    <div style={{ height: "100%", display: "flex", flexDirection: "column" }}>
-      {/* Toolbar — only for markdown files */}
+    <div
+      data-color-mode={resolved}
+      style={{ height: "100%", display: "flex", flexDirection: "column" }}
+    >
       {isMd && (
         <div
           style={{
@@ -1137,12 +410,19 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             <span style={{ fontSize: 11, color: colors.textTertiary, fontWeight: 500 }}>
               {getFileName(filePath)}
             </span>
-            {/* Save status indicator */}
             {canEdit && saveStatus === "saving" && (
               <span style={{ fontSize: 10, color: colors.textTertiary }}>Saving...</span>
             )}
             {canEdit && saveStatus === "saved" && (
-              <span style={{ fontSize: 10, color: colors.success, display: "flex", alignItems: "center", gap: 3 }}>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: colors.success,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 3,
+                }}
+              >
                 <Check size={10} /> Saved
               </span>
             )}
@@ -1165,43 +445,46 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                 read-only
               </span>
             )}
-            <ViewModeToggle mode={viewMode} onChange={handleViewModeChange} />
-            <CopyContentButton content={displayContent} />
-            <ApproveButton
-              filePath={filePath}
-              content={displayContent}
-              repoPath={repoPath}
-              onApproved={(newContent) => {
-                setContent(newContent);
-                setEditedContent(newContent);
-              }}
+            {viewMode === "preview" && (
+              <ApproveButton
+                filePath={filePath}
+                content={displayContent}
+                repoPath={repoPath}
+                onApproved={(newContent) => {
+                  setContent(newContent);
+                  setEditedContent(newContent);
+                }}
+                rightSlot={
+                  <ApproveActionsChevron
+                    content={displayContent}
+                    approved={/\*\*Approved by:\*\*/.test(displayContent)}
+                  />
+                }
+              />
+            )}
+            <ViewModeToggle
+              mode={viewMode}
+              onChange={handleViewModeChange}
+              canEdit={canEdit}
             />
           </div>
         </div>
       )}
 
-      {/* Content area — with optional ToC sidebar */}
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>
         {isMd ? (
           viewMode === "preview" ? (
             <div style={{ display: "flex" }}>
-              {/* Main markdown content — rendered via react-markdown */}
-              <div
-                className="markdown-body md-viewer"
-                style={{ padding: "12px 16px", flex: 1, minWidth: 0 }}
-              >
-                <ReactMarkdown
-                  remarkPlugins={remarkPlugins}
-                  rehypePlugins={rehypePlugins}
+              <div style={{ padding: "12px 16px", flex: 1, minWidth: 0 }}>
+                <MDEditor.Markdown
+                  source={displayContent}
                   components={markdownComponents}
-                >
-                  {displayContent}
-                </ReactMarkdown>
+                  style={{ background: "transparent" }}
+                />
               </div>
 
-              {/* Table of Contents — right sidebar */}
               {showToc && (
-                <TableOfContents
+                <MarkdownTableOfContents
                   headings={headings}
                   activeId={activeHeadingId}
                   containerRef={contentRef}
@@ -1209,11 +492,23 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
               )}
             </div>
           ) : (
-            <EditableRawView
-              content={editedContent ?? displayContent}
-              onChange={setEditedContent}
-              onBlur={handleEditorBlur}
-              readOnly={!canEdit}
+            <MDEditor
+              value={editedContent ?? ""}
+              onChange={(val) => setEditedContent(val ?? "")}
+              preview="edit"
+              visibleDragbar={false}
+              height="100%"
+              // Right-side toolbar (preview/live/edit/fullscreen) is redundant
+              // — the FileViewer chrome above already owns view-mode switching.
+              extraCommands={[]}
+              // The editor's internal textarea blur should trigger a save.
+              textareaProps={{
+                onBlur: () => {
+                  if (isDirty) void save();
+                },
+                spellCheck: false,
+              }}
+              style={{ height: "100%", background: "transparent" }}
             />
           )
         ) : (

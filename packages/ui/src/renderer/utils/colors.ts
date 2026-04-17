@@ -118,24 +118,6 @@ export const colors = {
   iconBrown: "var(--icon-brown)",
   accentPurple: "var(--accent-purple)",
 
-  /** Diff tokens */
-  diffViewerBg: "var(--diff-viewer-bg)",
-  diffViewerFg: "var(--diff-viewer-fg)",
-  diffViewerMuted: "var(--diff-viewer-muted)",
-  diffViewerMutedFg: "var(--diff-viewer-muted-fg)",
-  diffViewerPanel: "var(--diff-viewer-panel)",
-  diffViewerBorder: "var(--diff-viewer-border)",
-  diffAddedBg: "var(--diff-added-bg)",
-  diffAddedWordBg: "var(--diff-added-word-bg)",
-  diffAddedGutterBg: "var(--diff-added-gutter-bg)",
-  diffAddedText: "var(--diff-added-text)",
-  diffRemovedBg: "var(--diff-removed-bg)",
-  diffRemovedWordBg: "var(--diff-removed-word-bg)",
-  diffRemovedGutterBg: "var(--diff-removed-gutter-bg)",
-  diffRemovedText: "var(--diff-removed-text)",
-  diffHighlightBg: "var(--diff-highlight-bg)",
-  diffHighlightGutterBg: "var(--diff-highlight-gutter-bg)",
-
   /** Dialog specific */
   dialogBg: "var(--card)",
   dialogShadow: "var(--shadow-dialog)",

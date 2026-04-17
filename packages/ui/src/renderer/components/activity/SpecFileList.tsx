@@ -124,7 +124,7 @@ export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.Re
       onFileClick={(entry) => onOpenFile?.(entry.path)}
       contextMenuItems={buildContextMenu}
       showFileIcons
-      showExtensionBadge
+      showExtensionBadge={false}
     />
   );
 }

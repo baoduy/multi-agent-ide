@@ -190,7 +190,8 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           transition: "background 0.12s",
         }}
       >
-        <RepoLabel name={repo.name} repoPath={repo.path} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
+        {/* Inline ★ suppressed here — the pin toggle on the right is the canonical control. */}
+        <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
           <Tag tone={badge.tone} size="xs" fontWeight={500}>
             {badge.label}
           </Tag>
@@ -221,14 +222,14 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
             lineHeight: 1,
             display: "inline-flex",
             alignItems: "center",
-            color: pinned ? colors.primary : colors.borderMuted,
+            color: pinned ? colors.text : colors.borderMuted,
             transition: "color 0.12s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.color = colors.primary;
+            e.currentTarget.style.color = colors.text;
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.color = pinned ? colors.primary : colors.borderMuted;
+            e.currentTarget.style.color = pinned ? colors.text : colors.borderMuted;
           }}
         >
           <Star size={12} fill={pinned ? "currentColor" : "none"} strokeWidth={1.8} />

@@ -2,6 +2,7 @@ import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord, SyncedSessionGroup } from "@magenta/shared/syncedSession";
 import type { Repository } from "@magenta/shared/models";
 import { extractDisplayName, resolveWorktreeParent } from "./formatters";
+import { itemPinKey, livePinKey } from "./sessionPinKey";
 
 /**
  * One row under a branch group. Discriminated so the renderer knows
@@ -35,10 +36,22 @@ export interface SessionGroupNode {
   /** Whether this maps to a registered repo in the DB */
   repo: Repository | null;
   /**
-   * Currently-running PTY sessions (status "active" or "waiting-input").
+   * Currently-running PTY sessions (status "active" or "waiting-input"),
+   * minus any that the user has pinned (those live in `pinnedActive`).
    * Rendered at the repo level (above branch groups). Always sorted by lastActiveAt DESC.
    */
   activeLiveSessions: AISessionRecord[];
+  /**
+   * Pinned running sessions, hoisted above the "active" section. Kept separate
+   * from `pinnedItems` so we don't lose the live-row affordances (status badge,
+   * resume flow) when a pinned session is currently executing.
+   */
+  pinnedActive: AISessionRecord[];
+  /**
+   * Pinned idle / synced sessions, hoisted above active + branch groups.
+   * Sorted by timestamp DESC. Items here are removed from their branch group.
+   */
+  pinnedItems: HistoryItem[];
   /**
    * History sessions grouped by branch/worktree. Each branch group is
    * collapsible and contains sessions sorted by timestamp DESC.
@@ -100,6 +113,14 @@ export function filterSessionGroups(
       ? group.activeLiveSessions
       : group.activeLiveSessions.filter(matchesLive);
 
+    // Filter pinned rows with the same rules as the rest of the tree
+    const filteredPinnedActive = groupNameMatches
+      ? group.pinnedActive
+      : group.pinnedActive.filter(matchesLive);
+    const filteredPinnedItems = groupNameMatches
+      ? group.pinnedItems
+      : group.pinnedItems.filter(matchesHistoryItem);
+
     // Filter branch groups
     const filteredBranches: BranchGroup[] = [];
     const filteredHistory: HistoryItem[] = [];
@@ -117,14 +138,17 @@ export function filterSessionGroups(
       }
     }
 
-    if (filteredActive.length > 0 || filteredBranches.length > 0) {
+    const pinnedCount = filteredPinnedActive.length + filteredPinnedItems.length;
+    if (filteredActive.length > 0 || filteredBranches.length > 0 || pinnedCount > 0) {
       result.push({
         ...group,
         activeLiveSessions: filteredActive,
+        pinnedActive: filteredPinnedActive,
+        pinnedItems: filteredPinnedItems,
         branchGroups: filteredBranches,
         history: filteredHistory,
-        totalCount: filteredActive.length + filteredHistory.length,
-        activeCount: filteredActive.length,
+        totalCount: filteredActive.length + filteredHistory.length + pinnedCount,
+        activeCount: filteredActive.length + filteredPinnedActive.length,
       });
     }
   }
@@ -157,6 +181,7 @@ export function buildUnifiedGroups(
   liveSessions: AISessionRecord[],
   syncedGroups: SyncedSessionGroup[],
   repos: Repository[],
+  pinnedKeys: Set<string> = new Set(),
 ): SessionGroupNode[] {
   // Build repo lookup by normalised path
   const repoByPath = new Map<string, Repository>();
@@ -260,9 +285,18 @@ export function buildUnifiedGroups(
     const dedupedSynced = acc.synced.filter((s) => !liveIds.has(s.sessionId));
 
     // Active rows (top section). Sort by lastActiveAt DESC.
-    const activeLiveSessions = acc.live
+    const allActive = acc.live
       .filter(isRunning)
       .sort((a, b) => b.lastActiveAt - a.lastActiveAt);
+
+    // Split active into pinned vs not. Pinned running sessions render in the
+    // dedicated "Pinned" section above the "Active" section.
+    const pinnedActive: AISessionRecord[] = [];
+    const activeLiveSessions: AISessionRecord[] = [];
+    for (const s of allActive) {
+      if (pinnedKeys.has(livePinKey(s))) pinnedActive.push(s);
+      else activeLiveSessions.push(s);
+    }
 
     // History rows: idle live + synced, tagged, then sorted DESC.
     const history: HistoryItem[] = [];
@@ -277,9 +311,18 @@ export function buildUnifiedGroups(
     }
     history.sort((a, b) => b.timestamp - a.timestamp);
 
-    // Group history items by branch/worktree name
-    const branchMap = new Map<string, HistoryItem[]>();
+    // Extract pinned history items before branch grouping so they don't also
+    // render inside their branch group (no duplicate display).
+    const pinnedItems: HistoryItem[] = [];
+    const unpinnedHistory: HistoryItem[] = [];
     for (const item of history) {
+      if (pinnedKeys.has(itemPinKey(item))) pinnedItems.push(item);
+      else unpinnedHistory.push(item);
+    }
+
+    // Group unpinned history items by branch/worktree name
+    const branchMap = new Map<string, HistoryItem[]>();
+    for (const item of unpinnedHistory) {
       let branch: string;
       if (item.kind === "live") {
         branch = item.session.worktreeName || item.session.branch || "default";
@@ -306,11 +349,12 @@ export function buildUnifiedGroups(
     }
     branchGroups.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
 
-    const totalCount = activeLiveSessions.length + history.length;
-    const activeCount = activeLiveSessions.length;
+    const totalCount = activeLiveSessions.length + history.length + pinnedActive.length;
+    const activeCount = activeLiveSessions.length + pinnedActive.length;
     const latestTimestamp = Math.max(
-      activeLiveSessions[0]?.lastActiveAt ?? 0,
+      allActive[0]?.lastActiveAt ?? 0,
       history[0]?.timestamp ?? 0,
+      pinnedItems[0]?.timestamp ?? 0,
     );
 
     groupMap.set(acc.key, {
@@ -319,6 +363,8 @@ export function buildUnifiedGroups(
       path: acc.path,
       repo: acc.repo,
       activeLiveSessions,
+      pinnedActive,
+      pinnedItems,
       branchGroups,
       history,
       totalCount,

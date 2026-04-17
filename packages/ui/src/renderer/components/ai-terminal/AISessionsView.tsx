@@ -4,6 +4,7 @@ import { RefreshCw, Search, X } from "lucide-react";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
 import { useRepoStore } from "../../store/repoStore";
+import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { filterSessionGroups } from "../../utils/sessionTreeBuilder";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
@@ -57,6 +58,7 @@ export function AISessionsView({
   const repos = useRepoStore((s) => s.repos);
   const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
   const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
+  const pinnedSessionKeys = usePinnedSessionsStore((s) => s.pinnedKeys);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
@@ -256,7 +258,7 @@ export function AISessionsView({
 
   // Build unified groups: merge live sessions + synced history, grouped by repo/dir.
   const unifiedGroups = useMemo(() => {
-    let groups = buildUnifiedGroups(sessions, syncedGroups, repos);
+    let groups = buildUnifiedGroups(sessions, syncedGroups, repos, pinnedSessionKeys);
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -281,7 +283,7 @@ export function AISessionsView({
     const [active] = reordered.splice(idx, 1);
     reordered.unshift(active);
     return reordered;
-  }, [sessions, syncedGroups, repos, activeRepoPath, searchQuery, pinnedPaths]);
+  }, [sessions, syncedGroups, repos, activeRepoPath, searchQuery, pinnedPaths, pinnedSessionKeys]);
 
   return (
     <div

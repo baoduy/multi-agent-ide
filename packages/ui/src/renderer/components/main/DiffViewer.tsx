@@ -18,12 +18,25 @@ import { FileIconBadge } from "../common/fileIcons";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 
 export type DiffViewerProps = {
-  /** Absolute path to the file on disk (working tree version). */
+  /**
+   * Path to the file.
+   * - Working-tree mode (`fromRef`/`toRef` unset): absolute path on disk.
+   * - Ref-vs-ref mode (both `fromRef` and `toRef` set): repo-relative path.
+   */
   filePath: string;
-  /** Repo root (used to derive the relative path for `git show HEAD:…`). */
+  /** Repo root. Used to derive the relative path for `git show …`. */
   repoPath: string;
   /** Git status so we can skip fetching the old/new side when appropriate. */
   fileStatus: string;
+  /**
+   * If set together with `toRef`, DiffViewer compares two refs instead of
+   * HEAD-vs-working-tree. Old side → `git show <fromRef>:<oldPath ?? filePath>`,
+   * new side → `git show <toRef>:<filePath>`.
+   */
+  fromRef?: string;
+  toRef?: string;
+  /** Rename support: path of the file on the `fromRef` side (if different). */
+  oldPath?: string;
 };
 
 /** Pick a CodeMirror language extension based on the file extension. */
@@ -61,6 +74,9 @@ export function DiffViewer({
   filePath,
   repoPath,
   fileStatus,
+  fromRef,
+  toRef,
+  oldPath,
 }: DiffViewerProps): React.ReactElement {
   const { resolved } = useTheme();
   const isDark = resolved === "dark";
@@ -70,9 +86,14 @@ export function DiffViewer({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const relativePath = filePath.startsWith(repoPath)
-    ? filePath.slice(repoPath.length).replace(/^\//, "")
-    : filePath;
+  // Ref-vs-ref mode when both refs are supplied; otherwise HEAD-vs-working.
+  const refMode = Boolean(fromRef && toRef);
+
+  const relativePath = refMode
+    ? filePath
+    : filePath.startsWith(repoPath)
+      ? filePath.slice(repoPath.length).replace(/^\//, "")
+      : filePath;
   const fileName = filePath.split("/").pop() ?? filePath;
 
   /** Simple line-based diff stats (additions / deletions). */
@@ -111,27 +132,55 @@ export function DiffViewer({
         const isDeleted = fileStatus === "deleted";
 
         let old = "";
-        if (!isNew) {
+        let current = "";
+
+        if (refMode) {
+          // Compare two arbitrary refs. Either side may be missing (add/delete).
+          const leftPath = oldPath ?? filePath;
           try {
             const resp = await ipc.send({
               type: "gitfile:read",
               repoPath,
-              ref: "HEAD",
-              relativePath,
+              ref: fromRef!,
+              relativePath: leftPath,
             });
             if (resp.type === "gitfile:read:result") old = resp.content;
           } catch {
-            // File doesn't exist in HEAD (new file) — leave empty
+            // File didn't exist on `fromRef` (added in this commit range).
           }
-        }
-
-        let current = "";
-        if (!isDeleted) {
           try {
-            const resp = await ipc.send({ type: "file:read", filePath });
-            if (resp.type === "file:read:result") current = resp.content;
+            const resp = await ipc.send({
+              type: "gitfile:read",
+              repoPath,
+              ref: toRef!,
+              relativePath: filePath,
+            });
+            if (resp.type === "gitfile:read:result") current = resp.content;
           } catch {
-            // File might not be readable — leave empty
+            // File didn't exist on `toRef` (deleted in this commit range).
+          }
+        } else {
+          if (!isNew) {
+            try {
+              const resp = await ipc.send({
+                type: "gitfile:read",
+                repoPath,
+                ref: "HEAD",
+                relativePath,
+              });
+              if (resp.type === "gitfile:read:result") old = resp.content;
+            } catch {
+              // File doesn't exist in HEAD (new file) — leave empty
+            }
+          }
+
+          if (!isDeleted) {
+            try {
+              const resp = await ipc.send({ type: "file:read", filePath });
+              if (resp.type === "file:read:result") current = resp.content;
+            } catch {
+              // File might not be readable — leave empty
+            }
           }
         }
 
@@ -150,7 +199,7 @@ export function DiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [filePath, repoPath, relativePath, fileStatus]);
+  }, [filePath, repoPath, relativePath, fileStatus, refMode, fromRef, toRef, oldPath]);
 
   if (isLoading) {
     return (
@@ -213,7 +262,9 @@ export function DiffViewer({
             fontFamily: "var(--font-mono)",
           }}
         >
-          {relativePath}
+          {refMode
+            ? `${fromRef!.slice(0, 7)} → ${toRef!.slice(0, 7)}`
+            : relativePath}
         </span>
         <FileStatusBadge status={fileStatus as any} />
 

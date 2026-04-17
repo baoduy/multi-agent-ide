@@ -89,7 +89,58 @@ The `spec_cache` table from migration `0005` has been dropped; the `specs` and `
 
 ## Flows
 
+### Pipeline stages
+
+```mermaid
+flowchart LR
+    C[constitution] --> S[spec]
+    S --> P[plan]
+    P --> T[tasks]
+    T --> I[implementation]
+
+    classDef pending fill:#f3f4f6,stroke:#9ca3af,color:#111;
+    classDef review fill:#fef3c7,stroke:#d97706,color:#111;
+    classDef approved fill:#dcfce7,stroke:#16a34a,color:#111;
+
+    class C pending
+    class S review
+    class P approved
+    class T pending
+    class I pending
+```
+
+Dot colours in the sidebar follow the same palette: grey for missing/pending, yellow for awaiting review, green for approved, blue for in-progress.
+
 ### First-time list for a repo
+
+```mermaid
+sequenceDiagram
+    participant UI as specStore
+    participant Coord as SessionCoordinator
+    participant H as specHandlers
+    participant App as SpecApplicationService
+    participant Repo as SpecRepository
+    participant Sync as SpecSyncService
+    participant R as SpecReader
+    participant Parser as SpecParser
+
+    UI->>Coord: selectRepo(path)
+    Coord->>UI: fetchSpecs(repoPath)
+    UI->>H: spec:list
+    H->>App: listSpecs()
+    App->>Repo: queryByRepo
+    alt no rows yet
+        App->>Sync: enqueue syncRepo
+        Sync->>R: listSpecs(workingTree + branches)
+        R->>Parser: parseTasksContent / approvals
+        R->>Repo: upsert specs + spec_stages
+        Sync-->>UI: spec:sync:complete (push)
+        UI->>App: spec:list (refetch)
+    end
+    App-->>UI: { specs }
+```
+
+Step-by-step:
 
 1. The user selects a repo. The renderer calls `specStore.fetchSpecs(repoPath)` which sets `isLoading=true` on first fetch for that repo.
 2. A `spec:list` request hits `SpecApplicationService.listSpecs`, which queries the DB. If the repo has no spec rows yet, a background sync is enqueued.

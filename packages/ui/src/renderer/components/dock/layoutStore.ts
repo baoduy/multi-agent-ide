@@ -27,11 +27,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
       { viewId: "repos", expanded: true, size: 300 },
       { viewId: "specs", expanded: true, size: 220 },
       { viewId: "md-file-tree", expanded: true, size: 400 },
-      { viewId: "git-repos", expanded: true, size: 240 },
-      { viewId: "git-file-tree", expanded: true, size: 300 },
-      { viewId: "git-changes", expanded: true, size: 260 },
-      { viewId: "git-branches", expanded: false, size: 220 },
-      { viewId: "git-history", expanded: false, size: 240 },
+      { viewId: "git-repos", expanded: true, size: 600 },
     ],
   },
   right: {
@@ -63,6 +59,16 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         iconViewId: "repos",
         viewIds: ["repos", "specs"],
         rightViewIds: ["spec-files", "repo-changes"],
+        ownedCenterViewIds: [
+          "specs-list",
+          "workflow",
+          "worktrees",
+          "ai-sessions",
+          "file-viewer",
+          "diff-viewer",
+          "agent-session",
+          "terminal-session",
+        ],
       },
       {
         id: "markdown-manager",
@@ -70,13 +76,22 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         iconViewId: "md-file-tree",
         viewIds: ["md-file-tree"],
         rightViewIds: [],
+        ownedCenterViewIds: ["file-viewer"],
+        hidesPinnedMain: true,
       },
       {
         id: "git",
         title: "Git Management",
-        iconViewId: "git-changes",
-        viewIds: ["git-repos", "git-file-tree", "git-changes", "git-branches", "git-history"],
+        iconViewId: "git-changes-center",
+        viewIds: ["git-repos"],
         rightViewIds: [],
+        ownedCenterViewIds: [
+          "git-changes-center",
+          "git-commit-composer",
+          "diff-viewer",
+        ],
+        hidesPinnedMain: true,
+        defaultCenterViewId: "git-changes-center",
       },
     ],
     activeGroupId: "explorer",
@@ -489,29 +504,75 @@ function loadPersistedLayout(): LayoutTree | null {
       parsed.left.sections.push({ viewId: "md-file-tree", expanded: true, size: 400 });
     }
 
-    // ── Migration: add Git Management group if missing ──
-    if (!parsed.activityBar.groups.some((g: ActivityBarGroup) => g.id === "git")) {
+    // ── Migration: add Git Management group if missing, or update shape ──
+    const gitGroup = parsed.activityBar.groups.find((g: ActivityBarGroup) => g.id === "git");
+    if (!gitGroup) {
       parsed.activityBar.groups.push({
         id: "git",
         title: "Git Management",
-        iconViewId: "git-changes",
-        viewIds: ["git-repos", "git-file-tree", "git-changes", "git-branches", "git-history"],
+        iconViewId: "git-changes-center",
+        viewIds: ["git-repos"],
         rightViewIds: [],
+        ownedCenterViewIds: [
+          "git-changes-center",
+          "git-commit-composer",
+          "diff-viewer",
+        ],
+        hidesPinnedMain: true,
+        defaultCenterViewId: "git-changes-center",
       });
+    } else {
+      // Rewire older persisted Git group shapes (file-tree right, branches left,
+      // orphan center views) to the simplified current layout.
+      gitGroup.viewIds = ["git-repos"];
+      gitGroup.rightViewIds = [];
+      gitGroup.iconViewId = "git-changes-center";
+      gitGroup.ownedCenterViewIds = [
+        "git-changes-center",
+        "git-commit-composer",
+        "diff-viewer",
+      ];
+      gitGroup.hidesPinnedMain = true;
+      gitGroup.defaultCenterViewId = "git-changes-center";
     }
 
-    // ── Migration: add git-* sections to left sidebar if missing ──
-    const gitSections: Array<{ viewId: string; expanded: boolean; size: number }> = [
-      { viewId: "git-repos", expanded: true, size: 240 },
-      { viewId: "git-file-tree", expanded: true, size: 300 },
-      { viewId: "git-changes", expanded: true, size: 260 },
-      { viewId: "git-branches", expanded: false, size: 220 },
-      { viewId: "git-history", expanded: false, size: 240 },
-    ];
-    for (const sec of gitSections) {
-      if (!parsed.left.sections.some((s: SectionState) => s.viewId === sec.viewId)) {
-        parsed.left.sections.push(sec);
-      }
+    // Ensure explorer + markdown groups have ownedCenterViewIds populated.
+    const explorer = parsed.activityBar.groups.find((g: ActivityBarGroup) => g.id === "explorer");
+    if (explorer && !explorer.ownedCenterViewIds) {
+      explorer.ownedCenterViewIds = [
+        "specs-list",
+        "workflow",
+        "worktrees",
+        "ai-sessions",
+        "file-viewer",
+        "diff-viewer",
+        "agent-session",
+        "terminal-session",
+      ];
+    }
+    const mdGroup = parsed.activityBar.groups.find((g: ActivityBarGroup) => g.id === "markdown-manager");
+    if (mdGroup && !mdGroup.ownedCenterViewIds) {
+      mdGroup.ownedCenterViewIds = ["file-viewer"];
+      mdGroup.hidesPinnedMain = true;
+    }
+
+    // ── Migration: drop left-sidebar git-file-tree, git-changes, git-branches,
+    //    git-history (moved / removed); drop right-sidebar git-file-tree
+    //    (Git group no longer has a right sidebar); seed git-repos as the sole
+    //    left section for the Git group. Branch switching lives in the repo
+    //    row's context menu; history + files live inside the Changes tab.
+    parsed.left.sections = parsed.left.sections.filter(
+      (s: SectionState) =>
+        s.viewId !== "git-file-tree" &&
+        s.viewId !== "git-changes" &&
+        s.viewId !== "git-branches" &&
+        s.viewId !== "git-history",
+    );
+    parsed.right.sections = parsed.right.sections.filter(
+      (s: SectionState) => s.viewId !== "git-file-tree",
+    );
+    if (!parsed.left.sections.some((s: SectionState) => s.viewId === "git-repos")) {
+      parsed.left.sections.push({ viewId: "git-repos", expanded: true, size: 600 });
     }
 
     return parsed;

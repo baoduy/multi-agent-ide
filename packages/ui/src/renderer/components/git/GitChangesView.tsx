@@ -1,19 +1,48 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { GitCommit, Download, ArrowDown, ArrowUp, Loader2, FolderPlus, Archive, Globe, RotateCcw } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useRepoStore } from "../../store/repoStore";
-import { RepoFileChanges } from "../activity/RepoFileChanges";
+import { localStore } from "../../services/localStorage";
 import { CommitDialog } from "../dialogs/CommitDialog";
 import { CloneRepoDialog } from "../dialogs/CloneRepoDialog";
 import { StashDialog } from "../dialogs/StashDialog";
 import { RemoteDialog } from "../dialogs/RemoteDialog";
 import { ResetConfirmDialog } from "../dialogs/ResetConfirmDialog";
+import { ResizeHandle } from "../dock/ResizeHandle";
+import { CommitGraphList, type SelectedRow } from "./CommitGraphList";
+import { ChangedFilesPanel } from "./ChangedFilesPanel";
+
+/* ── Persisted width for the left (graph) column so the user's preferred
+ * graph-vs-files ratio survives reloads. Files panel always gets the
+ * remaining width via flex: 1. ── */
+const GRAPH_WIDTH_MIN = 260;
+const GRAPH_WIDTH_MAX = 560;
+const GRAPH_WIDTH_DEFAULT = 340;
+
+const graphWidthStore = localStore<number>({
+  key: "magenta:git-graph-width",
+  fallback: GRAPH_WIDTH_DEFAULT,
+  validate: (raw) => (typeof raw === "number" && Number.isFinite(raw) ? raw : undefined),
+});
+
+function clampGraphWidth(w: number): number {
+  return Math.max(GRAPH_WIDTH_MIN, Math.min(GRAPH_WIDTH_MAX, Math.round(w)));
+}
 
 type GitChangesViewProps = {
   repoPath?: string;
+  /** Open a working-tree diff tab (file vs HEAD) — reuses the existing diff-viewer. */
   onOpenDiff?: (filePath: string, fileStatus: string) => void;
+  /** Open a ref-vs-ref diff tab for a commit-level file change (same diff-viewer, refs mode). */
+  onOpenRefDiff?: (args: {
+    repoPath: string;
+    fromRef?: string;
+    toRef: string;
+    path: string;
+    oldPath?: string;
+  }) => void;
   onOpenCommitComposer?: (repoPath: string) => void;
 };
 
@@ -23,7 +52,10 @@ type ToastState = { kind: "success" | "error"; text: string } | null;
 
 const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
 
-export function GitChangesView({ repoPath, onOpenDiff, onOpenCommitComposer }: GitChangesViewProps): React.ReactElement {
+/** Working-tree file count refresh cadence (mirrors RepoFileChanges' 60s). */
+const STATUS_REFRESH_INTERVAL = 60_000;
+
+export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenCommitComposer }: GitChangesViewProps): React.ReactElement {
   const repos = useRepoStore((s) => s.repos);
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
   const [busy, setBusy] = useState<BusyOp>(null);
@@ -33,9 +65,45 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenCommitComposer }: G
   const [showStash, setShowStash] = useState(false);
   const [showRemotes, setShowRemotes] = useState(false);
   const [showReset, setShowReset] = useState(false);
+  const [selected, setSelected] = useState<SelectedRow>({ kind: "working" });
+  const [workingTreeCount, setWorkingTreeCount] = useState<number | null>(null);
+  const [graphWidth, setGraphWidth] = useState<number>(() => clampGraphWidth(graphWidthStore.get()));
+  const graphWidthRef = useRef(graphWidth);
+  graphWidthRef.current = graphWidth;
+
+  const handleResize = useCallback((delta: number) => {
+    const next = clampGraphWidth(graphWidthRef.current + delta);
+    graphWidthRef.current = next;
+    setGraphWidth(next);
+  }, []);
+
+  const handleResizeEnd = useCallback(() => {
+    graphWidthStore.set(graphWidthRef.current);
+  }, []);
 
   const repo = repoPath ? repos.find((r) => r.path === repoPath) : undefined;
   const currentBranch = repo?.branch ?? "";
+
+  // ── Keep the Uncommitted row's badge in sync with `git status` ────────
+  useEffect(() => {
+    if (!repoPath) { setWorkingTreeCount(null); return; }
+    let cancelled = false;
+
+    const poll = () => {
+      sendOrThrow({ type: "git:status", repoPath })
+        .then((res) => { if (!cancelled) setWorkingTreeCount(res.files.length); })
+        .catch(() => { /* silent — the panel below surfaces errors */ });
+    };
+
+    poll();
+    const interval = setInterval(poll, STATUS_REFRESH_INTERVAL);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [repoPath, busy]);
+
+  // ── Reset selection when the active repo changes ─────────────────────
+  useEffect(() => {
+    setSelected({ kind: "working" });
+  }, [repoPath]);
 
   const showToast = useCallback((kind: "success" | "error", text: string) => {
     setToast({ kind, text });
@@ -91,8 +159,26 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenCommitComposer }: G
   }
 
   return (
-    <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+        minHeight: 0,
+        overflow: "hidden",
+      }}
+    >
+      {/* Toolbar */}
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          flexWrap: "wrap",
+          padding: "8px 12px",
+          borderBottom: `1px solid ${colors.borderLight}`,
+          flexShrink: 0,
+        }}
+      >
         <ActionButton icon={<GitCommit size={12} strokeWidth={2} />} label="Commit" onClick={handleCommit} primary />
         <ActionButton icon={<FolderPlus size={12} strokeWidth={2} />} label="Clone…" onClick={() => setShowClone(true)} />
         <ActionButton icon={busy === "fetch" ? <Loader2 size={12} style={spin} /> : <Download size={12} strokeWidth={2} />} label="Fetch" onClick={() => runOp("fetch")} disabled={busy !== null} />
@@ -109,17 +195,61 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenCommitComposer }: G
             fontSize: 11,
             color: toast.kind === "error" ? colors.error : colors.successText,
             background: toast.kind === "error" ? colors.errorSoft : colors.successSoft,
-            border: `1px solid ${toast.kind === "error" ? colors.errorSoftBorder : colors.successSoftBorder}`,
-            borderRadius: 4,
-            padding: "4px 8px",
+            borderBottom: `1px solid ${toast.kind === "error" ? colors.errorSoftBorder : colors.successSoftBorder}`,
+            padding: "4px 12px",
             lineHeight: 1.4,
+            flexShrink: 0,
           }}
         >
           {toast.text}
         </div>
       )}
 
-      <RepoFileChanges repoPath={repoPath} onOpenDiff={onOpenDiff} />
+      {/* Two-column body: commit graph (fixed, resizable) + files panel (fills remainder). */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "row",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: graphWidth,
+            flexShrink: 0,
+            minHeight: 0,
+            minWidth: 0,
+            overflow: "hidden",
+            display: "flex",
+          }}
+        >
+          <CommitGraphList
+            repoPath={repoPath}
+            workingTreeCount={workingTreeCount}
+            selected={selected}
+            onSelect={setSelected}
+          />
+        </div>
+        <ResizeHandle orientation="vertical" onResize={handleResize} onResizeEnd={handleResizeEnd} />
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            overflow: "hidden",
+            display: "flex",
+          }}
+        >
+          <ChangedFilesPanel
+            repoPath={repoPath}
+            selected={selected}
+            onOpenWorkingDiff={(filePath, fileStatus) => onOpenDiff?.(filePath, fileStatus)}
+            onOpenRefDiff={onOpenRefDiff}
+          />
+        </div>
+      </div>
 
       {showCommit && (
         <CommitDialog

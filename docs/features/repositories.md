@@ -79,6 +79,43 @@ Booleans are stored as 0/1 and converted by the `repoMapper` on the infrastructu
 
 ## Flows
 
+```mermaid
+sequenceDiagram
+    participant UI as RepoStore
+    participant H as repoHandlers
+    participant App as RepoApplicationService
+    participant Q as ScanQueue
+    participant S as RepoScanner
+    participant DB as RepoRepository
+    participant Spec as SpecSyncService
+    participant Bridge as IPCBridge
+
+    UI->>H: repo:scan
+    H->>App: scan()
+    App->>Q: enqueue (dedup)
+    Q->>S: walk workingDirs
+    loop per candidate
+        S-->>Bridge: repo:scan:progress
+        Bridge-->>UI: push event
+    end
+    S->>DB: upsert rows
+    S->>DB: mark missing repos
+    Q->>Spec: syncRepo(each)
+    Q-->>Bridge: repo:scan:complete
+    Bridge-->>UI: push event
+```
+
+### Repo status lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> active: first scan finds .git
+    active --> missing: path no longer exists
+    missing --> active: rescan finds it again
+    active --> archived: (reserved, no UI)
+    archived --> active: (reserved, no UI)
+```
+
 ### Initial scan
 
 1. The user clicks the scan button, or `DirWatcher` detects a relevant change. `ScanQueue` enqueues a deduplicated job through `BackgroundJobManager` so overlapping requests collapse.

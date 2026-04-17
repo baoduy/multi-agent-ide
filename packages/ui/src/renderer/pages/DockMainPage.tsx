@@ -284,6 +284,25 @@ export function DockMainPage(): React.ReactElement {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId]);
 
+  // ── Auto-open a group's default center view (e.g. git-changes-center) ──
+  //
+  // When the user switches to a group that declares `defaultCenterViewId`, make
+  // sure that tab exists and is active. This lands the user on the group's
+  // primary surface without needing them to open a tab manually.
+  useEffect(() => {
+    if (!activeGroup?.defaultCenterViewId) return;
+    const defaultViewId = activeGroup.defaultCenterViewId;
+    const tabs = useLayoutStore.getState().layout.center.tabs;
+    const existing = tabs.find((t) => t.viewId === defaultViewId);
+    const tabId = existing?.tabId ?? `group-${activeGroup.id}-${defaultViewId}`;
+    if (!existing) {
+      openTab("center", { tabId, viewId: defaultViewId });
+    } else {
+      setActiveTab("center", tabId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeGroupId]);
+
   // ── Snapshot persistence on repo switch ──
   // Per-repo memory intentionally excludes the title bar tab — the active
   // builtin view (specs/workflow/worktrees/ai) stays wherever the user has it
@@ -466,6 +485,31 @@ export function DockMainPage(): React.ReactElement {
       });
     },
     [openTab, activeRepoPath]
+  );
+
+  const handleOpenRefDiff = useCallback(
+    (args: { repoPath: string; fromRef?: string; toRef: string; path: string; oldPath?: string }) => {
+      const shortTo = args.toRef.slice(0, 7);
+      const shortFrom = args.fromRef ? args.fromRef.slice(0, 7) : "∅";
+      const fileName = args.path.split("/").pop() ?? args.path;
+      const tabId = `refdiff-${args.toRef}-${args.path}`;
+      // Route through the existing diff-viewer — same CodeMirror Merge UI
+      // as working-tree diffs. Ref-mode is triggered by supplying both refs.
+      openTab("center", {
+        tabId,
+        viewId: "diff-viewer",
+        props: {
+          repoPath: args.repoPath,
+          filePath: args.path,
+          fileStatus: "modified",
+          fromRef: args.fromRef,
+          toRef: args.toRef,
+          oldPath: args.oldPath,
+        },
+        title: `${fileName} ${shortFrom}→${shortTo}`,
+      });
+    },
+    [openTab]
   );
 
   const terminalCounter = useRef(0);
@@ -670,6 +714,10 @@ export function DockMainPage(): React.ReactElement {
       repoName,
       onOpenAgentSession: handleOpenAgentSession,
       onOpenTerminalSession: handleOpenTerminalSession,
+    },
+    "git-changes-center": {
+      onOpenDiff: handleOpenDiff,
+      onOpenRefDiff: handleOpenRefDiff,
     },
   };
 

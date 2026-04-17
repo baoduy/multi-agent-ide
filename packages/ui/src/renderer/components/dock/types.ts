@@ -112,6 +112,24 @@ export type ActivityBarGroup = {
   viewIds: string[];
   /** Right-sidebar section viewIds that belong to this group. Empty/undefined = no right panel. */
   rightViewIds?: string[];
+  /**
+   * Center-region tab viewIds that belong to this group.
+   * When this group is active, only tabs whose viewId is in this set are shown.
+   * Undefined = show everything (legacy / unrestricted group).
+   */
+  ownedCenterViewIds?: string[];
+  /**
+   * When true, the pinned "main" tab (controlled by the TitleBar) is hidden
+   * while this group is active. Use for groups that don't rely on the
+   * TitleBar-driven Specs/Workflow/Worktrees/AI workflow.
+   */
+  hidesPinnedMain?: boolean;
+  /**
+   * If set, this viewId is auto-opened as a center tab the first time this
+   * group becomes active (and activated). Used to land the user directly on
+   * a group's primary surface without needing them to open a tab manually.
+   */
+  defaultCenterViewId?: string;
 };
 
 export type ActivityBarState = {

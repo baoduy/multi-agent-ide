@@ -13,7 +13,6 @@ import {
   GitBranch,
   GitCompareArrows,
   GitCommit,
-  GitFork,
   Workflow,
   Bot,
   FileCode,
@@ -21,8 +20,6 @@ import {
   Terminal,
   ScrollText,
   BookText,
-  FolderTree,
-  History,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
 
@@ -44,14 +41,8 @@ import { MagentaTerminal } from "../common/MagentaTerminal";
 import { LogViewer } from "../common/LogViewer";
 import { useSpecStore } from "../../store/specStore";
 import { colors } from "../../utils/colors";
-import { GitFileTree } from "../git/GitFileTree";
 import { GitChangesView } from "../git/GitChangesView";
-import { GitBranchList } from "../git/GitBranchList";
-import { HistorySidebar } from "../git/HistorySidebar";
-import { HistoryTab } from "../git/HistoryTab";
-import { RefDiffViewer } from "../git/RefDiffViewer";
 import { CommitComposerTab } from "../git/CommitComposerTab";
-import { BlameTab } from "../git/BlameTab";
 
 /**
  * Thin wrapper components that adapt existing panels to the DockView system.
@@ -108,19 +99,11 @@ function GitReposSidebarView(): React.ReactElement {
   return <Sidebar />;
 }
 
-/* ── Git Management: File tree of active repo ── */
-
-function GitFileTreeView(props: {
-  onOpenFile?: (filePath: string) => void;
-}): React.ReactElement {
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  return <GitFileTree repoPath={activeRepoPath ?? undefined} onOpenFile={props.onOpenFile} />;
-}
-
 /* ── Git Management: Working tree changes + push/pull/fetch/commit buttons ── */
 
-function GitChangesSidebarView(props: {
+function GitChangesCenterView(props: {
   onOpenDiff?: (filePath: string, fileStatus: string) => void;
+  onOpenRefDiff?: (args: { repoPath: string; fromRef?: string; toRef: string; path: string; oldPath?: string }) => void;
   onOpenCommitComposer?: (repoPath: string) => void;
 }): React.ReactElement {
   const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
@@ -128,25 +111,10 @@ function GitChangesSidebarView(props: {
     <GitChangesView
       repoPath={activeRepoPath ?? undefined}
       onOpenDiff={props.onOpenDiff}
+      onOpenRefDiff={props.onOpenRefDiff}
       onOpenCommitComposer={props.onOpenCommitComposer}
     />
   );
-}
-
-/* ── Git Management: Branches ── */
-
-function GitBranchesSidebarView(): React.ReactElement {
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  return <GitBranchList repoPath={activeRepoPath ?? undefined} />;
-}
-
-/* ── Git Management: History (commit log) ── */
-
-function GitHistorySidebarView(props: {
-  onOpenCommit?: (repoPath: string, sha: string) => void;
-}): React.ReactElement {
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  return <HistorySidebar repoPath={activeRepoPath ?? undefined} onOpenCommit={props.onOpenCommit} />;
 }
 
 /* ── Git Management: Commit composer center tab ── */
@@ -156,61 +124,6 @@ function CommitComposerTabView(props: {
 }): React.ReactElement {
   const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
   return <CommitComposerTab repoPath={props.repoPath ?? activeRepoPath ?? undefined} />;
-}
-
-/* ── Git Management: Commit detail center tab ── */
-
-function CommitHistoryTabView(props: {
-  repoPath?: string;
-  sha?: string;
-  onOpenDiff?: (repoPath: string, sha: string, filePath: string) => void;
-}): React.ReactElement {
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  return (
-    <HistoryTab
-      repoPath={props.repoPath ?? activeRepoPath ?? undefined}
-      sha={props.sha}
-      onOpenDiff={props.onOpenDiff}
-    />
-  );
-}
-
-/* ── Git Management: Ref-to-ref diff center tab ── */
-
-function RefDiffTabView(props: {
-  repoPath?: string;
-  fromRef?: string;
-  toRef?: string;
-  path?: string;
-}): React.ReactElement {
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  return (
-    <RefDiffViewer
-      repoPath={props.repoPath ?? activeRepoPath ?? undefined}
-      fromRef={props.fromRef}
-      toRef={props.toRef}
-      path={props.path}
-    />
-  );
-}
-
-/* ── Git Management: Blame center tab ── */
-
-function BlameTabView(props: {
-  repoPath?: string;
-  path?: string;
-  ref?: string;
-  onOpenCommit?: (repoPath: string, sha: string) => void;
-}): React.ReactElement {
-  const activeRepoPath = useRepoStore((state) => state.activeRepoPath);
-  return (
-    <BlameTab
-      repoPath={props.repoPath ?? activeRepoPath ?? undefined}
-      path={props.path}
-      ref={props.ref}
-      onOpenCommit={props.onOpenCommit}
-    />
-  );
 }
 
 /* ── Right Sidebar: Repo File Changes ── */
@@ -471,59 +384,13 @@ export function registerAllViews(): void {
   });
 
   viewRegistry.register({
-    id: "git-file-tree",
-    title: "Files",
-    icon: <FolderTree size={14} strokeWidth={1.5} />,
-    component: GitFileTreeView,
-    defaultLocation: "left",
-    closable: false,
-    keepAlive: true,
-    activityGroup: "primary",
-    activityOrder: 21,
-    searchable: true,
-    searchPlaceholder: "Filter files…",
-  });
-
-  viewRegistry.register({
-    id: "git-changes",
+    id: "git-changes-center",
     title: "Changes",
-    icon: <GitBranch size={20} strokeWidth={1.5} />,
-    component: GitChangesSidebarView,
-    defaultLocation: "left",
+    icon: <GitBranch size={14} strokeWidth={1.8} />,
+    component: GitChangesCenterView,
+    defaultLocation: "center",
     closable: false,
     keepAlive: true,
-    activityGroup: "primary",
-    activityOrder: 22,
-    searchable: true,
-    searchPlaceholder: "Search changes…",
-  });
-
-  viewRegistry.register({
-    id: "git-branches",
-    title: "Branches",
-    icon: <GitFork size={14} strokeWidth={1.5} />,
-    component: GitBranchesSidebarView,
-    defaultLocation: "left",
-    closable: false,
-    keepAlive: true,
-    activityGroup: "primary",
-    activityOrder: 23,
-    searchable: true,
-    searchPlaceholder: "Filter branches…",
-  });
-
-  viewRegistry.register({
-    id: "git-history",
-    title: "History",
-    icon: <History size={14} strokeWidth={1.5} />,
-    component: GitHistorySidebarView,
-    defaultLocation: "left",
-    closable: false,
-    keepAlive: true,
-    activityGroup: "primary",
-    activityOrder: 24,
-    searchable: true,
-    searchPlaceholder: "Filter commits…",
   });
 
   viewRegistry.register({
@@ -531,39 +398,6 @@ export function registerAllViews(): void {
     title: "Commit",
     icon: <GitCommit size={14} strokeWidth={1.8} />,
     component: CommitComposerTabView,
-    defaultLocation: "center",
-    canHaveMultiple: true,
-    closable: true,
-    keepAlive: false,
-  });
-
-  viewRegistry.register({
-    id: "git-commit-detail",
-    title: "Commit",
-    icon: <GitCommit size={14} strokeWidth={1.8} />,
-    component: CommitHistoryTabView,
-    defaultLocation: "center",
-    canHaveMultiple: true,
-    closable: true,
-    keepAlive: false,
-  });
-
-  viewRegistry.register({
-    id: "git-ref-diff",
-    title: "Diff",
-    icon: <GitCompareArrows size={14} strokeWidth={1.8} />,
-    component: RefDiffTabView,
-    defaultLocation: "center",
-    canHaveMultiple: true,
-    closable: true,
-    keepAlive: false,
-  });
-
-  viewRegistry.register({
-    id: "git-blame",
-    title: "Blame",
-    icon: <History size={14} strokeWidth={1.8} />,
-    component: BlameTabView,
     defaultLocation: "center",
     canHaveMultiple: true,
     closable: true,

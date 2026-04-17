@@ -64,7 +64,46 @@ The install template lives in config at `~/.magenta/config.json` under `specifyC
 
 ## Flows
 
+### Onboarding process state
+
+```mermaid
+stateDiagram-v2
+    [*] --> select: open dialog
+    select --> running: Start clicked
+    running --> done: child exits
+    running --> done: cancel (SIGTERM → SIGKILL after 2s)
+    running --> done: spawn error (ENOENT)
+    done --> [*]: dismiss
+```
+
 ### Onboard a repo with a worktree
+
+```mermaid
+sequenceDiagram
+    participant UI as OnboardDialog
+    participant Store as onboardStore
+    participant H as onboardHandlers
+    participant App as OnboardApplicationService
+    participant Git as GitGateway
+    participant Spawn as child_process
+    participant Bridge as IPCBridge
+
+    UI->>H: repo:onboard { agent, useWorktree: true }
+    H->>App: onboard()
+    App->>Git: createWorktree + gitignore .worktrees/
+    App->>Spawn: spawn specify command
+    H-->>Store: repo:onboard:started
+    loop per output chunk
+        Spawn-->>App: stdout / stderr
+        App-->>Bridge: repo:onboard:output
+        Bridge-->>Store: append to process output
+    end
+    Spawn-->>App: exit(code)
+    App-->>Bridge: repo:onboard:complete { success }
+    Bridge-->>Store: mark done
+```
+
+### Onboard a repo with a worktree (steps)
 
 1. The user opens `OnboardDialog`, picks an agent, and toggles the "use worktree" checkbox. Clicking Start sends `repo:onboard` with `useWorktree=true`.
 2. `OnboardApplicationService.onboard` creates a worktree at `.worktrees/specify-init-<branch>-<timestamp>` on a new branch `specify-init/<branch>`, ensures `.worktrees/` is in `.gitignore` (silently skipping if the `.gitignore` is read-only or missing), then spawns the templated command inside the worktree cwd.

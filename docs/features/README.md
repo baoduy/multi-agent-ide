@@ -4,6 +4,67 @@ This directory describes the features Magenta IDE actually ships today. Each fil
 
 These documents describe the shipped state, not plans. Design proposals and implementation roadmaps live in `../plans/` (see for example `git-manager-feature.md` in this directory, which pre-dates the convention — it is an implementation plan, not a reference).
 
+## Feature Map
+
+```mermaid
+flowchart LR
+    subgraph UI[Renderer / UI Shell]
+        Dock[Dock Layout]
+        Theme[Theme System]
+        Config[Configuration]
+    end
+
+    subgraph RepoLayer[Repo + Spec Layer]
+        Repos[Repositories]
+        Onboard[Onboarding]
+        Spec[Spec Pipeline]
+    end
+
+    subgraph Agents[Agent Layer]
+        AI[AI Sessions]
+        Synced[Synced Sessions]
+        Term[Terminal]
+    end
+
+    subgraph VCS[Version Control]
+        Git[Git Management]
+        WT[Worktrees]
+    end
+
+    subgraph Docs[Content]
+        MD[Markdown Manager]
+    end
+
+    Dock --> Repos
+    Dock --> Spec
+    Dock --> AI
+    Dock --> Synced
+    Dock --> Git
+    Dock --> WT
+    Dock --> MD
+
+    Repos --> Onboard
+    Repos --> Spec
+    Onboard --> Spec
+    Spec --> Git
+    Spec --> WT
+
+    AI --> WT
+    AI --> Synced
+    Synced --> Repos
+
+    Git --> WT
+    MD --> Git
+    MD --> Repos
+
+    Config -.- Repos
+    Config -.- Spec
+    Config -.- Synced
+    Config -.- Onboard
+```
+
+Solid arrows are runtime dependencies (feature A invokes feature B). Dotted lines are configuration relationships.
+
 ## Feature Index
 
 | Area | Document | What it covers |

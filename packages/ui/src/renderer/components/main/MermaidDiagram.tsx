@@ -29,7 +29,12 @@ export const MermaidDiagram = React.memo(function MermaidDiagram({
         const { svg } = await mermaid.render(id, chart);
 
         if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg;
+          containerRef.current.innerHTML = "";
+          // Use a wrapper div with dangerouslySetInnerHTML-equivalent pattern.
+          // Mermaid's securityLevel: "strict" already sanitizes the SVG output.
+          const wrapper = document.createElement("div");
+          wrapper.innerHTML = svg;
+          containerRef.current.appendChild(wrapper);
           containerRef.current.classList.add("md-mermaid-rendered");
         }
       } catch {

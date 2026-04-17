@@ -6,21 +6,7 @@
   "author": "Steven Hoang <drunkcoding@outlook.com>",
   "main": "packages/main/dist/index.js",
   "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "packageExtensions": {
-      "@emoji-mart/react@1.1.1": {
-        "peerDependencies": {
-          "react": "^16.8 || ^17 || ^18 || ^19"
-        }
-      },
-      "react-avatar-editor@13.0.2": {
-        "peerDependencies": {
-          "react": "^0.14.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0",
-          "react-dom": "^0.14.0 || ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0"
-        }
-      }
-    }
-  },
+  "pnpm": {},
   "scripts": {
     "dev": "pnpm build && pnpm -C packages/main dev",
     "dev:watch": "pnpm -r --parallel dev",
@@ -42,7 +28,7 @@
     "postinstall": "electron-rebuild -f -w node-pty"
   },
   "devDependencies": {
-    "@electron/rebuild": "*",
+    "@electron/rebuild": "^4.0.3",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",

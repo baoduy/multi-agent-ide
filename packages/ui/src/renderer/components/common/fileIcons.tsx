@@ -169,6 +169,15 @@ export function getRepoFolderIconInfo(): FileIconInfo {
 
 /* ── Render helpers ── */
 
+const FILE_ICON_BADGE_STYLE: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 22,
+  height: 22,
+  flexShrink: 0,
+};
+
 /**
  * Renders a coloured VSCode-style file-type icon (22×22 container).
  * Uses Iconify + the vscode-icons pack for authentic per-extension glyphs.
@@ -183,16 +192,7 @@ export function FileIconBadge({
   const ext = getFileExtension(fileName);
   const iconName = VSCODE_EXT_MAP[ext] ?? DEFAULT_VSCODE_ICON;
   return (
-    <span
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 22,
-        height: 22,
-        flexShrink: 0,
-      }}
-    >
+    <span style={FILE_ICON_BADGE_STYLE}>
       <Icon icon={iconName} width={size} height={size} />
     </span>
   );

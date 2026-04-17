@@ -22,11 +22,11 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "@types/node": "*",
-    "electron": "*",
+    "@types/node": "^25.6.0",
+    "electron": "^41.2.1",
     "playwright": "^1.59.1",
     "playwright-bdd": "^8.5.0",
     "tsx": "^4.21.0",
-    "typescript": "*"
+    "typescript": "^6.0.3"
   }
 }

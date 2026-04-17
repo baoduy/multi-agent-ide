@@ -349,19 +349,19 @@ export const useLayoutStore = create<LayoutStoreState>((set) => ({
   },
 }));
 
-/* ── Auto-persist on change (debounced) ── */
+/* ── Auto-persist on change (debounced via requestIdleCallback) ── */
 
-let persistTimer: ReturnType<typeof setTimeout> | null = null;
+let persistTimer: ReturnType<typeof requestIdleCallback> | null = null;
 
 useLayoutStore.subscribe((state) => {
-  if (persistTimer) clearTimeout(persistTimer);
-  persistTimer = setTimeout(() => {
+  if (persistTimer) cancelIdleCallback(persistTimer);
+  persistTimer = requestIdleCallback(() => {
     try {
       localStorage.setItem("magenta:dock-layout", JSON.stringify(state.layout));
     } catch {
       // Ignore storage errors
     }
-  }, 500);
+  }, { timeout: 1000 });
 });
 
 /* ── Load/clear helpers ── */

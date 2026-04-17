@@ -29,6 +29,7 @@ const config = {
     ".css": "text",
   },
   jsx: "automatic",
+  minify: true,
   define: {
     "process.env.NODE_ENV": '"production"',
   },

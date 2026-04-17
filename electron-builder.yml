@@ -21,8 +21,8 @@ files:
   # UI bundle (loaded by renderer/index.html)
   - packages/ui/dist/**/*
 
-  # Daemon (forked as child process by main)
-  - packages/daemon/dist/**/*
+  # Daemon (forked as child process by main — only the esbuild bundle is needed)
+  - packages/daemon/dist/daemon-ipc-worker.js
 
   # Shared types/schemas (imported by main + daemon at runtime)
   - packages/shared/dist/**/*
@@ -42,6 +42,11 @@ files:
   - "!**/test/**"
   - "!**/tests/**"
   - "!**/.github/**"
+  - "!**/*.d.ts"
+  - "!**/*.d.ts.map"
+  - "!**/*.js.map"
+  - "!**/README*"
+  - "!**/CHANGELOG*"
 
 # ── Extra resources (outside the asar, accessible via process.resourcesPath) ─
 extraResources:
@@ -69,10 +74,9 @@ asar: true
 asarUnpack:
   # Native modules and binaries that need to run outside the archive
   - "**/*.node"
-  - "**/sql.js/**"
 
 # ── Compression ──────────────────────────────────────────────────────────────
-compression: normal
+compression: maximum
 
 # ── Publishing ───────────────────────────────────────────────────────────────
 # Publishing is handled by softprops/action-gh-release in the GitHub Actions

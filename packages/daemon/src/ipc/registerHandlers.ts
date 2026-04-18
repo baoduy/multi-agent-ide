@@ -7,6 +7,7 @@ import type { ScanQueue } from "../services/ScanQueue";
 import type { TerminalApplicationService } from "../application/TerminalApplicationService";
 import type { AISessionApplicationService } from "../application/AISessionApplicationService";
 import type { SessionSyncApplicationService } from "../application/SessionSyncApplicationService";
+import type { WorktreeSyncApplicationService } from "../application/WorktreeSyncApplicationService";
 import { registerRepoHandlers } from "./handlers/repoHandlers";
 import { registerSpecHandlers } from "./handlers/specHandlers";
 import { registerGitMetadataHandlers } from "./handlers/gitMetadataHandlers";
@@ -60,6 +61,7 @@ export type HandlerContext = {
   terminalService: TerminalApplicationService;
   aiSessionService: AISessionApplicationService;
   sessionSyncService: SessionSyncApplicationService;
+  worktreeSyncService: WorktreeSyncApplicationService;
   gitGateway: GitGateway;
   /** Read-side gateways owned by DaemonContainer. */
   fileSystemGateway: FileSystemGateway;
@@ -91,7 +93,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerGitMetadataHandlers({ bridge, specService, specGitGateway });
   registerConfigHandlers({ bridge, configManager: context.configManager });
   registerFileHandlers({ bridge, fileSystemGateway });
-  registerWorktreeHandlers({ bridge, worktreeService });
+  registerWorktreeHandlers({ bridge, worktreeService, worktreeSyncService: context.worktreeSyncService });
 
   const onboardService = new OnboardApplicationService(bridge, context.configManager);
   registerOnboardHandlers({ bridge, onboardService });

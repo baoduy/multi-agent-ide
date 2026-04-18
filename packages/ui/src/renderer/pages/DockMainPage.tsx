@@ -116,13 +116,17 @@ export function DockMainPage(): React.ReactElement {
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
   const initConfigSubscriptions = useConfigStore((s) => s.initializeSubscriptions);
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
+  const initWorktreeSubscriptions = useWorktreeStore((s) => s.initializeSubscriptions);
+  const loadWorktreesFromDb = useWorktreeStore((s) => s.loadFromDb);
 
   useEffect(() => {
     initRepoSubscriptions();
     initConfigSubscriptions();
+    initWorktreeSubscriptions();
     void fetchRepos();
     void fetchConfig();
-  }, [initRepoSubscriptions, initConfigSubscriptions, fetchRepos, fetchConfig]);
+    void loadWorktreesFromDb();
+  }, [initRepoSubscriptions, initConfigSubscriptions, initWorktreeSubscriptions, fetchRepos, fetchConfig, loadWorktreesFromDb]);
 
   // ── State ──
   const sessionInitialized = useSessionStore((s) => s.initialized);
@@ -132,8 +136,6 @@ export function DockMainPage(): React.ReactElement {
   const selectedSpecPath = useSpecStore((s) => s.selectedSpecPath);
   const setSelectedSpecPath = useSpecStore((s) => s.setSelectedSpecPath);
   const specs = useSpecStore((s) => s.specs);
-  const fetchWorktreesForAll = useWorktreeStore((s) => s.fetchWorktreesForAll);
-  const fetchWorktreesIfNeeded = useWorktreeStore((s) => s.fetchWorktreesIfNeeded);
   const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
 
   // Sidebar collapse (mapped to dock layout)
@@ -254,22 +256,9 @@ export function DockMainPage(): React.ReactElement {
     return { kind: "builtin", id: bid ?? "specs" };
   }, [mainViewId]);
 
-  // ── Fetch worktrees for pinned repos + active repo once repos are loaded ──
-  useEffect(() => {
-    if (repos.length === 0) return;
-    const paths = new Set(pinnedPaths);
-    if (activeRepoPath) paths.add(activeRepoPath);
-    if (paths.size > 0) {
-      void fetchWorktreesForAll([...paths]);
-    }
-  }, [repos, pinnedPaths, activeRepoPath, fetchWorktreesForAll]);
-
-  // ── Incrementally fetch worktrees when the active repo changes ──
-  useEffect(() => {
-    if (activeRepoPath) {
-      void fetchWorktreesIfNeeded(activeRepoPath);
-    }
-  }, [activeRepoPath, fetchWorktreesIfNeeded]);
+  // Worktrees are loaded at boot and refreshed by the 1-minute daemon sync
+  // (see worktreeStore.loadFromDb + initializeSubscriptions). No per-repo
+  // fetch effects here — the DB cache covers every repo already.
 
   // ── Auto-collapse/restore right sidebar when switching dock groups ──
   const prevGroupIdRef = useRef(activeGroupId);

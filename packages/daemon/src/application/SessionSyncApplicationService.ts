@@ -61,8 +61,21 @@ export class SessionSyncApplicationService {
    * Triggers a one-time session sync job.
    * Called at app startup and can be triggered manually via IPC.
    * Uses BackgroundJobManager for deduplication.
+   *
+   * When `repoPath` is provided, the sweep is scoped to that repo (+ its
+   * worktrees) only. Other repos' rows are left untouched and stale-session
+   * cleanup is skipped — the next full sync (driven by setAITabActive)
+   * handles cleanup. Copilot sessions are also skipped in scoped mode
+   * because they have no repo filter in the schema.
    */
-  triggerSync(): void {
+  triggerSync(repoPath?: string): void {
+    if (repoPath) {
+      const jobName = `${JOB_NAME}:${repoPath}`;
+      this.jobManager.enqueue(jobName, async () => {
+        await this.executeSyncForRepo(repoPath);
+      });
+      return;
+    }
     this.jobManager.enqueue(JOB_NAME, async () => {
       await this.executeSyncAll();
     });
@@ -241,6 +254,31 @@ export class SessionSyncApplicationService {
       type: "synced-session:sync:complete",
       claudeCount,
       copilotCount,
+    });
+  }
+
+  /**
+   * Sync just Claude Code sessions belonging to one repo (+ its worktrees).
+   * No cleanup runs — the next full sweep handles stale rows.
+   */
+  private async executeSyncForRepo(repoPath: string): Promise<void> {
+    const worktrees = await this.gitGateway.listWorktrees(repoPath).catch(() => []);
+    const worktreePaths = worktrees.map((w) => w.worktreePath);
+    const knownPaths = collectKnownPaths([repoPath], [], worktreePaths);
+
+    let claudeCount = 0;
+    try {
+      claudeCount = await this.syncClaudeSessions(knownPaths);
+    } catch (err) {
+      console.error(`${TAG} Scoped Claude sync failed for ${repoPath}:`, err);
+    }
+
+    this.repository.flush();
+
+    this.bridge.emit({
+      type: "synced-session:sync:complete",
+      claudeCount,
+      copilotCount: 0,
     });
   }
 

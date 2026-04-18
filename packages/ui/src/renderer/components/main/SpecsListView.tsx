@@ -359,7 +359,6 @@ const SpecSticker = React.memo(function SpecSticker({
         {spec.branch && (
           <Tag
             tone={spec.isCurrentBranch ? "success" : "neutral"}
-            size="sm"
             // Non-current branches borrow the neutral tone but still want a
             // visible outline — the neutral palette has no border, so pass
             // the default divider colour explicitly.

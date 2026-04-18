@@ -56,6 +56,7 @@ export const SessionStateSchema = z.object({
   activityCollapsed: z.boolean(),
   specPanelHeight: z.number().int().positive().nullable(),
   mainTab: z.enum(MAIN_TABS),
+  componentDensity: z.enum(["xs", "sm"]).default("xs"),
   updatedAt: z.number().int().nonnegative(),
 });
 
@@ -101,6 +102,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("worktree:create"), repoPath: z.string(), branch: z.string(), name: z.string() }),
   z.object({ type: z.literal("worktree:list"), repoPath: z.string().optional() }),
+  // Trigger a one-off worktree sync sweep. When `repoPath` is set, the sweep
+  // is scoped to just that repo (+ its worktrees). Otherwise every active
+  // repo is re-scanned.
+  z.object({ type: z.literal("worktree:trigger-sync"), repoPath: z.string().optional() }),
   // `aiAgent` is templated into a shell-free spawn command below; restrict
   // it to simple identifiers so no shell metacharacters can be smuggled in.
   z.object({ type: z.literal("repo:onboard"), repoPath: z.string(), aiAgent: z.string().regex(/^[a-z0-9_-]+$/, "aiAgent must be a simple identifier"), useWorktree: z.boolean().optional() }),
@@ -138,7 +143,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:check-worktree"), worktreePath: z.string(), repoPath: z.string() }),
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
-  z.object({ type: z.literal("synced-session:trigger-sync") }),
+  // `repoPath` scopes the sync to one repo (+ its worktrees). Omit to sync
+  // every active repo. Manual "sync this view" buttons always pass the
+  // currently-selected repo.
+  z.object({ type: z.literal("synced-session:trigger-sync"), repoPath: z.string().optional() }),
   z.object({ type: z.literal("synced-session:archive"), id: z.string() }),
   // UI visibility signal — the renderer tells the daemon whether the AI title-bar
   // tab is currently the active top-level tab. The session sync job only runs
@@ -363,7 +371,16 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
       branch: z.string(),
       name: z.string(),
       createdAt: z.number().int().nonnegative(),
+      lastSyncedAt: z.number().int().nonnegative().optional(),
     })),
+  }),
+  z.object({ type: z.literal("worktree:trigger-sync:ack") }),
+  // Push event: emitted after a worktree sync sweep finishes. The renderer
+  // uses this as a cue to refetch the worktree list from the daemon DB.
+  z.object({
+    type: z.literal("worktree:sync:complete"),
+    upsertedCount: z.number().int().nonnegative(),
+    deletedCount: z.number().int().nonnegative(),
   }),
   z.object({ type: z.literal("repo:onboard:started"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:onboard:output"), repoPath: z.string(), data: z.string() }),

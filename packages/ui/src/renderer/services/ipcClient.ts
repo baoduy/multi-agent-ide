@@ -33,6 +33,7 @@ type ResponseForRequest = {
   "gitfile:read": Extract<IpcResponse, { type: "gitfile:read:result" }>;
   "worktree:create": Extract<IpcResponse, { type: "worktree:create:result" }>;
   "worktree:list": Extract<IpcResponse, { type: "worktree:list:result" }>;
+  "worktree:trigger-sync": Extract<IpcResponse, { type: "worktree:trigger-sync:ack" }>;
   "worktree:status": Extract<IpcResponse, { type: "worktree:status:result" }>;
   "worktree:merge": Extract<IpcResponse, { type: "worktree:merge:result" }>;
   "worktree:branches": Extract<IpcResponse, { type: "worktree:branches:result" }>;

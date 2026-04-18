@@ -69,7 +69,6 @@ export function WorkflowView({
   // Worktree store — look up existing worktrees
   const getWorktreeForBranch = useWorktreeStore((s) => s.getWorktreeForBranch);
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
-  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
   /** Build approval content from existing file text. */
   const buildApprovedContent = (existing: string): string => {
@@ -217,8 +216,10 @@ export function WorkflowView({
           createdAt: Date.now(),
         });
 
-        // Refresh the full list from daemon
-        void fetchWorktrees(repoPath);
+        // The daemon triggers a worktree sync after worktree:create, so
+        // the store will receive `worktree:sync:complete` and reload from
+        // DB shortly. No manual refresh needed — addWorktree above is
+        // sufficient for the optimistic UI update.
 
         // 2. Approve using the worktree
         setApproving(null); // handleApproveWithWorktreePath will set it
@@ -229,7 +230,7 @@ export function WorkflowView({
         setApproving(null);
       }
     },
-    [worktreeDialogState, repoPath, addWorktree, fetchWorktrees, handleApproveWithWorktreePath],
+    [worktreeDialogState, repoPath, addWorktree, handleApproveWithWorktreePath],
   );
 
   /** Dispatch: current-branch files approve directly, remote-branch checks store first. */

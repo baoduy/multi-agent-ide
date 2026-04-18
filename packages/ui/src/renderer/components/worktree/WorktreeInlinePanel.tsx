@@ -142,7 +142,7 @@ export function WorktreeInlinePanel({
           color: colors.textSecondary,
         }}
       >
-        <BranchLabel name={worktree.branch} size="sm" />
+        <BranchLabel name={worktree.branch} />
         <span style={{ color: colors.textTertiary }}>Created {createdDate}</span>
         {status && (
           <span style={{ color: colors.textTertiary }}>

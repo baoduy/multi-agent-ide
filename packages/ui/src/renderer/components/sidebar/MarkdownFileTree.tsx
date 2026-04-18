@@ -7,7 +7,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FolderGit2, GitBranch, FilePlus, Pencil, Trash2 } from "lucide-react";
+import { FolderGit2, GitBranch, FilePlus, Pencil, Trash2, Pin } from "lucide-react";
 
 import { useRepoStore } from "../../store/repoStore";
 import { useMarkdownManagerStore } from "../../store/markdownManagerStore";
@@ -225,7 +225,7 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
         label: r.name,
         description: r.path,
         icon: <FolderGit2 size={14} color={colors.textTertiary} />,
-        suffix: isPinned ? <span style={{ color: colors.primary, fontSize: 10 }}>{"\u2605"}</span> : undefined,
+        suffix: isPinned ? <Pin size={10} color={colors.primary} strokeWidth={2} /> : undefined,
       };
       if (isPinned) {
         pinned.push(opt);

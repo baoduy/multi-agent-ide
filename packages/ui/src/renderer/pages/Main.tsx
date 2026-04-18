@@ -89,13 +89,17 @@ export function MainPage(): React.ReactElement {
   const fetchRepos = useRepoStore((state) => state.fetchRepos);
   const initConfigSubscriptions = useConfigStore((state) => state.initializeSubscriptions);
   const fetchConfig = useConfigStore((state) => state.fetchConfig);
+  const initWorktreeSubscriptions = useWorktreeStore((state) => state.initializeSubscriptions);
+  const loadWorktreesFromDb = useWorktreeStore((state) => state.loadFromDb);
 
   useEffect(() => {
     initRepoSubscriptions();
     initConfigSubscriptions();
+    initWorktreeSubscriptions();
     void fetchRepos();
     void fetchConfig();
-  }, [initRepoSubscriptions, initConfigSubscriptions, fetchRepos, fetchConfig]);
+    void loadWorktreesFromDb();
+  }, [initRepoSubscriptions, initConfigSubscriptions, initWorktreeSubscriptions, fetchRepos, fetchConfig, loadWorktreesFromDb]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState<ActiveTab>({ kind: "builtin", id: "specs" });
@@ -117,8 +121,6 @@ export function MainPage(): React.ReactElement {
   const selectedSpecPath = useSpecStore((state) => state.selectedSpecPath);
   const setSelectedSpecPath = useSpecStore((state) => state.setSelectedSpecPath);
   const specs = useSpecStore((state) => state.specs);
-  const fetchWorktreesForAll = useWorktreeStore((state) => state.fetchWorktreesForAll);
-
   // Sidebar collapse state
   const sidebarCollapsed = useSessionStore((state) => state.sidebarCollapsed);
   const activityCollapsed = useSessionStore((state) => state.activityCollapsed);
@@ -129,13 +131,6 @@ export function MainPage(): React.ReactElement {
   const handleTitleBarNewSession = useCallback(() => {
     setNewSessionDialogOpen(true);
   }, []);
-
-  // ── Fetch worktrees for ALL repos once repos are loaded ──
-  useEffect(() => {
-    if (repos.length === 0) return;
-    const allPaths = repos.map((r) => r.path);
-    void fetchWorktreesForAll(allPaths);
-  }, [repos, fetchWorktreesForAll]);
 
   // ── Save / restore per-repo state when the active repo changes ──
   useEffect(() => {

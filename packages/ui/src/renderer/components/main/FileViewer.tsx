@@ -475,7 +475,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
         {isMd ? (
           viewMode === "preview" ? (
             <div style={{ display: "flex" }}>
-              <div style={{ padding: "12px 16px", flex: 1, minWidth: 0 }}>
+              <div style={{ padding: "12px 20px 12px 28px", flex: 1, minWidth: 0 }}>
                 <MDEditor.Markdown
                   source={displayContent}
                   components={markdownComponents}

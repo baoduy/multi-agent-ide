@@ -26,6 +26,8 @@ import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { ScrollableText } from "../common/ScrollableText";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { Tag } from "../common/Tag";
+import { PinnedHeader } from "../common/PinnedHeader";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
 import { syncedPinKey } from "../../utils/sessionPinKey";
@@ -78,6 +80,7 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
   const [hovered, setHovered] = useState(false);
   const badge = getRepoBadge(repo);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
+  const d = useDensityTokens();
 
   const contextMenuItems = useMemo<ContextMenuAction[]>(() => [
     {
@@ -101,8 +104,8 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
           width: "100%",
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          padding: "5px 12px",
+          gap: d.rowGap,
+          padding: `${d.rowPadY}px ${d.rowPadX}px`,
           borderBottom: `1px solid ${colors.border}`,
           background: hovered ? colors.bgHover : "transparent",
           border: "none",
@@ -113,9 +116,9 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
       >
         {/* Chevron */}
         {expanded ? (
-          <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+          <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
         ) : (
-          <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+          <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
         )}
 
         <RepoLabel
@@ -123,23 +126,24 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
           repoPath={repo.path}
           size="md"
           boxed
+          uppercase
           style={{ flex: 1, minWidth: 0 }}
         >
-          <Tag tone={badge.tone} size="xs" fontWeight={500}>
+          <Tag tone={badge.tone} fontWeight={500}>
             {badge.label}
           </Tag>
-          <BranchLabel name={repo.branch} size="xs" />
+          <BranchLabel name={repo.branch} />
         </RepoLabel>
 
         {/* Active indicator */}
         {activeCount > 0 && (
-          <Tag tone="success" size="xs" fontWeight={700}>
+          <Tag tone="success" fontWeight={700}>
             {activeCount} active
           </Tag>
         )}
 
         {/* Total session count — borderless muted chip */}
-        <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+        <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
           {totalCount}
         </Tag>
       </button>
@@ -175,6 +179,7 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
   onToggle,
 }: WorkspaceGroupHeaderProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const d = useDensityTokens();
 
   return (
     <button
@@ -186,8 +191,8 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 6,
-        padding: "5px 12px",
+        gap: d.tightGap,
+        padding: `${d.rowPadY}px ${d.rowPadX}px`,
         borderBottom: `1px solid ${colors.border}`,
         background: hovered ? colors.bgHover : "transparent",
         border: "none",
@@ -198,20 +203,20 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
     >
       {/* Chevron */}
       {expanded ? (
-        <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
       ) : (
-        <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
       )}
 
       {/* Folder icon */}
-      <Folder size={14} color={colors.textSecondary} style={{ flexShrink: 0 }} />
+      <Folder size={d.iconMd} color={colors.textSecondary} style={{ flexShrink: 0 }} />
 
       {/* Name */}
       <ScrollableText
         style={{
           flex: 1,
-          fontSize: 12,
-          fontWeight: 600,
+          fontSize: d.font,
+          fontWeight: 500,
           color: colors.text,
         }}
       >
@@ -220,19 +225,19 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
 
       {/* Active indicator */}
       {activeCount > 0 && (
-        <Tag tone="success" size="xs" fontWeight={700}>
+        <Tag tone="success" fontWeight={700}>
           {activeCount} active
         </Tag>
       )}
 
       {/* Total session count — borderless muted chip */}
-      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
         {totalCount}
       </Tag>
 
       {/* Latest time */}
       {latestTimestamp > 0 && (
-        <span style={{ fontSize: 10, color: colors.textTertiary, flexShrink: 0 }}>
+        <span style={{ fontSize: d.smallFont, color: colors.textTertiary, flexShrink: 0 }}>
           {formatRelativeTime(latestTimestamp)}
         </span>
       )}
@@ -256,6 +261,7 @@ const BranchGroupHeader = React.memo(function BranchGroupHeader({
   onToggle,
 }: BranchGroupHeaderProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const d = useDensityTokens();
 
   return (
     <button
@@ -267,8 +273,8 @@ const BranchGroupHeader = React.memo(function BranchGroupHeader({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 6,
-        padding: "3px 12px 3px 36px",
+        gap: d.tightGap,
+        padding: `${d.rowPadY}px ${d.rowPadX}px ${d.rowPadY}px ${d.indentStep}px`,
         borderBottom: `1px solid ${colors.borderLight}`,
         background: hovered ? colors.bgHover : "transparent",
         border: "none",
@@ -279,16 +285,16 @@ const BranchGroupHeader = React.memo(function BranchGroupHeader({
     >
       {/* Chevron */}
       {expanded ? (
-        <ChevronDown size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
       ) : (
-        <ChevronRight size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
+        <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
       )}
 
       {/* Branch name — plain icon + text, same size as repo label */}
       <BranchLabel name={branchName} size="md" badge={false} style={{ flex: 1, minWidth: 0 }} />
 
       {/* Session count */}
-      <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
+      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
         {sessionCount}
       </Tag>
     </button>
@@ -311,7 +317,7 @@ const ActivityBadge = React.memo(function ActivityBadge({
   if (activity !== "processing") return null;
 
   return (
-    <Tag tone="success" size="xs" dot title="Agent is currently producing output">
+    <Tag tone="success" dot title="Agent is currently producing output">
       Processing
     </Tag>
   );
@@ -333,6 +339,7 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
   showBranch = false,
 }: SyncedSessionRowProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const d = useDensityTokens();
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
   const pinKey = syncedPinKey(session);
   const isPinned = usePinnedSessionsStore((s) => s.pinnedKeys.has(pinKey));
@@ -452,10 +459,10 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       onMouseLeave={() => setHovered(false)}
       style={{
         width: "100%",
-        padding: "4px 12px 4px 48px",
+        padding: `${d.rowPadY + 1}px ${d.rowPadX}px ${d.rowPadY + 1}px ${d.indentStep + 12}px`,
         display: "flex",
         alignItems: "center",
-        gap: 10,
+        gap: d.rowGap + 2,
         borderBottom: `1px solid ${colors.borderLight}`,
         background: hovered ? colors.bgHover : "transparent",
         transition: "background 0.12s",
@@ -465,17 +472,17 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       }}
     >
       {/* Provider badge */}
-      <ProviderBadge provider={provider} iconSize={12} fontSize={11} color={colors.textSecondary} />
+      <ProviderBadge provider={provider} iconSize={d.iconMd} fontSize={d.font} color={colors.textSecondary} />
 
       {/* Separator */}
-      <span style={{ color: colors.textTertiary, fontSize: 11, flexShrink: 0 }}>·</span>
+      <span style={{ color: colors.textTertiary, fontSize: d.font, flexShrink: 0 }}>·</span>
 
       {/* Title or slug */}
       <ScrollableText
         style={{
           flex: 1,
           minWidth: 0,
-          fontSize: 12,
+          fontSize: d.font,
           color: colors.text,
         }}
       >
@@ -484,13 +491,13 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
 
       {/* Branch label (only rendered outside a BranchGroupSection) */}
       {showBranch && session.gitBranch && (
-        <BranchLabel name={session.gitBranch} size="xs" style={{ flexShrink: 0 }} />
+        <BranchLabel name={session.gitBranch} style={{ flexShrink: 0 }} />
       )}
 
       {/* Time */}
       <span
         style={{
-          fontSize: 10,
+          fontSize: d.smallFont,
           color: colors.textTertiary,
           flexShrink: 0,
           minWidth: 60,
@@ -501,7 +508,7 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
           gap: 3,
         }}
       >
-        <Clock size={10} />
+        <Clock size={d.iconSm} />
         {timeDisplay}
       </span>
 
@@ -539,6 +546,7 @@ const BranchGroupSection = React.memo(function BranchGroupSection({
   onResumeSyncedSession,
 }: BranchGroupSectionProps): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const d = useDensityTokens();
 
   useEffect(() => {
     if (defaultExpanded) setExpanded(true);
@@ -559,7 +567,7 @@ const BranchGroupSection = React.memo(function BranchGroupSection({
       {expanded && group.items.map((item) => {
         if (item.kind === "live") {
           return (
-            <div key={`live:${item.session.id}`} style={{ paddingLeft: 32 }}>
+            <div key={`live:${item.session.id}`} style={{ paddingLeft: d.indentStep - 4 }}>
               <AISessionListItem
                 session={item.session}
                 onSelect={onSelectSession}
@@ -612,6 +620,7 @@ function SessionGroupNodeComponent({
 }: SessionGroupNodeViewProps): React.ReactElement {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const d = useDensityTokens();
 
   const isActive =
     !!activeRepoPath &&
@@ -637,6 +646,7 @@ function SessionGroupNodeComponent({
   }, []);
 
   const hasActive = node.activeLiveSessions.length > 0;
+  const hasActiveSynced = node.activeSyncedSessions.length > 0;
   const hasBranchGroups = node.branchGroups.length > 0;
   const hasPinned = node.pinnedActive.length > 0 || node.pinnedItems.length > 0;
 
@@ -680,7 +690,7 @@ function SessionGroupNodeComponent({
 
           {/* Active sessions rendered directly under the repo header */}
           {hasActive && node.activeLiveSessions.map((session) => (
-            <div key={session.id} style={{ paddingLeft: 16 }}>
+            <div key={session.id} style={{ paddingLeft: d.childIndent }}>
               <AISessionListItem
                 session={session}
                 onSelect={onSelectSession}
@@ -689,6 +699,17 @@ function SessionGroupNodeComponent({
                 showBranch
               />
             </div>
+          ))}
+
+          {/* Currently-processing synced sessions, hoisted out of their branch
+              groups so in-flight agent work is visible at the top. */}
+          {hasActiveSynced && node.activeSyncedSessions.map((session) => (
+            <SyncedSessionRow
+              key={`active-synced:${session.id}`}
+              session={session}
+              onResume={onResumeSyncedSession}
+              showBranch
+            />
           ))}
 
           {/* Branch groups — collapsible sections grouping history sessions by branch */}
@@ -729,30 +750,12 @@ const PinnedSection = React.memo(function PinnedSection({
   onResumeSyncedSession,
 }: PinnedSectionProps): React.ReactElement {
   const total = pinnedActive.length + pinnedItems.length;
+  const d = useDensityTokens();
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "3px 12px 3px 36px",
-          borderBottom: `1px solid ${colors.borderLight}`,
-          color: colors.textSecondary,
-          fontSize: 11,
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: 0.4,
-        }}
-      >
-        <Pin size={11} color={colors.primary} style={{ flexShrink: 0 }} />
-        <span style={{ flex: 1 }}>Pinned</span>
-        <Tag tone="neutral" size="xs" fontSize={10} borderColor={null}>
-          {total}
-        </Tag>
-      </div>
+      <PinnedHeader count={total} paddingLeft={d.indentStep} />
       {pinnedActive.map((session) => (
-        <div key={`pin-live:${session.id}`} style={{ paddingLeft: 16 }}>
+        <div key={`pin-live:${session.id}`} style={{ paddingLeft: d.childIndent }}>
           <AISessionListItem
             session={session}
             onSelect={onSelectSession}
@@ -765,7 +768,7 @@ const PinnedSection = React.memo(function PinnedSection({
       {pinnedItems.map((item) => {
         if (item.kind === "live") {
           return (
-            <div key={`pin-live:${item.session.id}`} style={{ paddingLeft: 16 }}>
+            <div key={`pin-live:${item.session.id}`} style={{ paddingLeft: d.childIndent }}>
               <AISessionListItem
                 session={item.session}
                 onSelect={onSelectSession}

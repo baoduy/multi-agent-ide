@@ -28,7 +28,9 @@ import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
 import { AISessionApplicationService } from "./application/AISessionApplicationService";
 import { SessionSyncApplicationService } from "./application/SessionSyncApplicationService";
+import { WorktreeSyncApplicationService } from "./application/WorktreeSyncApplicationService";
 import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
+import { WorktreeRepository } from "./services/WorktreeRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
 import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
@@ -45,6 +47,7 @@ let shutdownServices: {
   specSyncService?: SpecSyncService;
   sessionSyncService?: SessionSyncApplicationService;
   sessionFileWatcher?: SessionFileWatcher;
+  worktreeSyncService?: WorktreeSyncApplicationService;
   databaseService?: DatabaseService;
   terminalService?: TerminalApplicationService;
   aiSessionService?: AISessionApplicationService;
@@ -96,6 +99,12 @@ async function gracefulShutdown(reason: string): Promise<void> {
     if (shutdownServices.sessionFileWatcher) {
       console.log("[daemon-worker] Stopping session file watcher...");
       shutdownServices.sessionFileWatcher.stop();
+    }
+
+    // 2d. Stop worktree sync interval
+    if (shutdownServices.worktreeSyncService) {
+      console.log("[daemon-worker] Stopping worktree sync service...");
+      shutdownServices.worktreeSyncService.stop();
     }
 
     // 3. Flush and close database
@@ -193,6 +202,19 @@ async function main() {
       sessionSyncGateway.getCopilotSessionStateDir(),
     );
 
+    // Worktree sync — scans `git worktree list` for every active repo on
+    // a 1-minute interval and mirrors the output into the DB. Unlike the
+    // session sync, it is NOT gated on any UI tab: pinned-repo worktrees
+    // surface in the dock/sidebar too, so we keep the cache fresh always.
+    const worktreeRepository = new WorktreeRepository(databaseService);
+    const worktreeSyncService = new WorktreeSyncApplicationService(
+      worktreeRepository,
+      gitGateway,
+      repoRepository,
+      ipcBridge,
+      jobManager,
+    );
+
     // CLI tool version tracking — on-demand check when the user opens the
     // upgrade dialog; no background cadence.
     const githubReleasesGateway = new GitHubReleasesGateway();
@@ -204,7 +226,7 @@ async function main() {
     );
 
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, databaseService, terminalService, aiSessionService };
+    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -217,6 +239,7 @@ async function main() {
       terminalService,
       aiSessionService,
       sessionSyncService,
+      worktreeSyncService,
       gitGateway,
       fileSystemGateway,
       specGitGateway,
@@ -244,6 +267,7 @@ async function main() {
       "ai-session:exited",
       "ai-session:updated",
       "synced-session:sync:complete",
+      "worktree:sync:complete",
       "cli:version-status-changed",
       "cli:upgrade:output",
       "cli:upgrade:complete",
@@ -331,6 +355,11 @@ async function main() {
     //     reflects within ~300ms of any JSONL append. Additive to the recurring
     //     sync — fs.watch is best-effort on some volumes.
     sessionFileWatcher.start();
+
+    // 4c. Start the worktree sync sweep. Always runs while the daemon is up
+    //     (not tab-gated) so pinned-repo worktrees stay fresh in the dock.
+    //     start() kicks an immediate sync and schedules the 1-minute interval.
+    worktreeSyncService.start();
 
     // 5. Reconfigure both sync services whenever config changes so users can
     //    change the interval from the Settings dialog without restarting the app.

@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
-import { ipc } from "../utils/ipc";
-import { sendOrThrow } from "../services/ipcClient";
+import { sendOrThrow, onEvent } from "../services/ipcClient";
+import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 import { getErrorMessage } from "../utils/getErrorMessage";
 
 /** Represents a single git worktree discovered on disk. */
@@ -11,6 +11,8 @@ export interface WorktreeInfo {
   branch: string;
   name: string;
   createdAt: number;
+  /** Optional — wall-clock timestamp of the last DB sync. Daemon fills it in. */
+  lastSyncedAt?: number;
 }
 
 /** A changed file entry from worktree status. */
@@ -27,17 +29,17 @@ export interface WorktreeStatus {
 }
 
 type WorktreeStoreState = {
-  /** All known worktrees across all repos. */
+  /** All known worktrees across all repos — mirrors the daemon's `worktrees` table. */
   worktrees: WorktreeInfo[];
 
-  /** Whether we're currently loading. */
+  /** Whether the initial DB load is in progress. */
   isLoading: boolean;
 
   /** Last error message, if any. */
   error: string | null;
 
-  /** Repo paths that have already been scanned for worktrees (avoids redundant fetches). */
-  scannedRepoPaths: Set<string>;
+  /** Whether IPC event subscriptions have been initialized. */
+  subscriptionsReady: boolean;
 
   /** Cached worktree statuses keyed by worktreePath. */
   statusCache: Record<string, WorktreeStatus>;
@@ -52,21 +54,24 @@ type WorktreeStoreState = {
   mergeResult: { success: boolean; message: string } | null;
 
   /**
-   * Fetch worktrees for a specific repo from the daemon.
-   * Merges the results into the global list (replaces entries for that repo).
+   * Load all worktrees from the daemon's DB cache. Called once at app boot
+   * and again whenever `worktree:sync:complete` fires.
    */
-  fetchWorktrees: (repoPath: string) => Promise<void>;
+  loadFromDb: () => Promise<void>;
 
   /**
-   * Fetch worktrees for multiple repos at once.
+   * Ask the daemon to run an immediate worktree sync sweep. When `repoPath`
+   * is given, the daemon scopes the sweep to that repo only; other repos'
+   * rows stay untouched. The daemon emits `worktree:sync:complete` when
+   * done, which triggers `loadFromDb()`.
    */
-  fetchWorktreesForAll: (repoPaths: string[]) => Promise<void>;
+  triggerSync: (repoPath?: string) => Promise<void>;
 
   /**
-   * Fetch worktrees for a repo only if it hasn't been scanned yet.
-   * Used for incremental loading when a repo becomes active.
+   * Subscribe to `worktree:sync:complete` push events. Idempotent — safe to
+   * call from every view that wants worktree data.
    */
-  fetchWorktreesIfNeeded: (repoPath: string) => Promise<void>;
+  initializeSubscriptions: () => void;
 
   /**
    * Look up an existing worktree for a given repo + branch combo.
@@ -75,8 +80,9 @@ type WorktreeStoreState = {
   getWorktreeForBranch: (repoPath: string, branch: string) => WorktreeInfo | null;
 
   /**
-   * Add a worktree entry to the store (called after worktree:create succeeds).
-   * Deduplicates by worktreePath.
+   * Optimistically add a worktree entry to the store (called after
+   * worktree:create succeeds). The next `worktree:sync:complete` event will
+   * replace this with the authoritative DB snapshot.
    */
   addWorktree: (entry: WorktreeInfo) => void;
 
@@ -130,27 +136,24 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
   worktrees: [],
   isLoading: false,
   error: null,
-  scannedRepoPaths: new Set<string>(),
+  subscriptionsReady: false,
   statusCache: {},
   isStatusLoading: false,
   isMerging: false,
   mergeResult: null,
 
-  async fetchWorktrees(repoPath: string) {
-    set({ isLoading: true, error: null });
+  async loadFromDb() {
+    // Only show loading on first load — subsequent refreshes shouldn't flash a spinner.
+    if (get().worktrees.length === 0) {
+      set({ isLoading: true });
+    }
 
     try {
-      const response = await sendOrThrow({ type: "worktree:list", repoPath });
-      set((state) => {
-        // Remove stale entries for this repo, then add fresh ones
-        const others = state.worktrees.filter((w) => w.repoPath !== repoPath);
-        const nextScanned = new Set(state.scannedRepoPaths);
-        nextScanned.add(repoPath);
-        return {
-          worktrees: [...others, ...response.worktrees],
-          scannedRepoPaths: nextScanned,
-          isLoading: false,
-        };
+      const response = await sendOrThrow({ type: "worktree:list" });
+      set({
+        worktrees: response.worktrees,
+        isLoading: false,
+        error: null,
       });
     } catch (err) {
       set({
@@ -160,54 +163,19 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
     }
   },
 
-  async fetchWorktreesForAll(repoPaths: string[]) {
-    set({ isLoading: true, error: null });
-
+  async triggerSync(repoPath?: string) {
     try {
-      const allEntries: WorktreeInfo[] = [];
-      const scanned = new Set(get().scannedRepoPaths);
-
-      // Issue all requests in parallel. `allSettled` lets us survive
-      // per-repo failures (e.g. a stale NFS mount) without aborting the
-      // whole batch — previously this was a serial await loop, meaning 10
-      // repos incurred 10 sequential IPC round-trips.
-      const results = await Promise.allSettled(
-        repoPaths.map((repoPath) =>
-          sendOrThrow({ type: "worktree:list", repoPath }).then((response) => ({
-            repoPath,
-            response,
-          })),
-        ),
-      );
-      for (const result of results) {
-        if (result.status === "fulfilled") {
-          allEntries.push(...result.value.response.worktrees);
-          scanned.add(result.value.repoPath);
-        }
-      }
-
-      set((state) => {
-        // Keep worktrees from repos not in this batch, then add fresh ones
-        const batchSet = new Set(repoPaths);
-        const kept = state.worktrees.filter((w) => !batchSet.has(w.repoPath));
-        return {
-          worktrees: [...kept, ...allEntries],
-          scannedRepoPaths: scanned,
-          isLoading: false,
-        };
-      });
+      await sendOrThrow({ type: "worktree:trigger-sync", repoPath });
     } catch (err) {
-      set({
-        error: getErrorMessage(err),
-        isLoading: false,
-      });
+      console.error("[WorktreeStore] Trigger sync failed:", err);
     }
   },
 
-  async fetchWorktreesIfNeeded(repoPath: string) {
-    if (get().scannedRepoPaths.has(repoPath)) return;
-    await get().fetchWorktrees(repoPath);
-  },
+  initializeSubscriptions: createSubscriptionInitializer(get, set, () => {
+    onEvent("worktree:sync:complete", () => {
+      void get().loadFromDb();
+    });
+  }),
 
   getWorktreeForBranch(repoPath: string, branch: string): WorktreeInfo | null {
     const { worktrees } = get();
@@ -295,9 +263,9 @@ export const useWorktreeStore = create<WorktreeStoreState>((set, get) => ({
       set((state) => ({
         isDeleting: false,
         deleteResult: result,
-        // Remove from local store
+        // Optimistic removal — the daemon triggers a sync post-delete, which
+        // will emit worktree:sync:complete and load the DB state back in.
         worktrees: state.worktrees.filter((w) => w.worktreePath !== worktreePath),
-        // Remove cached status
         statusCache: Object.fromEntries(
           Object.entries(state.statusCache).filter(([key]) => key !== worktreePath),
         ),

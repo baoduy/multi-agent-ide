@@ -42,6 +42,8 @@ export interface SpecFolder {
   createdAt: number;
 }
 
+export type ComponentDensity = "xs" | "sm";
+
 export interface SessionState {
   selectedRepoPath: string | null;
   selectedSpecPath: string | null;
@@ -53,6 +55,7 @@ export interface SessionState {
   activityCollapsed: boolean;
   specPanelHeight: number | null;
   mainTab: MainTab;
+  componentDensity: ComponentDensity;
   updatedAt: number;
 }
 

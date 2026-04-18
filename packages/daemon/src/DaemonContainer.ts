@@ -14,7 +14,9 @@ import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
 import { AISessionApplicationService } from "./application/AISessionApplicationService";
 import { SessionSyncApplicationService } from "./application/SessionSyncApplicationService";
+import { WorktreeSyncApplicationService } from "./application/WorktreeSyncApplicationService";
 import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
+import { WorktreeRepository } from "./services/WorktreeRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
 import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
@@ -55,6 +57,8 @@ export class DaemonContainer {
   readonly syncedSessionRepository: SyncedSessionRepository;
   readonly sessionSyncService: SessionSyncApplicationService;
   readonly sessionFileWatcher: SessionFileWatcher;
+  readonly worktreeRepository: WorktreeRepository;
+  readonly worktreeSyncService: WorktreeSyncApplicationService;
   readonly fileSystemGateway: FileSystemGateway;
   readonly specGitGateway: SpecGitGateway;
   readonly specReader: SpecReader;
@@ -135,6 +139,18 @@ export class DaemonContainer {
       this.sessionSyncGateway.getCopilotSessionStateDir(),
     );
 
+    // Worktree sync — scans `git worktree list` for every active repo on
+    // a 1-minute interval, mirrors results into SQLite, and pushes
+    // `worktree:sync:complete` events so the renderer can refresh from DB.
+    this.worktreeRepository = new WorktreeRepository(databaseService);
+    this.worktreeSyncService = new WorktreeSyncApplicationService(
+      this.worktreeRepository,
+      this.gitGateway,
+      this.repoRepository,
+      this.bridge,
+      this.jobManager,
+    );
+
     // CLI tool version tracking — on-demand check when the user opens
     // the upgrade dialog; no background cadence.
     this.githubReleasesGateway = new GitHubReleasesGateway();
@@ -169,6 +185,7 @@ export class DaemonContainer {
       terminalService: this.terminalService,
       aiSessionService: this.aiSessionService,
       sessionSyncService: this.sessionSyncService,
+      worktreeSyncService: this.worktreeSyncService,
       gitGateway: this.gitGateway,
       fileSystemGateway: this.fileSystemGateway,
       specGitGateway: this.specGitGateway,
@@ -187,6 +204,7 @@ export class DaemonContainer {
     this.dirWatcher.unwatchAll();
     this.sessionFileWatcher.stop();
     this.sessionSyncService.stop();
+    this.worktreeSyncService.stop();
   }
 
   /**

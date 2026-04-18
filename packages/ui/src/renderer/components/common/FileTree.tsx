@@ -213,10 +213,9 @@ function FolderNode({
           <ScrollableText
             style={{
               fontSize: 11,
-              fontWeight: expanded ? 600 : 500,
+              fontWeight: 500,
               color: folderColor,
               flex: 1,
-              transition: "font-weight 0.1s",
             }}
           >
             {entry.name}

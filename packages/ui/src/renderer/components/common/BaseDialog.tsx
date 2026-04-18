@@ -2,6 +2,7 @@ import React, { useCallback, useEffect } from "react";
 import { X, Minimize2 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 type BaseDialogProps = {
   /** Dialog title displayed in the header */
@@ -50,6 +51,7 @@ export function BaseDialog({
 }: BaseDialogProps): React.ReactElement {
   const handleBackdropClick = onMinimize ?? onClose;
   const handleCloseClick = onMinimize ?? onClose;
+  const d = useDensityTokens();
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -100,7 +102,7 @@ export function BaseDialog({
           left: "50%",
           transform: "translate(-50%, -50%)",
           background: colors.dialogBg,
-          borderRadius: 12,
+          borderRadius: d.dialogRadius,
           boxShadow: colors.dialogShadow,
           width,
           maxWidth: "90vw",
@@ -118,25 +120,25 @@ export function BaseDialog({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "8px 12px 6px",
+            padding: d.dialogHeaderPad,
             borderBottom: `1px solid ${colors.border}`,
             flexShrink: 0,
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: d.dialogGap }}>
             {icon}
-            <span style={{ fontSize: 12, fontWeight: 600, color: colors.text, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <span style={{ fontSize: d.dialogHeaderFont, fontWeight: 600, color: colors.text, textTransform: "uppercase", letterSpacing: "0.05em" }}>
               {title}
             </span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
             {showMinimize && onMinimize && (
               <DialogIconButton onClick={onMinimize} title="Minimize to background">
-                <Minimize2 size={12} strokeWidth={2} />
+                <Minimize2 size={d.iconSm} strokeWidth={2} />
               </DialogIconButton>
             )}
             <DialogIconButton onClick={handleCloseClick} title={onMinimize ? "Minimize to background" : "Close"}>
-              <X size={12} strokeWidth={2} />
+              <X size={d.iconSm} strokeWidth={2} />
             </DialogIconButton>
           </div>
         </div>
@@ -144,7 +146,7 @@ export function BaseDialog({
         {/* Body */}
         <div
           style={{
-            padding: "10px 12px",
+            padding: d.dialogBodyPad,
             ...(scrollable ? { flex: 1, overflowY: "auto" as const, minHeight: 100 } : {}),
           }}
         >
@@ -157,8 +159,8 @@ export function BaseDialog({
             style={{
               display: "flex",
               justifyContent: "flex-end",
-              gap: 6,
-              padding: "8px 12px 10px",
+              gap: d.dialogGap,
+              padding: d.dialogFooterPad,
               borderTop: `1px solid ${colors.borderLight}`,
               flexShrink: 0,
             }}

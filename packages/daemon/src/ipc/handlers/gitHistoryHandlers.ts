@@ -1,14 +1,17 @@
 import type { IPCBridge } from "../IPCBridge";
 import type { GitHistoryApplicationService } from "../../application/GitHistoryApplicationService";
+import type { GitRepoWatcher } from "../../infrastructure/GitRepoWatcher";
 import { safeHandle } from "../createHandler";
 
 type GitHistoryHandlerContext = {
   bridge: IPCBridge;
   historyService: GitHistoryApplicationService;
+  gitRepoWatcher: GitRepoWatcher;
 };
 
-export function registerGitHistoryHandlers({ bridge, historyService }: GitHistoryHandlerContext): void {
+export function registerGitHistoryHandlers({ bridge, historyService, gitRepoWatcher }: GitHistoryHandlerContext): void {
   safeHandle(bridge, "git:log", async (msg) => {
+    gitRepoWatcher.ensureWatching(msg.repoPath);
     const result = await historyService.log(msg.repoPath, {
       branch: msg.branch,
       path: msg.path,

@@ -42,6 +42,7 @@ const DEFAULT_SESSION: SessionState = {
   activityCollapsed: false,
   specPanelHeight: null,
   mainTab: "specs",
+  componentDensity: "xs",
   updatedAt: Date.now(),
 };
 
@@ -110,6 +111,7 @@ function extractSessionState(state: SessionStoreState): SessionState {
     activityCollapsed: state.activityCollapsed,
     specPanelHeight: state.specPanelHeight,
     mainTab: state.mainTab,
+    componentDensity: state.componentDensity,
     updatedAt: state.updatedAt,
   };
 }

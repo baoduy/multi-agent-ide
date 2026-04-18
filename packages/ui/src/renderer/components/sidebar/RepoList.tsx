@@ -6,6 +6,7 @@ import { useViewSearchStore } from "../../store/viewSearchStore";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { RepoItem } from "./RepoItem";
 import { DirectoryTree } from "./DirectoryTree";
+import { PinnedHeader } from "../common/PinnedHeader";
 import { colors } from "../../utils/colors";
 
 export function RepoList(): React.ReactElement {
@@ -74,22 +75,7 @@ export function RepoList(): React.ReactElement {
             {/* Pinned repos */}
             {pinned.length > 0 && (
               <>
-                <div
-                  style={{
-                    padding: "5px 12px 2px",
-                    fontSize: 9,
-                    fontWeight: 600,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.1em",
-                    color: colors.primary,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 4,
-                  }}
-                >
-                  <span style={{ fontSize: 10 }}>{"\u2605"}</span>
-                  Pinned
-                </div>
+                <PinnedHeader count={pinned.length} />
                 {pinned.map((repo) => (
                   <RepoItem
                     key={repo.id}
@@ -100,7 +86,6 @@ export function RepoList(): React.ReactElement {
                     onTogglePin={togglePin}
                   />
                 ))}
-                <div style={{ height: 1, background: colors.border, margin: "2px 12px 1px" }} />
               </>
             )}
 

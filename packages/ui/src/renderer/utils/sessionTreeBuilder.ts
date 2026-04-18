@@ -42,6 +42,12 @@ export interface SessionGroupNode {
    */
   activeLiveSessions: AISessionRecord[];
   /**
+   * Synced sessions whose agent is currently producing output (`activity === "processing"`),
+   * hoisted out of their branch groups so they surface in the active section.
+   * Excludes any that the user has pinned. Sorted by startedAt/endedAt DESC.
+   */
+  activeSyncedSessions: SyncedSessionRecord[];
+  /**
    * Pinned running sessions, hoisted above the "active" section. Kept separate
    * from `pinnedItems` so we don't lose the live-row affordances (status badge,
    * resume flow) when a pinned session is currently executing.
@@ -113,6 +119,11 @@ export function filterSessionGroups(
       ? group.activeLiveSessions
       : group.activeLiveSessions.filter(matchesLive);
 
+    // Filter active synced (currently processing) sessions
+    const filteredActiveSynced = groupNameMatches
+      ? group.activeSyncedSessions
+      : group.activeSyncedSessions.filter(matchesSynced);
+
     // Filter pinned rows with the same rules as the rest of the tree
     const filteredPinnedActive = groupNameMatches
       ? group.pinnedActive
@@ -139,16 +150,27 @@ export function filterSessionGroups(
     }
 
     const pinnedCount = filteredPinnedActive.length + filteredPinnedItems.length;
-    if (filteredActive.length > 0 || filteredBranches.length > 0 || pinnedCount > 0) {
+    if (
+      filteredActive.length > 0 ||
+      filteredActiveSynced.length > 0 ||
+      filteredBranches.length > 0 ||
+      pinnedCount > 0
+    ) {
       result.push({
         ...group,
         activeLiveSessions: filteredActive,
+        activeSyncedSessions: filteredActiveSynced,
         pinnedActive: filteredPinnedActive,
         pinnedItems: filteredPinnedItems,
         branchGroups: filteredBranches,
         history: filteredHistory,
-        totalCount: filteredActive.length + filteredHistory.length + pinnedCount,
-        activeCount: filteredActive.length + filteredPinnedActive.length,
+        totalCount:
+          filteredActive.length +
+          filteredActiveSynced.length +
+          filteredHistory.length +
+          pinnedCount,
+        activeCount:
+          filteredActive.length + filteredActiveSynced.length + filteredPinnedActive.length,
       });
     }
   }
@@ -182,6 +204,7 @@ export function buildUnifiedGroups(
   syncedGroups: SyncedSessionGroup[],
   repos: Repository[],
   pinnedKeys: Set<string> = new Set(),
+  pinnedRepoPaths: Set<string> = new Set(),
 ): SessionGroupNode[] {
   // Build repo lookup by normalised path
   const repoByPath = new Map<string, Repository>();
@@ -298,18 +321,26 @@ export function buildUnifiedGroups(
       else activeLiveSessions.push(s);
     }
 
-    // History rows: idle live + synced, tagged, then sorted DESC.
+    // History rows: idle live + non-processing synced, tagged, then sorted DESC.
+    // Processing synced sessions are hoisted into `activeSyncedSessions` so they
+    // surface in the active section regardless of branch-group collapse state.
     const history: HistoryItem[] = [];
+    const processingSynced: SyncedSessionRecord[] = [];
     for (const s of acc.live) {
       if (isRunning(s)) continue;
       history.push({ kind: "live", session: s, timestamp: s.lastActiveAt });
     }
     for (const s of dedupedSynced) {
+      if (s.activity === "processing") {
+        processingSynced.push(s);
+        continue;
+      }
       // Prefer endedAt (last activity) over startedAt when available.
       const timestamp = s.endedAt ?? s.startedAt;
       history.push({ kind: "synced", session: s, timestamp });
     }
     history.sort((a, b) => b.timestamp - a.timestamp);
+    processingSynced.sort((a, b) => (b.endedAt ?? b.startedAt) - (a.endedAt ?? a.startedAt));
 
     // Extract pinned history items before branch grouping so they don't also
     // render inside their branch group (no duplicate display).
@@ -318,6 +349,15 @@ export function buildUnifiedGroups(
     for (const item of history) {
       if (pinnedKeys.has(itemPinKey(item))) pinnedItems.push(item);
       else unpinnedHistory.push(item);
+    }
+
+    // Pinned processing synced sessions move to pinnedItems so the pinned
+    // section still owns them; the active-synced list is only the unpinned ones.
+    const activeSyncedSessions: SyncedSessionRecord[] = [];
+    for (const s of processingSynced) {
+      const item: HistoryItem = { kind: "synced", session: s, timestamp: s.endedAt ?? s.startedAt };
+      if (pinnedKeys.has(itemPinKey(item))) pinnedItems.push(item);
+      else activeSyncedSessions.push(s);
     }
 
     // Group unpinned history items by branch/worktree name
@@ -349,10 +389,16 @@ export function buildUnifiedGroups(
     }
     branchGroups.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
 
-    const totalCount = activeLiveSessions.length + history.length + pinnedActive.length;
-    const activeCount = activeLiveSessions.length + pinnedActive.length;
+    const totalCount =
+      activeLiveSessions.length +
+      activeSyncedSessions.length +
+      history.length +
+      pinnedActive.length;
+    const activeCount =
+      activeLiveSessions.length + activeSyncedSessions.length + pinnedActive.length;
     const latestTimestamp = Math.max(
       allActive[0]?.lastActiveAt ?? 0,
+      activeSyncedSessions[0]?.endedAt ?? activeSyncedSessions[0]?.startedAt ?? 0,
       history[0]?.timestamp ?? 0,
       pinnedItems[0]?.timestamp ?? 0,
     );
@@ -363,6 +409,7 @@ export function buildUnifiedGroups(
       path: acc.path,
       repo: acc.repo,
       activeLiveSessions,
+      activeSyncedSessions,
       pinnedActive,
       pinnedItems,
       branchGroups,
@@ -373,9 +420,18 @@ export function buildUnifiedGroups(
     });
   }
 
-  // 4) Sort groups: repos first (alphabetical), then non-repos (by latest timestamp)
+  // 4) Sort groups: pinned repos first, then active/processing groups, then repos,
+  //    then by latest activity. "Active" here means any running live PTY, any
+  //    processing synced session, or any pinned running session.
   const result = [...groupMap.values()];
   result.sort((a, b) => {
+    // Pinned repos always float to the top (workspace groups have no repo → never pinned)
+    const aPin = a.repo && pinnedRepoPaths.has(a.repo.path) ? 1 : 0;
+    const bPin = b.repo && pinnedRepoPaths.has(b.repo.path) ? 1 : 0;
+    if (aPin !== bPin) return bPin - aPin;
+    const aActive = a.activeCount > 0 ? 1 : 0;
+    const bActive = b.activeCount > 0 ? 1 : 0;
+    if (aActive !== bActive) return bActive - aActive;
     // Repos first
     if (a.repo && !b.repo) return -1;
     if (!a.repo && b.repo) return 1;

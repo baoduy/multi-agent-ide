@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { useConfigStore } from "../../store/configStore";
 import { AddWorkingDirButton } from "./AddWorkingDirButton";
+import { AppearanceSettings } from "./AppearanceSettings";
 import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
 import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
@@ -55,6 +56,10 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
 
       <div style={{ marginBottom: 14, borderTop: `1px solid ${colors.border}`, paddingTop: 12 }}>
         <SyncIntervalSettings />
+      </div>
+
+      <div style={{ marginBottom: 14, borderTop: `1px solid ${colors.border}`, paddingTop: 12 }}>
+        <AppearanceSettings />
       </div>
 
       {error && (

@@ -1,4 +1,5 @@
 import { createGit } from "./utils/createGit";
+import type { GitBatchGateway } from "./GitBatchGateway";
 
 /**
  * SpecGitGateway wraps git commands for spec access.
@@ -8,6 +9,8 @@ import { createGit } from "./utils/createGit";
  * blocking the Node.js event loop.
  */
 export class SpecGitGateway {
+  constructor(private readonly batchGateway?: GitBatchGateway) {}
+
   /**
    * Returns the git user name and email from the repo's git config.
    * Falls back to global config, then to empty strings.
@@ -132,12 +135,28 @@ export class SpecGitGateway {
 
   /**
    * Reads a file from a git ref (branch) without checkout.
+   *
+   * Uses the long-lived `git cat-file --batch` gateway when available so the
+   * 20–100 ms process-spawn cost is paid once per repo instead of per read.
+   * Falls back to one-shot `git show` only when the batch gateway is missing
+   * or returns null — the latter happens when the ref/path doesn't exist,
+   * which is a legitimate result the caller handles.
+   *
    * @param repoPath Repository root
    * @param ref Branch or ref name
    * @param relativePath Path relative to repo root (e.g. "specs/001-foo/spec.md")
    * @returns File content as string, or null if not found
    */
   async readGitFile(repoPath: string, ref: string, relativePath: string): Promise<string | null> {
+    if (this.batchGateway) {
+      try {
+        const blob = await this.batchGateway.getBlob(repoPath, ref, relativePath);
+        if (blob) return blob.content.toString("utf8");
+        return null;
+      } catch {
+        // Fall through to simple-git path on any batch failure.
+      }
+    }
     const git = createGit(repoPath);
     try {
       return await git.show([`${ref}:${relativePath}`]);

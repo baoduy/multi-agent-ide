@@ -1,14 +1,10 @@
 import React from "react";
 import { FolderGit2, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
-import { useRepoStore } from "../../store/repoStore";
+import { useComponentSize } from "../../hooks/useComponentSize";
 import { type LabelSize, type LabelVariant, sizeMap, boxedIconMap } from "./labelConstants";
 import { ScrollableText } from "./ScrollableText";
 import { Tag } from "./Tag";
-
-/* ── Pinned star (Unicode ★) ── */
-
-const PINNED_STAR = "\u2605";
 
 /* ══════════════════════════════════════════
  * RepoLabel — folder-git icon + repository name
@@ -27,25 +23,28 @@ type RepoLabelProps = {
   size?: LabelSize;
   /** Render the icon inside a rounded muted-background box. Default: false */
   boxed?: boolean;
-  /** When provided, auto-shows a pinned ★ star after the name if this repo is pinned. */
+  /** Accepted for back-compat — pin status is no longer rendered inline. */
   repoPath?: string;
   /** Optional content rendered as a second line below the name (badges, branch). */
   children?: React.ReactNode;
+  /** Render the repo name in uppercase. Default: false */
+  uppercase?: boolean;
   /** Extra inline styles on the outer element */
   style?: React.CSSProperties;
 };
 
 function RepoLabelComponent({
   name,
-  size = "sm",
+  size,
   boxed = false,
-  repoPath,
   children,
+  uppercase = false,
   style,
 }: RepoLabelProps): React.ReactElement {
-  const isPinned = useRepoStore((s) => repoPath ? s.pinnedPaths.has(repoPath) : false);
-  const sz = sizeMap[size];
-  const b = boxedIconMap[size];
+  const density = useComponentSize();
+  const resolvedSize: LabelSize = size ?? density;
+  const sz = sizeMap[resolvedSize];
+  const b = boxedIconMap[resolvedSize];
 
   const iconNode = boxed ? (
     <span
@@ -73,16 +72,13 @@ function RepoLabelComponent({
     <ScrollableText
       style={{
         fontSize: sz.font,
-        fontWeight: 600,
+        fontWeight: 500,
         color: colors.text,
+        textTransform: uppercase ? "uppercase" : undefined,
+        letterSpacing: uppercase ? 0.3 : undefined,
       }}
     >
       {name}
-      {isPinned && (
-        <span style={{ color: colors.text, fontSize: sz.font - 2, marginLeft: 4 }}>
-          {PINNED_STAR}
-        </span>
-      )}
     </ScrollableText>
   );
 
@@ -160,17 +156,19 @@ type BranchLabelProps = {
 
 function BranchLabelComponent({
   name,
-  size = "sm",
+  size,
   badge = true,
   style,
 }: BranchLabelProps): React.ReactElement {
-  const s = sizeMap[size];
+  const density = useComponentSize();
+  const resolvedSize: LabelSize = size ?? density;
+  const s = sizeMap[resolvedSize];
 
   if (badge) {
     return (
       <Tag
         tone="branch"
-        size={size === "xs" ? "xs" : "sm"}
+        size={resolvedSize === "xs" ? "xs" : "sm"}
         fontSize={s.font - 1}
         icon={<GitBranch size={s.icon - 2} strokeWidth={2} />}
         style={style}
@@ -199,7 +197,7 @@ function BranchLabelComponent({
       <ScrollableText
         style={{
           fontSize: s.font,
-          fontWeight: 600,
+          fontWeight: 500,
           color: colors.text,
         }}
       >

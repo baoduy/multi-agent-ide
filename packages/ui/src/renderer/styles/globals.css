@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Host+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "@uiw/react-md-editor/markdown-editor.css";
@@ -103,9 +103,50 @@
     @apply border-border;
   }
 
+  html,
+  body,
+  #root,
+  button,
+  input,
+  select,
+  textarea {
+    font-family: var(--font-sans);
+  }
+
   body {
     background: var(--background);
     color: var(--foreground);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+  }
+
+  /* Markdown preview (react-markdown-preview) — force our fonts so the
+     imported stylesheet can't pin to its own system stack. */
+  .wmde-markdown,
+  .wmde-markdown * {
+    font-family: var(--font-sans);
+  }
+
+  .wmde-markdown h1,
+  .wmde-markdown h2,
+  .wmde-markdown h3,
+  .wmde-markdown h4,
+  .wmde-markdown h5,
+  .wmde-markdown h6 {
+    font-family: var(--font-heading);
+  }
+
+  .wmde-markdown code,
+  .wmde-markdown pre,
+  .wmde-markdown kbd {
+    font-family: var(--font-mono);
   }
 }
 

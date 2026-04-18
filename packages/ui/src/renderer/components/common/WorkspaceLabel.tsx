@@ -1,6 +1,7 @@
 import React from "react";
 import { Folder } from "lucide-react";
 import { colors } from "../../utils/colors";
+import { useComponentSize } from "../../hooks/useComponentSize";
 import { type LabelSize, type LabelVariant, sizeMap } from "./labelConstants";
 
 const variantColors: Record<LabelVariant, { icon: string; text: string }> = {
@@ -21,11 +22,13 @@ type WorkspaceLabelProps = {
 };
 
 function WorkspaceLabelComponent({
-  size = "sm",
+  size,
   variant = "light",
   style,
 }: WorkspaceLabelProps): React.ReactElement {
-  const s = sizeMap[size];
+  const density = useComponentSize();
+  const resolvedSize: LabelSize = size ?? density;
+  const s = sizeMap[resolvedSize];
   const c = variantColors[variant];
 
   return (

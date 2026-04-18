@@ -179,6 +179,22 @@ export class GitOperationsGateway {
   }
 
   /**
+   * Commit exactly the given files using implicit `--only` semantics.
+   *
+   * `git commit -- <paths>` commits only those paths (same as `--only`),
+   * leaving the rest of the index untouched. That means we can drop the
+   * preceding `git reset HEAD` step and still guarantee only the caller's
+   * files land in the commit. Result: 2 git processes (add + commit) instead
+   * of 3 (reset + add + commit).
+   */
+  async commitOnly(repoPath: string, message: string, files: string[]): Promise<{ sha: string }> {
+    const git = createGit(path.resolve(repoPath));
+    await git.raw(["add", "-A", "--", ...files]);
+    const result = await git.commit(message, files);
+    return { sha: result.commit };
+  }
+
+  /**
    * Reset the current branch to a ref. Mode controls whether the working tree
    * and index are also rewound:
    *  - soft:  keep index + working tree

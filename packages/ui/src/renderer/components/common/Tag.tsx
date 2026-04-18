@@ -1,6 +1,7 @@
 import React from "react";
 
 import { colors } from "../../utils/colors";
+import { useComponentSize } from "../../hooks/useComponentSize";
 
 /* ══════════════════════════════════════════
  * Tag — single base component for every inline badge/pill/chip.
@@ -106,7 +107,7 @@ type SizePreset = {
 
 const sizePresets: Record<TagSize, SizePreset> = {
   // xs — sidebar chips (repo status, session counts, processing indicator)
-  xs: { padding: "1px 6px", radius: 3, fontSize: 9, fontWeight: 600, gap: 3 },
+  xs: { padding: "0px 5px", radius: 3, fontSize: 9, fontWeight: 500, gap: 2 },
   // sm — inline tags (branch, spec-card branch)
   sm: { padding: "2px 7px", radius: 6, fontSize: 10, fontWeight: 600, gap: 4 },
   // md — card-level state pills (spec state, filters)
@@ -163,7 +164,7 @@ function TagComponent({
   children,
   text,
   tone = "neutral",
-  size = "sm",
+  size,
   icon,
   dot = false,
   uppercase = false,
@@ -181,8 +182,10 @@ function TagComponent({
   style,
   className,
 }: TagProps): React.ReactElement {
+  const density = useComponentSize();
+  const resolvedSize: TagSize = size ?? density;
   const palette = tonePalettes[tone];
-  const sz = sizePresets[size];
+  const sz = sizePresets[resolvedSize];
 
   const resolvedBg = bg ?? background ?? palette.bg;
   const resolvedColor = color ?? palette.text;

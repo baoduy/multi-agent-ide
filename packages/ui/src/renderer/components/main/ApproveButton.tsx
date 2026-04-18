@@ -41,7 +41,6 @@ export function ApproveButton({
 
   const getWorktreeForBranch = useWorktreeStore((s) => s.getWorktreeForBranch);
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
-  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
   const fallbackApproverName = useConfigStore((s) => s.fallbackApproverName);
   const updateFallbackApproverName = useConfigStore((s) => s.updateFallbackApproverName);
@@ -257,7 +256,8 @@ export function ApproveButton({
         createdAt: Date.now(),
       });
 
-      void fetchWorktrees(repoPath);
+      // Daemon's worktree:create handler triggers a sync, which emits
+      // worktree:sync:complete — the store refreshes from DB automatically.
 
       setApproving(false); // handleWorktreeApproveWithPath sets it again
       handleWorktreeApproveWithPath(wtResp.worktreePath);

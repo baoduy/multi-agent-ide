@@ -20,7 +20,11 @@ type SyncedSessionStoreState = {
 
   // ── Actions ──
   fetchSessions: (provider?: SyncedSessionProvider) => Promise<void>;
-  triggerSync: () => Promise<void>;
+  /**
+   * Kick a manual sync. When `repoPath` is given, the daemon scopes the
+   * sweep to that repo (+ its worktrees); other repos' rows are not touched.
+   */
+  triggerSync: (repoPath?: string) => Promise<void>;
   archiveSession: (id: string) => Promise<void>;
   initializeSubscriptions: () => void;
 };
@@ -107,9 +111,9 @@ export const useSyncedSessionStore = create<SyncedSessionStoreState>((set, get) 
     }
   },
 
-  triggerSync: async () => {
+  triggerSync: async (repoPath?: string) => {
     try {
-      await sendOrThrow({ type: "synced-session:trigger-sync" });
+      await sendOrThrow({ type: "synced-session:trigger-sync", repoPath });
     } catch (err) {
       console.error("[SyncedSessionStore] Trigger sync failed:", err);
     }

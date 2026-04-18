@@ -27,7 +27,9 @@
       "Bash(pnpm --filter @magenta/ui typecheck)",
       "Bash(pnpm --filter @magenta/ui build)",
       "Bash(npx tsc *)",
-      "Bash(curl -s -X POST \"http://127.0.0.1:50285/cmd\" -H content-type:application/json -d '{\"kind\":\"title\"}')"
+      "Bash(curl -s -X POST \"http://127.0.0.1:50285/cmd\" -H content-type:application/json -d '{\"kind\":\"title\"}')",
+      "Bash(pnpm -C packages/shared build)",
+      "Bash(pnpm build *)"
     ]
   }
 }

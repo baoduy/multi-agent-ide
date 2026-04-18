@@ -54,6 +54,9 @@ if (require.main === module) {
       // Start watcher for live activity updates
       result.container.sessionFileWatcher.start();
 
+      // Worktree sync always runs while the daemon is up (not tab-gated).
+      result.container.worktreeSyncService.start();
+
       console.log("Daemon listening...");
     })
     .catch((err) => {

@@ -82,9 +82,9 @@ export class GitApplicationService {
     if (files.length === 0) throw new AppError("VALIDATION_ERROR", "Select at least one file to commit.");
 
     return wrapErrorAsync(async () => {
-      await this.gitOps.resetIndex(repoPath);
-      await this.gitOps.stageFiles(repoPath, files);
-      const { sha } = await this.gitOps.commit(repoPath, trimmedMessage);
+      // Single combined stage+commit using implicit --only pathspec — 2 git
+      // processes instead of the former 3 (reset + add + commit).
+      const { sha } = await this.gitOps.commitOnly(repoPath, trimmedMessage, files);
 
       let pushed = false;
       let resultMessage = `Committed ${sha.slice(0, 7)}.`;

@@ -7,6 +7,7 @@ import type { PipelineStageName, StageStatus } from "@magenta/shared/constants";
 import { PIPELINE_STAGES } from "@magenta/shared/constants";
 import { SpecParser } from "../domain/SpecParser";
 import { SpecGitGateway } from "../infrastructure/SpecGitGateway";
+import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 
 interface ParsedStageMetadata {
   taskCount?: number;
@@ -26,7 +27,11 @@ interface ParsedStageMetadata {
  */
 export class SpecReader {
   private readonly parser = new SpecParser();
-  private readonly gitGateway = new SpecGitGateway();
+  private readonly gitGateway: SpecGitGateway;
+
+  constructor(batchGateway?: GitBatchGateway) {
+    this.gitGateway = new SpecGitGateway(batchGateway);
+  }
 
   /* ═══════════════════════════════════════════════════════
      Public API

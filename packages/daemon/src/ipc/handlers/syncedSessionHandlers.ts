@@ -14,8 +14,8 @@ export function registerSyncedSessionHandlers({
     return { type: "synced-session:list:result" as const, sessions };
   });
 
-  safeHandle(bridge, "synced-session:trigger-sync", async () => {
-    sessionSyncService.triggerSync();
+  safeHandle(bridge, "synced-session:trigger-sync", async (msg) => {
+    sessionSyncService.triggerSync(msg.repoPath);
     return { type: "synced-session:sync:triggered" as const };
   });
 

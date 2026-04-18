@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { RefreshCw, Search, X } from "lucide-react";
 
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useSyncedSessionStore } from "../../store/syncedSessionStore";
@@ -8,6 +7,7 @@ import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { filterSessionGroups } from "../../utils/sessionTreeBuilder";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
+import { SearchSyncToolbar } from "../common/SearchSyncToolbar";
 import { colors } from "../../utils/colors";
 import { resolveWorktreeParent } from "../../utils/formatters";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -107,14 +107,19 @@ export function AISessionsView({
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
+    if (!activeRepoPath) return; // Button is disabled in this state.
     setIsRefreshing(true);
     try {
-      await Promise.all([triggerSync(), fetchSessions(), fetchSyncedSessions()]);
+      await Promise.all([
+        triggerSync(activeRepoPath),
+        fetchSessions(),
+        fetchSyncedSessions(),
+      ]);
     } catch (err) {
       console.error("[AISessionsView] Refresh failed:", err);
       setIsRefreshing(false);
     }
-  }, [isRefreshing, triggerSync, fetchSessions, fetchSyncedSessions]);
+  }, [isRefreshing, activeRepoPath, triggerSync, fetchSessions, fetchSyncedSessions]);
 
   // ── Handlers ────────────────────────────────────────────────
 
@@ -257,31 +262,26 @@ export function AISessionsView({
   );
 
   // Build unified groups: merge live sessions + synced history, grouped by repo/dir.
+  // `buildUnifiedGroups` already sorts pinned repos to the very top.
   const unifiedGroups = useMemo(() => {
-    let groups = buildUnifiedGroups(sessions, syncedGroups, repos, pinnedSessionKeys);
+    let groups = buildUnifiedGroups(sessions, syncedGroups, repos, pinnedSessionKeys, pinnedPaths);
 
     // Apply search filter
     if (searchQuery.trim()) {
       groups = filterSessionGroups(groups, searchQuery.trim());
     }
 
-    // Sort pinned repos to top (after any active-repo hoisting below)
-    if (pinnedPaths.size > 0) {
-      groups = [...groups].sort((a, b) => {
-        const aPinned = a.repo ? pinnedPaths.has(a.repo.path) : false;
-        const bPinned = b.repo ? pinnedPaths.has(b.repo.path) : false;
-        if (aPinned && !bPinned) return -1;
-        if (!aPinned && bPinned) return 1;
-        return 0; // preserve existing order within same pin status
-      });
-    }
-
+    // Hoist the currently-selected repo, but never above pinned repos.
     if (!activeRepoPath) return groups;
     const idx = groups.findIndex((g) => g.repo?.path === activeRepoPath || g.path === activeRepoPath);
-    if (idx <= 0) return groups;
+    if (idx < 0) return groups;
+    const isActivePinned = groups[idx].repo ? pinnedPaths.has(groups[idx].repo!.path) : false;
+    if (isActivePinned) return groups; // already in the pinned block
+    const firstUnpinnedIdx = groups.findIndex((g) => !(g.repo && pinnedPaths.has(g.repo.path)));
+    if (idx === firstUnpinnedIdx) return groups;
     const reordered = [...groups];
     const [active] = reordered.splice(idx, 1);
-    reordered.unshift(active);
+    reordered.splice(firstUnpinnedIdx === -1 ? 0 : firstUnpinnedIdx, 0, active);
     return reordered;
   }, [sessions, syncedGroups, repos, activeRepoPath, searchQuery, pinnedPaths, pinnedSessionKeys]);
 
@@ -293,97 +293,16 @@ export function AISessionsView({
         height: "100%",
       }}
     >
-      {/* Toolbar — search + refresh */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 8px",
-          borderBottom: `1px solid ${colors.border}`,
-          flexShrink: 0,
-        }}
-      >
-        {/* Search input */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 8px",
-            borderRadius: 4,
-            border: `1px solid ${colors.border}`,
-            background: colors.bgMuted,
-          }}
-        >
-          <Search size={12} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-          <input
-            type="text"
-            placeholder="Search sessions…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              flex: 1,
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              fontSize: 12,
-              color: colors.text,
-              padding: 0,
-              lineHeight: "18px",
-            }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                padding: 0,
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: colors.textTertiary,
-                flexShrink: 0,
-              }}
-              aria-label="Clear search"
-            >
-              <X size={12} />
-            </button>
-          )}
-        </div>
-
-        {/* Refresh button */}
-        <button
-          type="button"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          title="Re-sync AI sessions from disk"
-          aria-label="Refresh AI sessions"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "4px 8px",
-            fontSize: 11,
-            color: isRefreshing ? colors.textTertiary : colors.textSecondary,
-            background: "transparent",
-            border: `1px solid ${colors.border}`,
-            borderRadius: 4,
-            cursor: isRefreshing ? "default" : "pointer",
-            flexShrink: 0,
-          }}
-        >
-          <RefreshCw
-            size={12}
-            style={{
-              animation: isRefreshing ? "spin 1s linear infinite" : undefined,
-            }}
-          />
-        </button>
-      </div>
+      <SearchSyncToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        onSync={handleRefresh}
+        isSyncing={isRefreshing}
+        syncEnabled={!!activeRepoPath}
+        searchPlaceholder="Search sessions…"
+        syncTitle="Re-sync AI sessions for the selected repo"
+        syncAriaLabel="Sync AI sessions"
+      />
       {/* Unified session tree grouped by repo/directory */}
       <div
         style={{

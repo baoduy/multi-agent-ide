@@ -144,13 +144,13 @@ export const StatusBar = React.memo(function StatusBar({
             <Separator />
             {session.repoName ? (
               <span style={{ display: "inline-flex", alignItems: "center", gap: 5, minWidth: 0, overflow: "hidden" }}>
-                <RepoLabel name={session.repoName} size="xs" />
+                <RepoLabel name={session.repoName} />
                 {(session.worktreeName || session.branch) && (
-                  <BranchLabel name={session.worktreeName || session.branch || ""} size="xs" />
+                  <BranchLabel name={session.worktreeName || session.branch || ""} />
                 )}
               </span>
             ) : (
-              <WorkspaceLabel size="xs" />
+              <WorkspaceLabel />
             )}
             <Separator />
             <span style={{ color: getStatusColor(session.status), fontWeight: 500, fontSize: 11, flexShrink: 0 }}>

@@ -12,6 +12,7 @@ import { getStatusColor, isActiveStatus } from "../../utils/sessionStatus";
 import { ScrollableText } from "../common/ScrollableText";
 import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
 import { livePinKey } from "../../utils/sessionPinKey";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 type AISessionListItemProps = {
   session: AISessionRecord;
@@ -50,6 +51,7 @@ function AISessionListItemComponent({
   const pinKey = livePinKey(session);
   const isPinned = usePinnedSessionsStore((s) => s.pinnedKeys.has(pinKey));
   const togglePin = usePinnedSessionsStore((s) => s.togglePin);
+  const d = useDensityTokens();
 
   const contextMenuItems: ContextMenuAction[] = useMemo(
     () => [
@@ -85,19 +87,19 @@ function AISessionListItemComponent({
       <ClickableRow
         onClick={() => onSelect(session.id)}
         onContextMenu={openContextMenu}
-        padding="10px 16px"
-        gap={12}
+        padding={`${d.rowPadY + 2}px ${d.rowPadX + 4}px`}
+        gap={d.rowGap + 4}
         borderBottom={`1px solid ${colors.border}`}
         defaultBackground={colors.bgSurface}
         hoverBackground={colors.bgHover}
       >
-        <ProviderBadge provider={session.provider} iconSize={14} fontSize={12} color={colors.text} />
+        <ProviderBadge provider={session.provider} iconSize={d.iconMd} fontSize={d.font} color={colors.text} />
         {sessionTitle && (
           <>
-            <span style={{ color: colors.textTertiary, fontSize: 11, flexShrink: 0 }}>·</span>
+            <span style={{ color: colors.textTertiary, fontSize: d.font, flexShrink: 0 }}>·</span>
             <ScrollableText
               style={{
-                fontSize: 12,
+                fontSize: d.font,
                 color: colors.textSecondary,
                 minWidth: 0,
                 flex: 1,
@@ -109,12 +111,12 @@ function AISessionListItemComponent({
         )}
 
         {showBranch && branchName && (
-          <BranchLabel name={branchName} size="xs" style={{ flexShrink: 0 }} />
+          <BranchLabel name={branchName} style={{ flexShrink: 0 }} />
         )}
 
         <span
           style={{
-            fontSize: 11,
+            fontSize: d.mutedFont,
             color: colors.textTertiary,
             flexShrink: 0,
             minWidth: 60,

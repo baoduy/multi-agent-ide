@@ -10,6 +10,8 @@ export const DEFAULT_SPECIFY_COMMAND = "uvx --from git+https://github.com/github
 export const DEFAULT_SPEC_SYNC_INTERVAL_MINUTES = 15;
 /** Default interval (minutes) for periodic CLI session history sync. */
 export const DEFAULT_SESSION_SYNC_INTERVAL_MINUTES = 15;
+/** Default interval (minutes) for periodic worktree sync. */
+export const DEFAULT_WORKTREE_SYNC_INTERVAL_MINUTES = 1;
 /** Minimum allowed sync interval. Guards against pathological tight loops. */
 export const MIN_SYNC_INTERVAL_MINUTES = 1;
 /** Maximum allowed sync interval (24h). Keeps values sane. */

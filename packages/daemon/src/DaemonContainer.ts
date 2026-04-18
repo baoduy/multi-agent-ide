@@ -14,13 +14,19 @@ import { SpecSyncService } from "./services/SpecSyncService";
 import { TerminalApplicationService } from "./application/TerminalApplicationService";
 import { AISessionApplicationService } from "./application/AISessionApplicationService";
 import { SessionSyncApplicationService } from "./application/SessionSyncApplicationService";
+import { WorktreeSyncApplicationService } from "./application/WorktreeSyncApplicationService";
 import { SyncedSessionRepository } from "./services/SyncedSessionRepository";
+import { WorktreeRepository } from "./services/WorktreeRepository";
 import { SessionSyncGateway } from "./infrastructure/SessionSyncGateway";
 import { SessionFileWatcher } from "./infrastructure/SessionFileWatcher";
 import { GitGateway } from "./infrastructure/GitGateway";
 import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
 import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
 import { SpecReader } from "./services/SpecReader";
+import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
+import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
+import { LruCache } from "./infrastructure/utils/LruCache";
+import type { LogResult, CommitDetailResult } from "./infrastructure/GitHistoryGateway";
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
@@ -55,9 +61,15 @@ export class DaemonContainer {
   readonly syncedSessionRepository: SyncedSessionRepository;
   readonly sessionSyncService: SessionSyncApplicationService;
   readonly sessionFileWatcher: SessionFileWatcher;
+  readonly worktreeRepository: WorktreeRepository;
+  readonly worktreeSyncService: WorktreeSyncApplicationService;
   readonly fileSystemGateway: FileSystemGateway;
   readonly specGitGateway: SpecGitGateway;
   readonly specReader: SpecReader;
+  readonly gitBatchGateway: GitBatchGateway;
+  readonly gitRepoWatcher: GitRepoWatcher;
+  readonly logCache: LruCache<string, LogResult>;
+  readonly commitDetailCache: LruCache<string, CommitDetailResult>;
   readonly githubReleasesGateway: GitHubReleasesGateway;
   readonly npmRegistryGateway: NpmRegistryGateway;
   readonly cliVersionService: CliVersionApplicationService;
@@ -106,13 +118,25 @@ export class DaemonContainer {
     // the source of truth for session history.
     this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager, this.gitGateway);
 
+    // Git performance foundation — owned once here, shared everywhere:
+    //   - batch gateway holds one long-lived `git cat-file --batch` per repo
+    //   - logCache + commitDetailCache avoid re-spawning git for cold reads
+    //   - repoWatcher proactively invalidates both when `.git/` changes
+    this.gitBatchGateway = new GitBatchGateway();
+    this.logCache = new LruCache<string, LogResult>({ maxEntries: 500 });
+    this.commitDetailCache = new LruCache<string, CommitDetailResult>({ maxEntries: 500 });
+    this.gitRepoWatcher = new GitRepoWatcher(this.bridge, this.gitBatchGateway, {
+      logCache: this.logCache,
+      commitDetailCache: this.commitDetailCache,
+    });
+
     // Read-side gateways shared across handler registrations. Keeping a
     // single instance here prevents duplicate construction in
     // registerHandlers and ensures the FileSystemGateway has a single
     // authoritative allowlist provider.
     this.fileSystemGateway = new FileSystemGateway(this.configManager);
-    this.specGitGateway = new SpecGitGateway();
-    this.specReader = new SpecReader();
+    this.specGitGateway = new SpecGitGateway(this.gitBatchGateway);
+    this.specReader = new SpecReader(this.gitBatchGateway);
 
     // Session sync (scans Claude Code + Copilot JSONL files from disk)
     this.sessionSyncGateway = new SessionSyncGateway();
@@ -133,6 +157,18 @@ export class DaemonContainer {
       this.sessionSyncService,
       this.sessionSyncGateway.getClaudeProjectsDir(),
       this.sessionSyncGateway.getCopilotSessionStateDir(),
+    );
+
+    // Worktree sync — scans `git worktree list` for every active repo on
+    // a 1-minute interval, mirrors results into SQLite, and pushes
+    // `worktree:sync:complete` events so the renderer can refresh from DB.
+    this.worktreeRepository = new WorktreeRepository(databaseService);
+    this.worktreeSyncService = new WorktreeSyncApplicationService(
+      this.worktreeRepository,
+      this.gitGateway,
+      this.repoRepository,
+      this.bridge,
+      this.jobManager,
     );
 
     // CLI tool version tracking — on-demand check when the user opens
@@ -169,11 +205,16 @@ export class DaemonContainer {
       terminalService: this.terminalService,
       aiSessionService: this.aiSessionService,
       sessionSyncService: this.sessionSyncService,
+      worktreeSyncService: this.worktreeSyncService,
       gitGateway: this.gitGateway,
       fileSystemGateway: this.fileSystemGateway,
       specGitGateway: this.specGitGateway,
       specReader: this.specReader,
       cliVersionService: this.cliVersionService,
+      gitBatchGateway: this.gitBatchGateway,
+      gitRepoWatcher: this.gitRepoWatcher,
+      logCache: this.logCache,
+      commitDetailCache: this.commitDetailCache,
     });
   }
 
@@ -187,6 +228,9 @@ export class DaemonContainer {
     this.dirWatcher.unwatchAll();
     this.sessionFileWatcher.stop();
     this.sessionSyncService.stop();
+    this.worktreeSyncService.stop();
+    this.gitRepoWatcher.stop();
+    this.gitBatchGateway.dispose();
   }
 
   /**

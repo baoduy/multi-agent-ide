@@ -64,7 +64,6 @@ export function NewSessionDialog({
   const repos = useRepoStore((s) => s.repos);
   const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
   const worktrees = useWorktreeStore((s) => s.worktrees);
-  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
 
   /* ── Form state ── */
   const [provider, setProvider] = useState<AIProvider>("claude");
@@ -322,12 +321,8 @@ export function NewSessionDialog({
     return () => { cancelled = true; };
   }, [open, effectiveSpecifyPath]);
 
-  // Load worktrees for selected repo
-  useEffect(() => {
-    if (open && selectedRepoPath) {
-      void fetchWorktrees(selectedRepoPath);
-    }
-  }, [open, selectedRepoPath, fetchWorktrees]);
+  // Worktrees are kept in sync by the 1-minute daemon sweep — the store
+  // already has every repo's worktrees at all times, so no dialog-open fetch.
 
   // Focus worktree name input when entering new-worktree mode
   useEffect(() => {
@@ -812,7 +807,7 @@ function WorktreeList({
                 {wt.name}
               </ScrollableText>
               <div style={{ marginTop: 2 }}>
-                <BranchLabel name={wt.branch} size="xs" />
+                <BranchLabel name={wt.branch} />
               </div>
             </div>
             {isSelected && (

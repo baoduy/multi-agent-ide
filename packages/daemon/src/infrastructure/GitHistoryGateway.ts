@@ -1,6 +1,8 @@
 import path from "node:path";
 import type { CommitSummary, CommitFile } from "@magenta/shared/ipc";
 import { createGit } from "./utils/createGit";
+import type { GitBatchGateway } from "./GitBatchGateway";
+import type { LruCache } from "./utils/LruCache";
 
 export type LogArgs = {
   branch?: string;
@@ -9,6 +11,9 @@ export type LogArgs = {
   skip: number;
   search?: string;
 };
+
+export type LogResult = { commits: CommitSummary[]; hasMore: boolean };
+export type CommitDetailResult = { commit: CommitSummary; files: CommitFile[] };
 
 /** Unique delimiters chosen to not appear in commit messages. */
 const FIELD_SEP = "\x1e"; // record separator
@@ -52,13 +57,46 @@ function isLikelyBinary(buffer: string): boolean {
   return control / sample.length > 0.05;
 }
 
+function logCacheKey(repoPath: string, args: LogArgs): string {
+  return [
+    "log",
+    path.resolve(repoPath),
+    args.branch ?? "",
+    args.path ?? "",
+    args.search ?? "",
+    args.skip,
+    args.limit,
+  ].join("|");
+}
+
+function commitDetailCacheKey(repoPath: string, sha: string): string {
+  return `cd|${path.resolve(repoPath)}|${sha}`;
+}
+
+export interface GitHistoryCaches {
+  logCache?: LruCache<string, LogResult>;
+  commitDetailCache?: LruCache<string, CommitDetailResult>;
+}
+
 export class GitHistoryGateway {
-  async log(repoPath: string, args: LogArgs): Promise<{ commits: CommitSummary[]; hasMore: boolean }> {
+  constructor(
+    private readonly batchGateway?: GitBatchGateway,
+    private readonly caches: GitHistoryCaches = {},
+  ) {}
+
+  async log(repoPath: string, args: LogArgs): Promise<LogResult> {
+    const cacheKey = logCacheKey(repoPath, args);
+    const cached = this.caches.logCache?.get(cacheKey);
+    if (cached) return cached;
+
     const git = createGit(path.resolve(repoPath));
+    // Fetch one extra row to detect hasMore in a single process call — drops
+    // the old "probe" query entirely.
+    const fetchCount = args.limit + 1;
     const logArgs: string[] = [
       `--pretty=format:${LOG_FORMAT}${COMMIT_SEP}`,
       `--skip=${args.skip}`,
-      `-n`, String(args.limit),
+      `-n`, String(fetchCount),
     ];
     if (args.search) logArgs.push(`--grep=${args.search}`, "-i");
     if (args.branch) logArgs.push(args.branch);
@@ -67,28 +105,74 @@ export class GitHistoryGateway {
     const raw = await git.raw(["log", ...logArgs]);
     const commits = parseLogOutput(raw);
 
-    // Cheap probe: did we return a full page? If so, there's at least one more.
     let hasMore = false;
-    if (commits.length === args.limit) {
-      const probeArgs: string[] = [
-        `--pretty=format:x`,
-        `--skip=${args.skip + args.limit}`,
-        `-n`, `1`,
-      ];
-      if (args.search) probeArgs.push(`--grep=${args.search}`, "-i");
-      if (args.branch) probeArgs.push(args.branch);
-      if (args.path) probeArgs.push("--", args.path);
-      const probe = await git.raw(["log", ...probeArgs]);
-      hasMore = probe.trim().length > 0;
+    if (commits.length > args.limit) {
+      hasMore = true;
+      commits.length = args.limit;
     }
 
-    return { commits, hasMore };
+    const result: LogResult = { commits, hasMore };
+    this.caches.logCache?.set(cacheKey, result);
+    return result;
   }
 
-  async commitDetail(repoPath: string, sha: string): Promise<{ commit: CommitSummary; files: CommitFile[] }> {
+  /**
+   * Collapse three `git show` processes into one by asking for the commit
+   * summary, numstat, and raw name-status all in a single invocation.
+   *
+   * Output shape (top to bottom):
+   *   <LOG_FORMAT>\n
+   *   <COMMIT_SEP>\n
+   *   12\t3\tpath         ← numstat rows ("-\t-\tpath" for binary)
+   *   ...
+   *   (blank separator line)
+   *   :100644 100644 a b M\tpath                     ← raw rows (name-status encoded)
+   *   :100644 000000 a 0 D\tpath
+   *   :100644 100644 a b R100\told\tnew
+   */
+  async commitDetail(repoPath: string, sha: string): Promise<CommitDetailResult> {
+    const cacheKey = commitDetailCacheKey(repoPath, sha);
+    const cached = this.caches.commitDetailCache?.get(cacheKey);
+    if (cached) return cached;
+
     const git = createGit(path.resolve(repoPath));
 
-    // Summary
+    // Single git process: summary, numstat (additions/deletions), and raw
+    // (includes old+new paths for renames, file statuses, and modes).
+    // Git emits raw rows before numstat rows — our parser accepts either
+    // order by classifying lines rather than relying on blocks.
+    const combined = await git.raw([
+      "show",
+      `--pretty=format:${LOG_FORMAT}${COMMIT_SEP}`,
+      "--numstat",
+      "--raw",
+      sha,
+    ]);
+
+    // Split at the commit separator — anything before is the summary, anything after is file rows.
+    const sepIdx = combined.indexOf(COMMIT_SEP);
+    if (sepIdx < 0) {
+      // Fallback to the multi-call path if the combined format fails.
+      return this.commitDetailFallback(repoPath, sha);
+    }
+
+    const summaryRaw = combined.slice(0, sepIdx);
+    const body = combined.slice(sepIdx + COMMIT_SEP.length);
+    const [maybeCommit] = parseLogOutput(summaryRaw + COMMIT_SEP);
+    if (!maybeCommit) {
+      throw new Error(`Commit not found: ${sha}`);
+    }
+    const commit = maybeCommit;
+
+    const files = parseCombinedFiles(body);
+    const result: CommitDetailResult = { commit, files };
+    this.caches.commitDetailCache?.set(cacheKey, result);
+    return result;
+  }
+
+  /** Legacy three-process path — used only if the combined parser ever fails. */
+  private async commitDetailFallback(repoPath: string, sha: string): Promise<CommitDetailResult> {
+    const git = createGit(path.resolve(repoPath));
     const [summaryRaw, numstatRaw, namestatusRaw] = await Promise.all([
       git.raw(["show", "-s", `--pretty=format:${LOG_FORMAT}`, sha]),
       git.raw(["show", "--numstat", "--format=", sha]),
@@ -99,7 +183,6 @@ export class GitHistoryGateway {
     if (!maybeCommit) throw new Error(`Commit not found: ${sha}`);
     const commit = maybeCommit;
 
-    // numstat: "12\t3\tpath" (or "-\t-\tpath" for binary)
     const adds = new Map<string, { additions: number; deletions: number }>();
     for (const line of numstatRaw.split(/\r?\n/)) {
       if (!line.trim()) continue;
@@ -111,22 +194,18 @@ export class GitHistoryGateway {
       adds.set(p!, { additions, deletions });
     }
 
-    // name-status: "M<tab>path" or "R100<tab>old<tab>new"
     const files: CommitFile[] = [];
     for (const line of namestatusRaw.split(/\r?\n/)) {
       if (!line.trim()) continue;
       const parts = line.split("\t");
       const code = parts[0]!;
       const letter = code[0];
-      let status: CommitFile["status"];
-      switch (letter) {
-        case "A": status = "added"; break;
-        case "M": status = "modified"; break;
-        case "D": status = "deleted"; break;
-        case "R": status = "renamed"; break;
-        case "C": status = "copied"; break;
-        default: status = "modified"; break;
-      }
+      const status: CommitFile["status"] =
+        letter === "A" ? "added" :
+        letter === "D" ? "deleted" :
+        letter === "R" ? "renamed" :
+        letter === "C" ? "copied" :
+        "modified";
       if ((letter === "R" || letter === "C") && parts.length >= 3) {
         const oldPath = parts[1]!;
         const newPath = parts[2]!;
@@ -138,7 +217,6 @@ export class GitHistoryGateway {
         files.push({ path: p, status, ...counts });
       }
     }
-
     return { commit, files };
   }
 
@@ -152,14 +230,23 @@ export class GitHistoryGateway {
     newPath: string | null;
     isBinary: boolean;
   }> {
-    const git = createGit(path.resolve(repoPath));
+    const readAtBatch = async (ref: string | undefined, p: string): Promise<string | null> => {
+      if (!ref) return null;
+      if (!this.batchGateway) return readAtSpawn(ref, p);
+      const blob = await this.batchGateway.getBlob(path.resolve(repoPath), ref, p);
+      if (!blob) return null;
+      // `git cat-file` returns raw bytes; callers expect a string. We keep the
+      // isBinary heuristic-based render upstream, so decoding as utf-8 for
+      // binary data is fine (the diff panel will fall back to "binary file").
+      return blob.content.toString("utf8");
+    };
 
-    const readAt = async (ref: string | undefined, p: string): Promise<string | null> => {
+    const readAtSpawn = async (ref: string | undefined, p: string): Promise<string | null> => {
       if (!ref) return null;
       try {
+        const git = createGit(path.resolve(repoPath));
         return await git.raw(["show", `${ref}:${p}`]);
       } catch {
-        // File doesn't exist at that ref (added/deleted cases)
         return null;
       }
     };
@@ -167,8 +254,8 @@ export class GitHistoryGateway {
     const fromRef = args.fromRef;
     const toRef = args.toRef ?? "HEAD";
     const [oldContent, newContent] = await Promise.all([
-      readAt(fromRef, args.path),
-      readAt(toRef, args.path),
+      readAtBatch(fromRef, args.path),
+      readAtBatch(toRef, args.path),
     ]);
 
     const isBinary = isLikelyBinary(oldContent ?? "") || isLikelyBinary(newContent ?? "");
@@ -180,4 +267,73 @@ export class GitHistoryGateway {
       isBinary,
     };
   }
+}
+
+/**
+ * Parse the combined numstat+raw output that follows the commit summary.
+ *
+ * `--numstat` rows look like:  "12\t3\tpath"                    (or "-\t-\tpath" for binary)
+ *                              "12\t3\told\tnew"                (rename, 4 tab-separated fields)
+ * `--raw` rows look like:      ":mode mode sha sha M\tpath"
+ *                              ":mode mode sha sha R100\told\tnew"
+ *
+ * Git emits raw rows first by default, but we classify by line shape so the
+ * order doesn't matter. Raw rows give us the status + old/new paths for
+ * renames; numstat rows give us the +/- counts.
+ */
+const NUMSTAT_RE = /^(\d+|-)\t(\d+|-)\t/;
+
+function parseCombinedFiles(body: string): CommitFile[] {
+  const counts = new Map<string, { additions: number; deletions: number }>();
+  const rawEntries: Array<{ status: CommitFile["status"]; path: string; oldPath?: string }> = [];
+
+  for (const rawLine of body.split(/\r?\n/)) {
+    if (!rawLine.trim()) continue;
+
+    // --raw row
+    if (rawLine.startsWith(":")) {
+      const tabIdx = rawLine.indexOf("\t");
+      if (tabIdx < 0) continue;
+      const header = rawLine.slice(0, tabIdx);
+      const rest = rawLine.slice(tabIdx + 1);
+      const headerParts = header.split(" ");
+      const code = headerParts[headerParts.length - 1]!;
+      const letter = code[0];
+      const status: CommitFile["status"] =
+        letter === "A" ? "added" :
+        letter === "D" ? "deleted" :
+        letter === "R" ? "renamed" :
+        letter === "C" ? "copied" :
+        "modified";
+
+      if (letter === "R" || letter === "C") {
+        const pathParts = rest.split("\t");
+        const oldPath = pathParts[0] ?? "";
+        const newPath = pathParts[1] ?? pathParts[0] ?? "";
+        rawEntries.push({ status, path: newPath, oldPath });
+      } else {
+        const p = rest.split("\t")[0] ?? "";
+        rawEntries.push({ status, path: p });
+      }
+      continue;
+    }
+
+    // --numstat row
+    if (NUMSTAT_RE.test(rawLine)) {
+      const parts = rawLine.split("\t");
+      const aStr = parts[0]!;
+      const dStr = parts[1]!;
+      const additions = aStr === "-" ? 0 : parseInt(aStr, 10) || 0;
+      const deletions = dStr === "-" ? 0 : parseInt(dStr, 10) || 0;
+      // For renames, numstat emits 4 fields: add\tdel\told\tnew — we key on
+      // the new path since that's what we'll display.
+      const pathKey = parts.length >= 4 ? parts[parts.length - 1]! : parts[2] ?? "";
+      if (pathKey) counts.set(pathKey, { additions, deletions });
+    }
+  }
+
+  return rawEntries.map((e) => {
+    const c = counts.get(e.path) ?? (e.oldPath ? counts.get(e.oldPath) : undefined) ?? { additions: 0, deletions: 0 };
+    return e.oldPath ? { path: e.path, oldPath: e.oldPath, status: e.status, ...c } : { path: e.path, status: e.status, ...c };
+  });
 }

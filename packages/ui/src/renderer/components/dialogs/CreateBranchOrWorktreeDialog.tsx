@@ -56,7 +56,6 @@ export function CreateBranchOrWorktreeDialog({
   // Stores
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
   const addWorktree = useWorktreeStore((s) => s.addWorktree);
-  const fetchWorktrees = useWorktreeStore((s) => s.fetchWorktrees);
   const toggleRepoExpanded = useWorktreeStore((s) => s.toggleRepoExpanded);
   const expandedRepos = useWorktreeStore((s) => s.expandedRepos);
   const setExpandedWorktreePath = useWorktreeStore((s) => s.setExpandedWorktreePath);
@@ -131,7 +130,8 @@ export function CreateBranchOrWorktreeDialog({
           name: trimmed,
           createdAt: Date.now(),
         });
-        void fetchWorktrees(repoPath);
+        // Daemon triggers a worktree sync after create; the store refreshes
+        // from DB via the worktree:sync:complete push event.
         void patchSession({ mainTab: "worktrees" });
         if (!expandedRepos[repoPath]) toggleRepoExpanded(repoPath);
         setExpandedWorktreePath(result.worktreePath);
@@ -143,7 +143,7 @@ export function CreateBranchOrWorktreeDialog({
     }
   }, [
     name, baseBranch, isBranch, switchAfter, repoPath,
-    validateName, fetchRepos, addWorktree, fetchWorktrees, patchSession,
+    validateName, fetchRepos, addWorktree, patchSession,
     expandedRepos, toggleRepoExpanded, setExpandedWorktreePath, onClose,
   ]);
 

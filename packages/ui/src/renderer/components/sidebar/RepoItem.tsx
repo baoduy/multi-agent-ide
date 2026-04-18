@@ -19,6 +19,7 @@ import { CommitDialog } from "../dialogs/CommitDialog";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { colors } from "../../utils/colors";
 import { Tag } from "../common/Tag";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 /* ── RepoItem ── */
 
@@ -33,6 +34,7 @@ type RepoItemProps = {
 export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoItemProps): React.ReactElement {
   const badge = getRepoBadge(repo);
   const [hovered, setHovered] = useState(false);
+  const d = useDensityTokens();
   const [showBranchSwitcher, setShowBranchSwitcher] = useState(false);
   const [showCommitDialog, setShowCommitDialog] = useState(false);
   /** Unified create dialog — null means hidden; otherwise the mode. */
@@ -178,21 +180,21 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
           border: "none",
           borderLeft: active ? `2px solid ${colors.primary}` : "2px solid transparent",
           background: active ? colors.bgHover : hovered ? colors.bgCodeInline : "transparent",
-          padding: "4px 28px 4px 8px",
+          padding: `${d.rowPadY + 1}px ${d.rowPadX * 2 + 6}px ${d.rowPadY + 1}px ${d.tightGap * 2}px`,
           cursor: "pointer",
           display: "flex",
           alignItems: "center",
-          gap: 6,
+          gap: d.tightGap,
           transition: "background 0.12s",
         }}
       >
         {/* Inline ★ suppressed here — the pin toggle on the right is the canonical control. */}
         <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-          <Tag tone={badge.tone} size="xs" fontWeight={500}>
+          <Tag tone={badge.tone} fontWeight={500}>
             {badge.label}
           </Tag>
           {/* Current branch — read-only tag */}
-          <BranchLabel name={repo.branch} size="xs" />
+          <BranchLabel name={repo.branch} />
         </RepoLabel>
       </button>
 

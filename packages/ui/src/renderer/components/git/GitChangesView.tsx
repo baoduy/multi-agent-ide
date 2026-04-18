@@ -54,9 +54,10 @@ type ToastState = { kind: "success" | "error"; text: string } | null;
 
 const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
 
-/** Working-tree file count refresh cadence. Commit/pull/reset are already
- *  reactive via `repo:force-reload:started`; this covers external edits. */
-const STATUS_REFRESH_INTERVAL = 15_000;
+/** Delay before persisting a new graph width to localStorage. Resize drags
+ *  fire many times per second; a trailing debounce keeps us off the
+ *  synchronous storage path during the drag. */
+const GRAPH_WIDTH_PERSIST_DEBOUNCE_MS = 200;
 
 export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenCommitComposer }: GitChangesViewProps): React.ReactElement {
   const repos = useRepoStore((s) => s.repos);
@@ -74,14 +75,31 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenComm
   const graphWidthRef = useRef(graphWidth);
   graphWidthRef.current = graphWidth;
 
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleResize = useCallback((delta: number) => {
     const next = clampGraphWidth(graphWidthRef.current + delta);
     graphWidthRef.current = next;
     setGraphWidth(next);
+    // Trailing-debounce the storage write so drags don't thrash sync I/O.
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      graphWidthStore.set(graphWidthRef.current);
+    }, GRAPH_WIDTH_PERSIST_DEBOUNCE_MS);
   }, []);
 
   const handleResizeEnd = useCallback(() => {
+    if (persistTimerRef.current) {
+      clearTimeout(persistTimerRef.current);
+      persistTimerRef.current = null;
+    }
     graphWidthStore.set(graphWidthRef.current);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
   }, []);
 
   const repo = repoPath ? repos.find((r) => r.path === repoPath) : undefined;
@@ -89,12 +107,11 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenComm
 
   // ── Keep the Uncommitted row's badge in sync with `git status` ────────
   //
-  // Three sources of truth, in precedence order:
-  //   1. `repo:force-reload:started` push events (commit/pull/reset/revert) —
-  //      immediate, reactive, no polling delay. Also refreshes the commit graph.
-  //   2. `busy` transitions — re-poll right after fetch finishes (covers the
-  //      rare case where fetch surfaces working-tree changes via submodules).
-  //   3. Background poll every 60s — catches edits made outside the app.
+  // The daemon's `GitRepoWatcher` fires `git:repo:changed` within ~150 ms of
+  // any `.git/` write (index, HEAD, refs), so the UI no longer polls. The
+  // `busy` dependency still triggers a one-shot refresh after fetch to pick
+  // up submodule-surfaced changes, and `repo:force-reload:started` (emitted
+  // by commit/pull/reset handlers) remains as a belt-and-braces signal.
   const refreshStatus = useCallback(async () => {
     if (!repoPath) return;
     try {
@@ -107,28 +124,26 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenComm
 
   useEffect(() => {
     if (!repoPath) { setWorkingTreeCount(null); return; }
-    let cancelled = false;
-
-    const poll = () => {
-      if (cancelled) return;
-      void refreshStatus();
-    };
-
-    poll();
-    const interval = setInterval(poll, STATUS_REFRESH_INTERVAL);
-    return () => { cancelled = true; clearInterval(interval); };
+    // Initial load + re-fetch when `busy` transitions (end of fetch/pull/push).
+    void refreshStatus();
   }, [repoPath, busy, refreshStatus]);
 
   useEffect(() => {
     if (!repoPath) return;
-    const off = ipc.on("repo:force-reload:started", (payload) => {
+    const offForce = ipc.on("repo:force-reload:started", (payload) => {
       if (payload.repoPath !== repoPath) return;
-      // Commit/pull/reset/revert just landed — the working tree and commit
-      // graph both changed. Refresh both immediately.
       void refreshStatus();
       void useGitHistoryStore.getState().refresh({ repoPath });
     });
-    return off;
+    const offChanged = ipc.on("git:repo:changed", (payload) => {
+      if (payload.repoPath !== repoPath) return;
+      // index → working-tree status; ref/head → commit history moved.
+      if (payload.kinds.includes("index")) void refreshStatus();
+      if (payload.kinds.includes("ref") || payload.kinds.includes("head")) {
+        void useGitHistoryStore.getState().refresh({ repoPath });
+      }
+    });
+    return () => { offForce(); offChanged(); };
   }, [repoPath, refreshStatus]);
 
   // ── Reset selection when the active repo changes ─────────────────────

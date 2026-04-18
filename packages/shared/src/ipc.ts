@@ -389,6 +389,14 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:specify-status:result"), repoPath: z.string(), hasSpecs: z.boolean(), currentAgent: z.string().nullable() }),
   z.object({ type: z.literal("repo:specify-switch:started"), repoPath: z.string() }),
   z.object({ type: z.literal("repo:force-reload:started"), repoPath: z.string() }),
+  // Push event: the daemon's `.git` watcher observed a change. `kinds` tells
+  // the renderer what changed so it can invalidate the right slice of its own
+  // caches (index → working-tree status, ref/head → commit history).
+  z.object({
+    type: z.literal("git:repo:changed"),
+    repoPath: z.string(),
+    kinds: z.array(z.enum(["index", "ref", "head"])),
+  }),
   z.object({ type: z.literal("job:started"), name: z.string() }),
   z.object({ type: z.literal("job:completed"), name: z.string(), elapsed: z.number() }),
   z.object({ type: z.literal("job:failed"), name: z.string(), error: z.string() }),

@@ -48,6 +48,10 @@ import type { SpecReader } from "../services/SpecReader";
 import type { RepoScanner } from "../services/RepoScanner";
 import type { CliVersionApplicationService } from "../application/CliVersionApplicationService";
 import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
+import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
+import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
+import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
+import type { LruCache } from "../infrastructure/utils/LruCache";
 
 export type HandlerContext = {
   databaseService: DatabaseService;
@@ -68,6 +72,11 @@ export type HandlerContext = {
   specGitGateway: SpecGitGateway;
   specReader: SpecReader;
   cliVersionService: CliVersionApplicationService;
+  /** Git perf foundation — owned by DaemonContainer. */
+  gitBatchGateway: GitBatchGateway;
+  gitRepoWatcher: GitRepoWatcher;
+  logCache: LruCache<string, LogResult>;
+  commitDetailCache: LruCache<string, CommitDetailResult>;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -107,7 +116,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   const gitOpsGateway = new GitOperationsGateway();
   const gitBlameGateway = new GitBlameGateway();
   const gitService = new GitApplicationService(gitOpsGateway, gitBlameGateway);
-  registerGitOperationHandlers({ bridge, gitService });
+  registerGitOperationHandlers({ bridge, gitService, gitRepoWatcher: context.gitRepoWatcher });
 
   const gitCloneGateway = new GitCloneGateway();
   const gitCloneService = new GitCloneApplicationService(
@@ -118,9 +127,12 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   );
   registerGitCloneHandlers({ bridge, cloneService: gitCloneService });
 
-  const gitHistoryGateway = new GitHistoryGateway();
+  const gitHistoryGateway = new GitHistoryGateway(context.gitBatchGateway, {
+    logCache: context.logCache,
+    commitDetailCache: context.commitDetailCache,
+  });
   const gitHistoryService = new GitHistoryApplicationService(gitHistoryGateway);
-  registerGitHistoryHandlers({ bridge, historyService: gitHistoryService });
+  registerGitHistoryHandlers({ bridge, historyService: gitHistoryService, gitRepoWatcher: context.gitRepoWatcher });
 
   const stashRemoteGateway = new GitStashRemoteGateway();
   const stashService = new GitStashApplicationService(stashRemoteGateway);

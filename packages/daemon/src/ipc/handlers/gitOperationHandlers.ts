@@ -1,13 +1,15 @@
 import type { IPCBridge } from "../IPCBridge";
 import type { GitApplicationService } from "../../application/GitApplicationService";
+import type { GitRepoWatcher } from "../../infrastructure/GitRepoWatcher";
 import { safeHandle } from "../createHandler";
 
 type GitOperationHandlerContext = {
   bridge: IPCBridge;
   gitService: GitApplicationService;
+  gitRepoWatcher: GitRepoWatcher;
 };
 
-export function registerGitOperationHandlers({ bridge, gitService }: GitOperationHandlerContext): void {
+export function registerGitOperationHandlers({ bridge, gitService, gitRepoWatcher }: GitOperationHandlerContext): void {
   safeHandle(bridge, "branch:create", async (msg) => {
     const result = await gitService.createBranch(msg.repoPath, msg.branchName, msg.startPoint);
     return { type: "branch:create:result", repoPath: msg.repoPath, branchName: msg.branchName, success: result.success };
@@ -31,6 +33,9 @@ export function registerGitOperationHandlers({ bridge, gitService }: GitOperatio
   });
 
   safeHandle(bridge, "git:status", async (msg) => {
+    // Lazily register the `.git/` watcher so the renderer stops having to
+    // poll for file-status updates once it has hit this endpoint once.
+    gitRepoWatcher.ensureWatching(msg.repoPath);
     const result = await gitService.status(msg.repoPath);
     return {
       type: "git:status:result",

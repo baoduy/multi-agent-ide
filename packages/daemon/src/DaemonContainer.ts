@@ -23,6 +23,10 @@ import { GitGateway } from "./infrastructure/GitGateway";
 import { FileSystemGateway } from "./infrastructure/FileSystemGateway";
 import { SpecGitGateway } from "./infrastructure/SpecGitGateway";
 import { SpecReader } from "./services/SpecReader";
+import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
+import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
+import { LruCache } from "./infrastructure/utils/LruCache";
+import type { LogResult, CommitDetailResult } from "./infrastructure/GitHistoryGateway";
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
@@ -62,6 +66,10 @@ export class DaemonContainer {
   readonly fileSystemGateway: FileSystemGateway;
   readonly specGitGateway: SpecGitGateway;
   readonly specReader: SpecReader;
+  readonly gitBatchGateway: GitBatchGateway;
+  readonly gitRepoWatcher: GitRepoWatcher;
+  readonly logCache: LruCache<string, LogResult>;
+  readonly commitDetailCache: LruCache<string, CommitDetailResult>;
   readonly githubReleasesGateway: GitHubReleasesGateway;
   readonly npmRegistryGateway: NpmRegistryGateway;
   readonly cliVersionService: CliVersionApplicationService;
@@ -110,13 +118,25 @@ export class DaemonContainer {
     // the source of truth for session history.
     this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager, this.gitGateway);
 
+    // Git performance foundation — owned once here, shared everywhere:
+    //   - batch gateway holds one long-lived `git cat-file --batch` per repo
+    //   - logCache + commitDetailCache avoid re-spawning git for cold reads
+    //   - repoWatcher proactively invalidates both when `.git/` changes
+    this.gitBatchGateway = new GitBatchGateway();
+    this.logCache = new LruCache<string, LogResult>({ maxEntries: 500 });
+    this.commitDetailCache = new LruCache<string, CommitDetailResult>({ maxEntries: 500 });
+    this.gitRepoWatcher = new GitRepoWatcher(this.bridge, this.gitBatchGateway, {
+      logCache: this.logCache,
+      commitDetailCache: this.commitDetailCache,
+    });
+
     // Read-side gateways shared across handler registrations. Keeping a
     // single instance here prevents duplicate construction in
     // registerHandlers and ensures the FileSystemGateway has a single
     // authoritative allowlist provider.
     this.fileSystemGateway = new FileSystemGateway(this.configManager);
-    this.specGitGateway = new SpecGitGateway();
-    this.specReader = new SpecReader();
+    this.specGitGateway = new SpecGitGateway(this.gitBatchGateway);
+    this.specReader = new SpecReader(this.gitBatchGateway);
 
     // Session sync (scans Claude Code + Copilot JSONL files from disk)
     this.sessionSyncGateway = new SessionSyncGateway();
@@ -191,6 +211,10 @@ export class DaemonContainer {
       specGitGateway: this.specGitGateway,
       specReader: this.specReader,
       cliVersionService: this.cliVersionService,
+      gitBatchGateway: this.gitBatchGateway,
+      gitRepoWatcher: this.gitRepoWatcher,
+      logCache: this.logCache,
+      commitDetailCache: this.commitDetailCache,
     });
   }
 
@@ -205,6 +229,8 @@ export class DaemonContainer {
     this.sessionFileWatcher.stop();
     this.sessionSyncService.stop();
     this.worktreeSyncService.stop();
+    this.gitRepoWatcher.stop();
+    this.gitBatchGateway.dispose();
   }
 
   /**

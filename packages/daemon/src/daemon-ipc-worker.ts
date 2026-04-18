@@ -40,6 +40,10 @@ import { SpecReader } from "./services/SpecReader";
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
+import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
+import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
+import { LruCache } from "./infrastructure/utils/LruCache";
+import type { LogResult, CommitDetailResult } from "./infrastructure/GitHistoryGateway";
 
 // Track services for graceful shutdown
 let shutdownServices: {
@@ -51,6 +55,8 @@ let shutdownServices: {
   databaseService?: DatabaseService;
   terminalService?: TerminalApplicationService;
   aiSessionService?: AISessionApplicationService;
+  gitRepoWatcher?: GitRepoWatcher;
+  gitBatchGateway?: GitBatchGateway;
 } = {};
 let isShuttingDown = false;
 
@@ -105,6 +111,16 @@ async function gracefulShutdown(reason: string): Promise<void> {
     if (shutdownServices.worktreeSyncService) {
       console.log("[daemon-worker] Stopping worktree sync service...");
       shutdownServices.worktreeSyncService.stop();
+    }
+
+    // 2e. Stop git repo watcher + dispose long-lived cat-file processes
+    if (shutdownServices.gitRepoWatcher) {
+      console.log("[daemon-worker] Stopping git repo watcher...");
+      shutdownServices.gitRepoWatcher.stop();
+    }
+    if (shutdownServices.gitBatchGateway) {
+      console.log("[daemon-worker] Disposing git batch gateway...");
+      shutdownServices.gitBatchGateway.dispose();
     }
 
     // 3. Flush and close database
@@ -175,12 +191,25 @@ async function main() {
     // AI Terminal session service — in-memory only; the sync layer owns history.
     const aiSessionService = new AISessionApplicationService(ipcBridge, configManager, gitGateway);
 
+    // Git performance foundation — owned once here, shared everywhere:
+    //   - batch gateway = one long-lived `git cat-file --batch` per repo
+    //   - logCache / commitDetailCache avoid re-spawning git for cold reads
+    //   - repoWatcher proactively invalidates both when `.git/` changes and
+    //     pushes `git:repo:changed` so the renderer can refresh instantly.
+    const gitBatchGateway = new GitBatchGateway();
+    const logCache = new LruCache<string, LogResult>({ maxEntries: 500 });
+    const commitDetailCache = new LruCache<string, CommitDetailResult>({ maxEntries: 500 });
+    const gitRepoWatcher = new GitRepoWatcher(ipcBridge, gitBatchGateway, {
+      logCache,
+      commitDetailCache,
+    });
+
     // Read-side gateways — constructed once and threaded through
     // registerHandlers. Previously registerHandlers built its own copies,
     // which produced e.g. a duplicate RepoScanner instance.
     const fileSystemGateway = new FileSystemGateway(configManager);
-    const specGitGateway = new SpecGitGateway();
-    const specReader = new SpecReader();
+    const specGitGateway = new SpecGitGateway(gitBatchGateway);
+    const specReader = new SpecReader(gitBatchGateway);
 
     // Session sync service (scans Claude Code + Copilot JSONL from disk)
     const sessionSyncGateway = new SessionSyncGateway();
@@ -226,7 +255,7 @@ async function main() {
     );
 
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService };
+    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -245,6 +274,10 @@ async function main() {
       specGitGateway,
       specReader,
       cliVersionService,
+      gitBatchGateway,
+      gitRepoWatcher,
+      logCache,
+      commitDetailCache,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -271,6 +304,7 @@ async function main() {
       "cli:version-status-changed",
       "cli:upgrade:output",
       "cli:upgrade:complete",
+      "git:repo:changed",
     ];
 
     for (const eventType of pushEventTypes) {

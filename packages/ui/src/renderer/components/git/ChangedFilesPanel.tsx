@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import type { CommitFile } from "@magenta/shared/ipc";
 import { colors } from "../../utils/colors";
-import { sendOrThrow } from "../../services/ipcClient";
+import { useGitHistoryStore } from "../../store/gitHistoryStore";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 import { FileIconBadge } from "../common/fileIcons";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
@@ -102,16 +102,26 @@ function CommitFiles({
     oldPath?: string;
   }) => void;
 }): React.ReactElement {
-  const [files, setFiles] = useState<CommitFile[]>([]);
-  const [parents, setParents] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const getCommitDetail = useGitHistoryStore((s) => s.getCommitDetail);
+  const cached = useGitHistoryStore((s) => s.commitDetailCache.get(`${repoPath}|${sha}`));
+
+  const [files, setFiles] = useState<CommitFile[]>(cached?.files ?? []);
+  const [parents, setParents] = useState<string[]>(cached?.commit.parents ?? []);
+  const [isLoading, setIsLoading] = useState(!cached);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
     setError(null);
-    sendOrThrow({ type: "git:commit-detail", repoPath, sha })
+    const entry = useGitHistoryStore.getState().commitDetailCache.get(`${repoPath}|${sha}`);
+    if (entry) {
+      setFiles(entry.files);
+      setParents(entry.commit.parents);
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
+    getCommitDetail(repoPath, sha)
       .then((res) => {
         if (cancelled) return;
         setFiles(res.files);
@@ -120,7 +130,7 @@ function CommitFiles({
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : String(err)); })
       .finally(() => { if (!cancelled) setIsLoading(false); });
     return () => { cancelled = true; };
-  }, [repoPath, sha]);
+  }, [repoPath, sha, getCommitDetail]);
 
   const fromRef = parents[0];
 

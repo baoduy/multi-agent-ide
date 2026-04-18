@@ -135,30 +135,15 @@ export function DiffViewer({
         let current = "";
 
         if (refMode) {
-          // Compare two arbitrary refs. Either side may be missing (add/delete).
+          // Compare two arbitrary refs. Either side may be missing (add/delete) —
+          // the two reads have no dependency so we fire them in parallel.
           const leftPath = oldPath ?? filePath;
-          try {
-            const resp = await ipc.send({
-              type: "gitfile:read",
-              repoPath,
-              ref: fromRef!,
-              relativePath: leftPath,
-            });
-            if (resp.type === "gitfile:read:result") old = resp.content;
-          } catch {
-            // File didn't exist on `fromRef` (added in this commit range).
-          }
-          try {
-            const resp = await ipc.send({
-              type: "gitfile:read",
-              repoPath,
-              ref: toRef!,
-              relativePath: filePath,
-            });
-            if (resp.type === "gitfile:read:result") current = resp.content;
-          } catch {
-            // File didn't exist on `toRef` (deleted in this commit range).
-          }
+          const [leftResp, rightResp] = await Promise.all([
+            ipc.send({ type: "gitfile:read", repoPath, ref: fromRef!, relativePath: leftPath }).catch(() => null),
+            ipc.send({ type: "gitfile:read", repoPath, ref: toRef!, relativePath: filePath }).catch(() => null),
+          ]);
+          if (leftResp && leftResp.type === "gitfile:read:result") old = leftResp.content;
+          if (rightResp && rightResp.type === "gitfile:read:result") current = rightResp.content;
         } else {
           if (!isNew) {
             try {

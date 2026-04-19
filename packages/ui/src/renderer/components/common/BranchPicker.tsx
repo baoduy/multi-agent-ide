@@ -82,7 +82,7 @@ function BranchPickerComponent({
           alignItems: "center",
           gap: 8,
           padding: "8px 32px 8px 10px",
-          fontSize: 13,
+          fontSize: 11,
           border: `1px solid ${open ? colors.primary : colors.border}`,
           borderRadius: 6,
           background: colors.bgSurface,
@@ -134,7 +134,7 @@ function BranchPickerComponent({
             style={{
               width: "100%",
               padding: "6px 8px",
-              fontSize: 12,
+              fontSize: 11,
               border: `1px solid ${colors.border}`,
               borderRadius: 4,
               outline: "none",
@@ -147,7 +147,7 @@ function BranchPickerComponent({
           />
           <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
             {filtered.length === 0 ? (
-              <p style={{ fontSize: 12, color: colors.textTertiary, padding: "8px 10px", margin: 0 }}>
+              <p style={{ fontSize: 11, color: colors.textTertiary, padding: "6px 8px", margin: 0 }}>
                 No matching branches.
               </p>
             ) : (

@@ -15,13 +15,13 @@ export function CancelButton({ onClick, children = "Cancel" }: CancelButtonProps
       type="button"
       onClick={onClick}
       style={{
-        padding: "7px 16px",
-        fontSize: 12,
+        padding: "4px 10px",
+        fontSize: 11,
         fontWeight: 500,
         color: colors.textSecondary,
         background: colors.bgMuted,
         border: `1px solid ${colors.border}`,
-        borderRadius: 6,
+        borderRadius: 4,
         cursor: "pointer",
         fontFamily: "inherit",
       }}
@@ -57,13 +57,13 @@ export function PrimaryButton({
       onClick={() => { if (!isDisabled) onClick(); }}
       disabled={isDisabled}
       style={{
-        padding: "7px 16px",
-        fontSize: 12,
+        padding: "4px 10px",
+        fontSize: 11,
         fontWeight: 600,
         color: colors.textWhite,
         background: isDisabled ? colors.textTertiary : bgColor,
         border: "none",
-        borderRadius: 6,
+        borderRadius: 4,
         cursor: isDisabled ? "default" : "pointer",
         fontFamily: "inherit",
         display: "flex",
@@ -93,13 +93,13 @@ export function DangerButton({ onClick, children, icon }: DangerButtonProps): Re
       type="button"
       onClick={onClick}
       style={{
-        padding: "7px 16px",
-        fontSize: 12,
+        padding: "4px 10px",
+        fontSize: 11,
         fontWeight: 500,
         color: colors.errorDark,
         background: colors.errorSoft,
         border: `1px solid ${colors.errorSoftBorder}`,
-        borderRadius: 6,
+        borderRadius: 4,
         cursor: "pointer",
         fontFamily: "inherit",
         display: "flex",
@@ -126,13 +126,13 @@ export function SecondaryButton({ onClick, children, icon }: SecondaryButtonProp
       type="button"
       onClick={onClick}
       style={{
-        padding: "7px 16px",
-        fontSize: 12,
+        padding: "4px 10px",
+        fontSize: 11,
         fontWeight: 500,
         color: colors.textSecondary,
         background: colors.bgMuted,
         border: `1px solid ${colors.border}`,
-        borderRadius: 6,
+        borderRadius: 4,
         cursor: "pointer",
         fontFamily: "inherit",
         display: "flex",

@@ -69,7 +69,7 @@ export function SearchSyncToolbar({
             border: "none",
             outline: "none",
             background: "transparent",
-            fontSize: 12,
+            fontSize: 11,
             color: colors.text,
             padding: 0,
             lineHeight: "18px",

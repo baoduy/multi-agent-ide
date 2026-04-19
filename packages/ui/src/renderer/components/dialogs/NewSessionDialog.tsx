@@ -541,9 +541,9 @@ export function NewSessionDialog({
         </div>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {/* ─── Agent + Workspace on one row ─── */}
-        <div style={{ display: "flex", gap: 16 }}>
+        <div style={{ display: "flex", gap: 8 }}>
           <div style={{ flex: "1 1 0", minWidth: 0 }}>
             <FormLabel>Agent</FormLabel>
             <DoublePicker<AIProvider, SimplifiedPermission>
@@ -654,7 +654,7 @@ export function NewSessionDialog({
                     <div
                       style={{
                         padding: "8px 6px 8px 12px",
-                        fontSize: 13,
+                        fontSize: 11,
                         fontFamily: "var(--font-mono)",
                         color: colors.textTertiary,
                         background: colors.bgMuted,
@@ -681,7 +681,7 @@ export function NewSessionDialog({
                       style={{
                         flex: 1,
                         padding: "8px 12px",
-                        fontSize: 13,
+                        fontSize: 11,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
                         borderRadius: "0 6px 6px 0",
                         outline: "none",
@@ -762,7 +762,7 @@ function WorktreeList({
         maxHeight: 160,
         overflowY: "auto",
         border: `1px solid ${colors.border}`,
-        borderRadius: 8,
+        borderRadius: 6,
         padding: 4,
       }}
     >
@@ -776,7 +776,7 @@ function WorktreeList({
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              gap: 8,
               padding: "8px 10px",
               borderRadius: 6,
               border: isSelected
@@ -799,7 +799,7 @@ function WorktreeList({
             <div style={{ flex: 1, minWidth: 0 }}>
               <ScrollableText
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 500,
                   color: colors.text,
                 }}

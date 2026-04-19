@@ -97,8 +97,8 @@ function ToggleBtn({
       style={{
         display: "flex",
         alignItems: "center",
-        gap: 5,
-        padding: "4px 10px",
+        gap: 4,
+        padding: "3px 8px",
         fontSize: 11,
         fontWeight: active ? 600 : 400,
         color: active ? colors.primary : hovered ? colors.textMuted : colors.textTertiary,
@@ -340,7 +340,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "8px 20px",
+            padding: "4px 12px",
             borderBottom: `1px solid ${colors.border}`,
             background: colors.bgSurface,
             flexShrink: 0,
@@ -442,9 +442,9 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
           <pre
             style={{
               margin: 0,
-              padding: "16px 20px",
+              padding: "10px 14px",
               fontFamily: "var(--font-mono)",
-              fontSize: 12.5,
+              fontSize: 11,
               lineHeight: 1.55,
               color: colors.text,
               background: colors.bgSurface,

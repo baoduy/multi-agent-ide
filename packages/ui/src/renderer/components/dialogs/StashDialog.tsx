@@ -93,13 +93,13 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
       onClose={onClose}
       footer={<CancelButton onClick={onClose}>Close</CancelButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div>
           <SectionHeader>Existing stashes ({stashes.length})</SectionHeader>
           {isLoading ? (
             <InlineLoadingRow label="Loading stashes…" />
           ) : stashes.length === 0 ? (
-            <div style={{ fontSize: 12, color: colors.textTertiary, padding: "4px 0" }}>No stashes.</div>
+            <div style={{ fontSize: 11, color: colors.textTertiary, padding: "4px 0" }}>No stashes.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               {stashes.map((s) => (
@@ -116,7 +116,7 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
                     <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: colors.textTertiary }}>
                       [{s.index}]
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: colors.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <span style={{ fontSize: 11, fontWeight: 500, color: colors.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {s.message}
                     </span>
                   </div>
@@ -157,7 +157,7 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
             onChange={setMessage}
             placeholder="WIP on feature X"
           />
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: colors.textSecondary, marginTop: 10 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: colors.textSecondary, marginTop: 10 }}>
             <input
               type="checkbox"
               checked={includeUntracked}
@@ -173,7 +173,7 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
               disabled={busy !== null}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", fontSize: 12, fontWeight: 600,
+                padding: "4px 10px", fontSize: 11, fontWeight: 600,
                 color: colors.textWhite,
                 background: busy ? colors.textTertiary : colors.primary,
                 border: "none", borderRadius: 6,

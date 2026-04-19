@@ -126,7 +126,7 @@ export function WorktreeInlinePanel({
       style={{
         background: colors.dialogBg,
         border: `1px solid ${colors.border}`,
-        borderRadius: 8,
+        borderRadius: 6,
         overflow: "hidden",
       }}
     >
@@ -137,7 +137,7 @@ export function WorktreeInlinePanel({
           borderBottom: `1px solid ${colors.borderLight}`,
           display: "flex",
           flexWrap: "wrap",
-          gap: 12,
+          gap: 8,
           fontSize: 11,
           color: colors.textSecondary,
         }}
@@ -180,7 +180,7 @@ export function WorktreeInlinePanel({
         )}
 
         {!isStatusLoading && status && status.files.length === 0 && (
-          <div style={{ color: colors.textTertiary, fontSize: 12, padding: "12px 0" }}>
+          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "8px 0" }}>
             No changed files in this worktree.
           </div>
         )}
@@ -213,7 +213,7 @@ export function WorktreeInlinePanel({
               >
                 <ScrollableText
                   style={{
-                    fontSize: 12,
+                    fontSize: 11,
                     color: isClickable && hoveredFile === file.path ? colors.primary : colors.text,
                     fontFamily: "var(--font-mono)",
                     flex: 1,
@@ -238,13 +238,13 @@ export function WorktreeInlinePanel({
         <div
           style={{
             borderTop: `1px solid ${colors.border}`,
-            padding: "14px 16px",
+            padding: "10px 12px",
           }}
         >
           <div
             style={{
               padding: "8px 12px",
-              fontSize: 12,
+              fontSize: 11,
               borderRadius: 6,
               display: "flex",
               alignItems: "center",
@@ -259,7 +259,7 @@ export function WorktreeInlinePanel({
             <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
           </div>
 
-          <div style={{ fontSize: 12, color: colors.textMuted, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 10 }}>
             What would you like to do with this worktree?
           </div>
 
@@ -269,7 +269,7 @@ export function WorktreeInlinePanel({
               variant="danger"
               loading={isDeleting}
               loadingText="Deleting…"
-              padding="8px 14px"
+              padding="4px 10px"
               justifyContent="center"
               icon={<Trash2 size={12} strokeWidth={2} />}
             >
@@ -279,7 +279,7 @@ export function WorktreeInlinePanel({
             <ActionButton
               onClick={handleKeep}
               variant="secondary"
-              padding="8px 14px"
+              padding="4px 10px"
               justifyContent="center"
               icon={<FolderOpen size={12} strokeWidth={2} />}
             >
@@ -293,7 +293,7 @@ export function WorktreeInlinePanel({
               style={{
                 marginTop: 10,
                 padding: "8px 12px",
-                fontSize: 12,
+                fontSize: 11,
                 borderRadius: 6,
                 display: "flex",
                 alignItems: "flex-start",
@@ -315,13 +315,13 @@ export function WorktreeInlinePanel({
           <div
             style={{
               borderTop: `1px solid ${colors.border}`,
-              padding: "12px 16px 14px",
+              padding: "8px 12px 10px",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
             }}
           >
-            <span style={{ fontSize: 12, color: colors.textTertiary }}>
+            <span style={{ fontSize: 11, color: colors.textTertiary }}>
               No changes — this worktree can be safely removed.
             </span>
 
@@ -340,7 +340,7 @@ export function WorktreeInlinePanel({
           <div
             style={{
               borderTop: `1px solid ${colors.border}`,
-              padding: "12px 16px 14px",
+              padding: "8px 12px 10px",
             }}
           >
             <SectionHeader style={{ marginBottom: 8 }}>
@@ -352,7 +352,7 @@ export function WorktreeInlinePanel({
               <div
                 style={{
                   flex: 1,
-                  fontSize: 12,
+                  fontSize: 11,
                   color: colors.textMuted,
                   display: "flex",
                   alignItems: "center",
@@ -386,7 +386,7 @@ export function WorktreeInlinePanel({
                         marginBottom: 4,
                         background: colors.dialogBg,
                         border: `1px solid ${colors.border}`,
-                        borderRadius: 8,
+                        borderRadius: 6,
                         boxShadow: colors.shadowPopover,
                         maxHeight: 180,
                         overflowY: "auto",
@@ -430,7 +430,7 @@ export function WorktreeInlinePanel({
                 style={{
                   marginTop: 10,
                   padding: "8px 12px",
-                  fontSize: 12,
+                  fontSize: 11,
                   borderRadius: 6,
                   display: "flex",
                   alignItems: "flex-start",

@@ -201,7 +201,7 @@ export const TabView = React.memo(function TabView({
               justifyContent: "center",
               height: "100%",
               color: colors.textTertiary,
-              fontSize: 13,
+              fontSize: 11,
             }}
           >
             No tabs open

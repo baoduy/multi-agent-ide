@@ -69,13 +69,13 @@ export function RemoteDialog({ repoPath, onClose }: RemoteDialogProps): React.Re
       onClose={onClose}
       footer={<CancelButton onClick={onClose}>Close</CancelButton>}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div>
           <SectionHeader>Configured remotes</SectionHeader>
           {isLoading ? (
             <InlineLoadingRow label="Loading remotes…" />
           ) : remotes.length === 0 ? (
-            <div style={{ fontSize: 12, color: colors.textTertiary, padding: "4px 0" }}>No remotes.</div>
+            <div style={{ fontSize: 11, color: colors.textTertiary, padding: "4px 0" }}>No remotes.</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {remotes.map((r) => {
@@ -90,7 +90,7 @@ export function RemoteDialog({ repoPath, onClose }: RemoteDialogProps): React.Re
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: colors.text, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.text, fontFamily: "var(--font-mono)" }}>
                         {r.name}
                       </span>
                       <span style={{ flex: 1, fontSize: 11, color: colors.textTertiary, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -169,7 +169,7 @@ export function RemoteDialog({ repoPath, onClose }: RemoteDialogProps): React.Re
               disabled={!newName.trim() || !newUrl.trim() || busy !== null}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
-                padding: "6px 12px", fontSize: 12, fontWeight: 600,
+                padding: "4px 10px", fontSize: 11, fontWeight: 600,
                 color: colors.textWhite,
                 background: (!newName.trim() || !newUrl.trim() || busy) ? colors.textTertiary : colors.primary,
                 border: "none", borderRadius: 6,

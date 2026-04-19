@@ -151,7 +151,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
             onClick={() => void handleClone()}
             disabled={!canSubmit}
             style={{
-              padding: "7px 14px", fontSize: 12, fontWeight: 600,
+              padding: "5px 10px", fontSize: 11, fontWeight: 600,
               color: colors.textWhite,
               background: !canSubmit ? colors.textTertiary : colors.primary,
               border: "none", borderRadius: 6,
@@ -165,7 +165,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div>
           <FormLabel htmlFor="clone-url">Remote URL</FormLabel>
           <FormInput
@@ -182,7 +182,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
           {workingDirs.length === 0 ? (
             <div
               style={{
-                fontSize: 12,
+                fontSize: 11,
                 color: colors.warningText,
                 background: colors.warningSoft,
                 border: `1px solid ${colors.warningBorderSoft}`,
@@ -201,7 +201,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
                 style={{
                   flex: 1,
                   padding: "8px 10px",
-                  fontSize: 13,
+                  fontSize: 11,
                   border: `1px solid ${colors.border}`,
                   borderRadius: 6,
                   background: colors.bgSurface,
@@ -219,7 +219,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
                 title="Browse… (must be an existing working directory)"
                 style={{
                   padding: "7px 10px",
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 500,
                   color: colors.text,
                   background: "transparent",

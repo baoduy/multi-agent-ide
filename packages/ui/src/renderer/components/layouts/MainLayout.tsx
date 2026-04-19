@@ -168,7 +168,7 @@ export function MainLayout({
         flexDirection: "column",
         height: "100vh",
         fontFamily: "var(--font-sans)",
-        fontSize: 12,
+        fontSize: 11,
         color: colors.text,
         background: colors.bgSurface,
       }}

@@ -199,11 +199,11 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 30,
+              fontSize: 26,
               fontWeight: 700,
               lineHeight: 1.2,
               letterSpacing: "-0.02em",
-              margin: "20px 0 6px",
+              margin: "18px 0 5px",
               fontFamily: "var(--font-heading)",
               color: colors.text,
             }}
@@ -219,11 +219,11 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 24,
+              fontSize: 20,
               fontWeight: 600,
               lineHeight: 1.25,
               letterSpacing: "-0.015em",
-              margin: "18px 0 4px",
+              margin: "16px 0 4px",
               fontFamily: "var(--font-heading)",
               color: colors.text,
             }}
@@ -239,10 +239,10 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 19,
+              fontSize: 17,
               fontWeight: 600,
               lineHeight: 1.3,
-              margin: "14px 0 2px",
+              margin: "12px 0 2px",
               fontFamily: "var(--font-heading)",
               color: colors.text,
             }}
@@ -258,9 +258,9 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 16,
+              fontSize: 14.5,
               fontWeight: 600,
-              margin: "12px 0 2px",
+              margin: "10px 0 2px",
               fontFamily: "var(--font-heading)",
               color: colors.text,
             }}
@@ -276,7 +276,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 14,
+              fontSize: 11,
               fontWeight: 600,
               margin: "10px 0 2px",
               fontFamily: "var(--font-heading)",
@@ -296,7 +296,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 13,
+              fontSize: 12,
               fontWeight: 600,
               margin: "10px 0 2px",
               fontFamily: "var(--font-heading)",
@@ -315,7 +315,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 width: 16,
                 textAlign: "center",
                 color: colors.textMuted,
-                fontSize: 16,
+                fontSize: 14,
                 lineHeight: 1.7,
                 userSelect: "none",
                 flexShrink: 0,
@@ -325,7 +325,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
             </span>
             <Editable
               {...editableProps}
-              style={{ flex: 1, minWidth: 0, outline: "none", fontSize: 15, lineHeight: 1.65 }}
+              style={{ flex: 1, minWidth: 0, outline: "none", fontSize: 13.5, lineHeight: 1.6 }}
             />
           </div>
         );
@@ -338,7 +338,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 width: 20,
                 textAlign: "right",
                 color: colors.textMuted,
-                fontSize: 14,
+                fontSize: 11,
                 lineHeight: 1.75,
                 userSelect: "none",
                 flexShrink: 0,
@@ -348,7 +348,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
             </span>
             <Editable
               {...editableProps}
-              style={{ flex: 1, minWidth: 0, outline: "none", fontSize: 15, lineHeight: 1.65 }}
+              style={{ flex: 1, minWidth: 0, outline: "none", fontSize: 13.5, lineHeight: 1.6 }}
             />
           </div>
         );
@@ -385,8 +385,8 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 flex: 1,
                 minWidth: 0,
                 outline: "none",
-                fontSize: 15,
-                lineHeight: 1.65,
+                fontSize: 13.5,
+                lineHeight: 1.6,
                 color: colors.text,
               }}
             />
@@ -402,8 +402,8 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 15,
-              lineHeight: 1.65,
+              fontSize: 13.5,
+              lineHeight: 1.6,
               borderLeft: `3px solid ${colors.primary}`,
               paddingLeft: 14,
               color: colors.textMuted,
@@ -456,10 +456,10 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
             <Editable
               {...editableProps}
               style={{
-                padding: "10px 12px",
+                padding: "6px 10px",
                 outline: "none",
                 fontFamily: "var(--font-mono)",
-                fontSize: 13,
+                fontSize: 12,
                 lineHeight: 1.55,
                 color: colors.text,
                 whiteSpace: "pre-wrap",
@@ -499,7 +499,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               <Editable
                 {...editableProps}
                 style={{
-                  padding: "10px 12px",
+                  padding: "6px 10px",
                   outline: "none",
                   fontFamily: "var(--font-mono)",
                   fontSize: 13,
@@ -576,8 +576,8 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               flex: 1,
               minWidth: 0,
               outline: "none",
-              fontSize: 15,
-              lineHeight: 1.65,
+              fontSize: 13.5,
+              lineHeight: 1.6,
               color: colors.text,
               padding: "2px 0",
             }}

@@ -69,7 +69,7 @@ function SpecsSidebarView(): React.ReactElement {
 
   if (!activeRepoPath) {
     return (
-      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", color: colors.textTertiary, fontSize: 11 }}>
         Select a repository to see specs.
       </div>
     );
@@ -137,7 +137,7 @@ function RepoChangesView(props: {
 }): React.ReactElement {
   if (!props.repoPath) {
     return (
-      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", color: colors.textTertiary, fontSize: 11 }}>
         No repository selected.
       </div>
     );
@@ -168,7 +168,7 @@ function SpecFilesView(props: {
 
   if (!selectedSpec || selectedSpec.files.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", color: colors.textTertiary, fontSize: 11 }}>
         {selectedSpec ? "No files in this spec." : "No spec selected."}
       </div>
     );

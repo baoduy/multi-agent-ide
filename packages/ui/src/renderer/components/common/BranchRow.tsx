@@ -94,7 +94,7 @@ function BranchRowComponent({
         borderRadius: 6,
         background,
         cursor: nonInteractive ? "default" : "pointer",
-        fontSize: 13,
+        fontSize: 11,
         fontFamily: "var(--font-mono)",
         color: textColor,
         fontWeight,

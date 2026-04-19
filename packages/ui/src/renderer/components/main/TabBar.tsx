@@ -89,7 +89,7 @@ export function TabBar({
               alignItems: "center",
               gap: 5,
               padding: "8px 10px",
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: isActive ? 500 : 400,
               cursor: "pointer",
               border: "none",

@@ -346,22 +346,38 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
         if (e.key === "Backspace") {
           const el = elementRefs.current.get(id);
           const sel = window.getSelection();
+          // contentEditable at offset 0 of its first text node, OR on the
+          // element itself when the element is empty-with-<br>.
           const atStart =
-            !!sel && sel.anchorOffset === 0 && sel.focusOffset === 0 && sel.isCollapsed;
-          if (atStart && el && el.innerText === "") {
+            !!sel &&
+            sel.isCollapsed &&
+            sel.anchorOffset === 0 &&
+            !!el &&
+            (sel.anchorNode === el || el.contains(sel.anchorNode));
+          // Treat "", "\n", "\r", or pure whitespace as empty — Chromium
+          // often leaves a trailing newline/<br> after the final character
+          // is deleted.
+          const isEmpty = !el || el.innerText.replace(/[\r\n]/g, "").length === 0;
+
+          // Case 1: inside an empty block — swallow backspace and either
+          // demote (non-paragraph → paragraph) or remove the block.
+          if (atStart && isEmpty) {
             e.preventDefault();
             if (block.type !== "paragraph") {
               changeType(id, "paragraph");
             } else {
-              removeBlock(id);
+              // Only remove if there's something to fall back to; otherwise
+              // let the browser do nothing (don't trap the cursor).
+              const idx = blocksRef.current.findIndex((b) => b.id === id);
+              if (idx > 0 || blocksRef.current.length > 1) removeBlock(id);
             }
             return;
           }
-          if (atStart && block.type !== "paragraph") {
-            e.preventDefault();
-            changeType(id, "paragraph");
-            return;
-          }
+
+          // Otherwise fall through to the browser — it handles character
+          // deletion natively inside the contentEditable element. We used
+          // to demote non-paragraphs on backspace-at-start-with-content,
+          // but that intercepted legitimate delete attempts.
         }
 
         if (e.key === "ArrowUp" || e.key === "ArrowDown") {

@@ -97,7 +97,7 @@ export function CommitGraphList({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "6px 10px",
+          padding: "4px 8px",
           borderBottom: `1px solid ${colors.borderLight}`,
           fontSize: 11,
           fontWeight: 600,
@@ -144,9 +144,9 @@ export function CommitGraphList({
         {!entry || (entry.isLoading && rows.length === 0) ? (
           <InlineLoadingRow label="Loading history…" />
         ) : entry.error ? (
-          <div style={{ padding: "6px 10px", fontSize: 11, color: colors.error }}>{entry.error}</div>
+          <div style={{ padding: "4px 8px", fontSize: 11, color: colors.error }}>{entry.error}</div>
         ) : rows.length === 0 ? (
-          <div style={{ padding: "6px 10px", fontSize: 12, color: colors.textTertiary }}>
+          <div style={{ padding: "4px 8px", fontSize: 11, color: colors.textTertiary }}>
             No commits.
           </div>
         ) : (
@@ -247,7 +247,7 @@ function WorkingTreeRow({
       </svg>
       <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1, padding: "4px 8px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: colors.text }}>
             Uncommitted changes
           </span>
           {fileCount !== null && (
@@ -415,7 +415,7 @@ function CommitRowView({
           ))}
           <span
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 500,
               color: colors.text,
               flex: 1,

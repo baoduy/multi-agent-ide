@@ -84,7 +84,7 @@ export function BranchSwitcherDialog({ repoPath, currentBranch, onClose }: Branc
 
           <div style={{ marginTop: 10, maxHeight: 280, overflowY: "auto" }}>
             {filtered.length === 0 ? (
-              <p style={{ fontSize: 13, color: colors.textTertiary, padding: "8px 0" }}>No matching branches.</p>
+              <p style={{ fontSize: 11, color: colors.textTertiary, padding: "6px 0" }}>No matching branches.</p>
             ) : (
               filtered.map((branch) => (
                 <BranchRow

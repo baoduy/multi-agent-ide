@@ -106,25 +106,26 @@ export function SlashMenu({ anchor, query, onPick, onClose }: SlashMenuProps): R
         position: "fixed",
         top: anchor.top,
         left: anchor.left,
-        width: 280,
-        maxHeight: 320,
+        width: 220,
+        maxHeight: 260,
         overflowY: "auto",
         background: colors.dialogBg,
         border: `1px solid ${colors.border}`,
-        borderRadius: 10,
-        boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-        padding: 4,
-        fontSize: 12,
+        borderRadius: 6,
+        boxShadow: "0 8px 24px rgba(0,0,0,0.16)",
+        padding: 3,
+        fontSize: 10,
         zIndex: 1000,
       }}
     >
       <div
         style={{
-          fontSize: 10,
+          fontSize: 9,
+          fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           color: colors.textTertiary,
-          padding: "6px 10px 4px",
+          padding: "4px 8px 2px",
         }}
       >
         Blocks
@@ -144,50 +145,64 @@ export function SlashMenu({ anchor, query, onPick, onClose }: SlashMenuProps): R
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
+              gap: 6,
               width: "100%",
-              padding: "7px 10px",
+              padding: "4px 6px",
               border: "none",
-              borderRadius: 6,
+              borderRadius: 3,
               textAlign: "left",
               cursor: "pointer",
               background: isActive ? colors.bgMuted : "transparent",
               color: isActive ? colors.text : colors.textMuted,
               fontFamily: "inherit",
-              fontSize: 12,
+              fontSize: 10,
             }}
           >
             <span
               style={{
                 display: "inline-flex",
-                width: 26,
-                height: 26,
+                width: 18,
+                height: 18,
                 alignItems: "center",
                 justifyContent: "center",
-                borderRadius: 6,
+                borderRadius: 3,
                 border: `1px solid ${colors.border}`,
                 background: isActive ? colors.bgSurface : "transparent",
                 color: isActive ? colors.primary : colors.textTertiary,
+                flexShrink: 0,
               }}
             >
-              <Icon size={14} strokeWidth={1.8} />
+              <Icon size={11} strokeWidth={1.8} />
             </span>
-            <span style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span style={{ fontSize: 12.5, fontWeight: 500, color: colors.text }}>
+            <span
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                minWidth: 0,
+                gap: 1,
+              }}
+            >
+              <span
+                style={{ fontSize: 10, fontWeight: 500, color: colors.text, lineHeight: 1.2 }}
+              >
                 {cmd.label}
               </span>
-              <span style={{ fontSize: 11, color: colors.textTertiary }}>{cmd.hint}</span>
+              <span style={{ fontSize: 9, color: colors.textTertiary, lineHeight: 1.2 }}>
+                {cmd.hint}
+              </span>
             </span>
             {cmd.kbd && (
               <span
                 style={{
                   fontFamily: "var(--font-mono)",
-                  fontSize: 11,
+                  fontSize: 9,
                   color: colors.textTertiary,
                   background: colors.bgMuted,
                   border: `1px solid ${colors.border}`,
-                  padding: "1px 6px",
-                  borderRadius: 4,
+                  padding: "0px 4px",
+                  borderRadius: 3,
+                  flexShrink: 0,
                 }}
               >
                 {cmd.kbd}

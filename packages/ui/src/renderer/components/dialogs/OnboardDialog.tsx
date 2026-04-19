@@ -136,7 +136,7 @@ export function OnboardDialog({
         <>
           <p
             style={{
-              fontSize: 13,
+              fontSize: 11,
               color: colors.textMuted,
               margin: "0 0 16px",
               lineHeight: 1.5,
@@ -156,7 +156,7 @@ export function OnboardDialog({
               style={{
                 width: "100%",
                 padding: "8px 12px",
-                fontSize: 13,
+                fontSize: 11,
                 border: `1px solid ${colors.border}`,
                 borderRadius: 6,
                 background: colors.bgSurface,
@@ -192,7 +192,7 @@ export function OnboardDialog({
                   marginTop: 4,
                   background: colors.dialogBg,
                   border: `1px solid ${colors.border}`,
-                  borderRadius: 8,
+                  borderRadius: 6,
                   boxShadow: colors.shadowPopover,
                   maxHeight: 240,
                   overflowY: "auto",
@@ -210,7 +210,7 @@ export function OnboardDialog({
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      fontSize: 13,
+                      fontSize: 11,
                       border: "none",
                       background:
                         agent.id === selectedAgent
@@ -259,10 +259,10 @@ export function OnboardDialog({
               onClick={() => setUseWorktree(false)}
               style={{
                 flex: 1,
-                padding: "10px 12px",
-                fontSize: 12,
+                padding: "6px 10px",
+                fontSize: 11,
                 border: `1.5px solid ${!useWorktree ? colors.primary : colors.border}`,
-                borderRadius: 8,
+                borderRadius: 6,
                 background: !useWorktree ? colors.primaryAlpha : colors.bgSurface,
                 color: colors.text,
                 cursor: "pointer",
@@ -295,10 +295,10 @@ export function OnboardDialog({
               onClick={() => setUseWorktree(true)}
               style={{
                 flex: 1,
-                padding: "10px 12px",
-                fontSize: 12,
+                padding: "6px 10px",
+                fontSize: 11,
                 border: `1.5px solid ${useWorktree ? colors.primary : colors.border}`,
-                borderRadius: 8,
+                borderRadius: 6,
                 background: useWorktree ? colors.primaryAlpha : colors.bgSurface,
                 color: colors.text,
                 cursor: "pointer",

@@ -137,7 +137,7 @@ export function SyncIntervalSettings(): React.ReactElement {
 
   return (
     <div>
-      <h3 style={{ margin: "0 0 6px 0", fontSize: 12, fontWeight: 600, color: colors.textStrong }}>
+      <h3 style={{ margin: "0 0 6px 0", fontSize: 11, fontWeight: 600, color: colors.textStrong }}>
         Background Sync Intervals
       </h3>
 

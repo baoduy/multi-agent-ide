@@ -77,7 +77,7 @@ export function WorktreeDialog({
         </>
       }
     >
-      <p style={{ fontSize: 13, color: colors.textMuted, margin: "0 0 12px", lineHeight: 1.5 }}>
+      <p style={{ fontSize: 11, color: colors.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>
         This file is on the <strong>{branch}</strong> branch. To approve it,
         a worktree will be created so the changes can be written to disk
         and later committed as a PR.

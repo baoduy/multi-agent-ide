@@ -53,7 +53,7 @@ const TERMINAL_PRE_BASE_STYLE: React.CSSProperties = {
   background: THEME.background,
   color: THEME.foreground,
   padding: 12,
-  borderRadius: 8,
+  borderRadius: 6,
   lineHeight: 1.6,
   overflowY: "auto",
   whiteSpace: "pre-wrap",

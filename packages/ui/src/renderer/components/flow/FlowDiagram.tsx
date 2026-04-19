@@ -50,7 +50,7 @@ export function FlowDiagram({ spec, onOpenFile, onApprove }: FlowDiagramProps): 
           alignItems: "center",
           justifyContent: "center",
           color: colors.textTertiary,
-          fontSize: 13,
+          fontSize: 11,
           backgroundColor: "var(--flow-bg)",
         }}
       >

@@ -141,7 +141,7 @@ export function WelcomePage(): React.ReactElement {
 
         {repos.length === 0 ? (
           <>
-            <p style={{ fontSize: 12, color: colors.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+            <p style={{ fontSize: 11, color: colors.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
               Get started by adding a working directory to scan for git repositories.
             </p>
 
@@ -210,7 +210,7 @@ export function WelcomePage(): React.ReactElement {
               disabled={isAdding}
               style={{
                 padding: "6px 14px",
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 500,
                 backgroundColor: isAdding ? colors.primaryAlpha : colors.primary,
                 color: colors.textWhite,
@@ -224,7 +224,7 @@ export function WelcomePage(): React.ReactElement {
             </button>
           </>
         ) : (
-          <p style={{ fontSize: 12, color: colors.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 11, color: colors.textMuted, marginBottom: 12, lineHeight: 1.5 }}>
             Found {repos.length} repositor{repos.length === 1 ? "y" : "ies"}! Select one from the sidebar to get
             started.
           </p>

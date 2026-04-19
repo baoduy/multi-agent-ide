@@ -223,7 +223,7 @@ export const DockTabBar = React.memo(function DockTabBar({
         borderTop: variant === "bottom" ? `1px solid ${colors.border}` : "none",
         background: "transparent",
         flexShrink: 0,
-        minHeight: 35,
+        minHeight: 30,
         position: "relative",
       }}
     >
@@ -563,7 +563,7 @@ function TabOverflowButton({
             overflowY: "auto",
             background: colors.dialogBg,
             border: `1px solid ${colors.border}`,
-            borderRadius: 8,
+            borderRadius: 6,
             boxShadow: colors.dialogShadow,
             zIndex: 1000,
             padding: "4px 0",

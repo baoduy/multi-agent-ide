@@ -170,7 +170,7 @@ function PickerTrigger({
         background: disabled ? "transparent" : (isOpen || hovered ? colors.bgHover : "transparent"),
         border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: 500,
         color: disabled ? colors.textTertiary : (selected ? colors.text : colors.textTertiary),
         opacity: disabled ? 0.55 : 1,
@@ -245,7 +245,7 @@ function DropdownPanel<T extends string>({
         zIndex: 50,
         background: colors.bgWhite,
         border: `1px solid ${colors.border}`,
-        borderRadius: 8,
+        borderRadius: 6,
         boxShadow: colors.shadowPopover,
         maxHeight: 300,
         display: "flex",
@@ -275,7 +275,7 @@ function DropdownPanel<T extends string>({
               flex: 1,
               border: "none",
               outline: "none",
-              fontSize: 12,
+              fontSize: 11,
               color: colors.text,
               background: "transparent",
               fontFamily: "inherit",
@@ -313,7 +313,7 @@ function DropdownPanel<T extends string>({
           <div
             style={{
               padding: 12,
-              fontSize: 12,
+              fontSize: 11,
               color: colors.textTertiary,
               textAlign: "center",
             }}
@@ -349,7 +349,7 @@ function DropdownItemComponent<T extends string>({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: 10,
+        gap: 8,
         padding: "5px 12px",
         border: "none",
         background: hovered || isSelected ? colors.bgHover : "transparent",
@@ -386,7 +386,7 @@ function DropdownItemComponent<T extends string>({
           <span style={{ flex: 1, minWidth: 0 }}>
             <ScrollableText
               style={{
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 500,
                 color: colors.text,
                 lineHeight: 1.4,

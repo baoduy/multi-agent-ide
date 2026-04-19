@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, FileCode, Check, ChevronDown, Clipboard } from "lucide-react";
-import MDEditor from "@uiw/react-md-editor";
 
 import { ipc } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -12,13 +11,12 @@ import {
   isGitRefPath,
   isMarkdownFile,
   parseGitRef,
-  slugify,
 } from "./fileViewerUtils";
 import {
   MarkdownTableOfContents,
   useActiveHeading,
 } from "./MarkdownTableOfContents";
-import { MermaidDiagram } from "./MermaidDiagram";
+import { MarkdownEditor, type MarkdownEditorMethods } from "./MarkdownEditor";
 import { ApproveButton } from "./ApproveButton";
 import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
 
@@ -30,65 +28,6 @@ type FileViewerProps = {
   /** Required for reading files from non-current branches (gitref:// paths). */
   repoPath?: string;
 };
-
-/* ─────────────────────────────────────────────
-   Markdown preview component overrides
-   ─────────────────────────────────────────────
-   The MDEditor.Markdown preview pipes a React Markdown `components` map
-   through. We intercept fenced code blocks so ```mermaid renders as a
-   diagram and every other block gets a heading-anchor `id` (so the ToC
-   can jump to it) — matching the behaviour of the previous rehype-slug
-   setup.
-*/
-const markdownComponents = {
-  code({ className, children, ...props }: {
-    className?: string;
-    children?: React.ReactNode;
-  } & React.HTMLAttributes<HTMLElement>) {
-    const lang = className?.match(/language-(\S+)/)?.[1] ?? "";
-    if (lang === "mermaid") {
-      const chart = Array.isArray(children)
-        ? children.join("")
-        : String(children ?? "");
-      return <MermaidDiagram chart={chart} />;
-    }
-    return (
-      <code className={className} {...props}>
-        {children}
-      </code>
-    );
-  },
-  // Add stable slug ids so the ToC can smooth-scroll to headings.
-  h1: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h1 id={slugify(extractText(children))} {...props}>{children}</h1>
-  ),
-  h2: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2 id={slugify(extractText(children))} {...props}>{children}</h2>
-  ),
-  h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h3 id={slugify(extractText(children))} {...props}>{children}</h3>
-  ),
-  h4: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h4 id={slugify(extractText(children))} {...props}>{children}</h4>
-  ),
-  h5: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h5 id={slugify(extractText(children))} {...props}>{children}</h5>
-  ),
-  h6: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h6 id={slugify(extractText(children))} {...props}>{children}</h6>
-  ),
-};
-
-function extractText(node: React.ReactNode): string {
-  if (typeof node === "string") return node;
-  if (typeof node === "number") return String(node);
-  if (!node) return "";
-  if (Array.isArray(node)) return node.map(extractText).join("");
-  if (React.isValidElement(node) && node.props) {
-    return extractText((node.props as { children?: React.ReactNode }).children);
-  }
-  return "";
-}
 
 /* ─────────────────────────────────────────────
    Small UI primitives
@@ -275,6 +214,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const contentRef = useRef<HTMLDivElement>(null);
+  const editorRef = useRef<MarkdownEditorMethods>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const isGitRef = isGitRefPath(filePath);
@@ -453,6 +393,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                 onApproved={(newContent) => {
                   setContent(newContent);
                   setEditedContent(newContent);
+                  editorRef.current?.setMarkdown(newContent);
                 }}
                 rightSlot={
                   <ApproveActionsChevron
@@ -473,44 +414,30 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>
         {isMd ? (
-          viewMode === "preview" ? (
-            <div style={{ display: "flex" }}>
-              <div style={{ padding: "12px 20px 12px 28px", flex: 1, minWidth: 0 }}>
-                <MDEditor.Markdown
-                  source={displayContent}
-                  components={markdownComponents}
-                  style={{ background: "transparent" }}
-                />
-              </div>
-
-              {showToc && (
-                <MarkdownTableOfContents
-                  headings={headings}
-                  activeId={activeHeadingId}
-                  containerRef={contentRef}
-                />
-              )}
-            </div>
-          ) : (
-            <MDEditor
-              value={editedContent ?? ""}
-              onChange={(val) => setEditedContent(val ?? "")}
-              preview="edit"
-              visibleDragbar={false}
-              height="100%"
-              // Right-side toolbar (preview/live/edit/fullscreen) is redundant
-              // — the FileViewer chrome above already owns view-mode switching.
-              extraCommands={[]}
-              // The editor's internal textarea blur should trigger a save.
-              textareaProps={{
-                onBlur: () => {
+          <div style={{ display: "flex", minHeight: "100%" }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <MarkdownEditor
+                key={filePath}
+                ref={editorRef}
+                value={displayContent}
+                onChange={(val) => setEditedContent(val)}
+                onBlur={() => {
                   if (isDirty) void save();
-                },
-                spellCheck: false,
-              }}
-              style={{ height: "100%", background: "transparent" }}
-            />
-          )
+                }}
+                readOnly={viewMode === "preview" || !canEdit}
+                filePath={filePath}
+                repoPath={repoPath}
+              />
+            </div>
+
+            {showToc && (
+              <MarkdownTableOfContents
+                headings={headings}
+                activeId={activeHeadingId}
+                containerRef={contentRef}
+              />
+            )}
+          </div>
         ) : (
           <pre
             style={{

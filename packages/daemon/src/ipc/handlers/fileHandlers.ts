@@ -35,6 +35,21 @@ export function registerFileHandlers({ bridge, fileSystemGateway }: FileHandlerC
   });
 
   /**
+   * Handles "file:write-binary" requests.
+   * Decodes a base64 payload and writes the resulting bytes to disk.
+   * Used by the markdown editor's image-paste/drop flow.
+   */
+  safeHandle(bridge, "file:write-binary", async (msg) => {
+    const buffer = Buffer.from(msg.contentBase64, "base64");
+    fileSystemGateway.writeBuffer(msg.filePath, buffer);
+    return {
+      type: "file:write-binary:result",
+      filePath: msg.filePath,
+      success: true,
+    };
+  });
+
+  /**
    * Handles "file:delete" requests.
    * Deletes a file from disk.
    */

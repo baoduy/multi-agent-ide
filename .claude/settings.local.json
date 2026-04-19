@@ -29,7 +29,9 @@
       "Bash(npx tsc *)",
       "Bash(curl -s -X POST \"http://127.0.0.1:50285/cmd\" -H content-type:application/json -d '{\"kind\":\"title\"}')",
       "Bash(pnpm -C packages/shared build)",
-      "Bash(pnpm build *)"
+      "Bash(pnpm build *)",
+      "Bash(pnpm --filter @magenta/ui add @mdxeditor/editor@^3.54.1)",
+      "Bash(grep -B 2 -A 3 \"rootEditor\\\\$\\\\|activeEditor\\\\$\\\\|editorRoot\" packages/ui/node_modules/@mdxeditor/editor/dist/index.d.ts)"
     ]
   }
 }

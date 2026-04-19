@@ -20,6 +20,7 @@ import {
   Terminal,
   ScrollText,
   BookText,
+  ToolCase,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
 
@@ -342,7 +343,7 @@ export function registerAllViews(): void {
   viewRegistry.register({
     id: "specs",
     title: "Specs",
-    icon: <FileText size={14} strokeWidth={1.5} />,
+    icon: <ToolCase size={14} strokeWidth={1.5} />,
     component: SpecsSidebarView,
     defaultLocation: "left",
     closable: false,
@@ -423,7 +424,7 @@ export function registerAllViews(): void {
   viewRegistry.register({
     id: "spec-files",
     title: "Spec Files",
-    icon: <FileText size={14} strokeWidth={1.5} />,
+    icon: <ToolCase size={14} strokeWidth={1.5} />,
     component: SpecFilesView,
     defaultLocation: "right",
     closable: false,

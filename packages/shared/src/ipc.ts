@@ -66,6 +66,13 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("spec:list"), repoPath: z.string() }),
   z.object({ type: z.literal("file:read"), filePath: z.string() }),
   z.object({ type: z.literal("file:write"), filePath: z.string(), content: z.string() }),
+  // Binary write — payload is base64-encoded. Used by the markdown editor's
+  // image-paste/drop flow to save image assets next to the `.md` file.
+  z.object({
+    type: z.literal("file:write-binary"),
+    filePath: z.string(),
+    contentBase64: z.string().max(20 * 1024 * 1024),
+  }),
   z.object({ type: z.literal("file:delete"), filePath: z.string() }),
   z.object({ type: z.literal("file:rename"), oldPath: z.string(), newPath: z.string() }),
   z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
@@ -352,6 +359,11 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("config:updated"), config: MagentaConfigSchema }),
   z.object({ type: z.literal("file:read:result"), filePath: z.string(), content: z.string() }),
   z.object({ type: z.literal("file:write:result"), filePath: z.string(), success: z.boolean() }),
+  z.object({
+    type: z.literal("file:write-binary:result"),
+    filePath: z.string(),
+    success: z.boolean(),
+  }),
   z.object({ type: z.literal("file:delete:result"), filePath: z.string(), success: z.boolean() }),
   z.object({ type: z.literal("file:rename:result"), oldPath: z.string(), newPath: z.string(), success: z.boolean() }),
   z.object({

@@ -1,309 +1,180 @@
 # Magenta IDE
 
-**Multi-Repo · Multi-Agent · Full IDE**
+**Multi-Repo · Multi-Agent · Spec-Driven Desktop IDE**
 
-A desktop-first developer tool that manages the full software development lifecycle across multiple repositories simultaneously. Magenta IDE orchestrates the **Spec → Plan → Task → Implement → Review** pipeline, dispatching implementation work to AI agents (Claude Code, GitHub Copilot) in dedicated git worktrees.
+Magenta IDE is an Electron desktop app that manages spec-driven software delivery across many repositories in one workspace.
 
 ![Magenta IDE](App.png)
 
----
+## What ships today
 
-## Table of Contents
+Magenta IDE currently ships these major feature areas:
 
-- [What is Magenta IDE?](#what-is-magenta-ide)
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [First Launch & Setup](#first-launch--setup)
-- [How to Use Magenta IDE](#how-to-use-magenta-ide)
-  - [1 — Add a Working Directory](#1--add-a-working-directory)
-  - [2 — Browse Repositories & Specs](#2--browse-repositories--specs)
-  - [3 — Author & Progress a Spec](#3--author--progress-a-spec)
-  - [4 — Dispatch Work to an AI Agent](#4--dispatch-work-to-an-ai-agent)
-  - [5 — Monitor Progress & Review](#5--monitor-progress--review)
-  - [6 — Create a Pull Request](#6--create-a-pull-request)
-- [Settings](#settings)
-- [Troubleshooting](#troubleshooting)
-- [Build from Source](#build-from-source)
-- [For Developers](#for-developers)
-- [License](#license)
+1. **Repository Management**
+   - Scan configured working directories (depth-limited) for git repos
+   - Track repo status and branch metadata
+   - Pin/search repos in the Explorer sidebar
 
----
+2. **Spec Pipeline (Constitution → Spec → Plan → Tasks → Implementation)**
+   - Detect and sync spec folders from current and non-current branches
+   - Visual stage dots + workflow diagram
+   - Stage approval markers written directly into markdown files
 
-## What is Magenta IDE?
+3. **Onboarding (Spec Kit integration)**
+   - Run `specify` onboarding/upgrade/switch from UI
+   - Stream command output live
+   - Optional worktree-based onboarding isolation
 
-Magenta IDE is a desktop application that helps your team manage the entire software development lifecycle across multiple git repositories — all from a single window. It connects spec authoring, AI-assisted implementation, and pull-request creation into one smooth workflow.
+4. **AI Sessions (live PTY)**
+   - Launch Claude Code or Copilot CLI sessions in-terminal
+   - Provider-specific permission modes
+   - Resume using provider session IDs
 
-**Key capabilities at a glance:**
+5. **Synced Sessions (disk history indexing)**
+   - Index CLI history from `~/.claude` and `~/.copilot`
+   - Merge history with live sessions in one tree
+   - Resume archived/synced sessions into live runs
 
-- 📁 **Multi-repo management** — point Magenta at any folder; it discovers all git repositories automatically.
-- 📝 **Spec-driven development** — author specs in a rich markdown editor and track them through a structured pipeline (Constitution → Spec → Plan → Tasks → Implementation).
-- 🤖 **AI agent dispatch** — send tasks to Claude Code or GitHub Copilot, each running in an isolated git worktree so it never conflicts with your main branch.
-- 📊 **Live monitoring** — stream agent logs and view a real-time pipeline flow diagram.
-- 🔀 **PR workflow** — create pull requests directly from the completed agent work inside the IDE.
-- 💾 **Session persistence** — your workspace layout is saved and restored automatically every time you open the app.
+6. **Terminal**
+   - General-purpose PTY terminals in the dock
+   - Same attach/stream/heartbeat pipeline as AI sessions
 
----
+7. **Worktrees**
+   - Create/list/merge/delete worktrees under `.worktrees/`
+   - Validate worktree usage before AI session launch
+   - Track ahead/behind + file status per worktree
+
+8. **Git Management**
+   - Clone (streaming progress), status, commit, push/pull/fetch
+   - Branch operations, history, diff, blame
+   - Stash, remotes, reset/revert
+
+9. **Markdown Manager**
+   - Markdown-only repo/branch browser
+   - Edit current-branch files, read non-current branch files via `gitref://`
+   - Preview, Mermaid rendering, table of contents
+
+10. **Dock Layout System**
+    - Activity groups: Explorer, Markdown Manager, Git
+    - Drag/drop views between regions
+    - Persisted, migration-safe layout state
+
+11. **Theme System**
+    - `light` / `dark` / `system`
+    - Live OS preference tracking
+    - CSS-token-driven semantic theming
+
+12. **Configuration + CLI Version Tracking**
+    - Config stored in `~/.magenta/config.json`
+    - Working dirs, sync intervals, Specify command template
+    - Background CLI version checks + upgrade flows for Claude/Copilot/Specify
+
+For technical deep dives, see [`docs/features/README.md`](docs/features/README.md).
+
+## Architecture at a glance
+
+Monorepo packages:
+
+- `packages/shared` — Zod schemas, IPC contracts, shared models/constants
+- `packages/daemon` — background service (application/domain/infrastructure/data)
+- `packages/main` — Electron main process + preload bridge
+- `packages/ui` — React renderer + Zustand stores + dock UI
+
+Reference: [`docs/architecture/architecture-overview.md`](docs/architecture/architecture-overview.md)
 
 ## Prerequisites
 
-Before installing Magenta IDE, make sure the following tools are available on your machine:
-
-| Tool | Minimum version | Notes |
+| Tool | Required | Notes |
 |---|---|---|
-| **Git** | 2.30+ | Required for all repository operations and git worktree support |
-| **Claude Code CLI** (`claude`) | latest | Required if you plan to dispatch work to Claude Code |
-| **GitHub CLI** (`gh`) | latest | Required if you plan to dispatch work to GitHub Copilot |
+| Git | Yes | Core repo/worktree/git operations |
+| Claude Code CLI (`claude`) | Optional | Required to run Claude sessions |
+| GitHub Copilot CLI (`copilot`) | Optional | Required to run Copilot sessions |
+| Specify CLI (`specify`) / `uvx` setup | Optional | Required for Spec Kit onboarding commands |
 
-> **macOS / Linux:** install the CLIs via their official installers or Homebrew.
-> **Windows:** use the official Windows installers from the respective product pages.
-
-You do **not** need Node.js installed to run the pre-built app — it is bundled inside the Electron package.
-
----
+> You can use the app with only some providers installed; unavailable tools are simply not runnable.
 
 ## Installation
 
-### Option A — Download the pre-built app (recommended)
+### Download prebuilt binaries
 
-Go to the [**Releases page**](https://github.com/baoduy/multi-agent-ide/releases) and download the installer for your platform.
+Use the latest release from:
 
-| Platform | File to download | How to install |
-|---|---|---|
-| **macOS (Apple Silicon)** | `Magenta-IDE-*-mac-arm64.dmg` | Open the `.dmg`, drag **Magenta IDE** to `/Applications` |
-| **macOS (Intel)** | `Magenta-IDE-*-mac-x64.dmg` | Open the `.dmg`, drag **Magenta IDE** to `/Applications` |
-| **Windows** | `Magenta-IDE-Setup-*-x64.exe` | Run the installer; choose your installation directory |
-| **Linux (AppImage)** | `Magenta-IDE-*-x64.AppImage` | `chmod +x Magenta-IDE-*.AppImage` then run it |
-| **Linux (Debian/Ubuntu)** | `Magenta-IDE-*-x64.deb` | `sudo dpkg -i Magenta-IDE-*.deb` |
+- <https://github.com/baoduy/multi-agent-ide/releases>
 
-#### macOS security note
-
-Because the app is not yet signed with an Apple Developer certificate, macOS Gatekeeper may block the first launch. To fix this, open **Terminal** and run:
+### macOS unsigned app note
 
 ```bash
 xattr -cr /Applications/Magenta\ IDE.app
 ```
 
-Then open the app normally. Alternatively, right-click the app icon and choose **Open** to bypass Gatekeeper once.
+## First-time setup
 
-#### Windows security note
+1. Open **Settings**.
+2. Add one or more **Working Directories**.
+3. (Optional) Adjust:
+   - Specify command template
+   - Spec sync interval
+   - Session sync interval
+   - Fallback approver name
+4. Select a repository from Explorer.
+5. If needed, run onboarding for that repo (Specify integration).
 
-Windows SmartScreen may show a warning for unsigned applications. Click **More info → Run anyway** to proceed with the installation.
+## Typical workflow
 
----
+1. **Discover repos** from configured working directories.
+2. **Select spec** and progress stages in the pipeline.
+3. **Approve stage docs** in markdown (file-based markers).
+4. **Create worktree** and launch AI session (Claude/Copilot).
+5. **Monitor output** in terminal/session views.
+6. **Review changes** in Git Management (history, diff, blame, stash, remotes).
+7. **Edit docs/spec files** in Markdown Manager across branches.
 
-### Option B — Build from source
-
-If you prefer to build the app yourself (or want to contribute), see the [Build from Source](#build-from-source) section below.
-
----
-
-## First Launch & Setup
-
-### Step 1 — Launch Magenta IDE
-
-Open the app from your Applications folder (macOS), Start Menu (Windows), or by running the AppImage (Linux).
-
-### Step 2 — Onboarding wizard
-
-On first launch the **Onboarding** dialog will appear. It walks you through:
-
-1. **Choose your AI agent** — select Claude Code or GitHub Copilot (you can change this later in Settings).
-2. **Set the agent command path** — confirm the path to the `claude` or `gh` executable if it is not on your system `PATH`. You can find the path by running `which claude` (macOS/Linux) or `where claude` (Windows) in a terminal.
-3. **Enable git worktree isolation** *(optional but recommended)* — each AI agent run gets its own isolated git branch.
-
-### Step 3 — Add a working directory
-
-After onboarding, click **⚙ Settings** (gear icon in the title bar) and add one or more **working directories**. A working directory is any folder that contains your git repositories — for example `~/Projects` or `C:\Code`.
-
-Magenta will scan the folder (up to 3 levels deep), discover all git repositories, and list them in the left sidebar.
-
----
-
-## How to Use Magenta IDE
-
-### 1 — Add a Working Directory
-
-1. Click the **⚙ Settings** icon in the title bar.
-2. Under **Working Directories**, click **+ Add directory** and select your projects folder.
-3. Magenta scans the folder and populates the **Repositories** sidebar. You can add as many working directories as you need.
-
-> **Tip:** Repositories are refreshed automatically when files change on disk. You can also trigger a manual rescan from the context menu on any repository.
-
----
-
-### 2 — Browse Repositories & Specs
-
-- The **left sidebar** lists every discovered repository. Click a repository to select it.
-- Each repository entry shows its current branch and spec count.
-- Expand a repository to see its **spec folders** (sub-folders that contain a `spec.md` file are detected automatically).
-- Click a spec folder to open the pipeline view in the main area.
-
----
-
-### 3 — Author & Progress a Spec
-
-A spec moves through five stages:
-
-```
-Constitution  →  Spec  →  Plan  →  Tasks  →  Implementation
-```
-
-Each stage is colour-coded in the pipeline flow diagram:
-- 🔵 **Blue** — pending / draft
-- 🟡 **Yellow** — in review
-- 🟢 **Green** — approved / done
-
-**To create or edit a stage document:**
-
-1. Select a spec in the sidebar.
-2. The main panel shows the pipeline flow diagram. Click any stage node to open its markdown editor.
-3. Write or paste your content (the editor supports syntax highlighting and Mermaid diagrams).
-4. When ready, click **Mark for review** and then **Approve** to advance the stage status.
-
-**Stage documents** are plain markdown files saved inside your repository under the spec folder — no proprietary format, fully version-controlled.
-
----
-
-### 4 — Dispatch Work to an AI Agent
-
-Once the **Tasks** stage is approved, you can send the work to an AI agent:
-
-1. Click **Create Worktree** in the activity panel (right sidebar) or the pipeline diagram.
-2. Magenta creates an isolated git worktree branch for the agent.
-3. The AI agent (Claude Code or GitHub Copilot) is launched in that worktree and begins implementing the tasks.
-4. You can run multiple agents simultaneously across different repositories or specs.
-
-> **Concurrency controls:** Each repository has a configurable agent limit. Use the global **Pause** button in the title bar to temporarily stop all running agents.
-
----
-
-### 5 — Monitor Progress & Review
-
-- The **Activity panel** (right sidebar) streams the live terminal output from the running agent.
-- The **pipeline flow diagram** updates in real time — node colours change as stages complete.
-- Diff output and file changes are visible in the activity panel once the agent finishes.
-- Click any worktree entry to inspect its branch, status, and log output.
-
----
-
-### 6 — Create a Pull Request
-
-When the agent has finished and you are happy with the result:
-
-1. Open the **Worktree panel** for the completed worktree.
-2. Click **Create Pull Request**.
-3. Magenta calls the GitHub CLI (`gh pr create`) in the background and opens the new PR in your browser.
-
-The worktree branch can then be deleted from the same panel once the PR is merged.
-
----
-
-## Settings
-
-Open **⚙ Settings** from the title bar to manage:
-
-| Setting | Description |
-|---|---|
-| **Working directories** | Add or remove the root folders Magenta scans for repositories |
-| **AI agent** | Switch between Claude Code and GitHub Copilot |
-| **Agent command path** | Full path to the `claude` or `gh` executable |
-| **Worktree isolation** | Enable/disable per-repository worktree isolation |
-
-Settings are persisted automatically in a local SQLite database — no config file to edit by hand.
-
----
-
-## Troubleshooting
-
-### The app won't open on macOS
-Run `xattr -cr /Applications/Magenta\ IDE.app` in Terminal and try again. See [macOS security note](#macos-security-note).
-
-### Repositories are not appearing in the sidebar
-- Make sure you have added a working directory in **Settings**.
-- Confirm that the directories contain `.git` folders at most 3 levels deep.
-- Try right-clicking the working directory entry and selecting **Rescan**.
-
-### The AI agent command is not found
-- Open **Settings** and verify the **Agent command path** points to the correct executable.
-- On macOS/Linux you can find the path with `which claude` or `which gh`.
-- On Windows use `where claude` or `where gh` in Command Prompt.
-
-### An agent run failed immediately
-- Check that Git is installed and on your `PATH` (`git --version` should print a version number).
-- Check that git worktrees are supported: `git worktree list` in any repo should work.
-- Review the agent log in the Activity panel for the specific error message.
-
-### My workspace layout was lost
-Your layout is stored in the local SQLite database. If you need to reset it, delete the database file at:
-- **macOS:** `~/Library/Application Support/Magenta IDE/`
-- **Windows:** `%APPDATA%\Magenta IDE\`
-- **Linux:** `~/.config/Magenta IDE/`
-
----
-
-## Build from Source
-
-> Only needed if you want to build the app yourself or contribute code.
+## Build from source
 
 ### Requirements
 
-| Tool | Version |
-|---|---|
-| Node.js | 22+ |
-| pnpm | 10+ |
-| Git | 2.30+ |
+- Node.js 22+
+- Corepack-enabled pnpm (repo is pinned to `pnpm@10.33.0`)
 
-### Steps
+### Setup
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/baoduy/multi-agent-ide.git
 cd multi-agent-ide
-
-# 2. Install all dependencies (monorepo workspaces)
-pnpm install
-
-# 3a. Run in development mode (build + launch Electron)
-pnpm dev
-
-# 3b. Or, run with hot-reload for active development
-pnpm dev:watch
+corepack enable
+corepack pnpm install
 ```
 
-### Create a distributable package
+### Development
 
 ```bash
-# Build for your current platform
-pnpm dist
-
-# Platform-specific builds
-pnpm dist:mac       # macOS (.dmg + .zip for both x64 and arm64)
-pnpm dist:win       # Windows (.exe NSIS installer, x64)
-pnpm dist:linux     # Linux (.AppImage + .deb, x64)
+corepack pnpm dev
+# or
+corepack pnpm dev:watch
 ```
 
-Built artifacts are placed in the `release/` directory.
+### Quality + build
 
----
+```bash
+corepack pnpm build
+corepack pnpm test
+corepack pnpm lint
+```
 
-## For Developers
+### Distributables
 
-If you are contributing to or extending Magenta IDE, see the following references:
+```bash
+corepack pnpm dist
+corepack pnpm dist:mac
+corepack pnpm dist:win
+corepack pnpm dist:linux
+```
 
-- **Architecture overview** — [`docs/architecture/architecture-overview.md`](docs/architecture/architecture-overview.md)
-- **AI agent development guide** — [`CLAUDE.md`](CLAUDE.md) — authoritative rules for layering, IPC endpoints, error handling, and anti-patterns
-- **Available scripts**
+## Docs index
 
-| Command | Description |
-|---|---|
-| `pnpm dev` | Build all packages, then launch Electron |
-| `pnpm dev:watch` | Parallel watch mode (hot-reload) |
-| `pnpm build` | Build all packages for production |
-| `pnpm typecheck` | TypeScript type-checking across all packages |
-| `pnpm lint` | Run linters across all packages |
-| `pnpm test` | Run all test suites |
-
----
+- Feature docs: [`docs/features/README.md`](docs/features/README.md)
+- Architecture: [`docs/architecture/architecture-overview.md`](docs/architecture/architecture-overview.md)
+- Developer rules: [`CLAUDE.md`](CLAUDE.md)
 
 ## License
 

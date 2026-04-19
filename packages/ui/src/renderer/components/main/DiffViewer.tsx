@@ -194,7 +194,7 @@ export function DiffViewer({
           alignItems: "center",
           justifyContent: "center",
           gap: 6,
-          padding: 20,
+                    padding: 12,
           color: colors.textTertiary,
           fontSize: 11,
         }}
@@ -239,7 +239,7 @@ export function DiffViewer({
         }}
       >
         <FileIconBadge fileName={fileName} />
-        <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>{fileName}</span>
+        <span style={{ fontSize: 11, fontWeight: 600, color: colors.text }}>{fileName}</span>
         <span
           style={{
             fontSize: 10,

@@ -283,7 +283,7 @@ export function WorkflowView({
       {/* Header bar */}
       <div
         style={{
-          padding: "6px 12px",
+          padding: "4px 10px",
           borderBottom: `1px solid ${colors.border}`,
           display: "flex",
           alignItems: "center",
@@ -296,7 +296,7 @@ export function WorkflowView({
         <div style={{ flex: 1 }}>
           <span
             style={{
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 600,
               color: colors.textStrong,
             }}
@@ -311,7 +311,7 @@ export function WorkflowView({
                 strokeWidth={1.8}
                 style={{ marginLeft: 8, verticalAlign: "middle", display: "inline" }}
               />
-              <span style={{ fontSize: 12, color: colors.textTertiary, marginLeft: 4 }}>
+              <span style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 4 }}>
                 {repoName}
               </span>
             </>
@@ -342,7 +342,7 @@ export function WorkflowView({
               alignItems: "center",
               gap: 4,
               padding: "3px 10px",
-              borderRadius: 12,
+              borderRadius: 8,
               background: colors.success,
               color: colors.textWhite,
               fontSize: 11,
@@ -389,7 +389,7 @@ export function WorkflowView({
             border: `1px solid ${colors.errorSoftBorder}`,
             borderRadius: 8,
             padding: "10px 16px",
-            fontSize: 12,
+            fontSize: 11,
             color: colors.errorDark,
             maxWidth: 360,
             zIndex: 10000,

@@ -57,7 +57,25 @@ export class FileSystemGateway {
    */
   writeFile(filePath: string, content: string): string {
     const resolved = this.resolveAllowed(filePath);
+    const parent = path.dirname(resolved);
+    if (!fs.existsSync(parent)) {
+      fs.mkdirSync(parent, { recursive: true });
+    }
     fs.writeFileSync(resolved, content, "utf-8");
+    return resolved;
+  }
+
+  /**
+   * Write a binary buffer to a file, creating parent directories as needed.
+   * Used by the markdown editor to persist pasted/dropped image assets.
+   */
+  writeBuffer(filePath: string, buffer: Buffer): string {
+    const resolved = this.resolveAllowed(filePath);
+    const parent = path.dirname(resolved);
+    if (!fs.existsSync(parent)) {
+      fs.mkdirSync(parent, { recursive: true });
+    }
+    fs.writeFileSync(resolved, buffer);
     return resolved;
   }
 

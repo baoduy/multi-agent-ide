@@ -121,7 +121,7 @@ export function RepoFileChanges({
 
       {/* Empty state */}
       {!isLoading && status && filteredFiles.length === 0 && (
-        <div style={{ color: colors.textTertiary, fontSize: 12, padding: "8px 0" }}>
+        <div style={{ color: colors.textTertiary, fontSize: 11, padding: "8px 0" }}>
           {searchQuery.trim()
             ? `No matches for \u201c${searchQuery}\u201d`
             : "No changed files."}
@@ -179,7 +179,7 @@ export function RepoFileChanges({
                 <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                   <ScrollableText
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: 600,
                       color:
                         isClickable && isHovered ? colors.primary : colors.text,

@@ -161,7 +161,7 @@ function CliToolRow({
     <div
       style={{
         border: `1px solid ${colors.border}`,
-        borderRadius: 8,
+        borderRadius: 6,
         padding: 12,
         background: colors.bgWhite,
       }}
@@ -169,7 +169,7 @@ function CliToolRow({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: colors.text }}>
               {spec.displayName}
             </span>
             <a

@@ -45,7 +45,7 @@ export function AddWorkingDirButton({ onError }: AddWorkingDirButtonProps): Reac
       style={{
         width: "100%",
         padding: "8px 12px",
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: 500,
         backgroundColor: colors.info,
         color: colors.textWhite,

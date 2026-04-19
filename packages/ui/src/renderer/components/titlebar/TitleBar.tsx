@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Sun, Moon, Monitor, List, Workflow, GitBranch, Bot, Plus } from "lucide-react";
+import { Sun, Moon, Monitor, ToolCase, Workflow, GitBranch, Bot, Plus } from "lucide-react";
 
 import type { ActiveTab, BuiltinTabId } from "../main/TabBar";
 import {
@@ -38,7 +38,7 @@ type TitleBarProps = {
 /* ── Built-in tab definitions ── */
 
 const builtinTabs: { id: BuiltinTabId; label: string; icon: React.ReactNode }[] = [
-  { id: "specs", label: "Specs", icon: <List size={14} strokeWidth={1.8} /> },
+  { id: "specs", label: "Specs", icon: <ToolCase size={14} strokeWidth={1.8} /> },
   { id: "workflow", label: "Workflow", icon: <Workflow size={14} strokeWidth={1.8} /> },
   { id: "worktrees", label: "Worktrees", icon: <GitBranch size={14} strokeWidth={1.8} /> },
   { id: "ai", label: "AI", icon: <Bot size={14} strokeWidth={1.8} /> },

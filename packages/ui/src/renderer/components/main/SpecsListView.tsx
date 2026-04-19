@@ -272,7 +272,7 @@ const SpecSticker = React.memo(function SpecSticker({
         border: isSelected
           ? `2px solid ${colors.warningBorder}`
           : `1px solid ${hovered ? colors.borderStrong : colors.border}`,
-        borderRadius: 14,
+        borderRadius: 8,
         padding: isSelected ? 15 : 16,
         background: isSelected
           ? colors.warningSoft
@@ -283,7 +283,7 @@ const SpecSticker = React.memo(function SpecSticker({
         transition: "all 0.15s ease",
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 8,
         boxShadow: hovered
           ? colors.shadowSoft
           : "none",
@@ -320,7 +320,7 @@ const SpecSticker = React.memo(function SpecSticker({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 13,
+              fontSize: 11,
               fontWeight: 650,
               color: colors.textStrong,
               overflow: "hidden",
@@ -586,7 +586,7 @@ export function SpecsListView({
         style={{
           display: "flex",
           flexWrap: "wrap",
-          gap: 10,
+          gap: 8,
           alignItems: "stretch",
           alignContent: "flex-start",
         }}
@@ -605,7 +605,7 @@ export function SpecsListView({
             style={{
               width: "100%",
               textAlign: "center",
-              padding: 24,
+                            padding: 12,
               color: colors.textTertiary,
               fontSize: 11,
             }}

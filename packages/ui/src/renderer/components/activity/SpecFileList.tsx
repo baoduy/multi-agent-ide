@@ -106,12 +106,12 @@ export function SpecFileList({ files, onOpenFile }: SpecFileListProps): React.Re
   );
 
   if (files.length === 0) {
-    return <div style={{ fontSize: 12, color: colors.textTertiary }}>No files in this spec.</div>;
+    return <div style={{ fontSize: 11, color: colors.textTertiary }}>No files in this spec.</div>;
   }
 
   if (filteredFiles.length === 0) {
     return (
-      <div style={{ fontSize: 12, color: colors.textTertiary }}>
+      <div style={{ fontSize: 11, color: colors.textTertiary }}>
         No matches for &ldquo;{searchQuery}&rdquo;
       </div>
     );

@@ -111,12 +111,12 @@ export function SpecifyOnboardBanner({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           padding: "10px 14px",
-          borderRadius: 8,
+          borderRadius: 6,
           background: colors.successSoft,
           border: `1px solid ${colors.successSoftBorder}`,
-          fontSize: 12,
+          fontSize: 11,
           color: colors.successText,
           lineHeight: 1.4,
         }}
@@ -130,7 +130,7 @@ export function SpecifyOnboardBanner({
   return (
     <div
       style={{
-        borderRadius: 8,
+        borderRadius: 6,
         background: colors.warningSoft,
         border: `1px solid ${colors.warningBorder}`,
         overflow: "hidden",
@@ -141,9 +141,9 @@ export function SpecifyOnboardBanner({
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
+          gap: 8,
           padding: "10px 14px",
-          fontSize: 12,
+          fontSize: 11,
           color: colors.warningTextStrong,
           lineHeight: 1.4,
         }}

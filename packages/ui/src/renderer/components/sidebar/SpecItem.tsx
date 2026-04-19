@@ -29,11 +29,11 @@ export const SpecItem = React.memo(function SpecItem({ spec, isSelected, onSelec
     >
       <ScrollableText
         style={{
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: isSelected ? 500 : 400,
           color: colors.textStrong,
           flex: 1,
-          marginRight: 12,
+          marginRight: 8,
           lineHeight: 1.4,
         }}
       >

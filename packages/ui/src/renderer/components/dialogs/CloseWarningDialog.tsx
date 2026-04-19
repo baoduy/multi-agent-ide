@@ -41,7 +41,7 @@ export function CloseWarningDialog({
         </>
       }
     >
-      <p style={{ margin: 0, fontSize: 13, color: colors.text, lineHeight: 1.5 }}>
+      <p style={{ margin: 0, fontSize: 11, color: colors.text, lineHeight: 1.5 }}>
         {runningCount === 1
           ? "1 AI session is actively processing."
           : `${runningCount} AI sessions are actively processing.`}

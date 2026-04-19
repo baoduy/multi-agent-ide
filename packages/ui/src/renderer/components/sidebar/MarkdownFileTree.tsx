@@ -154,7 +154,7 @@ function InlineInput({
         width: "100%",
         boxSizing: "border-box",
         padding: "3px 6px",
-        fontSize: 12,
+        fontSize: 11,
         fontFamily: "inherit",
         border: `1px solid ${colors.primary}`,
         borderRadius: 3,
@@ -429,7 +429,7 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
         )}
 
         {!selectedRepoPath && (
-          <p style={{ padding: "12px 8px", color: colors.textTertiary, fontSize: 12, margin: 0 }}>
+          <p style={{ padding: "8px 6px", color: colors.textTertiary, fontSize: 11, margin: 0 }}>
             Select a repository to browse markdown files.
           </p>
         )}
@@ -443,7 +443,7 @@ export function MarkdownFileTree({ onOpenFile }: MarkdownFileTreeProps): React.R
         )}
 
         {selectedRepoPath && !isLoadingBranches && !isLoadingFiles && mdFiles.length === 0 && newFileDir === null && (
-          <p style={{ padding: "12px 8px", color: colors.textTertiary, fontSize: 12, margin: 0 }}>
+          <p style={{ padding: "8px 6px", color: colors.textTertiary, fontSize: 11, margin: 0 }}>
             No markdown files found.
           </p>
         )}

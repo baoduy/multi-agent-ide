@@ -188,8 +188,8 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenComm
 
   if (!repoPath) {
     return (
-      <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-        <div style={{ color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ color: colors.textTertiary, fontSize: 11 }}>
           No repository selected.
         </div>
         <div>
@@ -218,9 +218,9 @@ export function GitChangesView({ repoPath, onOpenDiff, onOpenRefDiff, onOpenComm
       <div
         style={{
           display: "flex",
-          gap: 6,
+          gap: 4,
           flexWrap: "wrap",
-          padding: "8px 12px",
+          padding: "4px 8px",
           borderBottom: `1px solid ${colors.borderLight}`,
           flexShrink: 0,
         }}

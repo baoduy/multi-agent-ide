@@ -20,6 +20,7 @@ import {
   Terminal,
   ScrollText,
   BookText,
+  ToolCase,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
 
@@ -68,7 +69,7 @@ function SpecsSidebarView(): React.ReactElement {
 
   if (!activeRepoPath) {
     return (
-      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", color: colors.textTertiary, fontSize: 11 }}>
         Select a repository to see specs.
       </div>
     );
@@ -136,7 +137,7 @@ function RepoChangesView(props: {
 }): React.ReactElement {
   if (!props.repoPath) {
     return (
-      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", color: colors.textTertiary, fontSize: 11 }}>
         No repository selected.
       </div>
     );
@@ -167,7 +168,7 @@ function SpecFilesView(props: {
 
   if (!selectedSpec || selectedSpec.files.length === 0) {
     return (
-      <div style={{ padding: "12px 16px", color: colors.textTertiary, fontSize: 12 }}>
+      <div style={{ padding: "8px 12px", color: colors.textTertiary, fontSize: 11 }}>
         {selectedSpec ? "No files in this spec." : "No spec selected."}
       </div>
     );
@@ -342,7 +343,7 @@ export function registerAllViews(): void {
   viewRegistry.register({
     id: "specs",
     title: "Specs",
-    icon: <FileText size={14} strokeWidth={1.5} />,
+    icon: <ToolCase size={14} strokeWidth={1.5} />,
     component: SpecsSidebarView,
     defaultLocation: "left",
     closable: false,
@@ -423,7 +424,7 @@ export function registerAllViews(): void {
   viewRegistry.register({
     id: "spec-files",
     title: "Spec Files",
-    icon: <FileText size={14} strokeWidth={1.5} />,
+    icon: <ToolCase size={14} strokeWidth={1.5} />,
     component: SpecFilesView,
     defaultLocation: "right",
     closable: false,

@@ -84,7 +84,7 @@ export function PipelineNode({ data }: CustomNodeProps): React.ReactElement {
     >
       {/* Header row */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 4 }}>
-        <span style={{ fontWeight: 600, fontSize: 12, color: colors.text, flex: 1 }}>
+        <span style={{ fontWeight: 600, fontSize: 11, color: colors.text, flex: 1 }}>
           {data.label}
         </span>
         {(isApproved || isDone) && <CheckCircle size={12} color={uiColors.success} strokeWidth={2} />}

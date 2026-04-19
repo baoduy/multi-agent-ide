@@ -140,7 +140,7 @@ export const DockManager = React.memo(function DockManager({
         height: "100vh",
         fontFamily:
           "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, Roboto, 'Helvetica Neue', sans-serif",
-        fontSize: 13,
+        fontSize: 11,
         color: colors.text,
         background: colors.bgSurface,
       }}

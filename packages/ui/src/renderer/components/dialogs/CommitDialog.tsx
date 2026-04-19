@@ -190,7 +190,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
           flex: 1,
           minWidth: 0,
           padding: "8px 12px",
-          fontSize: 13,
+          fontSize: 11,
           border: `1px solid ${commitError ? colors.error : colors.border}`,
           borderRadius: 6,
           outline: "none",
@@ -252,7 +252,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
       ) : loadError ? (
         <FormError message={loadError} />
       ) : files.length === 0 ? (
-        <p style={{ fontSize: 13, color: colors.textSecondary, margin: 0 }}>
+        <p style={{ fontSize: 11, color: colors.textSecondary, margin: 0 }}>
           No changes to commit on <strong style={{ color: colors.text }}>{currentBranch}</strong>.
         </p>
       ) : (
@@ -321,7 +321,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
                         padding: "4px 8px",
                         borderRadius: 4,
                         cursor: "pointer",
-                        fontSize: 12,
+                        fontSize: 11,
                         fontFamily: "var(--font-mono)",
                         color: colors.text,
                       }}
@@ -426,8 +426,8 @@ function SplitButton({
         onClick={() => { if (!disabled) onPrimary(); }}
         disabled={disabled}
         style={{
-          padding: "7px 14px",
-          fontSize: 12,
+          padding: "5px 10px",
+          fontSize: 11,
           fontWeight: 600,
           color: colors.textWhite,
           background: baseBg,
@@ -508,7 +508,7 @@ function SplitButton({
               alignItems: "center",
               gap: 8,
               padding: "8px 10px",
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 500,
               color: colors.text,
               background: "transparent",

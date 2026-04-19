@@ -27,7 +27,7 @@ function statusLetter(s: GitFileStatus["status"]): { letter: string; color: stri
 export function CommitComposerTab({ repoPath }: CommitComposerTabProps): React.ReactElement {
   if (!repoPath) {
     return (
-      <div style={{ padding: 20, color: colors.textTertiary, fontSize: 13 }}>
+      <div style={{ padding: 12, color: colors.textTertiary, fontSize: 11 }}>
         Select a repository to open the commit composer.
       </div>
     );
@@ -46,16 +46,16 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
         flexDirection: "column",
         height: "100%",
         minHeight: 0,
-        padding: 16,
-        gap: 12,
+        padding: 12,
+        gap: 8,
         boxSizing: "border-box",
       }}
     >
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <GitCommit size={16} color={colors.primary} strokeWidth={2} />
-          <div style={{ fontSize: 13, fontWeight: 600, color: colors.text }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: colors.text }}>
             Commit on <code style={{ fontFamily: "var(--font-mono)" }}>{c.branch || "…"}</code>
           </div>
           {c.hasUpstream && (c.ahead > 0 || c.behind > 0) && (
@@ -120,7 +120,7 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
           ) : c.loadError ? (
             <div style={{ padding: 10 }}><FormError message={c.loadError} /></div>
           ) : c.files.length === 0 ? (
-            <div style={{ padding: "10px 12px", fontSize: 12, color: colors.textTertiary }}>
+            <div style={{ padding: "6px 10px", fontSize: 11, color: colors.textTertiary }}>
               Nothing to commit on <strong style={{ color: colors.text }}>{c.branch}</strong>.
             </div>
           ) : (
@@ -144,7 +144,7 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
                       style={{
                         display: "flex", alignItems: "center", gap: 8,
                         padding: "4px 8px", borderRadius: 4, cursor: "pointer",
-                        fontSize: 12, fontFamily: "var(--font-mono)", color: colors.text,
+                        fontSize: 11, fontFamily: "var(--font-mono)", color: colors.text,
                       }}
                       onMouseEnter={(e) => { e.currentTarget.style.background = colors.bgHover; }}
                       onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
@@ -187,7 +187,7 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
           onClick={() => void c.doCommit(false)}
           disabled={c.primaryDisabled}
           style={{
-            padding: "7px 14px", fontSize: 12, fontWeight: 600,
+            padding: "5px 10px", fontSize: 11, fontWeight: 600,
             color: colors.text, background: "transparent",
             border: `1px solid ${colors.border}`, borderRadius: 6,
             cursor: c.primaryDisabled ? "default" : "pointer",
@@ -205,7 +205,7 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
           onClick={() => void c.doCommit(true)}
           disabled={c.primaryDisabled}
           style={{
-            padding: "7px 14px", fontSize: 12, fontWeight: 600,
+            padding: "5px 10px", fontSize: 11, fontWeight: 600,
             color: colors.textWhite,
             background: c.primaryDisabled ? colors.textTertiary : colors.primary,
             border: "none", borderRadius: 6,

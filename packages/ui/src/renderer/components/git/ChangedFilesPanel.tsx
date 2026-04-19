@@ -149,9 +149,9 @@ function CommitFiles({
   );
 
   if (isLoading) return <InlineLoadingRow label="Loading files…" />;
-  if (error) return <div style={{ padding: 6, fontSize: 11, color: colors.error }}>{error}</div>;
+  if (error) return <div style={{ padding: 4, fontSize: 11, color: colors.error }}>{error}</div>;
   if (files.length === 0) {
-    return <div style={{ padding: 6, fontSize: 12, color: colors.textTertiary }}>No file changes.</div>;
+    return <div style={{ padding: 4, fontSize: 11, color: colors.textTertiary }}>No file changes.</div>;
   }
 
   return (
@@ -195,7 +195,7 @@ function CommitFileRow({ file, onClick }: { file: CommitFile; onClick: () => voi
       <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
         <div
           style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 600,
             color: hover ? colors.primary : colors.text,
             overflow: "hidden",

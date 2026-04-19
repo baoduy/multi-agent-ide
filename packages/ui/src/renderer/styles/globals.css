@@ -1,8 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Host+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "@uiw/react-md-editor/markdown-editor.css";
-@import "@uiw/react-markdown-preview/markdown.css";
 /* Generated shadcn theme tokens (base colors/fonts/radii/shadows). */
 @import "./colours.css";
 
@@ -127,26 +125,41 @@
     font-family: var(--font-heading);
   }
 
-  /* Markdown preview (react-markdown-preview) — force our fonts so the
-     imported stylesheet can't pin to its own system stack. */
-  .wmde-markdown,
-  .wmde-markdown * {
-    font-family: var(--font-sans);
+  /* Notion-style block editor — contentEditable placeholders. */
+  [data-notion-editor] [contenteditable="true"][data-placeholder]:empty::before,
+  [data-notion-editor] [contenteditable="false"][data-placeholder]:empty::before {
+    content: attr(data-placeholder);
+    color: var(--muted-foreground);
+    opacity: 0.6;
+    pointer-events: none;
   }
 
-  .wmde-markdown h1,
-  .wmde-markdown h2,
-  .wmde-markdown h3,
-  .wmde-markdown h4,
-  .wmde-markdown h5,
-  .wmde-markdown h6 {
-    font-family: var(--font-heading);
+  [data-notion-editor] [contenteditable="true"] {
+    caret-color: var(--primary);
   }
 
-  .wmde-markdown code,
-  .wmde-markdown pre,
-  .wmde-markdown kbd {
+  [data-notion-editor] .nm-block-row:hover .nm-drag-handle {
+    opacity: 0.55;
+  }
+  [data-notion-editor] .nm-drag-handle:hover {
+    opacity: 1 !important;
+    background: var(--muted);
+  }
+
+  [data-notion-editor] .nm-inline-code {
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
     font-family: var(--font-mono);
+    font-size: 0.9em;
+    color: var(--foreground);
+  }
+
+  [data-notion-editor] .nm-link {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 }
 
@@ -238,18 +251,19 @@
   }
 
   /* Mermaid diagram blocks embedded inside markdown previews.
-   * MDEditor's markdown preview provides its own theme; these rules only
-   * style the fenced `mermaid` block that we intercept in FileViewer. */
+   * NotionEditor renders the SVG via the MermaidDiagram component; these
+   * rules style the fenced `mermaid` block inside both the preview and
+   * the in-editor rendered diagram. */
   .md-mermaid {
     background: var(--background);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin: 16px 0;
+    border-radius: 6px;
+    padding: 10px;
+    margin: 10px 0;
     text-align: center;
     overflow-x: auto;
     font-family: var(--font-mono);
-    font-size: 12px;
+    font-size: 11px;
     color: var(--muted-foreground);
     white-space: pre;
   }
@@ -275,17 +289,29 @@
 }
 
 /*
- * @uiw/react-md-editor — enlarge the edit-side font.
- * The editor layers a transparent <textarea> on top of a highlighted <pre>
- * mirror; font-size / line-height MUST match across all three selectors or
- * the caret will drift out of alignment with the rendered text.
+ * Notion-style block editor surface.
+ *
+ * The editor's contentEditable blocks live inside `[data-notion-editor]`.
+ * Themed entirely from the project's CSS variables, which follow the `.dark`
+ * class on <html> — so dark mode drops in automatically.
  */
-.w-md-editor-text,
-.w-md-editor-text-pre,
-.w-md-editor-text-input,
-.w-md-editor-text-pre > code {
-  font-size: 15px !important;
-  line-height: 1.6 !important;
+[data-notion-editor] {
+  font-family: var(--font-sans);
+  background: transparent;
+  color: var(--foreground);
+}
+
+[data-notion-editor][data-readonly="true"] .nm-drag-handle {
+  display: none !important;
+}
+
+[data-notion-editor] .nm-block-row {
+  border-radius: 4px;
+  transition: background 120ms;
+}
+
+[data-notion-editor][data-readonly="false"] .nm-block-row:hover {
+  background: color-mix(in srgb, var(--muted) 40%, transparent);
 }
 
 /* Hide scrollbar on dock tab bars while keeping scroll functionality */

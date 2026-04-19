@@ -240,7 +240,7 @@ function ContextMenuItem({
               strokeWidth={1.8}
             />
           ) : item.emoji ? (
-            <span style={{ fontSize: 12 }}>{item.emoji}</span>
+            <span style={{ fontSize: 11 }}>{item.emoji}</span>
           ) : null}
         </span>
         <span style={{ flex: 1 }}>{item.label}</span>

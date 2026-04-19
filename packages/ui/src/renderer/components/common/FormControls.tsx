@@ -60,10 +60,10 @@ export function FormInput({
       placeholder={placeholder}
       style={{
         width: "100%",
-        padding: "8px 12px",
-        fontSize: 13,
+        padding: "4px 8px",
+        fontSize: 11,
         border: `1px solid ${error ? colors.error : colors.border}`,
-        borderRadius: 6,
+        borderRadius: 4,
         outline: "none",
         background: colors.bgSurface,
         color: colors.text,
@@ -120,10 +120,10 @@ export function FormTextarea({
       rows={rows}
       style={{
         width: "100%",
-        padding: "6px 10px",
-        fontSize: 13,
+        padding: "4px 8px",
+        fontSize: 11,
         border: `1px solid ${error ? colors.error : colors.border}`,
-        borderRadius: 6,
+        borderRadius: 4,
         outline: "none",
         background: colors.bgSurface,
         color: colors.text,
@@ -159,7 +159,7 @@ export function SectionHeader({ children, style }: SectionHeaderProps): React.Re
         textTransform: "uppercase",
         letterSpacing: "0.08em",
         color: colors.textTertiary,
-        marginBottom: 10,
+        marginBottom: 6,
         ...style,
       }}
     >

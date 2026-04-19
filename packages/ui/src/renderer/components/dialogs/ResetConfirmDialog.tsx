@@ -77,7 +77,7 @@ export function ResetConfirmDialog({ repoPath, defaultRef, onClose }: ResetConfi
             disabled={!canSubmit}
             style={{
               display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 14px", fontSize: 12, fontWeight: 600,
+              padding: "5px 10px", fontSize: 11, fontWeight: 600,
               color: colors.textWhite,
               background: !canSubmit
                 ? colors.textTertiary
@@ -92,7 +92,7 @@ export function ResetConfirmDialog({ repoPath, defaultRef, onClose }: ResetConfi
         </>
       }
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <div>
           <FormLabel htmlFor="reset-ref">Reset to ref</FormLabel>
           <FormInput id="reset-ref" value={ref} onChange={setRef} placeholder="HEAD~1 or a commit sha" />
@@ -140,7 +140,7 @@ export function ResetConfirmDialog({ repoPath, defaultRef, onClose }: ResetConfi
               border: `1px solid ${colors.errorSoftBorder}`,
               borderRadius: 6,
               padding: 10,
-              fontSize: 12,
+              fontSize: 11,
               color: colors.errorDark,
             }}
           >

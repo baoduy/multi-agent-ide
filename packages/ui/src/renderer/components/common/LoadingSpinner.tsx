@@ -18,7 +18,7 @@ export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps):
         justifyContent: "center",
         minHeight: "100vh",
         backgroundColor: colors.bgSurface,
-        gap: 10,
+        gap: 8,
       }}
     >
       <div

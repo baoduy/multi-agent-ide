@@ -338,7 +338,7 @@ export function AISessionsView({
               padding: 12,
               textAlign: "center",
               color: colors.textTertiary,
-              fontSize: 12,
+              fontSize: 11,
             }}
           >
             No sessions matching &ldquo;{searchQuery.trim()}&rdquo;
@@ -365,7 +365,7 @@ export function AISessionsView({
                 type="button"
                 onClick={handleNewSession}
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   color: colors.primary,
                   background: "transparent",
                   border: "none",

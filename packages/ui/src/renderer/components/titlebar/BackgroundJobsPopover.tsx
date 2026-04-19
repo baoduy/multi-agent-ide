@@ -241,7 +241,7 @@ function OnboardJobRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         <ScrollableText
           style={{
-            fontSize: 12,
+            fontSize: 11,
             color: colors.text,
           }}
         >
@@ -344,7 +344,7 @@ export function BackgroundJobsPopover({
         maxHeight: 360,
         background: colors.bgWhite,
         border: `1px solid ${colors.border}`,
-        borderRadius: 10,
+        borderRadius: 6,
         boxShadow: colors.shadowPopover,
         zIndex: 1000,
         display: "flex",
@@ -428,7 +428,7 @@ export function BackgroundJobsPopover({
                   borderBottom: `1px solid ${colors.borderLight}`,
                   display: "flex",
                   alignItems: "center",
-                  gap: 10,
+                  gap: 8,
                 }}
               >
                 {/* Status indicator */}
@@ -450,7 +450,7 @@ export function BackgroundJobsPopover({
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <ScrollableText
                     style={{
-                      fontSize: 12,
+                      fontSize: 11,
                       color: colors.text,
                     }}
                   >

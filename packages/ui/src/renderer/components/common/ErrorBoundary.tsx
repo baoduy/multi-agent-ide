@@ -38,7 +38,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       return (
         <div style={{ padding: 16, maxWidth: 560, margin: "24px auto", fontFamily: "var(--font-sans)" }}>
           <div style={{ padding: 12, border: "1px solid var(--error-soft-border)", borderRadius: 8, background: "var(--error-soft)" }}>
-            <h2 style={{ marginTop: 0, color: "var(--destructive)", fontSize: 13, fontWeight: 600 }}>Something went wrong</h2>
+            <h2 style={{ marginTop: 0, color: "var(--destructive)", fontSize: 11, fontWeight: 600 }}>Something went wrong</h2>
             <p style={{ color: "var(--foreground)", marginBottom: 8, fontSize: 11 }}>
               The application encountered an unexpected error. Check the developer console for full details.
             </p>

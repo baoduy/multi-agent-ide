@@ -12,6 +12,13 @@ const TOC_DEFAULT_WIDTH = 220;
  * Watches scroll position inside `containerRef` and returns the id of the
  * heading currently at (or just above) the viewport top. Returns null when
  * the container is unmounted, has no headings, or is in a non-preview mode.
+ *
+ * Heading lookup is DOM-index based rather than id-based: NotionEditor
+ * renders heading blocks as real <h1>–<h6> tags but does not attach anchor
+ * ids. The source-order index carried on each `TocHeading` matches the
+ * position of the heading element in the rendered DOM when the document is
+ * free of authored HTML heading overrides — which holds for every markdown
+ * path in this app.
  */
 export function useActiveHeading(
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -29,10 +36,13 @@ export function useActiveHeading(
 
     const handleScroll = () => {
       const offset = 80;
+      const nodes = container.querySelectorAll<HTMLHeadingElement>(
+        "h1,h2,h3,h4,h5,h6",
+      );
       let current: string | null = null;
 
       for (const h of headings) {
-        const el = container.querySelector(`#${CSS.escape(h.id)}`);
+        const el = nodes[h.index];
         if (!el) continue;
         const rect = el.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
@@ -71,10 +81,13 @@ export const MarkdownTableOfContents = React.memo(function MarkdownTableOfConten
 
   const minLevel = Math.min(...headings.map((h) => h.level));
 
-  const handleClick = (id: string) => {
+  const handleClick = (heading: TocHeading) => {
     const container = containerRef.current;
     if (!container) return;
-    const el = container.querySelector(`#${CSS.escape(id)}`);
+    const nodes = container.querySelectorAll<HTMLHeadingElement>(
+      "h1,h2,h3,h4,h5,h6",
+    );
+    const el = nodes[heading.index];
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
@@ -158,9 +171,9 @@ export const MarkdownTableOfContents = React.memo(function MarkdownTableOfConten
 
           return (
             <button
-              key={h.id}
+              key={`${h.index}-${h.id}`}
               type="button"
-              onClick={() => handleClick(h.id)}
+              onClick={() => handleClick(h)}
               style={{
                 display: "block",
                 width: "100%",

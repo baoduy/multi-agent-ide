@@ -190,7 +190,7 @@ export function CreateBranchOrWorktreeDialog({
       ) : (
         <>
           {!isBranch && (
-            <p style={{ fontSize: 13, color: colors.textMuted, margin: "0 0 14px", lineHeight: 1.5 }}>
+            <p style={{ fontSize: 11, color: colors.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>
               Create a worktree to work on a branch in a separate directory without switching
               your main checkout.
             </p>
@@ -224,7 +224,7 @@ export function CreateBranchOrWorktreeDialog({
           {/* Branch-only: switch after creation */}
           {isBranch && (
             <label
-              style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: colors.textSecondary, cursor: "pointer", marginTop: 14 }}
+              style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: colors.textSecondary, cursor: "pointer", marginTop: 8 }}
             >
               <input
                 type="checkbox"

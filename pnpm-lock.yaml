@@ -62,9 +62,6 @@ importers:
       ulid:
         specifier: ^3.0.2
         version: 3.0.2
-      zod:
-        specifier: ^4.3.6
-        version: 4.3.6
     devDependencies:
       '@types/node':
         specifier: ^25.6.0
@@ -143,18 +140,12 @@ importers:
       '@codemirror/lang-python':
         specifier: ^6.2.1
         version: 6.2.1
-      '@codemirror/language':
-        specifier: ^6.12.3
-        version: 6.12.3
       '@codemirror/state':
         specifier: ^6.6.0
         version: 6.6.0
       '@codemirror/view':
         specifier: ^6.41.0
         version: 6.41.0
-      '@iconify-json/vscode-icons':
-        specifier: ^1.2.45
-        version: 1.2.45
       '@iconify/react':
         specifier: ^5.2.1
         version: 5.2.1(react@19.2.5)
@@ -848,9 +839,6 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
-
-  '@iconify-json/vscode-icons@1.2.45':
-    resolution: {integrity: sha512-ow+ueibMIq79ueM1kv6cOWgHx8jfh1XJQi2RrqMHb4HLbvIBlxpy5PCMvOJXlA68R6fBAHpWQeh6uWx7VKEVsA==}
 
   '@iconify/react@5.2.1':
     resolution: {integrity: sha512-37GDR3fYDZmnmUn9RagyaX+zca24jfVOMY8E1IXTqJuE8pxNtN51KWPQe3VODOWvuUurq7q9uUu3CFrpqj5Iqg==}
@@ -4725,10 +4713,6 @@ snapshots:
   '@hono/node-server@1.19.14(hono@4.12.14)':
     dependencies:
       hono: 4.12.14
-
-  '@iconify-json/vscode-icons@1.2.45':
-    dependencies:
-      '@iconify/types': 2.0.0
 
   '@iconify/react@5.2.1(react@19.2.5)':
     dependencies:

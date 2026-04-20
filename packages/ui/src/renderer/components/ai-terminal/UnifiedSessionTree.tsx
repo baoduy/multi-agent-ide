@@ -7,6 +7,7 @@ import {
   Pin,
   PinOff,
   Archive,
+  GitBranch,
 } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
@@ -129,23 +130,29 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
           uppercase
           style={{ flex: 1, minWidth: 0 }}
         >
-          <Tag tone={badge.tone} fontWeight={500}>
+          <Tag
+            size="chip"
+            tone={badge.tone}
+            icon={badge.Icon ? <badge.Icon size={9} strokeWidth={2} /> : undefined}
+          >
             {badge.label}
           </Tag>
-          <BranchLabel name={repo.branch} />
+          <Tag
+            size="chip"
+            tone="branch"
+            icon={<GitBranch size={9} strokeWidth={2} />}
+          >
+            {repo.branch}
+          </Tag>
         </RepoLabel>
 
         {/* Active indicator */}
         {activeCount > 0 && (
-          <Tag tone="success" fontWeight={700}>
-            {activeCount} active
-          </Tag>
+          <Tag size="chip" tone="active">{activeCount} active</Tag>
         )}
 
-        {/* Total session count — borderless muted chip */}
-        <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-          {totalCount}
-        </Tag>
+        {/* Total session count */}
+        <Tag size="chip" tone="neutral">{totalCount}</Tag>
       </button>
 
       {contextMenu && (
@@ -225,15 +232,11 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
 
       {/* Active indicator */}
       {activeCount > 0 && (
-        <Tag tone="success" fontWeight={700}>
-          {activeCount} active
-        </Tag>
+        <Tag size="chip" tone="active">{activeCount} active</Tag>
       )}
 
-      {/* Total session count — borderless muted chip */}
-      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-        {totalCount}
-      </Tag>
+      {/* Total session count */}
+      <Tag size="chip" tone="neutral">{totalCount}</Tag>
 
       {/* Latest time */}
       {latestTimestamp > 0 && (
@@ -294,32 +297,8 @@ const BranchGroupHeader = React.memo(function BranchGroupHeader({
       <BranchLabel name={branchName} size="md" badge={false} style={{ flex: 1, minWidth: 0 }} />
 
       {/* Session count */}
-      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-        {sessionCount}
-      </Tag>
+      <Tag size="chip" tone="neutral">{sessionCount}</Tag>
     </button>
-  );
-});
-
-/* ── Activity badge for synced sessions ── */
-
-type ActivityBadgeProps = {
-  activity: SyncedSessionRecord["activity"];
-};
-
-const ActivityBadge = React.memo(function ActivityBadge({
-  activity,
-}: ActivityBadgeProps): React.ReactElement | null {
-  // Only surface the badge when the agent is actively producing output.
-  // `idle` and `completed` are both resting states from the user's
-  // perspective — no badge avoids the row turning into a wall of yellow
-  // pills for every historic conversation.
-  if (activity !== "processing") return null;
-
-  return (
-    <Tag tone="success" dot title="Agent is currently producing output">
-      Processing
-    </Tag>
   );
 });
 
@@ -512,8 +491,18 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         {timeDisplay}
       </span>
 
-      {/* Live activity badge — processing / idle. Completed sessions show no badge. */}
-      <ActivityBadge activity={session.activity} />
+      {/* Live activity badge — only shown while the agent is producing output.
+          `idle` / `completed` are resting states, no badge. */}
+      {session.activity === "processing" && (
+        <Tag
+          size="chip"
+          tone="success"
+          dot
+          title="Agent is currently producing output"
+        >
+          Processing
+        </Tag>
+      )}
     </button>
     {contextMenu && (
       <ContextMenu

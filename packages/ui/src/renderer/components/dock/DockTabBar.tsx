@@ -13,6 +13,7 @@ import { colors } from "../../utils/colors";
 import { viewRegistry } from "./ViewRegistry";
 import { useDockDrag } from "./useDockDrag";
 import { ProviderIcon } from "../common/ProviderIcon";
+import { ScrollableText } from "../common/ScrollableText";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
 import { openWithVsCodeAction } from "../../utils/contextMenuActions";
@@ -466,9 +467,9 @@ const TabItem = React.memo(function TabItem({
           {icon}
         </span>
       )}
-      <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis" }}>
+      <ScrollableText style={{ maxWidth: 120 }}>
         {title}
-      </span>
+      </ScrollableText>
       {branchLabel && (
         <span
           style={{
@@ -482,9 +483,9 @@ const TabItem = React.memo(function TabItem({
           }}
         >
           <GitBranch size={10} strokeWidth={2} style={{ flexShrink: 0 }} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", fontSize: 10 }}>
+          <ScrollableText style={{ fontSize: 10 }}>
             {branchLabel}
-          </span>
+          </ScrollableText>
         </span>
       )}
       {closable && onClose && (
@@ -645,17 +646,14 @@ function DropdownItem({
           {icon}
         </span>
       )}
-      <span
+      <ScrollableText
         style={{
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
           flex: 1,
           minWidth: 0,
         }}
       >
         {title}
-      </span>
+      </ScrollableText>
       {branchLabel && (
         <span
           style={{
@@ -670,9 +668,9 @@ function DropdownItem({
           }}
         >
           <GitBranch size={10} strokeWidth={2} style={{ flexShrink: 0 }} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <ScrollableText>
             {branchLabel}
-          </span>
+          </ScrollableText>
         </span>
       )}
     </button>

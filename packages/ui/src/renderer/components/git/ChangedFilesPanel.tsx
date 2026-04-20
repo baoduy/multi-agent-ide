@@ -6,6 +6,7 @@ import { useGitHistoryStore } from "../../store/gitHistoryStore";
 import { FileStatusBadge } from "../common/FileStatusBadge";
 import { FileIconBadge } from "../common/fileIcons";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 import { RepoFileChanges } from "../activity/RepoFileChanges";
 import type { SelectedRow } from "./CommitGraphList";
 
@@ -193,31 +194,25 @@ function CommitFileRow({ file, onClick }: { file: CommitFile; onClick: () => voi
         <FileIconBadge fileName={fileName} />
       </div>
       <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
-        <div
+        <ScrollableText
           style={{
             fontSize: 11,
             fontWeight: 600,
             color: hover ? colors.primary : colors.text,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
           }}
         >
           {file.oldPath ? `${fileName} ← ${file.oldPath.split("/").pop()}` : fileName}
-        </div>
+        </ScrollableText>
         {dirPath && (
-          <div
+          <ScrollableText
             style={{
               fontSize: 10,
               color: colors.textTertiary,
               fontFamily: "var(--font-mono)",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
           >
             {dirPath}
-          </div>
+          </ScrollableText>
         )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>

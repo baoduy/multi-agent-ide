@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { CheckCircle, GitBranch, Layers } from "lucide-react";
+import { CheckCircle, Layers } from "lucide-react";
 
 import type { SpecFolder } from "@magenta/shared/models";
 import { FlowDiagram } from "../flow/FlowDiagram";
@@ -9,6 +9,8 @@ import { useWorktreeStore } from "../../store/worktreeStore";
 import { useSpecStore } from "../../store/specStore";
 import { colors } from "../../utils/colors";
 import { Tag } from "../common/Tag";
+import { BranchLabel } from "../common/RepoLabel";
+import { ScrollableText } from "../common/ScrollableText";
 
 type WorkflowViewProps = {
   spec: SpecFolder | null;
@@ -293,28 +295,27 @@ export function WorkflowView({
         }}
       >
         <Layers size={14} color={colors.primary} strokeWidth={1.8} />
-        <div style={{ flex: 1 }}>
-          <span
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <ScrollableText
             style={{
               fontSize: 11,
               fontWeight: 600,
               color: colors.textStrong,
+              minWidth: 0,
             }}
           >
             {spec.name}
-          </span>
-          {repoName && (
-            <>
-              <GitBranch
-                size={12}
-                color={colors.textTertiary}
-                strokeWidth={1.8}
-                style={{ marginLeft: 8, verticalAlign: "middle", display: "inline" }}
-              />
-              <span style={{ fontSize: 11, color: colors.textTertiary, marginLeft: 4 }}>
-                {repoName}
-              </span>
-            </>
+          </ScrollableText>
+          {(spec.branch || repoName) && (
+            <BranchLabel name={spec.branch || repoName || ""} size="xs" />
           )}
         </div>
 

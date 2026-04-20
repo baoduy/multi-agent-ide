@@ -8,6 +8,7 @@ import { useRepoStore } from "../../store/repoStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 
 /* ══════════════════════════════════════════
  * CommitDialog
@@ -348,17 +349,14 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
                       >
                         {s.letter}
                       </span>
-                      <span
+                      <ScrollableText
                         style={{
                           flex: 1,
                           minWidth: 0,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
                         }}
                       >
                         {f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
-                      </span>
+                      </ScrollableText>
                     </label>
                   );
                 })}

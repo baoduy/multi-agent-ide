@@ -4,6 +4,7 @@ import { GitCommit, Upload, Loader2, RefreshCw } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { FormTextarea, FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 import { useCommitComposer, fileKey } from "./useCommitComposer";
 import type { GitFileStatus } from "@magenta/shared/ipc";
 
@@ -158,9 +159,9 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
                       <span style={{ width: 18, textAlign: "center", fontSize: 10, fontWeight: 700, color: s.color, flexShrink: 0 }}>
                         {s.letter}
                       </span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <ScrollableText style={{ flex: 1, minWidth: 0 }}>
                         {f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
-                      </span>
+                      </ScrollableText>
                     </label>
                   );
                 })}

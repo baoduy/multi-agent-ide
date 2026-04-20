@@ -3,9 +3,10 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
 /**
  * ScrollableText — single-line text that scrolls on hover when truncated.
  *
- * Renders text with `overflow: hidden; text-overflow: ellipsis; white-space: nowrap`.
- * On hover, if the text overflows its container, the ellipsis is removed and the
- * text smoothly translates left so the user can read the full content. On mouse
+ * Renders text with `overflow: hidden; white-space: nowrap` and clips without
+ * an ellipsis — we deliberately don't show "…" at rest because it adds visual
+ * noise in dense lists. On hover, if the text overflows its container, it
+ * smoothly translates left so the user can read the full content. On mouse
  * leave the text slides back.
  *
  * Usage:
@@ -145,7 +146,7 @@ export const ScrollableText = React.memo(function ScrollableText({
       style={{
         display: "block",
         overflow: "hidden",
-        textOverflow: hovered && overflow > 0 ? "clip" : "ellipsis",
+        textOverflow: "clip",
         whiteSpace: "nowrap",
         ...style,
       }}

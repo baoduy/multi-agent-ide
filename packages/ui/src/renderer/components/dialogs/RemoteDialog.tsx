@@ -8,6 +8,7 @@ import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton } from "../common/DialogButtons";
 import { FormLabel, FormInput, FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 
 type RemoteDialogProps = {
   repoPath: string;
@@ -93,9 +94,9 @@ export function RemoteDialog({ repoPath, onClose }: RemoteDialogProps): React.Re
                       <span style={{ fontSize: 11, fontWeight: 700, color: colors.text, fontFamily: "var(--font-mono)" }}>
                         {r.name}
                       </span>
-                      <span style={{ flex: 1, fontSize: 11, color: colors.textTertiary, fontFamily: "var(--font-mono)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <ScrollableText style={{ flex: 1, fontSize: 11, color: colors.textTertiary, fontFamily: "var(--font-mono)" }}>
                         {redactToken(r.fetchUrl)}
-                      </span>
+                      </ScrollableText>
                     </div>
                     <div style={{ display: "flex", gap: 4 }}>
                       <MiniButton

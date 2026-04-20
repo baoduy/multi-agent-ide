@@ -52,7 +52,7 @@ export type TagTone =
   /** Repo status: missing on disk */
   | "missing";
 
-export type TagSize = "xs" | "sm" | "md" | "lg";
+export type TagSize = "xs" | "sm" | "md" | "lg" | "chip";
 
 type TagPalette = { bg: string; text: string; border?: string };
 // Keep non-critical repository/branch chips visually quiet to avoid
@@ -114,6 +114,10 @@ const sizePresets: Record<TagSize, SizePreset> = {
   md: { padding: "3px 8px", radius: 8, fontSize: 10, fontWeight: 700, gap: 4 },
   // lg — block-level badges (pipeline "Approved", "All tasks complete")
   lg: { padding: "5px 10px", radius: 5, fontSize: 11, fontWeight: 600, gap: 4 },
+  // chip — uniform inline chips that sit next to a repo label (spec,
+  // branch, "N active"). Locked to a single font/padding/radius so every
+  // chip in a repo row reads as one visual group.
+  chip: { padding: "1px 6px", radius: 4, fontSize: 10, fontWeight: 500, gap: 3 },
 };
 
 export type TagProps = {

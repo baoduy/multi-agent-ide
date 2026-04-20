@@ -130,7 +130,13 @@ const WorktreeRow = React.memo(function WorktreeRow({
   const handleDeleted = useCallback(() => onDeleted(wt.worktreePath), [onDeleted, wt.worktreePath]);
 
   const rowPadLeft = d.indentStep;
-  const pathTail = wt.worktreePath.split("/").slice(-2).join("/");
+
+  // A worktree's name, branch, and path-tail are often derived from the same
+  // identifier (e.g. name "feature-x", branch "feature-x", path ".../feature-x").
+  // Pick a single primary label (branch if available, else name) and only show
+  // the secondary label when it adds new information.
+  const primaryLabel = wt.branch || wt.name;
+  const showSecondaryName = !!wt.name && wt.name !== primaryLabel;
 
   return (
     <div>
@@ -139,6 +145,7 @@ const WorktreeRow = React.memo(function WorktreeRow({
         onClick={handleToggle}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
+        title={wt.worktreePath}
         style={{
           width: "100%",
           display: "flex",
@@ -163,32 +170,30 @@ const WorktreeRow = React.memo(function WorktreeRow({
           <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
         )}
 
-        <GitBranch
-          size={d.iconMd}
-          color={colors.primary}
-          strokeWidth={1.8}
-          style={{ flexShrink: 0 }}
+        <BranchLabel
+          name={primaryLabel}
+          size="xs"
+          style={{
+            flexShrink: 0,
+            opacity: isExpanded ? 1 : 0.95,
+          }}
         />
 
-        <ScrollableText
-          style={{
-            fontSize: d.font,
-            fontWeight: 500,
-            color: isExpanded ? colors.primary : colors.textStrong,
-            minWidth: 0,
-            flex: 1,
-          }}
-        >
-          {wt.name}
-        </ScrollableText>
-
-        {wt.branch && wt.branch !== wt.name && (
-          <BranchLabel
-            name={wt.branch}
-            badge={false}
-            style={{ color: colors.textTertiary, flexShrink: 0 }}
-          />
+        {showSecondaryName && (
+          <ScrollableText
+            style={{
+              fontSize: d.smallFont,
+              fontWeight: 400,
+              color: colors.textTertiary,
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            {wt.name}
+          </ScrollableText>
         )}
+
+        {!showSecondaryName && <span style={{ flex: 1, minWidth: 0 }} />}
 
         <span
           style={{
@@ -202,23 +207,6 @@ const WorktreeRow = React.memo(function WorktreeRow({
         >
           <Clock size={d.iconSm} strokeWidth={1.5} />
           {formatRelativeTime(wt.createdAt)}
-        </span>
-
-        <span
-          title={wt.worktreePath}
-          style={{
-            fontSize: d.smallFont,
-            color: colors.textTertiary,
-            fontFamily: "var(--font-mono)",
-            maxWidth: 180,
-            flexShrink: 0,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {pathTail}
         </span>
       </button>
 

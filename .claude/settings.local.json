@@ -31,7 +31,8 @@
       "Bash(pnpm -C packages/shared build)",
       "Bash(pnpm build *)",
       "Bash(pnpm --filter @magenta/ui add @mdxeditor/editor@^3.54.1)",
-      "Bash(grep -B 2 -A 3 \"rootEditor\\\\$\\\\|activeEditor\\\\$\\\\|editorRoot\" packages/ui/node_modules/@mdxeditor/editor/dist/index.d.ts)"
+      "Bash(grep -B 2 -A 3 \"rootEditor\\\\$\\\\|activeEditor\\\\$\\\\|editorRoot\" packages/ui/node_modules/@mdxeditor/editor/dist/index.d.ts)",
+      "Bash(python3 -c \"import json,sys;d=json.load\\(sys.stdin\\);print\\(json.dumps\\(d.get\\('scripts',{}\\),indent=2\\)\\)\")"
     ]
   }
 }

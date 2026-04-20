@@ -15,6 +15,8 @@ import type { Repository } from "@magenta/shared/models";
 import { AISessionListItem } from "./AISessionListItem";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
+import { TreeRepoHeader } from "../common/TreeRepoHeader";
+import { TreeBranchRow } from "../common/TreeBranchRow";
 import {
   ContextMenu,
   useContextMenu,
@@ -78,10 +80,7 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
   onToggle,
   onCreateSession,
 }: RepoGroupHeaderProps): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const badge = getRepoBadge(repo);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
-  const d = useDensityTokens();
 
   const contextMenuItems = useMemo<ContextMenuAction[]>(() => [
     {
@@ -95,66 +94,15 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={onToggle}
+      <TreeRepoHeader
+        repo={repo}
+        repoPath={repo.path}
+        expanded={expanded}
+        onToggle={onToggle}
         onContextMenu={openContextMenu}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: d.rowGap,
-          padding: `${d.rowPadY}px ${d.rowPadX}px`,
-          borderBottom: `1px solid ${colors.border}`,
-          background: hovered ? colors.bgHover : "transparent",
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-          transition: "background 0.12s",
-        }}
-      >
-        {/* Chevron */}
-        {expanded ? (
-          <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-        ) : (
-          <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-        )}
-
-        <RepoLabel
-          name={repo.name}
-          repoPath={repo.path}
-          size="md"
-          boxed
-          uppercase
-          style={{ flex: 1, minWidth: 0 }}
-        >
-          <Tag
-            size="chip"
-            tone={badge.tone}
-            icon={badge.Icon ? <badge.Icon size={9} strokeWidth={2} /> : undefined}
-          >
-            {badge.label}
-          </Tag>
-          <Tag
-            size="chip"
-            tone="branch"
-            icon={<GitBranch size={9} strokeWidth={2} />}
-          >
-            {repo.branch}
-          </Tag>
-        </RepoLabel>
-
-        {/* Active indicator */}
-        {activeCount > 0 && (
-          <Tag size="chip" tone="active">{activeCount} active</Tag>
-        )}
-
-        {/* Total session count */}
-        <Tag size="chip" tone="neutral">{totalCount}</Tag>
-      </button>
-
+        activeCount={activeCount}
+        count={totalCount}
+      />
       {contextMenu && (
         <ContextMenu
           position={contextMenu}
@@ -263,42 +211,13 @@ const BranchGroupHeader = React.memo(function BranchGroupHeader({
   expanded,
   onToggle,
 }: BranchGroupHeaderProps): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const d = useDensityTokens();
-
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: d.tightGap,
-        padding: `${d.rowPadY}px ${d.rowPadX}px ${d.rowPadY}px ${d.indentStep}px`,
-        borderBottom: `1px solid ${colors.borderLight}`,
-        background: hovered ? colors.bgHover : "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background 0.12s",
-      }}
-    >
-      {/* Chevron */}
-      {expanded ? (
-        <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      ) : (
-        <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      )}
-
-      {/* Branch name — plain icon + text, same size as repo label */}
-      <BranchLabel name={branchName} size="md" badge={false} style={{ flex: 1, minWidth: 0 }} />
-
-      {/* Session count */}
-      <Tag size="chip" tone="neutral">{sessionCount}</Tag>
-    </button>
+    <TreeBranchRow
+      name={branchName}
+      expanded={expanded}
+      onToggle={onToggle}
+      rightSlot={<Tag size="chip" tone="neutral">{sessionCount}</Tag>}
+    />
   );
 });
 

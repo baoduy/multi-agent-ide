@@ -13,10 +13,9 @@ import { colors } from "../../utils/colors";
 import type { WorktreeInfo } from "../../store/worktreeStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import { ActionButton } from "../common/ActionButton";
-import { ScrollableText } from "../common/ScrollableText";
 import { BranchLabel } from "../common/RepoLabel";
 import { BranchRow } from "../common/BranchRow";
-import { FileStatusBadge } from "../common/FileStatusBadge";
+import { FileChangesList } from "../common/FileChangesList";
 import { SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -58,11 +57,8 @@ export function WorktreeInlinePanel({
   const [targetBranch, setTargetBranch] = useState<string>("");
   const [showBranchPicker, setShowBranchPicker] = useState(false);
 
-  // Post-merge state: show delete/keep options
+  // Post-merge state: show delete/keep prompt
   const [showPostMerge, setShowPostMerge] = useState(false);
-
-  // File hover state
-  const [hoveredFile, setHoveredFile] = useState<string | null>(null);
 
   // Load status + branches on mount
   useEffect(() => {
@@ -104,15 +100,6 @@ export function WorktreeInlinePanel({
     clearMergeResult();
   }, [clearMergeResult]);
 
-  const handleFileClick = useCallback(
-    (filePath: string) => {
-      // Build the full path: worktreePath + relative file path
-      const fullPath = `${worktree.worktreePath}/${filePath}`;
-      onOpenFile?.(fullPath);
-    },
-    [worktree.worktreePath, onOpenFile],
-  );
-
   const createdDate = new Date(worktree.createdAt).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -120,6 +107,9 @@ export function WorktreeInlinePanel({
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  const hasChanges = !!status && status.files.length > 0;
+  const canMerge = hasChanges && !showPostMerge;
 
   return (
     <div
@@ -130,286 +120,112 @@ export function WorktreeInlinePanel({
         overflow: "hidden",
       }}
     >
-      {/* Meta info */}
+      {/* Top bar — meta info on the left, action buttons on the right */}
       <div
         style={{
-          padding: "10px 16px",
+          padding: "8px 12px",
           borderBottom: `1px solid ${colors.borderLight}`,
           display: "flex",
+          alignItems: "center",
+          gap: 10,
           flexWrap: "wrap",
-          gap: 8,
-          fontSize: 11,
-          color: colors.textSecondary,
         }}
       >
-        <BranchLabel name={worktree.branch} />
-        <span style={{ color: colors.textTertiary }}>Created {createdDate}</span>
-        {status && (
-          <span style={{ color: colors.textTertiary }}>
-            {status.ahead > 0 && `${status.ahead} ahead`}
-            {status.ahead > 0 && status.behind > 0 && " · "}
-            {status.behind > 0 && `${status.behind} behind`}
-            {status.ahead === 0 && status.behind === 0 && "Up to date"}
-          </span>
-        )}
-        <span
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            color: colors.textTertiary,
-            fontSize: 10,
-            fontFamily: "var(--font-mono)",
-          }}
-          title={worktree.worktreePath}
-        >
-          <FolderOpen size={10} strokeWidth={1.5} />
-          {worktree.worktreePath.split("/").slice(-2).join("/")}
-        </span>
-      </div>
-
-      {/* Changed files list */}
-      <div style={{ padding: "10px 16px" }}>
-        <SectionHeader style={{ marginBottom: 8 }}>
-          Changed files
-          {status && ` (${status.files.length})`}
-        </SectionHeader>
-
-        {isStatusLoading && (
-          <InlineLoadingRow label="Loading file status…" />
-        )}
-
-        {!isStatusLoading && status && status.files.length === 0 && (
-          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "8px 0" }}>
-            No changed files in this worktree.
-          </div>
-        )}
-
-        {!isStatusLoading && status && status.files.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-            {status.files.map((file) => {
-              // Deleted files don't exist on disk — can't open them
-              const isClickable = file.status !== "deleted";
-
-              return (
-              <div
-                key={file.path}
-                onClick={isClickable ? () => handleFileClick(file.path) : undefined}
-                onMouseEnter={() => setHoveredFile(file.path)}
-                onMouseLeave={() => setHoveredFile(null)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  padding: "7px 10px",
-                  background: isClickable && hoveredFile === file.path ? colors.bgHover : colors.bgSurface,
-                  borderRadius: 6,
-                  border: `1px solid ${isClickable && hoveredFile === file.path ? colors.border : colors.borderLight}`,
-                  cursor: isClickable ? "pointer" : "default",
-                  opacity: isClickable ? 1 : 0.6,
-                  transition: "background 0.1s, border-color 0.1s",
-                }}
-                title={isClickable ? `Click to open ${file.path}` : `${file.path} (deleted)`}
-              >
-                <ScrollableText
-                  style={{
-                    fontSize: 11,
-                    color: isClickable && hoveredFile === file.path ? colors.primary : colors.text,
-                    fontFamily: "var(--font-mono)",
-                    flex: 1,
-                    minWidth: 0,
-                    transition: "color 0.1s",
-                  }}
-                >
-                  {file.path}
-                </ScrollableText>
-                <div style={{ flexShrink: 0, marginLeft: 12 }}>
-                  <FileStatusBadge status={file.status} />
-                </div>
-              </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Post-merge: Delete / Keep options */}
-      {showPostMerge && mergeResult?.success ? (
+        {/* Left: branch + meta info */}
         <div
           style={{
-            borderTop: `1px solid ${colors.border}`,
-            padding: "10px 12px",
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 8,
+            fontSize: 11,
+            color: colors.textSecondary,
+            flex: 1,
+            minWidth: 0,
           }}
         >
-          <div
-            style={{
-              padding: "8px 12px",
-              fontSize: 11,
-              borderRadius: 6,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              background: colors.successSoft,
-              color: colors.success,
-              border: `1px solid ${colors.successSoftBorder}`,
-              marginBottom: 12,
-            }}
-          >
-            <Check size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
-            <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
-          </div>
+          <BranchLabel name={worktree.branch} />
 
-          <div style={{ fontSize: 11, color: colors.textMuted, marginBottom: 10 }}>
-            What would you like to do with this worktree?
-          </div>
-
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-            <ActionButton
-              onClick={handleDelete}
-              variant="danger"
-              loading={isDeleting}
-              loadingText="Deleting…"
-              padding="4px 10px"
-              justifyContent="center"
-              icon={<Trash2 size={12} strokeWidth={2} />}
-            >
-              Delete worktree
-            </ActionButton>
-
-            <ActionButton
-              onClick={handleKeep}
-              variant="secondary"
-              padding="4px 10px"
-              justifyContent="center"
-              icon={<FolderOpen size={12} strokeWidth={2} />}
-            >
-              Keep worktree
-            </ActionButton>
-          </div>
-
-          {/* Delete result (error) */}
-          {deleteResult && !deleteResult.success && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: "8px 12px",
-                fontSize: 11,
-                borderRadius: 6,
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 6,
-                background: colors.errorSoft,
-                color: colors.errorDark,
-                border: `1px solid ${colors.errorSoftBorder}`,
-              }}
-            >
-              <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
-              <span style={{ lineHeight: 1.4 }}>{deleteResult.message}</span>
-            </div>
-          )}
-        </div>
-      ) : (
-        /* Action section: Delete (no changes) or Merge (has changes) */
-        status && status.files.length === 0 ? (
-          /* Delete section — no changes in this worktree */
-          <div
-            style={{
-              borderTop: `1px solid ${colors.border}`,
-              padding: "8px 12px 10px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-            }}
-          >
-            <span style={{ fontSize: 11, color: colors.textTertiary }}>
-              No changes — this worktree can be safely removed.
+          {status && (
+            <span style={{ color: colors.textTertiary }}>
+              {status.ahead > 0 && `${status.ahead} ahead`}
+              {status.ahead > 0 && status.behind > 0 && " · "}
+              {status.behind > 0 && `${status.behind} behind`}
+              {status.ahead === 0 && status.behind === 0 && "Up to date"}
             </span>
+          )}
 
-            <ActionButton
-              onClick={handleDelete}
-              variant="danger"
-              loading={isDeleting}
-              loadingText="Deleting…"
-              icon={<Trash2 size={12} strokeWidth={2} />}
-            >
-              Delete worktree
-            </ActionButton>
-          </div>
-        ) : (
-          /* Merge section — worktree has changes */
-          <div
+          <span style={{ color: colors.textTertiary }}>Created {createdDate}</span>
+
+          <span
             style={{
-              borderTop: `1px solid ${colors.border}`,
-              padding: "8px 12px 10px",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              color: colors.textTertiary,
+              fontSize: 10,
+              fontFamily: "var(--font-mono)",
             }}
+            title={worktree.worktreePath}
           >
-            <SectionHeader style={{ marginBottom: 8 }}>
-              <GitMerge size={11} strokeWidth={2} style={{ marginRight: 4, verticalAlign: "middle" }} />
-              Local merge (no push)
-            </SectionHeader>
+            <FolderOpen size={10} strokeWidth={1.5} />
+            {worktree.worktreePath.split("/").slice(-2).join("/")}
+          </span>
+        </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                style={{
-                  flex: 1,
-                  fontSize: 11,
-                  color: colors.textMuted,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <span style={{ fontWeight: 500 }}>{worktree.branch}</span>
-                <ArrowRight size={12} strokeWidth={1.5} color={colors.textTertiary} />
+        {/* Right: single primary action — Merge when there are changes, Delete when clean */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+          {canMerge ? (
+            <>
+              <ArrowRight size={12} strokeWidth={1.5} color={colors.textTertiary} />
 
-                {/* Target branch picker */}
-                <div style={{ position: "relative" }}>
-                  <ActionButton
-                    onClick={() => setShowBranchPicker(!showBranchPicker)}
-                    variant="secondary"
-                    padding="5px 10px"
-                    gap={4}
-                    fontWeight={500}
-                    color={colors.text}
-                    icon={<ChevronDown size={12} strokeWidth={1.5} />}
-                    style={{ flexDirection: "row-reverse" }}
+              {/* Target branch picker */}
+              <div style={{ position: "relative" }}>
+                <ActionButton
+                  onClick={() => setShowBranchPicker(!showBranchPicker)}
+                  variant="secondary"
+                  padding="4px 8px"
+                  gap={4}
+                  fontWeight={500}
+                  color={colors.text}
+                  icon={<ChevronDown size={12} strokeWidth={1.5} />}
+                  style={{ flexDirection: "row-reverse" }}
+                >
+                  {targetBranch || "Select branch"}
+                </ActionButton>
+
+                {showBranchPicker && branches.length > 0 && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      right: 0,
+                      marginTop: 4,
+                      background: colors.dialogBg,
+                      border: `1px solid ${colors.border}`,
+                      borderRadius: 6,
+                      boxShadow: colors.shadowPopover,
+                      maxHeight: 180,
+                      overflowY: "auto",
+                      zIndex: 10,
+                      minWidth: 160,
+                    }}
                   >
-                    {targetBranch || "Select branch"}
-                  </ActionButton>
-
-                  {showBranchPicker && branches.length > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: "100%",
-                        left: 0,
-                        marginBottom: 4,
-                        background: colors.dialogBg,
-                        border: `1px solid ${colors.border}`,
-                        borderRadius: 6,
-                        boxShadow: colors.shadowPopover,
-                        maxHeight: 180,
-                        overflowY: "auto",
-                        zIndex: 10,
-                        minWidth: 160,
-                      }}
-                    >
-                      {branches
-                        .filter((b) => b !== worktree.branch)
-                        .map((b) => (
-                          <BranchRow
-                            key={b}
-                            name={b}
-                            isSelected={b === targetBranch}
-                            onSelect={(name) => {
-                              setTargetBranch(name);
-                              setShowBranchPicker(false);
-                            }}
-                          />
-                        ))}
-                    </div>
-                  )}
-                </div>
+                    {branches
+                      .filter((b) => b !== worktree.branch)
+                      .map((b) => (
+                        <BranchRow
+                          key={b}
+                          name={b}
+                          isSelected={b === targetBranch}
+                          onSelect={(name) => {
+                            setTargetBranch(name);
+                            setShowBranchPicker(false);
+                          }}
+                        />
+                      ))}
+                  </div>
+                )}
               </div>
 
               <ActionButton
@@ -418,35 +234,143 @@ export function WorktreeInlinePanel({
                 variant="primary"
                 loading={isMerging}
                 loadingText="Merging…"
+                padding="4px 10px"
                 icon={<GitMerge size={12} strokeWidth={2} />}
               >
                 Merge
               </ActionButton>
-            </div>
+            </>
+          ) : !showPostMerge && status && status.files.length === 0 ? (
+            <ActionButton
+              onClick={handleDelete}
+              variant="danger"
+              loading={isDeleting}
+              loadingText="Deleting…"
+              padding="4px 10px"
+              icon={<Trash2 size={12} strokeWidth={2} />}
+            >
+              Delete
+            </ActionButton>
+          ) : null}
+        </div>
+      </div>
 
-            {/* Merge result (error only — success goes to post-merge state) */}
-            {mergeResult && !mergeResult.success && (
-              <div
-                style={{
-                  marginTop: 10,
-                  padding: "8px 12px",
-                  fontSize: 11,
-                  borderRadius: 6,
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: 6,
-                  background: colors.errorSoft,
-                  color: colors.errorDark,
-                  border: `1px solid ${colors.errorSoftBorder}`,
-                }}
-              >
-                <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
-                <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
-              </div>
-            )}
+      {/* Post-merge banner — delete / keep prompt */}
+      {showPostMerge && mergeResult?.success && (
+        <div
+          style={{
+            borderBottom: `1px solid ${colors.borderLight}`,
+            padding: "10px 12px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 8,
+          }}
+        >
+          <div
+            style={{
+              padding: "6px 10px",
+              fontSize: 11,
+              borderRadius: 6,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: colors.successSoft,
+              color: colors.success,
+              border: `1px solid ${colors.successSoftBorder}`,
+            }}
+          >
+            <Check size={14} strokeWidth={2} style={{ flexShrink: 0 }} />
+            <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
           </div>
-        )
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <span style={{ fontSize: 11, color: colors.textMuted }}>
+              Merge complete — delete this worktree?
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              <ActionButton
+                onClick={handleDelete}
+                variant="danger"
+                loading={isDeleting}
+                loadingText="Deleting…"
+                padding="4px 10px"
+                icon={<Trash2 size={12} strokeWidth={2} />}
+              >
+                Delete worktree
+              </ActionButton>
+              <ActionButton
+                onClick={handleKeep}
+                variant="secondary"
+                padding="4px 10px"
+                icon={<FolderOpen size={12} strokeWidth={2} />}
+              >
+                Keep
+              </ActionButton>
+            </div>
+          </div>
+        </div>
       )}
+
+      {/* Error banners for merge / delete */}
+      {mergeResult && !mergeResult.success && (
+        <div
+          style={{
+            padding: "8px 12px",
+            fontSize: 11,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 6,
+            background: colors.errorSoft,
+            color: colors.errorDark,
+            borderBottom: `1px solid ${colors.errorSoftBorder}`,
+          }}
+        >
+          <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ lineHeight: 1.4 }}>{mergeResult.message}</span>
+        </div>
+      )}
+
+      {deleteResult && !deleteResult.success && (
+        <div
+          style={{
+            padding: "8px 12px",
+            fontSize: 11,
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 6,
+            background: colors.errorSoft,
+            color: colors.errorDark,
+            borderBottom: `1px solid ${colors.errorSoftBorder}`,
+          }}
+        >
+          <AlertCircle size={14} strokeWidth={2} style={{ flexShrink: 0, marginTop: 1 }} />
+          <span style={{ lineHeight: 1.4 }}>{deleteResult.message}</span>
+        </div>
+      )}
+
+      {/* Changed files list */}
+      <div style={{ padding: "10px 16px" }}>
+        <SectionHeader style={{ marginBottom: 8 }}>
+          Changed files
+          {status && ` (${status.files.length})`}
+        </SectionHeader>
+
+        {isStatusLoading && <InlineLoadingRow label="Loading file status…" />}
+
+        {!isStatusLoading && status && status.files.length === 0 && (
+          <div style={{ color: colors.textTertiary, fontSize: 11, padding: "8px 0" }}>
+            No changed files in this worktree.
+          </div>
+        )}
+
+        {!isStatusLoading && status && status.files.length > 0 && (
+          <FileChangesList
+            files={status.files}
+            basePath={worktree.worktreePath}
+            onOpen={(fullPath) => onOpenFile?.(fullPath)}
+          />
+        )}
+      </div>
     </div>
   );
 }

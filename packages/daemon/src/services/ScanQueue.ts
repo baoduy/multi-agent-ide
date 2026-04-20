@@ -138,7 +138,8 @@ export class ScanQueue {
       const missing = this.repoRepository.markMissingAbsentPaths(seenPaths, scanTimestamp);
       const repos = this.repoRepository.listAll();
 
-      // Persist to disk (sql.js is in-memory, needs explicit save)
+      // No-op under LMDB (commits are durable on transaction boundary), kept
+      // for contract symmetry with the previous in-memory backend.
       this.repoRepository.flush();
 
       console.log(`[scan-queue] Emitting repo:scan:complete with ${repos.length} repos (added=${added}, updated=${updated}, missing=${missing})`);

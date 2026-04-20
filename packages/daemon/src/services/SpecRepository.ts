@@ -1,220 +1,262 @@
 import { ulid } from "ulid";
 
 import type { SpecFolder } from "@magenta/shared/models";
-import type { PipelineStageName, StageStatus } from "@magenta/shared/constants";
 import type { DatabaseService } from "../db/DatabaseService";
+import type { LmdbDatabase } from "../db/LmdbStore";
 
+/**
+ * Stored shape for a spec row. Mirrors the old SQL table columns, with
+ * `stages` persisted separately in the `spec_stages` sub-db.
+ */
+interface SpecRow {
+  id: string;
+  repoId: string;
+  name: string;
+  path: string;
+  branch: string;
+  isCurrentBranch: boolean;
+  files: string[];
+  syncedAt: number;
+  createdAt: number;
+}
+
+interface SpecStageRow {
+  id: string;
+  specId: string;
+  name: string;
+  status: string;
+  filePath: string | null;
+  metadata: unknown;
+  /** Monotonic insertion counter so we can reproduce the SQL `rowid ASC` order. */
+  order: number;
+}
+
+/**
+ * LMDB-backed repository for `specs` + `spec_stages`.
+ *
+ * Sub-db layout:
+ *   specs:
+ *     spec:${id}                                   → SpecRow
+ *     spec:repo:${repoId}:${branch}:${name}        → id  (unique per repo/branch/name)
+ *     spec:byRepo:${repoId}:${id}                  → id  (list-by-repo index)
+ *
+ *   spec_stages:
+ *     stage:${id}                                  → SpecStageRow
+ *     stage:spec:${specId}:${order}:${id}          → id  (ordered per spec)
+ */
 export class SpecRepository {
-  constructor(private readonly databaseService: DatabaseService) {}
+  private readonly specs: LmdbDatabase<unknown>;
+  private readonly stages: LmdbDatabase<unknown>;
+
+  constructor(private readonly databaseService: DatabaseService) {
+    this.specs = databaseService.getDb("specs");
+    this.stages = databaseService.getDb("spec_stages");
+  }
 
   getByRepoPath(repoPath: string): SpecFolder[] {
-    const repoRow = this.databaseService
-      .getSqlite()
-      .prepare(`SELECT id FROM repos WHERE path = @path`)
-      .get({ path: repoPath }) as Record<string, unknown> | undefined;
+    // Find the repo id via the repos sub-db's secondary index.
+    const repoId = this.databaseService
+      .getDb("repos")
+      .get(`repo:path:${repoPath}`) as string | undefined;
+    if (!repoId) return [];
 
-    if (!repoRow) {
-      return [];
+    // Prefix-scan the byRepo index for spec ids.
+    const specRows: SpecRow[] = [];
+    for (const entry of this.specs.range({ prefix: `spec:byRepo:${repoId}:` })) {
+      const specId = entry.value as string;
+      const row = this.specs.get(`spec:${specId}`) as SpecRow | undefined;
+      if (row) specRows.push(row);
     }
 
-    const repoId = repoRow.id as string;
-
-    // Single query with LEFT JOIN — previously this did N+1 queries,
-    // issuing one extra SELECT per spec to load its stages. `spec:list` is
-    // called on tab switches / repo selection / every sync completion, so
-    // even a small N amplifies. Rows are then grouped by spec id in-app.
-    const rows = this.databaseService
-      .getSqlite()
-      .prepare(
-        `SELECT s.id as specId,
-                s.name as specName,
-                s.path as specPath,
-                s.branch as specBranch,
-                s.is_current_branch as isCurrentBranch,
-                s.files_json as filesJson,
-                s.created_at as specCreatedAt,
-                st.name as stageName,
-                st.status as stageStatus,
-                st.file_path as stageFilePath,
-                st.metadata_json as stageMetadataJson
-         FROM specs s
-         LEFT JOIN spec_stages st ON st.spec_id = s.id
-         WHERE s.repo_id = @repoId
-         ORDER BY s.is_current_branch DESC, s.name ASC, st.rowid ASC`
-      )
-      .all({ repoId }) as Array<Record<string, unknown>>;
-
-    const specsById = new Map<string, SpecFolder>();
-    for (const row of rows) {
-      const specId = row.specId as string;
-      let spec = specsById.get(specId);
-      if (!spec) {
-        spec = {
-          id: specId,
-          repoPath,
-          name: row.specName as string,
-          path: row.specPath as string,
-          branch: row.specBranch as string,
-          isCurrentBranch: Boolean(row.isCurrentBranch),
-          stages: [],
-          files: JSON.parse((row.filesJson as string) || "[]"),
-          createdAt: row.specCreatedAt as number,
-        };
-        specsById.set(specId, spec);
+    // Sort to mirror SQL: is_current_branch DESC, name ASC.
+    specRows.sort((a, b) => {
+      if (a.isCurrentBranch !== b.isCurrentBranch) {
+        return a.isCurrentBranch ? -1 : 1;
       }
-      // LEFT JOIN produces a row with null stage columns for specs that
-      // have no stage rows; skip those rather than materializing a bogus
-      // stage entry.
-      if (row.stageName !== null && row.stageName !== undefined) {
-        spec.stages.push({
-          name: row.stageName as PipelineStageName,
-          status: row.stageStatus as StageStatus,
-          filePath: (row.stageFilePath as string | null) ?? null,
-          metadata: row.stageMetadataJson
-            ? JSON.parse(row.stageMetadataJson as string)
-            : undefined,
-        });
-      }
-    }
+      return a.name.localeCompare(b.name);
+    });
 
-    return [...specsById.values()];
+    // Materialize stages per spec via prefix scan (ordered by `order` thanks
+    // to key lexicographic ordering of zero-padded numeric segment).
+    return specRows.map((row): SpecFolder => {
+      const stageEntries: SpecStageRow[] = [];
+      for (const entry of this.stages.range({ prefix: `stage:spec:${row.id}:` })) {
+        const stageId = entry.value as string;
+        const stage = this.stages.get(`stage:${stageId}`) as SpecStageRow | undefined;
+        if (stage) stageEntries.push(stage);
+      }
+      return {
+        id: row.id,
+        repoPath,
+        name: row.name,
+        path: row.path,
+        branch: row.branch,
+        isCurrentBranch: row.isCurrentBranch,
+        stages: stageEntries.map((s) => ({
+          name: s.name as SpecFolder["stages"][number]["name"],
+          status: s.status as SpecFolder["stages"][number]["status"],
+          filePath: s.filePath,
+          metadata: s.metadata as SpecFolder["stages"][number]["metadata"],
+        })),
+        files: row.files ?? [],
+        createdAt: row.createdAt,
+      };
+    });
   }
 
   syncSpecs(
     repoPath: string,
-    freshSpecs: SpecFolder[]
+    freshSpecs: SpecFolder[],
   ): { inserted: number; updated: number; deleted: number } {
-    const repoRow = this.databaseService
-      .getSqlite()
-      .prepare(`SELECT id FROM repos WHERE path = @path`)
-      .get({ path: repoPath }) as Record<string, unknown> | undefined;
+    const repoId = this.databaseService
+      .getDb("repos")
+      .get(`repo:path:${repoPath}`) as string | undefined;
+    if (!repoId) return { inserted: 0, updated: 0, deleted: 0 };
 
-    if (!repoRow) {
-      return { inserted: 0, updated: 0, deleted: 0 };
-    }
-
-    const repoId = repoRow.id as string;
     const syncedAt = Date.now();
 
-    const sqlite = this.databaseService.getSqlite();
-    const transaction = sqlite.transaction(((specs: SpecFolder[]) => {
+    return this.databaseService.transactionSync(() => {
       let inserted = 0;
       let updated = 0;
 
-      for (const spec of specs) {
-        const existingRow = sqlite
-          .prepare(
-            `SELECT id FROM specs WHERE repo_id = @repoId AND branch = @branch AND name = @name`
-          )
-          .get({ repoId, branch: spec.branch ?? "", name: spec.name }) as
-          | Record<string, unknown>
-          | undefined;
+      // Track which spec ids were touched so we can prune stale ones.
+      const touched = new Set<string>();
 
-        if (existingRow) {
-          const specId = existingRow.id as string;
+      for (const spec of freshSpecs) {
+        const branch = spec.branch ?? "";
+        const lookupKey = `spec:repo:${repoId}:${branch}:${spec.name}`;
+        const existingId = this.specs.get(lookupKey) as string | undefined;
 
-          sqlite
-            .prepare(
-              `UPDATE specs
-               SET path = @path,
-                   is_current_branch = @isCurrentBranch,
-                   files_json = @filesJson,
-                   synced_at = @syncedAt,
-                   created_at = @createdAt
-               WHERE id = @specId`
-            )
-            .run({
-              specId,
-              path: spec.path,
-              isCurrentBranch: spec.isCurrentBranch ? 1 : 0,
-              filesJson: JSON.stringify(spec.files),
-              syncedAt,
-              createdAt: spec.createdAt,
-            });
+        if (existingId) {
+          const prev = this.specs.get(`spec:${existingId}`) as SpecRow | undefined;
+          const row: SpecRow = {
+            id: existingId,
+            repoId,
+            name: spec.name,
+            path: spec.path,
+            branch,
+            isCurrentBranch: Boolean(spec.isCurrentBranch),
+            files: spec.files ?? [],
+            syncedAt,
+            createdAt: prev?.createdAt ?? spec.createdAt,
+          };
+          this.specs.putSync(`spec:${existingId}`, row);
+          // Keep the two secondary indexes fresh (values don't change but
+          // put is idempotent).
+          this.specs.putSync(lookupKey, existingId);
+          this.specs.putSync(`spec:byRepo:${repoId}:${existingId}`, existingId);
 
-          sqlite.prepare(`DELETE FROM spec_stages WHERE spec_id = @specId`).run({ specId });
+          // Wipe and rewrite stages for this spec.
+          this.wipeStagesForSpecSync(existingId);
+          this.writeStagesSync(existingId, spec.stages);
 
-          for (const stage of spec.stages) {
-            sqlite
-              .prepare(
-                `INSERT INTO spec_stages (id, spec_id, name, status, file_path, metadata_json)
-                 VALUES (@id, @specId, @name, @status, @filePath, @metadataJson)`
-              )
-              .run({
-                id: ulid(),
-                specId,
-                name: stage.name,
-                status: stage.status,
-                filePath: stage.filePath,
-                metadataJson: stage.metadata ? JSON.stringify(stage.metadata) : null,
-              });
-          }
-
+          touched.add(existingId);
           updated += 1;
         } else {
           const specId = ulid();
+          const row: SpecRow = {
+            id: specId,
+            repoId,
+            name: spec.name,
+            path: spec.path,
+            branch,
+            isCurrentBranch: Boolean(spec.isCurrentBranch),
+            files: spec.files ?? [],
+            syncedAt,
+            createdAt: spec.createdAt,
+          };
+          this.specs.putSync(`spec:${specId}`, row);
+          this.specs.putSync(lookupKey, specId);
+          this.specs.putSync(`spec:byRepo:${repoId}:${specId}`, specId);
 
-          sqlite
-            .prepare(
-              `INSERT INTO specs (id, repo_id, name, path, branch, is_current_branch, files_json, synced_at, created_at)
-               VALUES (@id, @repoId, @name, @path, @branch, @isCurrentBranch, @filesJson, @syncedAt, @createdAt)`
-            )
-            .run({
-              id: specId,
-              repoId,
-              name: spec.name,
-              path: spec.path,
-              branch: spec.branch ?? "",
-              isCurrentBranch: spec.isCurrentBranch ? 1 : 0,
-              filesJson: JSON.stringify(spec.files),
-              syncedAt,
-              createdAt: spec.createdAt,
-            });
+          this.writeStagesSync(specId, spec.stages);
 
-          for (const stage of spec.stages) {
-            sqlite
-              .prepare(
-                `INSERT INTO spec_stages (id, spec_id, name, status, file_path, metadata_json)
-                 VALUES (@id, @specId, @name, @status, @filePath, @metadataJson)`
-              )
-              .run({
-                id: ulid(),
-                specId,
-                name: stage.name,
-                status: stage.status,
-                filePath: stage.filePath,
-                metadataJson: stage.metadata ? JSON.stringify(stage.metadata) : null,
-              });
-          }
-
+          touched.add(specId);
           inserted += 1;
         }
       }
 
-      const deleteResult = sqlite
-        .prepare(`DELETE FROM specs WHERE repo_id = @repoId AND synced_at < @syncedAt`)
-        .run({ repoId, syncedAt }) as Record<string, unknown>;
+      // Delete stale specs for this repo (anything not touched this sync).
+      let deleted = 0;
+      const byRepoEntries: Array<{ key: string; specId: string }> = [];
+      for (const entry of this.specs.range({ prefix: `spec:byRepo:${repoId}:` })) {
+        byRepoEntries.push({ key: entry.key, specId: entry.value as string });
+      }
+      for (const { specId } of byRepoEntries) {
+        if (touched.has(specId)) continue;
+        const row = this.specs.get(`spec:${specId}`) as SpecRow | undefined;
+        if (!row) continue;
+        this.specs.removeSync(`spec:${specId}`);
+        this.specs.removeSync(`spec:repo:${repoId}:${row.branch}:${row.name}`);
+        this.specs.removeSync(`spec:byRepo:${repoId}:${specId}`);
+        this.wipeStagesForSpecSync(specId);
+        deleted += 1;
+      }
 
-      const deleted = (deleteResult.changes as number) || 0;
-
-      sqlite
-        .prepare(`UPDATE repos SET spec_count = @specCount, has_specs = @hasSpecs WHERE id = @repoId`)
-        .run({
-          repoId,
-          specCount: specs.length,
-          hasSpecs: specs.length > 0 ? 1 : 0,
+      // Mirror the SQL side-effect: update repos.spec_count / has_specs.
+      const reposDb = this.databaseService.getDb<Record<string, unknown>>("repos");
+      const repoKey = `repo:${repoId}`;
+      const repo = reposDb.get(repoKey) as Record<string, unknown> | undefined;
+      if (repo) {
+        reposDb.putSync(repoKey, {
+          ...repo,
+          specCount: freshSpecs.length,
+          hasSpecs: freshSpecs.length > 0,
         });
+      }
 
       return { inserted, updated, deleted };
-    }) as unknown as (...args: unknown[]) => unknown);
-
-    return transaction(freshSpecs) as unknown as { inserted: number; updated: number; deleted: number };
+    });
   }
 
   deleteByRepoId(repoId: string): void {
-    this.databaseService
-      .getSqlite()
-      .prepare(`DELETE FROM specs WHERE repo_id = @repoId`)
-      .run({ repoId });
+    this.databaseService.transactionSync(() => {
+      const byRepoEntries: Array<{ specId: string }> = [];
+      for (const entry of this.specs.range({ prefix: `spec:byRepo:${repoId}:` })) {
+        byRepoEntries.push({ specId: entry.value as string });
+      }
+      for (const { specId } of byRepoEntries) {
+        const row = this.specs.get(`spec:${specId}`) as SpecRow | undefined;
+        if (row) {
+          this.specs.removeSync(`spec:repo:${repoId}:${row.branch}:${row.name}`);
+        }
+        this.specs.removeSync(`spec:${specId}`);
+        this.specs.removeSync(`spec:byRepo:${repoId}:${specId}`);
+        this.wipeStagesForSpecSync(specId);
+      }
+    });
+  }
+
+  // --- internal helpers (call inside an active sync transaction) ---
+
+  private wipeStagesForSpecSync(specId: string): void {
+    const indexEntries: Array<{ key: string; stageId: string }> = [];
+    for (const entry of this.stages.range({ prefix: `stage:spec:${specId}:` })) {
+      indexEntries.push({ key: entry.key, stageId: entry.value as string });
+    }
+    for (const { key, stageId } of indexEntries) {
+      this.stages.removeSync(`stage:${stageId}`);
+      this.stages.removeSync(key);
+    }
+  }
+
+  private writeStagesSync(specId: string, stages: SpecFolder["stages"]): void {
+    stages.forEach((stage, idx) => {
+      const stageId = ulid();
+      const row: SpecStageRow = {
+        id: stageId,
+        specId,
+        name: stage.name,
+        status: stage.status,
+        filePath: stage.filePath ?? null,
+        metadata: stage.metadata ?? undefined,
+        order: idx,
+      };
+      this.stages.putSync(`stage:${stageId}`, row);
+      // Zero-pad the order segment so ordered-binary key compare gives the
+      // intended numeric sequence when there are more than 10 stages.
+      const orderKey = String(idx).padStart(6, "0");
+      this.stages.putSync(`stage:spec:${specId}:${orderKey}:${stageId}`, stageId);
+    });
   }
 }

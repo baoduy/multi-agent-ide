@@ -126,9 +126,9 @@ async function gracefulShutdown(reason: string): Promise<void> {
 
     // 3. Flush and close database
     if (shutdownServices.databaseService) {
-      console.log("[daemon-worker] Flushing and closing database...");
+      console.log("[daemon-worker] Closing LMDB database...");
       shutdownServices.databaseService.flush();
-      shutdownServices.databaseService.close();
+      await shutdownServices.databaseService.close();
     }
 
     console.log("[daemon-worker] Graceful shutdown complete");
@@ -148,8 +148,9 @@ async function main() {
   console.log("[daemon-worker] Starting...");
 
   try {
-    // Bootstrap services (DatabaseService.create() is async because sql.js WASM init is async)
-    console.log("[daemon-worker] Initializing DatabaseService (sql.js WASM)...");
+    // Bootstrap services. DatabaseService.create() is async (LMDB cache-
+    // schema check performs an awaited transaction).
+    console.log("[daemon-worker] Initializing DatabaseService (LMDB)...");
     const databaseService = await DatabaseService.create();
     console.log("[daemon-worker] DatabaseService ready");
 

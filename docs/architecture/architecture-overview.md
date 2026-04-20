@@ -175,4 +175,4 @@ Visual diagrams are maintained as draw.io XML files in `docs/architecture/`:
 - `daemon-layers.drawio.xml` — Daemon layer architecture (IPC → Application → Domain/Infrastructure → Data Access)
 - `renderer-layers.drawio.xml` — Renderer layer architecture (Components → Services → Stores → IPC Bridge)
 - `architecture-flow.drawio.xml` — Data flow between renderer, main process, and daemon
-- `database-schema.drawio.xml` — SQLite database schema
+- `database-schema.drawio.xml` — legacy SQLite schema diagram; persistence is now LMDB (see `packages/daemon/src/db/CacheSchemaManager.ts` for the sub-db layout)

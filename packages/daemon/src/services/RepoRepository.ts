@@ -2,93 +2,87 @@ import { ulid } from "ulid";
 
 import type { Repository } from "@magenta/shared/models";
 import type { DatabaseService } from "../db/DatabaseService";
-import { mapRepoRow, toRepoRow } from "../infrastructure/mappers/repoMapper";
+import type { LmdbDatabase } from "../db/LmdbStore";
 
+/**
+ * LMDB-backed repository for `repos`.
+ *
+ * Layout:
+ *   repos sub-db:  repo:${id}                → Repository
+ *                  repo:path:${path}         → id  (secondary index for findByPath)
+ *
+ * Primary keyspace is prefixed with `repo:` and a secondary index with
+ * `repo:path:` so both live in the same sub-db and we can iterate the
+ * primary index with a simple prefix scan that stops before the secondary
+ * (because `repo:0...9|A...Z|a...z` sorts before `repo:p`... no — IDs are
+ * ULIDs so they sort before `repo:path:`? No. ULIDs use Crockford base32,
+ * all uppercase 0-9 + A-Z. The char 'p' is > ULID chars, so
+ * `repo:${ulid}` sorts before `repo:path:`.). Confirmed: ULID alphabet is
+ * `0-9A-HJKMNP-TV-Z`; lowercase 'p' (0x70) is greater than any ULID char,
+ * so the primary-index prefix scan stops before the secondary entries.
+ *
+ * To keep the code robust we use explicit start/end bounds rather than
+ * relying on that ordering: `start = "repo:"`, `end = "repo:z"` for all,
+ * and `start = "repo:path:"` for the secondary index.
+ */
 export class RepoRepository {
-  constructor(private readonly databaseService: DatabaseService) {}
+  private readonly db: LmdbDatabase<unknown>;
 
-  /**
-   * Persist pending changes to disk (sql.js is in-memory).
-   */
+  constructor(private readonly databaseService: DatabaseService) {
+    this.db = databaseService.getDb("repos");
+  }
+
+  /** No-op — LMDB commits are durable on transaction boundary. */
   flush(): void {
-    this.databaseService.flush();
+    // intentional no-op
   }
 
   listAll(): Repository[] {
-    const rows = this.databaseService
-      .getSqlite()
-      .prepare(
-        `SELECT id, name, path, branch, has_specs as hasSpecs, spec_count as specCount, status, scanned_at as scannedAt, created_at as createdAt
-         FROM repos
-         ORDER BY name ASC`
-      )
-      .all() as Array<Record<string, unknown>>;
-
-    return rows.map(mapRepoRow);
+    const repos: Repository[] = [];
+    for (const entry of this.db.range({ start: "repo:", end: "repo:path:" })) {
+      // Guard against any stray secondary-index key accidentally falling in
+      // this range (shouldn't happen given the end bound, but cheap to
+      // double-check).
+      if (entry.key.startsWith("repo:path:")) continue;
+      repos.push(entry.value as Repository);
+    }
+    // Match the old `ORDER BY name ASC` surface from the SQL repo.
+    repos.sort((a, b) => a.name.localeCompare(b.name));
+    return repos;
   }
 
   findByPath(path: string): Repository | null {
-    const row = this.databaseService
-      .getSqlite()
-      .prepare(
-        `SELECT id, name, path, branch, has_specs as hasSpecs, spec_count as specCount, status, scanned_at as scannedAt, created_at as createdAt
-         FROM repos
-         WHERE path = ?`
-      )
-      .get(path) as Record<string, unknown> | undefined;
-
-    if (!row) {
-      return null;
-    }
-
-    return mapRepoRow(row);
+    const id = this.db.get(`repo:path:${path}`) as string | undefined;
+    if (!id) return null;
+    const repo = this.db.get(`repo:${id}`) as Repository | undefined;
+    return repo ?? null;
   }
 
-  upsert(repo: Omit<Repository, "id" | "createdAt"> & { id?: string; createdAt?: number }): Repository {
+  upsert(
+    repo: Omit<Repository, "id" | "createdAt"> & { id?: string; createdAt?: number },
+  ): Repository {
     const existing = this.findByPath(repo.path);
 
     if (existing) {
-      this.databaseService
-        .getSqlite()
-        .prepare(
-          `UPDATE repos
-           SET name = @name,
-               branch = @branch,
-               has_specs = @hasSpecs,
-               spec_count = @specCount,
-               status = @status,
-               scanned_at = @scannedAt
-           WHERE path = @path`
-        )
-        .run(toRepoRow({
-          ...repo,
-        }));
-
-      return {
+      const merged: Repository = {
         ...existing,
-        ...repo,
+        name: repo.name,
+        branch: repo.branch,
+        hasSpecs: repo.hasSpecs,
+        specCount: repo.specCount,
+        status: repo.status,
+        scannedAt: repo.scannedAt,
       };
+      this.databaseService.transactionSync(() => {
+        this.db.putSync(`repo:${merged.id}`, merged);
+        // Path → id pointer never changes for an existing row.
+      });
+      return merged;
     }
 
     const createdAt = repo.createdAt ?? Date.now();
     const id = repo.id ?? ulid();
-
-    this.databaseService
-      .getSqlite()
-      .prepare(
-        `INSERT INTO repos (
-           id, name, path, branch, has_specs, spec_count, status, scanned_at, created_at
-         ) VALUES (
-           @id, @name, @path, @branch, @hasSpecs, @specCount, @status, @scannedAt, @createdAt
-         )`
-      )
-      .run({
-        id,
-        ...toRepoRow(repo),
-        createdAt,
-      });
-
-    return {
+    const record: Repository = {
       id,
       name: repo.name,
       path: repo.path,
@@ -99,37 +93,42 @@ export class RepoRepository {
       scannedAt: repo.scannedAt,
       createdAt,
     };
+
+    this.databaseService.transactionSync(() => {
+      this.db.putSync(`repo:${id}`, record);
+      this.db.putSync(`repo:path:${record.path}`, id);
+    });
+
+    return record;
   }
 
   deleteByPath(repoPath: string): void {
-    this.databaseService
-      .getSqlite()
-      .prepare(`DELETE FROM repos WHERE path = ?`)
-      .run(repoPath);
+    const id = this.db.get(`repo:path:${repoPath}`) as string | undefined;
+    if (!id) return;
+    this.databaseService.transactionSync(() => {
+      this.db.removeSync(`repo:${id}`);
+      this.db.removeSync(`repo:path:${repoPath}`);
+    });
   }
 
+  /**
+   * Mark every repo whose path is NOT in `activePaths` and whose status is
+   * not already "missing" as missing. Returns the number updated.
+   */
   markMissingAbsentPaths(activePaths: Set<string>, scannedAt: number): number {
     const existing = this.listAll();
     const missing = existing.filter(
       (repo) => !activePaths.has(repo.path) && repo.status !== "missing",
     );
-    if (missing.length === 0) {
-      return 0;
-    }
+    if (missing.length === 0) return 0;
 
-    // Batched single-UPDATE — previously this issued one UPDATE per missing
-    // repo, which on large workspaces meant dozens of sequential sql.js
-    // round-trips and a matching number of auto-save wakeups.
-    const placeholders = missing.map(() => "?").join(", ");
-    const params = [scannedAt, ...missing.map((r) => r.path)];
-    this.databaseService
-      .getSqlite()
-      .prepare(
-        `UPDATE repos SET status = 'missing', scanned_at = ? WHERE path IN (${placeholders})`,
-      )
-      .run(...params);
-    const changed = missing.length;
+    this.databaseService.transactionSync(() => {
+      for (const repo of missing) {
+        const updated: Repository = { ...repo, status: "missing", scannedAt };
+        this.db.putSync(`repo:${repo.id}`, updated);
+      }
+    });
 
-    return changed;
+    return missing.length;
   }
 }

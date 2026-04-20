@@ -471,9 +471,7 @@ function startDaemon() {
     const isPackaged = app.isPackaged;
     const daemonEnv: Record<string, string> = { ...process.env } as Record<string, string>;
     if (isPackaged) {
-      daemonEnv["MAGENTA_RESOURCES_PATH"] = process.resourcesPath;
-
-      // node-pty lives in extraResources/node_modules (outside the asar).
+      // node-pty (and now lmdb) live in extraResources/node_modules (outside the asar).
       // Set NODE_PATH so the daemon's plain Node.js require() can find it.
       daemonEnv["NODE_PATH"] = path.join(process.resourcesPath, "node_modules");
 
@@ -513,9 +511,14 @@ function startDaemon() {
       }
     }
 
+    // Always fork through Electron's bundled Node (via ELECTRON_RUN_AS_NODE=1)
+    // so the daemon's native modules (lmdb, node-pty) run against the same
+    // V8/ABI they were rebuilt for. In dev mode we previously used the
+    // system `node` binary, but electron-rebuild targets Electron's V8 and
+    // the resulting `.node` binaries V8-CHECK-crash when loaded under a
+    // different V8 build that shares the same NODE_MODULE_VERSION.
     const nodeExecPath =
-      process.env["MAGENTA_NODE_PATH"] ||
-      (isPackaged ? process.execPath : "node");
+      process.env["MAGENTA_NODE_PATH"] || process.execPath;
 
     daemonProcess = fork(daemonEntryPath, [], {
       stdio: ["pipe", "pipe", "pipe", "ipc"],

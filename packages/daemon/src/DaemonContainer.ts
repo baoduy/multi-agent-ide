@@ -30,6 +30,7 @@ import type { LogResult, CommitDetailResult } from "./infrastructure/GitHistoryG
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
+import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensionApplicationService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -72,6 +73,7 @@ export class DaemonContainer {
   readonly commitDetailCache: LruCache<string, CommitDetailResult>;
   readonly githubReleasesGateway: GitHubReleasesGateway;
   readonly npmRegistryGateway: NpmRegistryGateway;
+  readonly specifyExtensionService: SpecifyExtensionApplicationService;
   readonly cliVersionService: CliVersionApplicationService;
 
   private constructor(databaseService: DatabaseService) {
@@ -175,11 +177,20 @@ export class DaemonContainer {
     // the upgrade dialog; no background cadence.
     this.githubReleasesGateway = new GitHubReleasesGateway();
     this.npmRegistryGateway = new NpmRegistryGateway();
+    // Specify extension auto-installer — runs after onboard success and
+    // after specify template refresh. Shares the single GitHub releases
+    // gateway so extension version lookups follow the same timeout/error
+    // handling as CLI version checks.
+    this.specifyExtensionService = new SpecifyExtensionApplicationService(
+      this.configManager,
+      this.githubReleasesGateway,
+    );
     this.cliVersionService = new CliVersionApplicationService(
       this.bridge,
       this.githubReleasesGateway,
       this.npmRegistryGateway,
       this.configManager,
+      this.specifyExtensionService,
     );
   }
 
@@ -212,6 +223,7 @@ export class DaemonContainer {
       specGitGateway: this.specGitGateway,
       specReader: this.specReader,
       cliVersionService: this.cliVersionService,
+      specifyExtensionService: this.specifyExtensionService,
       gitBatchGateway: this.gitBatchGateway,
       gitRepoWatcher: this.gitRepoWatcher,
       logCache: this.logCache,

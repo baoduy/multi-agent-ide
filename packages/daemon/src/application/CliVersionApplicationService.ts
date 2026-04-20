@@ -17,6 +17,7 @@ import type { IPCBridge } from "../ipc/IPCBridge";
 import { CliVersionProbe, isNewerVersion, normalizeReleaseTag } from "../infrastructure/CliVersionProbe";
 import type { GitHubReleasesGateway } from "../infrastructure/GitHubReleasesGateway";
 import type { NpmRegistryGateway } from "../infrastructure/NpmRegistryGateway";
+import type { SpecifyExtensionApplicationService } from "./SpecifyExtensionApplicationService";
 
 /**
  * Shell-metacharacter allowlist copied verbatim from OnboardApplicationService
@@ -61,6 +62,7 @@ export class CliVersionApplicationService {
     private readonly releasesGateway: GitHubReleasesGateway,
     private readonly npmGateway: NpmRegistryGateway,
     private readonly configManager: ConfigManager,
+    private readonly specifyExtensionService: SpecifyExtensionApplicationService,
   ) {}
 
   /**
@@ -261,17 +263,31 @@ export class CliVersionApplicationService {
       this.activeUpgrades.delete(tool);
       const success = code === 0;
       console.log(`[cli-version] Upgrade finished for ${tool} (exit ${code})`);
-      this.bridge.emit({
-        type: "cli:upgrade:complete",
-        tool,
-        success,
-        error: success ? undefined : `Process exited with code ${code}`,
-      });
-      if (success) {
-        void this.refreshOne(tool).catch((err) => {
-          console.warn(`[cli-version] Post-upgrade refresh for ${tool} failed:`, err);
-        });
+
+      // The Specify "upgrade" is really a template refresh (`specify init
+      // --here --force`) inside the repo. Immediately follow it with the
+      // user-configured extensions so they survive the refresh — any spec-kit
+      // assets overwritten by `init --force` are replaced by a known-good
+      // extension set. For other tools this block is skipped.
+      if (success && tool === "specify" && cwd) {
+        void this.specifyExtensionService
+          .installExtensionsInRepo(cwd, cwd, (data) =>
+            this.bridge.emit({ type: "cli:upgrade:output", tool, data }),
+          )
+          .catch((err) => {
+            const msg = err instanceof Error ? err.message : String(err);
+            console.warn(`[cli-version] Extension install after ${tool} upgrade failed: ${msg}`);
+            this.bridge.emit({
+              type: "cli:upgrade:output",
+              tool,
+              data: `\nextension install failed: ${msg}\n`,
+            });
+          })
+          .finally(() => this.finalizeUpgrade(tool, success, cwd, code));
+        return;
       }
+
+      this.finalizeUpgrade(tool, success, cwd, code);
     });
 
     child.on("error", (err) => {
@@ -284,6 +300,30 @@ export class CliVersionApplicationService {
         error: err.message,
       });
     });
+  }
+
+  /**
+   * Emits the `cli:upgrade:complete` event and kicks off a post-upgrade
+   * refresh. Split out so the close handler can defer it until the
+   * post-upgrade extension install (Specify only) finishes streaming.
+   */
+  private finalizeUpgrade(
+    tool: CliToolId,
+    success: boolean,
+    repoPath: string | undefined,
+    code: number | null,
+  ): void {
+    this.bridge.emit({
+      type: "cli:upgrade:complete",
+      tool,
+      success,
+      error: success ? undefined : `Process exited with code ${code}`,
+    });
+    if (success) {
+      void this.refreshOne(tool, repoPath).catch((err) => {
+        console.warn(`[cli-version] Post-upgrade refresh for ${tool} failed:`, err);
+      });
+    }
   }
 
   /**

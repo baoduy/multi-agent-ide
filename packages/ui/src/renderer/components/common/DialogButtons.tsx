@@ -117,27 +117,38 @@ type SecondaryButtonProps = {
   onClick: () => void;
   children: React.ReactNode;
   icon?: React.ReactNode;
+  disabled?: boolean;
+  title?: string;
 };
 
 /** Secondary action button with icon support (e.g. "Run in Background"). */
-export function SecondaryButton({ onClick, children, icon }: SecondaryButtonProps): React.ReactElement {
+export function SecondaryButton({
+  onClick,
+  children,
+  icon,
+  disabled = false,
+  title,
+}: SecondaryButtonProps): React.ReactElement {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => { if (!disabled) onClick(); }}
+      disabled={disabled}
+      title={title}
       style={{
         padding: "4px 10px",
         fontSize: 11,
         fontWeight: 500,
-        color: colors.textSecondary,
+        color: disabled ? colors.textTertiary : colors.textSecondary,
         background: colors.bgMuted,
         border: `1px solid ${colors.border}`,
         borderRadius: 4,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
         fontFamily: "inherit",
         display: "flex",
         alignItems: "center",
         gap: 6,
+        opacity: disabled ? 0.6 : 1,
       }}
     >
       {icon}

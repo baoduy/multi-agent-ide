@@ -55,6 +55,7 @@ export function CliUpgradeDialog(): React.ReactElement | null {
   const dismissUpgrade = useCliVersionStore((s) => s.dismissUpgrade);
   const initSubs = useCliVersionStore((s) => s.initializeSubscriptions);
 
+  const sourceRepoPath = useCliVersionStore((s) => s.sourceRepoPath);
   const tools = useMemo(() => ensureAllToolsPresent(rawTools), [rawTools]);
 
   useEffect(() => {
@@ -129,6 +130,7 @@ export function CliUpgradeDialog(): React.ReactElement | null {
             tool={tool}
             upgrade={upgrades[tool.tool]}
             isChecking={isChecking}
+            hasRepoContext={sourceRepoPath !== null}
             onUpgrade={() => void startUpgrade(tool.tool)}
             onDismiss={() => dismissUpgrade(tool.tool)}
           />
@@ -142,6 +144,8 @@ type CliToolRowProps = {
   tool: CliToolStatus;
   upgrade: CliUpgradeState | undefined;
   isChecking: boolean;
+  /** True when the dialog was opened from a repo — required to reinstall Specify. */
+  hasRepoContext: boolean;
   onUpgrade: () => void;
   onDismiss: () => void;
 };
@@ -150,6 +154,7 @@ function CliToolRow({
   tool,
   upgrade,
   isChecking,
+  hasRepoContext,
   onUpgrade,
   onDismiss,
 }: CliToolRowProps): React.ReactElement {
@@ -204,6 +209,7 @@ function CliToolRow({
           isRunning,
           isDone,
           success,
+          hasRepoContext,
           onUpgrade,
           onDismiss,
         })}
@@ -292,6 +298,7 @@ function renderRowAction({
   isRunning,
   isDone,
   success,
+  hasRepoContext,
   onUpgrade,
   onDismiss,
 }: {
@@ -300,6 +307,7 @@ function renderRowAction({
   isRunning: boolean;
   isDone: boolean;
   success: boolean;
+  hasRepoContext: boolean;
   onUpgrade: () => void;
   onDismiss: () => void;
 }): React.ReactElement | null {
@@ -321,6 +329,31 @@ function renderRowAction({
     );
   }
   if (tool.installed && tool.latestVersion && !tool.updateAvailable) {
+    // Specify's "upgrade" is really `specify init --here --force` followed by
+    // the configured extension installs. Offer a Reinstall action even when
+    // the template is up to date so editing the extensions list and picking
+    // it up is a one-click affair. Disabled outside a repo context because
+    // the command requires `cwd: <repo>` to resolve `--here`.
+    if (tool.tool === "specify") {
+      return (
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 11, color: colors.success, fontWeight: 500 }}>
+            Up to date
+          </span>
+          <SecondaryButton
+            onClick={onUpgrade}
+            disabled={!hasRepoContext}
+            title={
+              hasRepoContext
+                ? "Re-run specify init and reinstall configured extensions"
+                : "Open from a repo to reinstall Specify"
+            }
+          >
+            Reinstall
+          </SecondaryButton>
+        </div>
+      );
+    }
     return (
       <span style={{ fontSize: 11, color: colors.success, fontWeight: 500 }}>
         Up to date

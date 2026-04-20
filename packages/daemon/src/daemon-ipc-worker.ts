@@ -40,6 +40,7 @@ import { SpecReader } from "./services/SpecReader";
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
+import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensionApplicationService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -248,11 +249,16 @@ async function main() {
     // upgrade dialog; no background cadence.
     const githubReleasesGateway = new GitHubReleasesGateway();
     const npmRegistryGateway = new NpmRegistryGateway();
+    const specifyExtensionService = new SpecifyExtensionApplicationService(
+      configManager,
+      githubReleasesGateway,
+    );
     const cliVersionService = new CliVersionApplicationService(
       ipcBridge,
       githubReleasesGateway,
       npmRegistryGateway,
       configManager,
+      specifyExtensionService,
     );
 
     // Store references for graceful shutdown
@@ -275,6 +281,7 @@ async function main() {
       specGitGateway,
       specReader,
       cliVersionService,
+      specifyExtensionService,
       gitBatchGateway,
       gitRepoWatcher,
       logCache,

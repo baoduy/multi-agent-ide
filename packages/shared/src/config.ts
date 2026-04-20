@@ -3,6 +3,41 @@ import { z } from "zod";
 import { CliToolOverridesSchema } from "./cliTools";
 
 /**
+ * A Specify CLI extension to auto-install after `specify init` (onboard) or
+ * the Specify template upgrade. Identified by its CLI `name` and the GitHub
+ * `repo` (`<owner>/<repo>`) whose **latest release** provides the zip.
+ */
+export const SpecifyExtensionSchema = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .regex(
+        /^[A-Za-z0-9_.\-]+$/,
+        "extension name may only contain letters, digits, '_', '.', '-'",
+      ),
+    repo: z
+      .string()
+      .min(1)
+      .regex(
+        /^[A-Za-z0-9_.\-]+\/[A-Za-z0-9_.\-]+$/,
+        "repo must be in <owner>/<name> form",
+      ),
+  })
+  .strict();
+
+export type SpecifyExtension = z.infer<typeof SpecifyExtensionSchema>;
+
+/**
+ * Default seeded extensions. The worktree-parallel extension unlocks running
+ * multiple Specify specs concurrently in isolated worktrees — a core Magenta
+ * IDE workflow — so it ships on by default.
+ */
+export const DEFAULT_SPECIFY_EXTENSIONS: SpecifyExtension[] = [
+  { name: "worktrees", repo: "dango85/spec-kit-worktree-parallel" },
+];
+
+/**
  * Default command template for Specify onboarding and upgrades.
  * Placeholder: {agent} = selected AI agent id.
  */
@@ -50,6 +85,15 @@ export const MagentaConfigSchema = z.object({
    * "copilot", "specify").
    */
   cliTools: CliToolOverridesSchema,
+  /**
+   * Specify CLI extensions to auto-install after a successful `specify init`
+   * (onboard) or Specify template upgrade. For each entry, the daemon
+   * resolves the repo's latest GitHub release tag and runs
+   * `<specify runner> extension add <name> --from <zip-url>` in the repo.
+   */
+  specifyExtensions: z
+    .array(SpecifyExtensionSchema)
+    .default(DEFAULT_SPECIFY_EXTENSIONS),
 });
 
 export type MagentaConfig = z.infer<typeof MagentaConfigSchema>;

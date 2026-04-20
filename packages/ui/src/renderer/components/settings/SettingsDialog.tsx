@@ -14,6 +14,7 @@ import { AddWorkingDirButton } from "./AddWorkingDirButton";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { CliCommandsSettings } from "./CliCommandsSettings";
 import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
+import { SpecifyExtensionsSettings } from "./SpecifyExtensionsSettings";
 import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
 import { BaseDialog } from "../common/BaseDialog";
@@ -70,7 +71,12 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
         <SettingsTabList activeTab={activeTab} onSelect={setActiveTab} />
         <SettingsPanel>
           {activeTab === "directories" && <DirectoriesPanel onError={setLocalError} />}
-          {activeTab === "specify" && <SpecifyCommandSetting />}
+          {activeTab === "specify" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <SpecifyCommandSetting />
+              <SpecifyExtensionsSettings />
+            </div>
+          )}
           {activeTab === "cli" && <CliCommandsSettings />}
           {activeTab === "sync" && <SyncIntervalSettings />}
           {activeTab === "appearance" && <AppearanceSettings />}

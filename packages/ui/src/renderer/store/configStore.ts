@@ -1,8 +1,9 @@
 import { create } from "zustand";
 
-import type { MagentaConfig } from "@magenta/shared/config";
+import type { MagentaConfig, SpecifyExtension } from "@magenta/shared/config";
 import {
   DEFAULT_SPECIFY_COMMAND,
+  DEFAULT_SPECIFY_EXTENSIONS,
   DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
   DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
 } from "@magenta/shared/config";
@@ -19,6 +20,7 @@ type ConfigStoreState = {
   sessionSyncIntervalMinutes: number;
   fallbackApproverName: string;
   cliTools: CliToolOverrides;
+  specifyExtensions: SpecifyExtension[];
   isLoading: boolean;
   error: string | null;
   subscriptionsReady: boolean;
@@ -29,6 +31,7 @@ type ConfigStoreState = {
   updateSessionSyncInterval: (minutes: number) => Promise<void>;
   updateFallbackApproverName: (name: string) => Promise<void>;
   updateCliToolOverride: (tool: CliToolId, override: CliToolOverride | null) => Promise<void>;
+  updateSpecifyExtensions: (extensions: SpecifyExtension[]) => Promise<void>;
   fetchConfig: () => Promise<void>;
   initializeSubscriptions: () => void;
 };
@@ -43,6 +46,7 @@ function applyConfig(config: MagentaConfig): Partial<ConfigStoreState> {
       config.sessionSyncIntervalMinutes ?? DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
     fallbackApproverName: config.fallbackApproverName ?? "",
     cliTools: config.cliTools ?? {},
+    specifyExtensions: config.specifyExtensions ?? DEFAULT_SPECIFY_EXTENSIONS,
   };
 }
 
@@ -53,6 +57,7 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
   sessionSyncIntervalMinutes: DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
   fallbackApproverName: "",
   cliTools: {},
+  specifyExtensions: DEFAULT_SPECIFY_EXTENSIONS,
   isLoading: false,
   error: null,
   subscriptionsReady: false,
@@ -137,6 +142,18 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
         sendOrThrow({
           type: "config:update",
           config: { cliTools: next },
+        }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
+  },
+
+  updateSpecifyExtensions(extensions: SpecifyExtension[]) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () =>
+        sendOrThrow({
+          type: "config:update",
+          config: { specifyExtensions: extensions },
         }),
       onSuccess: (response) => applyConfig(response.config),
     })();

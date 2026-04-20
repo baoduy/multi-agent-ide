@@ -48,6 +48,7 @@ import type { SpecReader } from "../services/SpecReader";
 import type { RepoScanner } from "../services/RepoScanner";
 import type { CliVersionApplicationService } from "../application/CliVersionApplicationService";
 import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
+import type { SpecifyExtensionApplicationService } from "../application/SpecifyExtensionApplicationService";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
 import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
@@ -72,6 +73,7 @@ export type HandlerContext = {
   specGitGateway: SpecGitGateway;
   specReader: SpecReader;
   cliVersionService: CliVersionApplicationService;
+  specifyExtensionService: SpecifyExtensionApplicationService;
   /** Git perf foundation — owned by DaemonContainer. */
   gitBatchGateway: GitBatchGateway;
   gitRepoWatcher: GitRepoWatcher;
@@ -104,7 +106,11 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerFileHandlers({ bridge, fileSystemGateway });
   registerWorktreeHandlers({ bridge, worktreeService, worktreeSyncService: context.worktreeSyncService });
 
-  const onboardService = new OnboardApplicationService(bridge, context.configManager);
+  const onboardService = new OnboardApplicationService(
+    bridge,
+    context.configManager,
+    context.specifyExtensionService,
+  );
   registerOnboardHandlers({ bridge, onboardService });
 
   registerTerminalHandlers({ bridge, terminalService: context.terminalService, allowlistProvider: context.configManager });

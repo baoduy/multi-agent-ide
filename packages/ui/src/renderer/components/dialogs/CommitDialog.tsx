@@ -8,7 +8,7 @@ import { useRepoStore } from "../../store/repoStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
-import { ScrollableText } from "../common/ScrollableText";
+import { FileChangesList } from "../common/FileChangesList";
 
 /* ══════════════════════════════════════════
  * CommitDialog
@@ -30,18 +30,6 @@ type CommitDialogProps = {
 /** Unique key for dedupe + selection: path + staged flag (so staged-modified != unstaged-modified). */
 function fileKey(f: GitFileStatus): string {
   return `${f.staged ? "s" : "u"}:${f.path}`;
-}
-
-/** Short status badge letter (M/A/D/R/U/C). */
-function statusLetter(s: GitFileStatus["status"]): { letter: string; label: string; color: string } {
-  switch (s) {
-    case "modified": return { letter: "M", label: "Modified", color: colors.warningText };
-    case "added": return { letter: "A", label: "Added", color: colors.success };
-    case "deleted": return { letter: "D", label: "Deleted", color: colors.error };
-    case "renamed": return { letter: "R", label: "Renamed", color: colors.info };
-    case "untracked": return { letter: "U", label: "Untracked", color: colors.textTertiary };
-    case "conflicted": return { letter: "C", label: "Conflict", color: colors.error };
-  }
 }
 
 /** Group file rows into Staged / Unstaged / Untracked sections. */
@@ -308,58 +296,13 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
                 >
                   {group.title}
                 </div>
-                {group.files.map((f) => {
-                  const key = fileKey(f);
-                  const isSelected = selected.has(key);
-                  const s = statusLetter(f.status);
-                  return (
-                    <label
-                      key={key}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                        cursor: "pointer",
-                        fontSize: 11,
-                        fontFamily: "var(--font-mono)",
-                        color: colors.text,
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = colors.bgHover; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleFile(key)}
-                        style={{ accentColor: colors.primary, flexShrink: 0, cursor: "pointer" }}
-                      />
-                      <span
-                        title={s.label}
-                        style={{
-                          display: "inline-block",
-                          width: 18,
-                          textAlign: "center",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: s.color,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {s.letter}
-                      </span>
-                      <ScrollableText
-                        style={{
-                          flex: 1,
-                          minWidth: 0,
-                        }}
-                      >
-                        {f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
-                      </ScrollableText>
-                    </label>
-                  );
-                })}
+                <FileChangesList
+                  files={group.files}
+                  basePath={repoPath}
+                  selectedKeys={selected}
+                  onToggleSelect={toggleFile}
+                  keyOf={fileKey}
+                />
               </div>
             ))}
           </div>

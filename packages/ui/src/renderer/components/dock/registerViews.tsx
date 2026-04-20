@@ -11,6 +11,7 @@ import {
   FolderGit2,
   FileText,
   GitBranch,
+  GitGraph,
   GitCompareArrows,
   GitCommit,
   Workflow,
@@ -395,7 +396,7 @@ export function registerAllViews(): void {
   viewRegistry.register({
     id: "git-changes-center",
     title: "Changes",
-    icon: <GitBranch size={14} strokeWidth={1.8} />,
+    icon: <GitGraph size={14} strokeWidth={1.8} />,
     component: GitChangesCenterView,
     defaultLocation: "center",
     closable: false,

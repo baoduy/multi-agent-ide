@@ -4,28 +4,47 @@ import { colors } from "../../utils/colors";
 import { FileStatusBadge } from "./FileStatusBadge";
 import { FileIconBadge, FolderIconBadge } from "./fileIcons";
 import { ScrollableText } from "./ScrollableText";
-import type { WorktreeFileStatus } from "../../store/worktreeStore";
+
+/** Union of every status value the two file-change data shapes emit today. */
+export type FileChangeStatus =
+  | "added"
+  | "modified"
+  | "deleted"
+  | "renamed"
+  | "copied"
+  | "untracked"
+  | "conflicted";
 
 /* ══════════════════════════════════════════
  * FileChangesList — shared presentational list of changed files.
  *
  * Used by:
- *   - Right-sidebar RepoFileChanges view
- *   - WorktreeInlinePanel (file list inside an expanded worktree row)
+ *   - Right-sidebar RepoFileChanges view              (read-only list, click-to-open)
+ *   - WorktreeInlinePanel file list                    (read-only list, click-to-open)
+ *   - CommitDialog + CommitComposerTab                 (selectable list with checkbox per row)
  *
- * Renders each file row: icon · name (+ dir path) · status badge.
- * Deleted files and directory entries are rendered as non-clickable.
+ * Renders each file row: [checkbox?] · icon · name + dir-path · status badge.
+ * Deleted files and directory entries are rendered as non-clickable in "open" mode.
+ * For renames, the secondary line shows "from <oldPath>" instead of the dir path.
+ *
+ * Modes
+ *   • Open mode (default): clicking a row calls `onOpen(fullPath, status)`.
+ *   • Selection mode (when `selectedKeys` + `onToggleSelect` are provided):
+ *     the whole row is a <label> toggling a checkbox; `onOpen` is ignored.
+ *
  * Kept purely presentational — no fetching, no intervals, no store access.
  * ══════════════════════════════════════════ */
 
 export type FileChangeItem = {
   path: string;
-  status: WorktreeFileStatus["status"];
+  status: FileChangeStatus;
+  /** Present for rename entries. Shown as "from <oldPath>" under the new name. */
+  oldPath?: string;
 };
 
-export type FileChangesListProps = {
+export type FileChangesListProps<T extends FileChangeItem = FileChangeItem> = {
   /** Changed files to render. */
-  files: ReadonlyArray<FileChangeItem>;
+  files: ReadonlyArray<T>;
   /**
    * Absolute base path that file paths are relative to. Used to build the
    * full path passed to `onOpen` when the user clicks a file row.
@@ -33,59 +52,74 @@ export type FileChangesListProps = {
   basePath: string;
   /** Called with `(fullPath, status)` when the user clicks a clickable row. */
   onOpen?: (fullPath: string, status: FileChangeItem["status"]) => void;
+
+  /* ── Selection mode (opt-in) ── */
+  /** Set of selected row keys. Enables checkbox rendering when provided. */
+  selectedKeys?: ReadonlySet<string>;
+  /** Called when the user toggles a row's checkbox. */
+  onToggleSelect?: (key: string) => void;
+  /**
+   * Unique key for each file (e.g. `${staged ? "s" : "u"}:${path}` in the
+   * commit flow). Required when `selectedKeys` is provided.
+   */
+  keyOf?: (file: T) => string;
 };
 
-export function FileChangesList({
+export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
   files,
   basePath,
   onOpen,
-}: FileChangesListProps): React.ReactElement | null {
+  selectedKeys,
+  onToggleSelect,
+  keyOf,
+}: FileChangesListProps<T>): React.ReactElement | null {
   const [hoveredFile, setHoveredFile] = useState<string | null>(null);
 
   if (files.length === 0) return null;
 
+  const selectable = !!selectedKeys && !!onToggleSelect && !!keyOf;
   const base = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {files.map((file) => {
         const isDirectory = file.path.endsWith("/");
-        const isClickable = file.status !== "deleted" && !isDirectory;
+        const isDeleted = file.status === "deleted";
         const fileName = file.path.split("/").pop() ?? file.path;
         const dirPath = file.path.includes("/")
           ? file.path.slice(0, file.path.lastIndexOf("/"))
           : "";
         const isHovered = hoveredFile === file.path;
+        const key = selectable ? keyOf!(file) : file.path;
+        const isChecked = selectable ? selectedKeys!.has(key) : false;
 
-        return (
-          <div
-            key={file.path}
-            onClick={
-              isClickable && onOpen
-                ? () => onOpen(`${base}/${file.path}`, file.status)
-                : undefined
-            }
-            onMouseEnter={() => setHoveredFile(file.path)}
-            onMouseLeave={() => setHoveredFile(null)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              padding: "5px 8px",
-              background: isClickable && isHovered ? colors.bgHover : "transparent",
-              borderRadius: 5,
-              cursor: isClickable ? "pointer" : "default",
-              opacity: isClickable ? 1 : 0.6,
-              transition: "background 0.1s",
-            }}
-            title={
-              isClickable
-                ? `Click to open ${file.path}`
-                : isDirectory
-                  ? `${file.path} (directory)`
-                  : `${file.path} (deleted)`
-            }
-          >
+        // In open mode, deleted/directory rows are non-clickable.
+        // In selection mode, every row is a label and therefore always "clickable".
+        const openClickable = !selectable && !isDeleted && !isDirectory && !!onOpen;
+
+        const rowStyle: React.CSSProperties = {
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          padding: "5px 8px",
+          background: isHovered ? colors.bgHover : "transparent",
+          borderRadius: 5,
+          cursor: openClickable || selectable ? "pointer" : "default",
+          opacity: !selectable && (isDeleted || isDirectory) ? 0.6 : 1,
+          transition: "background 0.1s",
+        };
+
+        const inner = (
+          <>
+            {selectable && (
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => onToggleSelect!(key)}
+                style={{ accentColor: colors.primary, flexShrink: 0, cursor: "pointer" }}
+              />
+            )}
+
             <div style={{ flexShrink: 0 }}>
               {isDirectory ? (
                 <FolderIconBadge isOpen={false} />
@@ -99,13 +133,24 @@ export function FileChangesList({
                 style={{
                   fontSize: 11,
                   fontWeight: 600,
-                  color: isClickable && isHovered ? colors.primary : colors.text,
+                  color: openClickable && isHovered ? colors.primary : colors.text,
                   transition: "color 0.1s",
                 }}
               >
                 {fileName}
               </ScrollableText>
-              {dirPath && (
+              {file.oldPath ? (
+                <ScrollableText
+                  style={{
+                    fontSize: 10,
+                    color: colors.textTertiary,
+                    fontFamily: "var(--font-mono)",
+                    fontStyle: "italic",
+                  }}
+                >
+                  from {file.oldPath}
+                </ScrollableText>
+              ) : dirPath ? (
                 <ScrollableText
                   style={{
                     fontSize: 10,
@@ -115,12 +160,49 @@ export function FileChangesList({
                 >
                   {dirPath}
                 </ScrollableText>
-              )}
+              ) : null}
             </div>
 
             <div style={{ flexShrink: 0 }}>
               <FileStatusBadge status={file.status} />
             </div>
+          </>
+        );
+
+        const title = isDirectory
+          ? `${file.path} (directory)`
+          : isDeleted
+            ? `${file.path} (deleted)`
+            : file.path;
+
+        if (selectable) {
+          return (
+            <label
+              key={key}
+              onMouseEnter={() => setHoveredFile(file.path)}
+              onMouseLeave={() => setHoveredFile(null)}
+              style={rowStyle}
+              title={title}
+            >
+              {inner}
+            </label>
+          );
+        }
+
+        return (
+          <div
+            key={key}
+            onClick={
+              openClickable && onOpen
+                ? () => onOpen(`${base}/${file.path}`, file.status)
+                : undefined
+            }
+            onMouseEnter={() => setHoveredFile(file.path)}
+            onMouseLeave={() => setHoveredFile(null)}
+            style={rowStyle}
+            title={openClickable ? `Click to open ${file.path}` : title}
+          >
+            {inner}
           </div>
         );
       })}

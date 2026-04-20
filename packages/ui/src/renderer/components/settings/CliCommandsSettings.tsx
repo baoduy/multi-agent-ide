@@ -2,6 +2,10 @@ import React, { useCallback, useEffect, useState } from "react";
 import { RotateCcw } from "lucide-react";
 
 import { CLI_TOOLS, type CliToolId } from "@magenta/shared/cliTools";
+import { colors } from "../../utils/colors";
+import { useConfigStore } from "../../store/configStore";
+import { AutoSaveStatus } from "../common/AutoSaveStatus";
+import { useTransientFlag } from "../../hooks/useTransientFlag";
 
 /**
  * CLI tools whose `upgradeCommand` the user can customise here. Specify is
@@ -9,10 +13,6 @@ import { CLI_TOOLS, type CliToolId } from "@magenta/shared/cliTools";
  * the Specify tab's `specifyCommand` template, not a standalone install.
  */
 const EDITABLE_CLI_IDS = ["claude", "copilot"] as const satisfies readonly CliToolId[];
-import { colors } from "../../utils/colors";
-import { useConfigStore } from "../../store/configStore";
-import { AutoSaveStatus } from "../common/AutoSaveStatus";
-import { useTransientFlag } from "../../hooks/useTransientFlag";
 
 /**
  * Per-CLI upgrade-command editor. Writes to `config.cliTools[id].upgradeCommand`;

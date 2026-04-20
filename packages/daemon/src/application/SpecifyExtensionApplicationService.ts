@@ -100,13 +100,15 @@ export class SpecifyExtensionApplicationService {
     if (!child) return;
     child.kill("SIGTERM");
     setTimeout(() => {
-      if (this.activeProcesses.get(repoPath) === child && !child.killed) {
+      if (this.activeProcesses.get(repoPath) !== child) return;
+      if (child.exitCode === null && child.signalCode === null) {
         try {
           child.kill("SIGKILL");
         } catch {
           // already dead
         }
       }
+      this.activeProcesses.delete(repoPath);
     }, 2_000);
   }
 

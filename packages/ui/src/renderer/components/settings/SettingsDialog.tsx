@@ -41,6 +41,9 @@ const TABS: readonly TabDef[] = [
   { id: "appearance", label: "Appearance", icon: Palette },
 ];
 
+const tabId = (id: TabId): string => `settings-tab-${id}`;
+const panelId = (id: TabId): string => `settings-panel-${id}`;
+
 /**
  * Settings dialog. Uses a left-side vertical tab list so each group gets its
  * own scrollable panel — keeps the dialog compact while holding many sections.
@@ -69,7 +72,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
     >
       <div style={{ display: "flex", gap: 14, height: "100%", minHeight: 0 }}>
         <SettingsTabList activeTab={activeTab} onSelect={setActiveTab} />
-        <SettingsPanel>
+        <SettingsPanel activeTab={activeTab}>
           {activeTab === "directories" && <DirectoriesPanel onError={setLocalError} />}
           {activeTab === "specify" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -109,6 +112,8 @@ function SettingsTabList({
 }): React.ReactElement {
   return (
     <nav
+      role="tablist"
+      aria-orientation="vertical"
       aria-label="Settings sections"
       style={{
         display: "flex",
@@ -127,8 +132,11 @@ function SettingsTabList({
           <button
             key={tab.id}
             type="button"
+            id={tabId(tab.id)}
             role="tab"
             aria-selected={isActive}
+            aria-controls={panelId(tab.id)}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => onSelect(tab.id)}
             style={{
               display: "flex",
@@ -161,9 +169,18 @@ function SettingsTabList({
   );
 }
 
-function SettingsPanel({ children }: { children: React.ReactNode }): React.ReactElement {
+function SettingsPanel({
+  activeTab,
+  children,
+}: {
+  activeTab: TabId;
+  children: React.ReactNode;
+}): React.ReactElement {
   return (
     <div
+      id={panelId(activeTab)}
+      role="tabpanel"
+      aria-labelledby={tabId(activeTab)}
       style={{
         flex: 1,
         minWidth: 0,

@@ -37,8 +37,13 @@ export function renderInline(text: string): React.ReactNode {
   // Links — [text](url)
   html = html.replace(
     /\[([^\]]+)\]\(([^)]+)\)/g,
-    (_m, label, url) =>
-      `<a href="${encodeURI(url)}" target="_blank" rel="noreferrer" class="nm-link">${label}</a>`,
+    (_m, label, url) => {
+      const normalized = String(url).trim().toLowerCase();
+      if (normalized.startsWith("javascript:") || normalized.startsWith("data:")) {
+        return label;
+      }
+      return `<a href="${encodeURI(url)}" target="_blank" rel="noreferrer" class="nm-link">${label}</a>`;
+    },
   );
 
   // Restore inline code slots with formatted HTML.

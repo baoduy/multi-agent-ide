@@ -17,6 +17,8 @@ function singleCopy(pkg) {
   return path.dirname(require.resolve(`${pkg}/package.json`));
 }
 
+const watchMode = process.argv.includes("--watch");
+
 const config = {
   entryPoints: [path.join(__dirname, "src/renderer/index.tsx")],
   bundle: true,
@@ -29,7 +31,7 @@ const config = {
     ".css": "text",
   },
   jsx: "automatic",
-  minify: true,
+  minify: !watchMode,
   define: {
     "process.env.NODE_ENV": '"production"',
   },
@@ -44,8 +46,6 @@ const config = {
     "@": path.join(__dirname, "src/renderer"),
   },
 };
-
-const watchMode = process.argv.includes("--watch");
 
 if (watchMode) {
   const ctx = await esbuild.context(config);

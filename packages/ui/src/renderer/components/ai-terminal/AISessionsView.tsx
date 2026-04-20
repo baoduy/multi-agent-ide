@@ -10,7 +10,7 @@ import { NewSessionDialog } from "../dialogs/NewSessionDialog";
 import { SearchSyncToolbar } from "../common/SearchSyncToolbar";
 import { colors } from "../../utils/colors";
 import { resolveWorktreeParent } from "../../utils/formatters";
-import { sendOrThrow } from "../../services/ipcClient";
+import { sendOrThrow, onEvent } from "../../services/ipcClient";
 import { SessionCoordinator } from "../../services/SessionCoordinator";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
@@ -92,34 +92,35 @@ export function AISessionsView({
     });
   }, [initializeSubscriptions, initSyncedSubscriptions, fetchSessions, fetchSyncedSessions, triggerSync]);
 
-  // Clear the refreshing spinner once the synced loading cycle completes.
-  // triggerSync is fire-and-forget; the syncedSessionStore auto-fetches
-  // when the daemon emits synced-session:sync:complete, which in turn
-  // toggles syncedIsLoading. We use that (plus a minimum spin time) to
-  // drive the UI state.
+  // Clear the refreshing spinner when the daemon emits sync:complete.
+  // triggerSync is fire-and-forget — the daemon enqueues the job and returns
+  // immediately. We listen for the completion event to know when to stop the
+  // spinner. A 15s safety net releases the spinner if the daemon never replies.
   useEffect(() => {
     if (!isRefreshing) return;
-    if (syncedIsLoading) return;
-    // Wait one tick to avoid flashing when the sync completes very fast
-    const timeout = setTimeout(() => setIsRefreshing(false), 300);
-    return () => clearTimeout(timeout);
-  }, [isRefreshing, syncedIsLoading]);
+    const off = onEvent("synced-session:sync:complete", () => {
+      setIsRefreshing(false);
+    });
+    const timeout = setTimeout(() => setIsRefreshing(false), 15_000);
+    return () => {
+      off();
+      clearTimeout(timeout);
+    };
+  }, [isRefreshing]);
 
   const handleRefresh = useCallback(async () => {
     if (isRefreshing) return;
-    if (!activeRepoPath) return; // Button is disabled in this state.
     setIsRefreshing(true);
     try {
-      await Promise.all([
-        triggerSync(activeRepoPath),
-        fetchSessions(),
-        fetchSyncedSessions(),
-      ]);
+      // Global sync: scans both Claude and Copilot and cleans up stale rows.
+      // The live AI session list is refreshed alongside since it isn't part
+      // of the sync job. Synced sessions auto-refresh on sync:complete.
+      await Promise.all([triggerSync(), fetchSessions()]);
     } catch (err) {
       console.error("[AISessionsView] Refresh failed:", err);
       setIsRefreshing(false);
     }
-  }, [isRefreshing, activeRepoPath, triggerSync, fetchSessions, fetchSyncedSessions]);
+  }, [isRefreshing, triggerSync, fetchSessions]);
 
   // ── Handlers ────────────────────────────────────────────────
 
@@ -298,9 +299,9 @@ export function AISessionsView({
         onSearchChange={setSearchQuery}
         onSync={handleRefresh}
         isSyncing={isRefreshing}
-        syncEnabled={!!activeRepoPath}
+        syncEnabled
         searchPlaceholder="Search sessions…"
-        syncTitle="Re-sync AI sessions for the selected repo"
+        syncTitle="Re-sync all AI sessions (Claude + Copilot)"
         syncAriaLabel="Sync AI sessions"
       />
       {/* Unified session tree grouped by repo/directory */}

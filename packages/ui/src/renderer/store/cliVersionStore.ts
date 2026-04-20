@@ -79,7 +79,11 @@ export const useCliVersionStore = create<CliVersionStoreState>((set, get) => ({
       },
     }));
     try {
-      await sendOrThrow({ type: "cli:upgrade", tool });
+      await sendOrThrow({
+        type: "cli:upgrade",
+        tool,
+        repoPath: get().sourceRepoPath ?? undefined,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       set((state) => ({

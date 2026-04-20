@@ -8,6 +8,7 @@ import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton } from "../common/DialogButtons";
 import { FormLabel, FormInput, FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 
 type StashDialogProps = {
   repoPath: string;
@@ -116,9 +117,9 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
                     <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: colors.textTertiary }}>
                       [{s.index}]
                     </span>
-                    <span style={{ fontSize: 11, fontWeight: 500, color: colors.text, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <ScrollableText style={{ fontSize: 11, fontWeight: 500, color: colors.text, flex: 1 }}>
                       {s.message}
-                    </span>
+                    </ScrollableText>
                   </div>
                   <div style={{ display: "flex", gap: 4 }}>
                     <MiniButton onClick={() => void runAction("apply", s.index)} busy={busy === `apply:${s.index}`}>Apply</MiniButton>

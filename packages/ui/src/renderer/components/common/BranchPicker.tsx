@@ -3,6 +3,7 @@ import { ChevronDown, GitBranch } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { BranchRow } from "./BranchRow";
+import { ScrollableText } from "./ScrollableText";
 
 /* ══════════════════════════════════════════
  * BranchPicker — consistent branch dropdown with icons + search.
@@ -97,9 +98,9 @@ function BranchPickerComponent({
         }}
       >
         <GitBranch size={13} color={colors.textMuted} strokeWidth={1.8} style={{ flexShrink: 0 }} />
-        <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <ScrollableText style={{ flex: 1 }}>
           {value || placeholder}
-        </span>
+        </ScrollableText>
         <ChevronDown
           size={14}
           color={colors.textTertiary}

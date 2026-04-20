@@ -67,7 +67,7 @@ Upper layers may call lower layers. **Never the reverse.**
 - `GitGateway` — worktree operations (create, list, gitignore management).
 - `FileSystemGateway` — file read/write/list with `AppError` wrapping.
 - `SpecGitGateway` — git commands for spec access (branches, file reading).
-- Mappers (`infrastructure/mappers/`) — centralize SQLite row ↔ model conversion (boolean 0/1, snake_case ↔ camelCase).
+- Mappers (`infrastructure/mappers/`) — centralize any persistence ↔ model conversion helpers (e.g. legacy SyncedSession and Worktree mapper shapes).
 
 ### Composition Root
 
@@ -150,7 +150,6 @@ Do **not** add individual `updateX()` methods to sessionStore.
 | Manual `if (response.type === 'error')` in UI | Use `sendOrThrow()` which throws `IpcError` |
 | Adding `updateSpecificField()` to sessionStore | Use `patchSession({ field: value })` |
 | Constructing services inside other services | Wire dependencies in `DaemonContainer` |
-| Boolean columns stored as `true`/`false` in SQLite | Use mappers (`repoMapper`, `sessionMapper`) for 0/1 ↔ boolean |
 
 ---
 
@@ -183,4 +182,9 @@ When adding a new feature, verify these locations:
 
 ## Tech Stack Reference
 
-Electron 30 · React 19 · Vite · shadcn/ui · Tailwind CSS v4 · Zustand · CodeMirror 6 · Node.js 22 · SQLite (sql.js WASM) + Drizzle ORM · simple-git · Zod · Vitest · Playwright · electron-builder
+Electron 30 · React 19 · Vite · shadcn/ui · Tailwind CSS v4 · Zustand · CodeMirror 6 · Node.js 22 · LMDB (embedded, memory-mapped key-value store) · simple-git · Zod · Vitest · Playwright · electron-builder
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

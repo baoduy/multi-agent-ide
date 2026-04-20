@@ -4,6 +4,7 @@ import { FileDiff, GitMerge, Loader2, RefreshCw } from "lucide-react";
 import type { CommitSummary } from "@magenta/shared/ipc";
 import { colors } from "../../utils/colors";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { ScrollableText } from "../common/ScrollableText";
 import { useGitHistoryStore, historyKey } from "../../store/gitHistoryStore";
 import { layoutCommitGraph, laneColor, type GraphRow } from "./commitGraphLayout";
 
@@ -413,21 +414,18 @@ function CommitRowView({
           {commit.refs.map((ref) => (
             <RefChip key={ref} ref_={ref} />
           ))}
-          <span
+          <ScrollableText
             style={{
               fontSize: 11,
               fontWeight: 500,
               color: colors.text,
               flex: 1,
               minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
             }}
             title={commit.subject}
           >
             {commit.subject}
-          </span>
+          </ScrollableText>
         </div>
         <div
           style={{
@@ -451,9 +449,9 @@ function CommitRowView({
           >
             {authorInitials(commit.authorName)}
           </span>
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140 }}>
+          <ScrollableText style={{ maxWidth: 140 }}>
             {commit.authorName}
-          </span>
+          </ScrollableText>
           <span>· {relativeTime(commit.timestamp)}</span>
           <span style={{ fontFamily: "var(--font-mono)", color: colors.textTertiary, marginLeft: "auto" }}>
             {commit.shortSha}
@@ -474,7 +472,7 @@ function RefChip({ ref_ }: { ref_: string }): React.ReactElement {
   const Icon = isTag ? FileDiff : null; // keep simple; a dedicated tag icon could be added later
 
   return (
-    <span
+    <ScrollableText
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -489,14 +487,11 @@ function RefChip({ ref_ }: { ref_: string }): React.ReactElement {
         borderRadius: 3,
         flexShrink: 0,
         maxWidth: 140,
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
       }}
       title={ref_}
     >
       {Icon && <Icon size={8} strokeWidth={2} />}
       {label}
-    </span>
+    </ScrollableText>
   );
 }

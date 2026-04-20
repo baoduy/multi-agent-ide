@@ -18,21 +18,20 @@
     "test:e2e:headed": "pnpm build && pnpm -C packages/e2e test:headed",
     "test:e2e:debug": "pnpm build && pnpm -C packages/e2e test:debug",
     "debug:launch": "pnpm build && pnpm -C packages/e2e debug:launch",
-    "update": "npx npm-check-updates -u && pnpm install && pnpm -r update",
+    "update": "npx npm-check-updates -u --workspaces --root && pnpm install",
     "pack": "pnpm build && pnpm exec electron-builder --dir",
     "dist": "pnpm build && pnpm exec electron-builder",
     "dist:mac": "pnpm build && pnpm exec electron-builder --mac",
     "dist:win": "pnpm build && pnpm exec electron-builder --win",
     "dist:linux": "pnpm build && pnpm exec electron-builder --linux",
     "release": "pnpm build && pnpm exec electron-builder --publish always",
-    "postinstall": "electron-rebuild -f -w node-pty"
+    "postinstall": "electron-rebuild -f -w node-pty,lmdb"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@types/sql.js": "^1.4.11",
     "electron": "41.2.1",
     "electron-builder": "26.8.1",
     "esbuild": "^0.28.0",

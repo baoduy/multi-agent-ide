@@ -28,6 +28,8 @@ export const DEFAULT_LAYOUT: LayoutTree = {
       { viewId: "specs", expanded: true, size: 220 },
       { viewId: "md-file-tree", expanded: true, size: 400 },
       { viewId: "git-repos", expanded: true, size: 600 },
+      { viewId: "extensions-nav", expanded: true, size: 200 },
+      { viewId: "extensions-summary", expanded: true, size: 160 },
     ],
   },
   right: {
@@ -36,6 +38,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
     sections: [
       { viewId: "spec-files", expanded: true, size: 200 },
       { viewId: "repo-changes", expanded: true, size: 200 },
+      { viewId: "extensions-inspector", expanded: true, size: 300 },
     ],
   },
   bottom: {
@@ -92,6 +95,16 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         ],
         hidesPinnedMain: true,
         defaultCenterViewId: "git-changes-center",
+      },
+      {
+        id: "extensions",
+        title: "Extensions",
+        iconViewId: "extensions-nav",
+        viewIds: ["extensions-nav", "extensions-summary"],
+        rightViewIds: ["extensions-inspector"],
+        ownedCenterViewIds: ["extensions-browser"],
+        hidesPinnedMain: true,
+        defaultCenterViewId: "extensions-browser",
       },
     ],
     activeGroupId: "explorer",
@@ -554,6 +567,29 @@ function loadPersistedLayout(): LayoutTree | null {
     if (mdGroup && !mdGroup.ownedCenterViewIds) {
       mdGroup.ownedCenterViewIds = ["file-viewer"];
       mdGroup.hidesPinnedMain = true;
+    }
+
+    // ── Migration: add Extensions Manager group if missing ──
+    if (!parsed.activityBar.groups.some((g: ActivityBarGroup) => g.id === "extensions")) {
+      parsed.activityBar.groups.push({
+        id: "extensions",
+        title: "Extensions",
+        iconViewId: "extensions-nav",
+        viewIds: ["extensions-nav", "extensions-summary"],
+        rightViewIds: ["extensions-inspector"],
+        ownedCenterViewIds: ["extensions-browser"],
+        hidesPinnedMain: true,
+        defaultCenterViewId: "extensions-browser",
+      });
+    }
+    if (!parsed.left.sections.some((s: SectionState) => s.viewId === "extensions-nav")) {
+      parsed.left.sections.push({ viewId: "extensions-nav", expanded: true, size: 200 });
+    }
+    if (!parsed.left.sections.some((s: SectionState) => s.viewId === "extensions-summary")) {
+      parsed.left.sections.push({ viewId: "extensions-summary", expanded: true, size: 160 });
+    }
+    if (!parsed.right.sections.some((s: SectionState) => s.viewId === "extensions-inspector")) {
+      parsed.right.sections.push({ viewId: "extensions-inspector", expanded: true, size: 300 });
     }
 
     // ── Migration: drop left-sidebar git-file-tree, git-changes, git-branches,

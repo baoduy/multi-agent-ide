@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Eye, FileCode, Check, ChevronDown, Clipboard } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 import { ipc } from "../../utils/ipc";
 import { sendOrThrow } from "../../services/ipcClient";
@@ -33,90 +34,10 @@ type FileViewerProps = {
    Small UI primitives
    ───────────────────────────────────────────── */
 
-function ViewModeToggle({
-  mode,
-  onChange,
-  canEdit,
-}: {
-  mode: ViewMode;
-  onChange: (mode: ViewMode) => void;
-  canEdit: boolean;
-}): React.ReactElement {
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        borderRadius: 6,
-        border: `1px solid ${colors.border}`,
-        overflow: "hidden",
-        background: colors.bgMuted,
-      }}
-    >
-      <ToggleBtn
-        active={mode === "preview"}
-        onClick={() => onChange("preview")}
-        title="Preview"
-      >
-        <Eye size={13} strokeWidth={1.8} />
-        <span>Preview</span>
-      </ToggleBtn>
-      {canEdit && (
-        <ToggleBtn
-          active={mode === "edit"}
-          onClick={() => onChange("edit")}
-          title="Edit"
-        >
-          <FileCode size={13} strokeWidth={1.8} />
-          <span>Edit</span>
-        </ToggleBtn>
-      )}
-    </div>
-  );
-}
-
-function ToggleBtn({
-  active,
-  onClick,
-  title,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  title: string;
-  children: React.ReactNode;
-}): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <button
-      type="button"
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 4,
-        padding: "3px 8px",
-        fontSize: 11,
-        fontWeight: active ? 600 : 400,
-        color: active ? colors.primary : hovered ? colors.textMuted : colors.textTertiary,
-        background: active ? colors.dialogBg : "transparent",
-        border: "none",
-        cursor: "pointer",
-        transition: "all 0.12s",
-        fontFamily: "inherit",
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 /**
  * Trailing chevron button for the ApproveButton split-button group.
- * Opens a ContextMenu anchored below the button with the Copy action.
+ * Opens a ContextMenu anchored below the button with view-mode toggles
+ * (Preview / Edit) and the Copy action.
  * Visually fuses with the ApproveButton — uses solid green while approval is
  * pending and muted-green once the file has been approved, matching the main
  * button's visual state on either side of the seam.
@@ -124,9 +45,15 @@ function ToggleBtn({
 function ApproveActionsChevron({
   content,
   approved,
+  viewMode,
+  onViewModeChange,
+  canEdit,
 }: {
   content: string;
   approved: boolean;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  canEdit: boolean;
 }): React.ReactElement {
   const [menuPos, setMenuPos] = useState<ContextMenuPosition | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -157,18 +84,37 @@ function ApproveActionsChevron({
     ? `1px solid ${colors.successSoftBorder}`
     : `1px solid color-mix(in srgb, ${colors.primaryForeground} 25%, transparent)`;
 
+  const items = [
+    {
+      label: "Preview",
+      Icon: (viewMode === "preview" ? Check : Eye) as LucideIcon,
+      iconColor: viewMode === "preview" ? colors.primary : undefined,
+      action: () => onViewModeChange("preview"),
+    },
+    ...(canEdit
+      ? [
+          {
+            label: "Edit",
+            Icon: (viewMode === "edit" ? Check : FileCode) as LucideIcon,
+            iconColor: viewMode === "edit" ? colors.primary : undefined,
+            action: () => onViewModeChange("edit"),
+          },
+        ]
+      : []),
+    {
+      label: copied ? "Copied!" : "Copy content",
+      Icon: (copied ? Check : Clipboard) as LucideIcon,
+      separator: true,
+      action: handleCopy,
+    },
+  ];
+
   return (
     <>
     {menuPos && (
         <ContextMenu
           position={menuPos}
-          items={[
-            {
-              label: copied ? "Copied!" : "Copy content",
-              Icon: copied ? Check : Clipboard,
-              action: handleCopy,
-            },
-          ]}
+          items={items}
           onClose={() => setMenuPos(null)}
         />
       )}
@@ -385,28 +331,24 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                 read-only
               </span>
             )}
-            {viewMode === "preview" && (
-              <ApproveButton
-                filePath={filePath}
-                content={displayContent}
-                repoPath={repoPath}
-                onApproved={(newContent) => {
-                  setContent(newContent);
-                  setEditedContent(newContent);
-                  editorRef.current?.setMarkdown(newContent);
-                }}
-                rightSlot={
-                  <ApproveActionsChevron
-                    content={displayContent}
-                    approved={/\*\*Approved by:\*\*/.test(displayContent)}
-                  />
-                }
-              />
-            )}
-            <ViewModeToggle
-              mode={viewMode}
-              onChange={handleViewModeChange}
-              canEdit={canEdit}
+            <ApproveButton
+              filePath={filePath}
+              content={displayContent}
+              repoPath={repoPath}
+              onApproved={(newContent) => {
+                setContent(newContent);
+                setEditedContent(newContent);
+                editorRef.current?.setMarkdown(newContent);
+              }}
+              rightSlot={
+                <ApproveActionsChevron
+                  content={displayContent}
+                  approved={/\*\*Approved by:\*\*/.test(displayContent)}
+                  viewMode={viewMode}
+                  onViewModeChange={handleViewModeChange}
+                  canEdit={canEdit}
+                />
+              }
             />
           </div>
         </div>

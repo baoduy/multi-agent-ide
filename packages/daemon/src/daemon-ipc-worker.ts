@@ -40,6 +40,7 @@ import { SpecReader } from "./services/SpecReader";
 import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
+import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensionApplicationService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -125,9 +126,9 @@ async function gracefulShutdown(reason: string): Promise<void> {
 
     // 3. Flush and close database
     if (shutdownServices.databaseService) {
-      console.log("[daemon-worker] Flushing and closing database...");
+      console.log("[daemon-worker] Closing LMDB database...");
       shutdownServices.databaseService.flush();
-      shutdownServices.databaseService.close();
+      await shutdownServices.databaseService.close();
     }
 
     console.log("[daemon-worker] Graceful shutdown complete");
@@ -147,8 +148,9 @@ async function main() {
   console.log("[daemon-worker] Starting...");
 
   try {
-    // Bootstrap services (DatabaseService.create() is async because sql.js WASM init is async)
-    console.log("[daemon-worker] Initializing DatabaseService (sql.js WASM)...");
+    // Bootstrap services. DatabaseService.create() is async (LMDB cache-
+    // schema check performs an awaited transaction).
+    console.log("[daemon-worker] Initializing DatabaseService (LMDB)...");
     const databaseService = await DatabaseService.create();
     console.log("[daemon-worker] DatabaseService ready");
 
@@ -248,10 +250,16 @@ async function main() {
     // upgrade dialog; no background cadence.
     const githubReleasesGateway = new GitHubReleasesGateway();
     const npmRegistryGateway = new NpmRegistryGateway();
+    const specifyExtensionService = new SpecifyExtensionApplicationService(
+      configManager,
+      githubReleasesGateway,
+    );
     const cliVersionService = new CliVersionApplicationService(
       ipcBridge,
       githubReleasesGateway,
       npmRegistryGateway,
+      configManager,
+      specifyExtensionService,
     );
 
     // Store references for graceful shutdown
@@ -274,6 +282,7 @@ async function main() {
       specGitGateway,
       specReader,
       cliVersionService,
+      specifyExtensionService,
       gitBatchGateway,
       gitRepoWatcher,
       logCache,

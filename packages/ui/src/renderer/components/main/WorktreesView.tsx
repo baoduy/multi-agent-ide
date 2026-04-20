@@ -1,19 +1,18 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { GitBranch, Clock, ChevronRight, ChevronDown } from "lucide-react";
+import { GitBranch, Clock } from "lucide-react";
 import type { Repository } from "@magenta/shared/models";
 
 import { useWorktreeStore, type WorktreeInfo } from "../../store/worktreeStore";
 import { useRepoStore } from "../../store/repoStore";
 import { onEvent } from "../../services/ipcClient";
-import { ScrollableText } from "../common/ScrollableText";
-import { RepoLabel, BranchLabel } from "../common/RepoLabel";
 import { SearchSyncToolbar } from "../common/SearchSyncToolbar";
 import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
 import { colors } from "../../utils/colors";
+import { TreeRepoHeader } from "../common/TreeRepoHeader";
+import { TreeBranchRow } from "../common/TreeBranchRow";
 import { Tag } from "../common/Tag";
 import { useDensityTokens } from "../../hooks/useComponentSize";
 import { formatRelativeTime } from "../../utils/formatters";
-import { getRepoBadge } from "../../utils/repoBadge";
 
 type WorktreesViewProps = {
   repoName: string | null;
@@ -22,90 +21,7 @@ type WorktreesViewProps = {
 };
 
 /* ══════════════════════════════════════════
- * Level-1 repo group header — matches UnifiedSessionTree.RepoGroupHeader
- * ══════════════════════════════════════════ */
-
-type WorktreeRepoGroupHeaderProps = {
-  repo: Repository | null;
-  /** Fallback name when the repo is no longer in the repo store. */
-  fallbackName: string;
-  repoPath: string;
-  worktreeCount: number;
-  isActive: boolean;
-  expanded: boolean;
-  onToggle: () => void;
-};
-
-const WorktreeRepoGroupHeader = React.memo(function WorktreeRepoGroupHeader({
-  repo,
-  fallbackName,
-  repoPath,
-  worktreeCount,
-  isActive,
-  expanded,
-  onToggle,
-}: WorktreeRepoGroupHeaderProps): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const d = useDensityTokens();
-  const badge = repo ? getRepoBadge(repo) : null;
-
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: d.rowGap,
-        padding: `${d.rowPadY}px ${d.rowPadX}px`,
-        borderBottom: `1px solid ${colors.border}`,
-        background: hovered ? colors.bgHover : "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background 0.12s",
-      }}
-    >
-      {expanded ? (
-        <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      ) : (
-        <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      )}
-
-      <RepoLabel
-        name={repo?.name ?? fallbackName}
-        repoPath={repoPath}
-        size="md"
-        boxed
-        uppercase
-        style={{ flex: 1, minWidth: 0 }}
-      >
-        {badge && (
-          <Tag tone={badge.tone} fontWeight={500}>
-            {badge.label}
-          </Tag>
-        )}
-        {repo?.branch && <BranchLabel name={repo.branch} />}
-      </RepoLabel>
-
-      {isActive && (
-        <Tag tone="primary" uppercase padding="2px 6px" borderRadius={4}>
-          Active
-        </Tag>
-      )}
-
-      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-        {worktreeCount}
-      </Tag>
-    </button>
-  );
-});
-
-/* ══════════════════════════════════════════
- * Level-2 worktree row — compact clickable row (matches SyncedSessionRow)
+ * Level-2 worktree row — thin wrapper over the shared TreeBranchRow.
  * ══════════════════════════════════════════ */
 
 type WorktreeRowProps = {
@@ -123,73 +39,25 @@ const WorktreeRow = React.memo(function WorktreeRow({
   onOpenFile,
   onDeleted,
 }: WorktreeRowProps): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
   const d = useDensityTokens();
 
   const handleToggle = useCallback(() => onToggle(wt.worktreePath), [onToggle, wt.worktreePath]);
   const handleDeleted = useCallback(() => onDeleted(wt.worktreePath), [onDeleted, wt.worktreePath]);
 
-  const rowPadLeft = d.indentStep;
-  const pathTail = wt.worktreePath.split("/").slice(-2).join("/");
+  // A worktree's name, branch, and path-tail are often derived from the same
+  // identifier. Pick a single primary label (branch if available, else name)
+  // and only show the secondary label when it adds new information.
+  const primaryLabel = wt.branch || wt.name;
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={handleToggle}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: d.rowGap,
-          padding: `${d.rowPadY}px ${d.rowPadX}px ${d.rowPadY}px ${rowPadLeft}px`,
-          borderBottom: `1px solid ${colors.borderLight}`,
-          background: isExpanded
-            ? colors.bgPanelSoft
-            : hovered
-              ? colors.bgHover
-              : "transparent",
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-          transition: "background 0.12s",
-        }}
-      >
-        {isExpanded ? (
-          <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-        ) : (
-          <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-        )}
-
-        <GitBranch
-          size={d.iconMd}
-          color={colors.primary}
-          strokeWidth={1.8}
-          style={{ flexShrink: 0 }}
-        />
-
-        <ScrollableText
-          style={{
-            fontSize: d.font,
-            fontWeight: 500,
-            color: isExpanded ? colors.primary : colors.textStrong,
-            minWidth: 0,
-            flex: 1,
-          }}
-        >
-          {wt.name}
-        </ScrollableText>
-
-        {wt.branch && wt.branch !== wt.name && (
-          <BranchLabel
-            name={wt.branch}
-            badge={false}
-            style={{ color: colors.textTertiary, flexShrink: 0 }}
-          />
-        )}
-
+    <TreeBranchRow
+      name={primaryLabel}
+      secondaryName={wt.name}
+      expanded={isExpanded}
+      onToggle={handleToggle}
+      title={wt.worktreePath}
+      highlightWhenExpanded
+      rightSlot={
         <span
           style={{
             display: "inline-flex",
@@ -203,41 +71,14 @@ const WorktreeRow = React.memo(function WorktreeRow({
           <Clock size={d.iconSm} strokeWidth={1.5} />
           {formatRelativeTime(wt.createdAt)}
         </span>
-
-        <span
-          title={wt.worktreePath}
-          style={{
-            fontSize: d.smallFont,
-            color: colors.textTertiary,
-            fontFamily: "var(--font-mono)",
-            maxWidth: 180,
-            flexShrink: 0,
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {pathTail}
-        </span>
-      </button>
-
-      {isExpanded && (
-        <div
-          style={{
-            marginLeft: rowPadLeft,
-            borderLeft: `2px solid ${colors.primary}`,
-            background: colors.bgPanelSoft,
-          }}
-        >
-          <WorktreeInlinePanel
-            worktree={wt}
-            onOpenFile={onOpenFile}
-            onDeleted={handleDeleted}
-          />
-        </div>
-      )}
-    </div>
+      }
+    >
+      <WorktreeInlinePanel
+        worktree={wt}
+        onOpenFile={onOpenFile}
+        onDeleted={handleDeleted}
+      />
+    </TreeBranchRow>
   );
 });
 
@@ -418,14 +259,18 @@ export function WorktreesView({ onOpenFile }: WorktreesViewProps): React.ReactEl
 
           return (
             <div key={repoPath} ref={isActive ? activeGroupRef : undefined}>
-              <WorktreeRepoGroupHeader
+              <TreeRepoHeader
                 repo={repo}
                 fallbackName={fallbackName}
                 repoPath={repoPath}
-                worktreeCount={wts.length}
-                isActive={isActive}
                 expanded={isExpanded}
                 onToggle={() => handleToggleRepo(repoPath)}
+                count={wts.length}
+                badgeSlot={
+                  isActive ? (
+                    <Tag size="chip" tone="active">active</Tag>
+                  ) : undefined
+                }
               />
 
               {isExpanded &&

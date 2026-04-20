@@ -11,6 +11,7 @@ import {
   FolderGit2,
   FileText,
   GitBranch,
+  GitGraph,
   GitCompareArrows,
   GitCommit,
   Workflow,
@@ -21,6 +22,10 @@ import {
   ScrollText,
   BookText,
   ToolCase,
+  Boxes,
+  LayoutGrid,
+  SquareCheckBig,
+  Info,
 } from "lucide-react";
 import { viewRegistry } from "./ViewRegistry";
 
@@ -44,6 +49,10 @@ import { useSpecStore } from "../../store/specStore";
 import { colors } from "../../utils/colors";
 import { GitChangesView } from "../git/GitChangesView";
 import { CommitComposerTab } from "../git/CommitComposerTab";
+import { ExtensionsNavView } from "../extensions/ExtensionsNavView";
+import { ExtensionsSummaryView } from "../extensions/ExtensionsSummaryView";
+import { ExtensionsBrowserView } from "../extensions/ExtensionsBrowserView";
+import { ExtensionInspectorView } from "../extensions/ExtensionInspectorView";
 
 /**
  * Thin wrapper components that adapt existing panels to the DockView system.
@@ -387,7 +396,7 @@ export function registerAllViews(): void {
   viewRegistry.register({
     id: "git-changes-center",
     title: "Changes",
-    icon: <GitBranch size={14} strokeWidth={1.8} />,
+    icon: <GitGraph size={14} strokeWidth={1.8} />,
     component: GitChangesCenterView,
     defaultLocation: "center",
     closable: false,
@@ -520,6 +529,50 @@ export function registerAllViews(): void {
     defaultLocation: "center",
     canHaveMultiple: true,
     closable: true,
+    keepAlive: true,
+  });
+
+  // ── Extensions Manager views (mockup phase) ──
+
+  viewRegistry.register({
+    id: "extensions-nav",
+    title: "Scope",
+    icon: <Boxes size={20} strokeWidth={1.5} />,
+    component: ExtensionsNavView,
+    defaultLocation: "left",
+    closable: false,
+    keepAlive: true,
+    activityGroup: "primary",
+    activityOrder: 30,
+  });
+
+  viewRegistry.register({
+    id: "extensions-summary",
+    title: "Summary",
+    icon: <LayoutGrid size={14} strokeWidth={1.5} />,
+    component: ExtensionsSummaryView,
+    defaultLocation: "left",
+    closable: false,
+    keepAlive: true,
+  });
+
+  viewRegistry.register({
+    id: "extensions-browser",
+    title: "Extensions",
+    icon: <SquareCheckBig size={14} strokeWidth={1.8} />,
+    component: ExtensionsBrowserView,
+    defaultLocation: "center",
+    closable: false,
+    keepAlive: true,
+  });
+
+  viewRegistry.register({
+    id: "extensions-inspector",
+    title: "Inspector",
+    icon: <Info size={14} strokeWidth={1.5} />,
+    component: ExtensionInspectorView,
+    defaultLocation: "right",
+    closable: false,
     keepAlive: true,
   });
 

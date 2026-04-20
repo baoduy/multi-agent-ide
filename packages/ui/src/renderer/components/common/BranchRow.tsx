@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Check, GitBranch, GitFork, type LucideIcon } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { ScrollableText } from "./ScrollableText";
 
 /* ══════════════════════════════════════════
  * BranchRow — standard selectable row for a branch or worktree.
@@ -112,9 +113,9 @@ function BranchRowComponent({
       />
 
       {/* Name takes remaining space */}
-      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <ScrollableText style={{ flex: 1, minWidth: 0 }}>
         {name}
-      </span>
+      </ScrollableText>
 
       {/* Trailing: caller-supplied meta OR a checkmark for current */}
       {trailing ?? (isCurrent && (

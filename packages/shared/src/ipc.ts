@@ -274,7 +274,13 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // detect Specify's current version from `<repo>/.specify/init-options.json`.
   z.object({ type: z.literal("cli:get-version-status"), repoPath: z.string().optional() }),
   z.object({ type: z.literal("cli:recheck"), repoPath: z.string().optional() }),
-  z.object({ type: z.literal("cli:upgrade"), tool: CliToolIdSchema }),
+  z.object({
+    type: z.literal("cli:upgrade"),
+    tool: CliToolIdSchema,
+    // Required when `tool` is "specify": the repo whose `.specify/` template
+    // should be refreshed. Ignored for other tools.
+    repoPath: z.string().optional(),
+  }),
   z.object({ type: z.literal("cli:upgrade:cancel"), tool: CliToolIdSchema }),
 ]);
 

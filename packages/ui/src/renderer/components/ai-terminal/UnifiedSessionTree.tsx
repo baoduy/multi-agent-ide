@@ -7,6 +7,7 @@ import {
   Pin,
   PinOff,
   Archive,
+  GitBranch,
 } from "lucide-react";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SyncedSessionRecord } from "@magenta/shared/syncedSession";
@@ -14,6 +15,8 @@ import type { Repository } from "@magenta/shared/models";
 import { AISessionListItem } from "./AISessionListItem";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
+import { TreeRepoHeader } from "../common/TreeRepoHeader";
+import { TreeBranchRow } from "../common/TreeBranchRow";
 import {
   ContextMenu,
   useContextMenu,
@@ -77,10 +80,7 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
   onToggle,
   onCreateSession,
 }: RepoGroupHeaderProps): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const badge = getRepoBadge(repo);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
-  const d = useDensityTokens();
 
   const contextMenuItems = useMemo<ContextMenuAction[]>(() => [
     {
@@ -94,60 +94,15 @@ const RepoGroupHeader = React.memo(function RepoGroupHeader({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={onToggle}
+      <TreeRepoHeader
+        repo={repo}
+        repoPath={repo.path}
+        expanded={expanded}
+        onToggle={onToggle}
         onContextMenu={openContextMenu}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: d.rowGap,
-          padding: `${d.rowPadY}px ${d.rowPadX}px`,
-          borderBottom: `1px solid ${colors.border}`,
-          background: hovered ? colors.bgHover : "transparent",
-          border: "none",
-          cursor: "pointer",
-          textAlign: "left",
-          transition: "background 0.12s",
-        }}
-      >
-        {/* Chevron */}
-        {expanded ? (
-          <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-        ) : (
-          <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-        )}
-
-        <RepoLabel
-          name={repo.name}
-          repoPath={repo.path}
-          size="md"
-          boxed
-          uppercase
-          style={{ flex: 1, minWidth: 0 }}
-        >
-          <Tag tone={badge.tone} fontWeight={500}>
-            {badge.label}
-          </Tag>
-          <BranchLabel name={repo.branch} />
-        </RepoLabel>
-
-        {/* Active indicator */}
-        {activeCount > 0 && (
-          <Tag tone="success" fontWeight={700}>
-            {activeCount} active
-          </Tag>
-        )}
-
-        {/* Total session count — borderless muted chip */}
-        <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-          {totalCount}
-        </Tag>
-      </button>
-
+        activeCount={activeCount}
+        count={totalCount}
+      />
       {contextMenu && (
         <ContextMenu
           position={contextMenu}
@@ -225,15 +180,11 @@ const WorkspaceGroupHeader = React.memo(function WorkspaceGroupHeader({
 
       {/* Active indicator */}
       {activeCount > 0 && (
-        <Tag tone="success" fontWeight={700}>
-          {activeCount} active
-        </Tag>
+        <Tag size="chip" tone="active">{activeCount} active</Tag>
       )}
 
-      {/* Total session count — borderless muted chip */}
-      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-        {totalCount}
-      </Tag>
+      {/* Total session count */}
+      <Tag size="chip" tone="neutral">{totalCount}</Tag>
 
       {/* Latest time */}
       {latestTimestamp > 0 && (
@@ -260,66 +211,13 @@ const BranchGroupHeader = React.memo(function BranchGroupHeader({
   expanded,
   onToggle,
 }: BranchGroupHeaderProps): React.ReactElement {
-  const [hovered, setHovered] = useState(false);
-  const d = useDensityTokens();
-
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: d.tightGap,
-        padding: `${d.rowPadY}px ${d.rowPadX}px ${d.rowPadY}px ${d.indentStep}px`,
-        borderBottom: `1px solid ${colors.borderLight}`,
-        background: hovered ? colors.bgHover : "transparent",
-        border: "none",
-        cursor: "pointer",
-        textAlign: "left",
-        transition: "background 0.12s",
-      }}
-    >
-      {/* Chevron */}
-      {expanded ? (
-        <ChevronDown size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      ) : (
-        <ChevronRight size={d.iconMd} color={colors.textTertiary} style={{ flexShrink: 0 }} />
-      )}
-
-      {/* Branch name — plain icon + text, same size as repo label */}
-      <BranchLabel name={branchName} size="md" badge={false} style={{ flex: 1, minWidth: 0 }} />
-
-      {/* Session count */}
-      <Tag tone="neutral" fontSize={d.smallFont} borderColor={null}>
-        {sessionCount}
-      </Tag>
-    </button>
-  );
-});
-
-/* ── Activity badge for synced sessions ── */
-
-type ActivityBadgeProps = {
-  activity: SyncedSessionRecord["activity"];
-};
-
-const ActivityBadge = React.memo(function ActivityBadge({
-  activity,
-}: ActivityBadgeProps): React.ReactElement | null {
-  // Only surface the badge when the agent is actively producing output.
-  // `idle` and `completed` are both resting states from the user's
-  // perspective — no badge avoids the row turning into a wall of yellow
-  // pills for every historic conversation.
-  if (activity !== "processing") return null;
-
-  return (
-    <Tag tone="success" dot title="Agent is currently producing output">
-      Processing
-    </Tag>
+    <TreeBranchRow
+      name={branchName}
+      expanded={expanded}
+      onToggle={onToggle}
+      rightSlot={<Tag size="chip" tone="neutral">{sessionCount}</Tag>}
+    />
   );
 });
 
@@ -512,8 +410,18 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
         {timeDisplay}
       </span>
 
-      {/* Live activity badge — processing / idle. Completed sessions show no badge. */}
-      <ActivityBadge activity={session.activity} />
+      {/* Live activity badge — only shown while the agent is producing output.
+          `idle` / `completed` are resting states, no badge. */}
+      {session.activity === "processing" && (
+        <Tag
+          size="chip"
+          tone="success"
+          dot
+          title="Agent is currently producing output"
+        >
+          Processing
+        </Tag>
+      )}
     </button>
     {contextMenu && (
       <ContextMenu

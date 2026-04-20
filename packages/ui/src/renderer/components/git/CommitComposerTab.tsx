@@ -4,25 +4,14 @@ import { GitCommit, Upload, Loader2, RefreshCw } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { FormTextarea, FormError, SectionHeader } from "../common/FormControls";
 import { InlineLoadingRow } from "../common/InlineLoadingRow";
+import { FileChangesList } from "../common/FileChangesList";
 import { useCommitComposer, fileKey } from "./useCommitComposer";
-import type { GitFileStatus } from "@magenta/shared/ipc";
 
 type CommitComposerTabProps = {
   repoPath?: string;
 };
 
 const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
-
-function statusLetter(s: GitFileStatus["status"]): { letter: string; color: string } {
-  switch (s) {
-    case "modified": return { letter: "M", color: colors.warningText };
-    case "added": return { letter: "A", color: colors.success };
-    case "deleted": return { letter: "D", color: colors.error };
-    case "renamed": return { letter: "R", color: colors.info };
-    case "untracked": return { letter: "U", color: colors.textTertiary };
-    case "conflicted": return { letter: "C", color: colors.error };
-  }
-}
 
 export function CommitComposerTab({ repoPath }: CommitComposerTabProps): React.ReactElement {
   if (!repoPath) {
@@ -134,36 +123,13 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
                 >
                   {group.title}
                 </div>
-                {group.files.map((f) => {
-                  const key = fileKey(f);
-                  const isSelected = c.selected.has(key);
-                  const s = statusLetter(f.status);
-                  return (
-                    <label
-                      key={key}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        padding: "4px 8px", borderRadius: 4, cursor: "pointer",
-                        fontSize: 11, fontFamily: "var(--font-mono)", color: colors.text,
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = colors.bgHover; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => c.toggleFile(key)}
-                        style={{ accentColor: colors.primary, flexShrink: 0, cursor: "pointer" }}
-                      />
-                      <span style={{ width: 18, textAlign: "center", fontSize: 10, fontWeight: 700, color: s.color, flexShrink: 0 }}>
-                        {s.letter}
-                      </span>
-                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {f.oldPath ? `${f.oldPath} → ${f.path}` : f.path}
-                      </span>
-                    </label>
-                  );
-                })}
+                <FileChangesList
+                  files={group.files}
+                  basePath={repoPath}
+                  selectedKeys={c.selected}
+                  onToggleSelect={c.toggleFile}
+                  keyOf={fileKey}
+                />
               </div>
             ))
           )}

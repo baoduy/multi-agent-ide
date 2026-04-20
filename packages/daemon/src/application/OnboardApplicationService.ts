@@ -7,6 +7,7 @@ import type { ConfigManager } from "../config/ConfigManager";
 import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
 import { AppError } from "../errors/AppError";
 import { sanitizeName } from "../domain/sanitizeName";
+import type { SpecifyExtensionApplicationService } from "./SpecifyExtensionApplicationService";
 
 /**
  * Supported AI agents for Specify onboarding.
@@ -32,6 +33,7 @@ export class OnboardApplicationService {
   constructor(
     private bridge: IPCBridge,
     private configManager: ConfigManager,
+    private specifyExtensionService: SpecifyExtensionApplicationService,
   ) {}
 
   /**
@@ -83,13 +85,39 @@ export class OnboardApplicationService {
       data: `$ ${fullCommand}\n`,
     });
 
-    await this.runCommand(
+    const initOk = await this.runCommand(
       repoPath,
       targetPath,
       fullCommand,
       "repo:onboard:output",
-      "repo:onboard:complete",
     );
+
+    if (!initOk) {
+      this.bridge.emit({
+        type: "repo:onboard:complete",
+        repoPath,
+        success: false,
+        error: "specify init failed — see output for details",
+      });
+      return;
+    }
+
+    // Specify init succeeded — install user-configured extensions into the
+    // same target. Failures here are best-effort; they are counted in the
+    // summary but do not flip the overall onboard result to failed. The
+    // extension install streams output via the same `repo:onboard:output`
+    // event so the onboard dialog can keep displaying it.
+    await this.specifyExtensionService.installExtensionsInRepo(
+      repoPath,
+      targetPath,
+      (data) => this.bridge.emit({ type: "repo:onboard:output", repoPath, data }),
+    );
+
+    this.bridge.emit({
+      type: "repo:onboard:complete",
+      repoPath,
+      success: true,
+    });
   }
 
   /**

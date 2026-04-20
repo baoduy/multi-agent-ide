@@ -7,7 +7,8 @@ import {
 import type { Repository } from "@magenta/shared/models";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
 import type { ContextMenuAction } from "../common/ContextMenu";
-import { RepoLabel, BranchLabel } from "../common/RepoLabel";
+import { RepoLabel } from "../common/RepoLabel";
+import { Tag } from "../common/Tag";
 import { openWithVsCodeAction } from "../../utils/contextMenuActions";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useOnboardStore } from "../../store/onboardStore";
@@ -18,7 +19,6 @@ import { CreateBranchOrWorktreeDialog, type CreateKind } from "../dialogs/Create
 import { CommitDialog } from "../dialogs/CommitDialog";
 import { getRepoBadge } from "../../utils/repoBadge";
 import { colors } from "../../utils/colors";
-import { Tag } from "../common/Tag";
 import { useDensityTokens } from "../../hooks/useComponentSize";
 
 /* ── RepoItem ── */
@@ -190,11 +190,21 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       >
         {/* Inline ★ suppressed here — the pin toggle on the right is the canonical control. */}
         <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-          <Tag tone={badge.tone} fontWeight={500}>
+          <Tag
+            size="chip"
+            tone={badge.tone}
+            icon={badge.Icon ? <badge.Icon size={9} strokeWidth={2} /> : undefined}
+          >
             {badge.label}
           </Tag>
-          {/* Current branch — read-only tag */}
-          <BranchLabel name={repo.branch} />
+          {/* Current branch — read-only chip */}
+          <Tag
+            size="chip"
+            tone="branch"
+            icon={<GitBranch size={9} strokeWidth={2} />}
+          >
+            {repo.branch}
+          </Tag>
         </RepoLabel>
       </button>
 

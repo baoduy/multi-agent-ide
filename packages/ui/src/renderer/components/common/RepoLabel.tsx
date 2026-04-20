@@ -82,7 +82,8 @@ function RepoLabelComponent({
     </ScrollableText>
   );
 
-  // Two-line layout when children (subtitle row) provided
+  // Inline layout when children (tags) provided — name + tags on the same row.
+  // Name shrinks with ellipsis/scroll down to a fixed minimum; tags never shrink.
   if (children) {
     return (
       <span
@@ -95,16 +96,24 @@ function RepoLabelComponent({
         }}
       >
         {iconNode}
-        <span style={{ flex: 1, minWidth: 0 }}>
-          {nameNode}
+        <span
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <span style={{ flex: 1, minWidth: 40, overflow: "hidden" }}>
+            {nameNode}
+          </span>
           <span
             style={{
-              fontSize: 10,
-              color: colors.textTertiary,
-              marginTop: 2,
-              display: "flex",
+              display: "inline-flex",
               alignItems: "center",
-              gap: 6,
+              gap: 4,
+              flexShrink: 0,
             }}
           >
             {children}

@@ -15,6 +15,7 @@ import { colors } from "../../utils/colors";
 import { getStatusColor } from "../../utils/sessionStatus";
 import { ProviderBadge } from "../common/ProviderBadge";
 import { RepoLabel, BranchLabel } from "../common/RepoLabel";
+import { ScrollableText } from "../common/ScrollableText";
 import { WorkspaceLabel } from "../common/WorkspaceLabel";
 import type { TabState } from "./types";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
@@ -170,19 +171,16 @@ export const StatusBar = React.memo(function StatusBar({
             {terminalCwd && (
               <>
                 <Separator />
-                <span
+                <ScrollableText
                   style={{
                     fontSize: 11,
                     color: colors.textTertiary,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
                     maxWidth: 200,
                   }}
                   title={terminalCwd}
                 >
                   {terminalCwd.split("/").pop() || terminalCwd}
-                </span>
+                </ScrollableText>
               </>
             )}
             <Separator />

@@ -1,130 +1,137 @@
 import type { DatabaseService } from "../db/DatabaseService";
-import { mapWorktreeRow, toWorktreeParams, type WorktreeRecord } from "../infrastructure/mappers/worktreeMapper";
+import type { LmdbDatabase } from "../db/LmdbStore";
+import type { WorktreeRecord } from "../infrastructure/mappers/worktreeMapper";
+
+export type { WorktreeRecord };
 
 /**
- * Data access for the `worktrees` table.
+ * LMDB-backed repository for `worktrees`.
  *
- * Caches the output of `git worktree list --porcelain` on a 1-minute cadence
- * via WorktreeSyncApplicationService. Rows are keyed by `worktree_path`
- * (a natural primary key: two worktrees can't share the same on-disk path).
+ * Sub-db layout:
+ *   worktrees:
+ *     worktree:${path}                             → WorktreeRecord
+ *     worktree:repo:${repoPath}:${name}            → path (secondary index for listByRepo)
+ *
+ * The primary key is the worktree path (git can't have two worktrees at the
+ * same on-disk path), so no separate id is needed.
  */
 export class WorktreeRepository {
-  constructor(private readonly databaseService: DatabaseService) {}
+  private readonly db: LmdbDatabase<unknown>;
+
+  constructor(private readonly databaseService: DatabaseService) {
+    this.db = databaseService.getDb("worktrees");
+  }
 
   list(): WorktreeRecord[] {
-    const rows = this.databaseService
-      .getSqlite()
-      .prepare(
-        `SELECT worktree_path, repo_path, branch, name, created_at, last_synced_at
-         FROM worktrees
-         ORDER BY repo_path, name`
-      )
-      .all() as Array<Record<string, unknown>>;
-
-    return rows.map(mapWorktreeRow);
+    const out: WorktreeRecord[] = [];
+    for (const entry of this.db.range({ start: "worktree:", end: "worktree:repo:" })) {
+      // Skip any accidental secondary-key overlap (defensive).
+      if (entry.key.startsWith("worktree:repo:")) continue;
+      out.push(entry.value as WorktreeRecord);
+    }
+    out.sort((a, b) => {
+      const byRepo = a.repoPath.localeCompare(b.repoPath);
+      if (byRepo !== 0) return byRepo;
+      return a.name.localeCompare(b.name);
+    });
+    return out;
   }
 
   listByRepo(repoPath: string): WorktreeRecord[] {
-    const rows = this.databaseService
-      .getSqlite()
-      .prepare(
-        `SELECT worktree_path, repo_path, branch, name, created_at, last_synced_at
-         FROM worktrees
-         WHERE repo_path = ?
-         ORDER BY name`
-      )
-      .all(repoPath) as Array<Record<string, unknown>>;
-
-    return rows.map(mapWorktreeRow);
+    const out: WorktreeRecord[] = [];
+    for (const entry of this.db.range({ prefix: `worktree:repo:${repoPath}:` })) {
+      const wtPath = entry.value as string;
+      const row = this.db.get(`worktree:${wtPath}`) as WorktreeRecord | undefined;
+      if (row) out.push(row);
+    }
+    out.sort((a, b) => a.name.localeCompare(b.name));
+    return out;
   }
 
   getByPath(worktreePath: string): WorktreeRecord | null {
-    const row = this.databaseService
-      .getSqlite()
-      .prepare(
-        `SELECT worktree_path, repo_path, branch, name, created_at, last_synced_at
-         FROM worktrees
-         WHERE worktree_path = ?`
-      )
-      .get(worktreePath) as Record<string, unknown> | undefined;
-
-    if (!row) return null;
-    return mapWorktreeRow(row);
+    const row = this.db.get(`worktree:${worktreePath}`) as WorktreeRecord | undefined;
+    return row ?? null;
   }
 
   /**
-   * Upsert a worktree row keyed by `worktree_path`. The existing `created_at`
-   * is preserved if a row already exists — git does not record when the
-   * worktree was created, so we stick with the first timestamp we observed.
+   * Upsert a row keyed by `worktreePath`. Existing `createdAt` is preserved
+   * — git doesn't record when a worktree was created, so we keep the first
+   * observed timestamp.
    */
   upsert(record: WorktreeRecord): void {
-    const existing = this.databaseService
-      .getSqlite()
-      .prepare(`SELECT created_at FROM worktrees WHERE worktree_path = ?`)
-      .get(record.worktreePath) as { created_at: number } | undefined;
+    this.databaseService.transactionSync(() => {
+      const existing = this.db.get(`worktree:${record.worktreePath}`) as
+        | WorktreeRecord
+        | undefined;
 
-    const toWrite: WorktreeRecord = existing
-      ? { ...record, createdAt: existing.created_at }
-      : record;
+      const toWrite: WorktreeRecord = existing
+        ? { ...record, createdAt: existing.createdAt }
+        : record;
 
-    const params = toWorktreeParams(toWrite);
+      // If the repoPath / name of an existing row changed, clear the stale
+      // secondary-index entry.
+      if (
+        existing &&
+        (existing.repoPath !== toWrite.repoPath || existing.name !== toWrite.name)
+      ) {
+        this.db.removeSync(`worktree:repo:${existing.repoPath}:${existing.name}`);
+      }
 
-    this.databaseService
-      .getSqlite()
-      .prepare(
-        `INSERT OR REPLACE INTO worktrees (
-           worktree_path, repo_path, branch, name, created_at, last_synced_at
-         ) VALUES (
-           @worktree_path, @repo_path, @branch, @name, @created_at, @last_synced_at
-         )`
-      )
-      .run(params);
+      this.db.putSync(`worktree:${toWrite.worktreePath}`, toWrite);
+      this.db.putSync(
+        `worktree:repo:${toWrite.repoPath}:${toWrite.name}`,
+        toWrite.worktreePath,
+      );
+    });
   }
 
   deleteByPath(worktreePath: string): boolean {
-    const result = this.databaseService
-      .getSqlite()
-      .prepare(`DELETE FROM worktrees WHERE worktree_path = ?`)
-      .run(worktreePath);
-
-    return (result.changes ?? 0) > 0;
+    const existing = this.db.get(`worktree:${worktreePath}`) as
+      | WorktreeRecord
+      | undefined;
+    if (!existing) return false;
+    this.databaseService.transactionSync(() => {
+      this.db.removeSync(`worktree:${worktreePath}`);
+      this.db.removeSync(`worktree:repo:${existing.repoPath}:${existing.name}`);
+    });
+    return true;
   }
 
   /**
    * Hard-delete rows whose worktree_path is not in `keepPaths`, scoped to
-   * the repos we actually scanned this tick (`scannedRepoPaths`). The scope
-   * matters: if a repo failed to scan, we must not wipe its rows — they
-   * might still be valid on disk.
+   * `scannedRepoPaths`. Mirrors the SQL semantics: if a repo failed to scan
+   * this tick, its rows are left untouched.
    */
-  deleteStale(scannedRepoPaths: readonly string[], keepPaths: readonly string[]): number {
+  deleteStale(
+    scannedRepoPaths: readonly string[],
+    keepPaths: readonly string[],
+  ): number {
     if (scannedRepoPaths.length === 0) return 0;
-
     const keep = new Set(keepPaths);
 
-    const repoPlaceholders = scannedRepoPaths.map(() => "?").join(",");
-    const rows = this.databaseService
-      .getSqlite()
-      .prepare(`SELECT worktree_path FROM worktrees WHERE repo_path IN (${repoPlaceholders})`)
-      .all(...scannedRepoPaths) as Array<{ worktree_path: string }>;
+    const candidates: WorktreeRecord[] = [];
+    for (const repoPath of scannedRepoPaths) {
+      for (const entry of this.db.range({ prefix: `worktree:repo:${repoPath}:` })) {
+        const wtPath = entry.value as string;
+        const row = this.db.get(`worktree:${wtPath}`) as WorktreeRecord | undefined;
+        if (row) candidates.push(row);
+      }
+    }
 
-    const toDelete = rows
-      .map((r) => r.worktree_path)
-      .filter((p) => !keep.has(p));
-
+    const toDelete = candidates.filter((r) => !keep.has(r.worktreePath));
     if (toDelete.length === 0) return 0;
 
-    const deleteStmt = this.databaseService
-      .getSqlite()
-      .prepare(`DELETE FROM worktrees WHERE worktree_path = ?`);
-
-    for (const p of toDelete) {
-      deleteStmt.run(p);
-    }
+    this.databaseService.transactionSync(() => {
+      for (const r of toDelete) {
+        this.db.removeSync(`worktree:${r.worktreePath}`);
+        this.db.removeSync(`worktree:repo:${r.repoPath}:${r.name}`);
+      }
+    });
 
     return toDelete.length;
   }
 
   flush(): void {
-    this.databaseService.flush();
+    // no-op
   }
 }

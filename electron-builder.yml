@@ -54,11 +54,6 @@ extraResources:
   # pnpm hoists dependencies into packages/<pkg>/node_modules/ as symlinks,
   # so "from" paths go through the workspace package that owns the dep.
 
-  # sql.js WASM binary — the daemon loads this at runtime and it can't be
-  # inside the asar archive (binary file that needs direct fs access)
-  - from: packages/daemon/node_modules/sql.js/dist/sql-wasm.wasm
-    to: sql-wasm.wasm
-
   # node-pty is a native addon required by the daemon (forked with
   # ELECTRON_RUN_AS_NODE=1). Forked processes use plain Node.js require
   # which can't read from asar archives, so the module must live outside
@@ -86,6 +81,51 @@ extraResources:
       - "!scripts/**"
       - "!typings/**"
       - "!binding.gyp"
+      - "!README.md"
+
+  # lmdb is a native addon for the daemon's cache persistence. Same
+  # constraint as node-pty: the forked daemon uses plain Node.js require,
+  # which can't read native modules from inside the asar archive. lmdb also
+  # has hoisted runtime deps (msgpackr, msgpackr-extract, ordered-binary,
+  # weak-lru-cache) that each need to live outside the asar.
+  - from: packages/daemon/node_modules/lmdb
+    to: node_modules/lmdb
+    filter:
+      - "**/*"
+      - "!src/**"
+      - "!*.ts"
+      - "!prebuilds/win32-*/**"
+      - "!prebuilds/linux-*/**"
+      - "!prebuilds/darwin-x64/**"
+      - "!deps/**"
+      - "!scripts/**"
+      - "!README.md"
+  - from: packages/daemon/node_modules/msgpackr
+    to: node_modules/msgpackr
+    filter:
+      - "**/*"
+      - "!*.ts"
+      - "!README.md"
+  - from: packages/daemon/node_modules/msgpackr-extract
+    to: node_modules/msgpackr-extract
+    filter:
+      - "**/*"
+      - "!*.ts"
+      - "!prebuilds/win32-*/**"
+      - "!prebuilds/linux-*/**"
+      - "!prebuilds/darwin-x64/**"
+      - "!README.md"
+  - from: packages/daemon/node_modules/ordered-binary
+    to: node_modules/ordered-binary
+    filter:
+      - "**/*"
+      - "!*.ts"
+      - "!README.md"
+  - from: packages/daemon/node_modules/weak-lru-cache
+    to: node_modules/weak-lru-cache
+    filter:
+      - "**/*"
+      - "!*.ts"
       - "!README.md"
 
 # ── asar ─────────────────────────────────────────────────────────────────────

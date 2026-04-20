@@ -11,13 +11,19 @@
     "update": "npx npm-check-updates -u && pnpm install"
   },
   "dependencies": {
+    "@harperfast/extended-iterable": "^1.0.3",
     "@magenta/shared": "workspace:^0.1.0",
     "chokidar": "^5.0.0",
     "lmdb": "^3.5.4",
+    "msgpackr": "^1.11.10",
+    "msgpackr-extract": "^3.0.3",
+    "node-gyp-build-optional-packages": "^5.2.2",
     "node-pty": "^1.1.0",
+    "ordered-binary": "^1.6.1",
     "simple-git": "^3.36.0",
-    "strip-ansi": "^7.2.0",
-    "ulid": "^3.0.2"
+    "strip-ansi": "^6.0.1",
+    "ulid": "^3.0.2",
+    "weak-lru-cache": "^1.2.2"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

@@ -30,14 +30,17 @@ importers:
         specifier: ^0.28.0
         version: 0.28.0
       shadcn:
-        specifier: ^4.3.0
-        version: 4.3.0(@types/node@25.6.0)(babel-plugin-macros@3.1.0)(typescript@6.0.3)
+        specifier: ^4.3.1
+        version: 4.3.1(@types/node@25.6.0)(babel-plugin-macros@3.1.0)(typescript@6.0.3)
       typescript:
         specifier: 6.0.3
         version: 6.0.3
 
   packages/daemon:
     dependencies:
+      '@harperfast/extended-iterable':
+        specifier: ^1.0.3
+        version: 1.0.3
       '@magenta/shared':
         specifier: workspace:^0.1.0
         version: link:../shared
@@ -47,18 +50,33 @@ importers:
       lmdb:
         specifier: ^3.5.4
         version: 3.5.4
+      msgpackr:
+        specifier: ^1.11.10
+        version: 1.11.10
+      msgpackr-extract:
+        specifier: ^3.0.3
+        version: 3.0.3
+      node-gyp-build-optional-packages:
+        specifier: ^5.2.2
+        version: 5.2.2
       node-pty:
         specifier: ^1.1.0
         version: 1.1.0
+      ordered-binary:
+        specifier: ^1.6.1
+        version: 1.6.1
       simple-git:
         specifier: ^3.36.0
         version: 3.36.0
       strip-ansi:
-        specifier: ^7.2.0
-        version: 7.2.0
+        specifier: ^6.0.1
+        version: 6.0.1
       ulid:
         specifier: ^3.0.2
         version: 3.0.2
+      weak-lru-cache:
+        specifier: ^1.2.2
+        version: 1.2.2
     devDependencies:
       '@types/node':
         specifier: ^25.6.0
@@ -211,8 +229,8 @@ importers:
         specifier: ^0.28.0
         version: 0.28.0
       shadcn:
-        specifier: ^4.3.0
-        version: 4.3.0(@types/node@25.6.0)(babel-plugin-macros@3.1.0)(typescript@6.0.3)
+        specifier: ^4.3.1
+        version: 4.3.1(@types/node@25.6.0)(babel-plugin-macros@3.1.0)(typescript@6.0.3)
       tailwindcss:
         specifier: ^4.2.2
         version: 4.2.2
@@ -3633,8 +3651,8 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shadcn@4.3.0:
-    resolution: {integrity: sha512-7vhnBh2LVLyxOd1ZQWwXv7OATCnQcxdqc8FbZdNigZriNOwDsHklQmPpvPt1jcrFK5mzMI+cyuAYv8WzERx2Og==}
+  shadcn@4.3.1:
+    resolution: {integrity: sha512-X3XodbqNKQLCoR4sZZLMKrx2XjfhSsoDLN5+7TLsEx/uDG2P3iyfOLfBlU+z7BVOpkFkbWCEA0LlbGqWg1oeyQ==}
     hasBin: true
 
   shebang-command@2.0.0:
@@ -7296,7 +7314,6 @@ snapshots:
       '@msgpackr-extract/msgpackr-extract-linux-arm64': 3.0.3
       '@msgpackr-extract/msgpackr-extract-linux-x64': 3.0.3
       '@msgpackr-extract/msgpackr-extract-win32-x64': 3.0.3
-    optional: true
 
   msgpackr@1.11.10:
     optionalDependencies:
@@ -7844,7 +7861,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shadcn@4.3.0(@types/node@25.6.0)(babel-plugin-macros@3.1.0)(typescript@6.0.3):
+  shadcn@4.3.1(@types/node@25.6.0)(babel-plugin-macros@3.1.0)(typescript@6.0.3):
     dependencies:
       '@babel/core': 7.29.0
       '@babel/parser': 7.29.2

@@ -127,6 +127,18 @@ extraResources:
       - "**/*"
       - "!*.ts"
       - "!README.md"
+  - from: packages/daemon/node_modules/node-gyp-build-optional-packages
+    to: node_modules/node-gyp-build-optional-packages
+    filter:
+      - "**/*"
+      - "!*.ts"
+      - "!README.md"
+  - from: packages/daemon/node_modules/@harperfast/extended-iterable
+    to: node_modules/@harperfast/extended-iterable
+    filter:
+      - "**/*"
+      - "!*.ts"
+      - "!README.md"
 
 # ── asar ─────────────────────────────────────────────────────────────────────
 asar: true
@@ -152,10 +164,10 @@ mac:
       arch:
         - x64
         - arm64
-    - target: zip
-      arch:
-        - x64
-        - arm64
+    # - target: zip
+    #   arch:
+    #     - x64
+    #     - arm64
   # Hardened runtime enables the macOS-level protections (library
   # validation, restricted DYLIB injection, code integrity) required for
   # notarization. Entitlements are in build/entitlements.mac.plist; only

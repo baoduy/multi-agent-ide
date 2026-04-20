@@ -119,6 +119,9 @@ dist
 # Firebase cache directory
 .firebase/
 
+# Agent/tool temp files in repo root
+_tmp_*
+
 # TernJS port file
 .tern-port
 

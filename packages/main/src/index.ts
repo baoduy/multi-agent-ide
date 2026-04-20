@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, nativeImage, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, nativeImage, session, shell } from "electron";
 import path from "path";
 import fs from "fs";
 import os from "os";
@@ -164,12 +164,31 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
     },
   });
 
   const rendererPath = path.resolve(__dirname, "..", "renderer", "index.html");
   console.log(`Loading renderer from: ${rendererPath}`);
   mainWindow.loadFile(rendererPath);
+
+  // Keep navigation inside the SPA and push external links to the system browser.
+  mainWindow.webContents.on("will-navigate", (event) => {
+    event.preventDefault();
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+
+  // Disable devtools in packaged builds to reduce renderer attack surface.
+  if (app.isPackaged) {
+    mainWindow.webContents.on("devtools-opened", () => {
+      mainWindow?.webContents.closeDevTools();
+    });
+  }
 
   // Disable Cmd+R / Ctrl+R / F5 reload shortcuts in production
   mainWindow.webContents.on("before-input-event", (_event, input) => {
@@ -756,6 +775,29 @@ app.setName("Magenta IDE");
 app.on("ready", () => {
   console.log("Electron ready event fired");
   writeLog("INFO", "main", "Electron ready event fired");
+
+  // Defense-in-depth: enforce CSP for every renderer response.
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [
+          [
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: blob:",
+            "font-src 'self'",
+            "connect-src 'self'",
+            "worker-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "frame-ancestors 'none'",
+          ].join("; "),
+        ],
+      },
+    });
+  });
 
   if (process.platform === "darwin") {
     const dockIconPath = path.resolve(__dirname, "..", "..", "..", "build", "icons", "512x512.png");

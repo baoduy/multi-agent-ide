@@ -4,11 +4,14 @@ import { join } from "node:path";
 
 import {
   CLI_TOOLS,
+  resolveCliToolSpec,
   type CliToolId,
   type CliToolStatus,
   type CliToolSpec,
 } from "@magenta/shared/cliTools";
+import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
 
+import type { ConfigManager } from "../config/ConfigManager";
 import { AppError } from "../errors/AppError";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import { CliVersionProbe, isNewerVersion, normalizeReleaseTag } from "../infrastructure/CliVersionProbe";
@@ -57,7 +60,51 @@ export class CliVersionApplicationService {
     private readonly bridge: IPCBridge,
     private readonly releasesGateway: GitHubReleasesGateway,
     private readonly npmGateway: NpmRegistryGateway,
+    private readonly configManager: ConfigManager,
   ) {}
+
+  /**
+   * Resolves a tool's spec by merging hardcoded defaults with the user's
+   * `cliTools` overrides from `~/.magenta/config.json`. Called fresh on every
+   * probe / upgrade so edits take effect without a daemon restart.
+   */
+  private specFor(tool: CliToolId): CliToolSpec {
+    const overrides = this.configManager.getConfig().cliTools?.[tool];
+    return resolveCliToolSpec(tool, overrides);
+  }
+
+  /**
+   * Builds the actual shell command for an upgrade. For `specify` this
+   * substitutes `{agent}` in the `specifyCommand` template with the agent
+   * read from `<repoPath>/.specify/init-options.json`, and pins the spawn
+   * cwd to the repo so `--here` resolves correctly. All other tools use
+   * their resolved `upgradeCommand` as-is in the daemon's default cwd.
+   */
+  private resolveUpgradeCommand(
+    tool: CliToolId,
+    repoPath?: string,
+  ): { command: string; cwd?: string } {
+    if (tool === "specify") {
+      if (!repoPath) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          "Upgrading the Specify template requires a repo context",
+        );
+      }
+      const agent = readSpecifyAgent(repoPath);
+      if (!agent) {
+        throw new AppError(
+          "VALIDATION_ERROR",
+          `Cannot determine AI agent for Specify upgrade — missing or invalid ${join(repoPath, ".specify", "init-options.json")}`,
+        );
+      }
+      const template =
+        this.configManager.getConfig().specifyCommand || DEFAULT_SPECIFY_COMMAND;
+      const command = template.replace(/\{agent\}/g, agent).replace(/\s+/g, " ").trim();
+      return { command, cwd: repoPath };
+    }
+    return { command: this.specFor(tool).upgradeCommand };
+  }
 
   /**
    * Returns the last computed status without hitting the network. The
@@ -98,7 +145,7 @@ export class CliVersionApplicationService {
   }
 
   private async checkOne(tool: CliToolId, repoPath?: string): Promise<CliToolStatus> {
-    const spec = CLI_TOOLS[tool];
+    const spec = this.specFor(tool);
     const probe = await this.probeCurrentVersion(tool, repoPath);
 
     if (!probe.installed) {
@@ -144,7 +191,7 @@ export class CliVersionApplicationService {
     tool: CliToolId,
     repoPath?: string,
   ) {
-    const spec = CLI_TOOLS[tool];
+    const spec = this.specFor(tool);
     if (tool === "specify" && repoPath) {
       const version = readSpeckitVersion(repoPath);
       if (version) {
@@ -174,22 +221,29 @@ export class CliVersionApplicationService {
   }
 
   /**
-   * Spawns the hardcoded upgrade command for a tool. Streams stdout+stderr
-   * via `cli:upgrade:output` events; emits `cli:upgrade:complete` on exit.
+   * Spawns the upgrade command for a tool. Streams stdout+stderr via
+   * `cli:upgrade:output` events; emits `cli:upgrade:complete` on exit.
+   *
+   * For `specify` the "upgrade" action re-runs the spec template init
+   * command (`specifyCommand` template) in the given repo — this refreshes
+   * the repo's spec-kit scaffold rather than upgrading a global CLI.
+   * A `repoPath` is required in that case so the command can run with
+   * `cwd: <repo>` and resolve `--here` correctly.
    *
    * Single-flight per tool — a second `upgrade(tool)` while the first is
    * still running throws VALIDATION_ERROR.
    */
-  startUpgrade(tool: CliToolId): void {
+  startUpgrade(tool: CliToolId, repoPath?: string): void {
     if (this.activeUpgrades.has(tool)) {
       throw new AppError("VALIDATION_ERROR", `An upgrade for ${tool} is already running`);
     }
 
-    const spec = CLI_TOOLS[tool];
-    const argv = tokenizeSafely(spec.upgradeCommand);
+    const { command: commandString, cwd } = this.resolveUpgradeCommand(tool, repoPath);
+    const argv = tokenizeSafely(commandString);
     const [command, ...args] = argv;
 
     const child = spawn(command, args, {
+      cwd,
       shell: false,
       env: { ...process.env },
       stdio: ["ignore", "pipe", "pipe"],
@@ -274,6 +328,25 @@ function readSpeckitVersion(repoPath: string): string | null {
     return typeof data.speckit_version === "string" ? data.speckit_version : null;
   } catch (err) {
     console.warn(`[cli-version] Could not read init-options.json: ${err}`);
+    return null;
+  }
+}
+
+/**
+ * Reads the `ai` field from `<repoPath>/.specify/init-options.json`. This
+ * is the agent the repo was initialised with (e.g. "claude" or "copilot")
+ * and is the right value to substitute into the `specifyCommand` template
+ * for a non-destructive template refresh.
+ */
+function readSpecifyAgent(repoPath: string): string | null {
+  const optionsPath = join(repoPath, ".specify", "init-options.json");
+  try {
+    if (!existsSync(optionsPath)) return null;
+    const content = readFileSync(optionsPath, "utf-8");
+    const data = JSON.parse(content) as Record<string, unknown>;
+    return typeof data.ai === "string" && data.ai.length > 0 ? data.ai : null;
+  } catch (err) {
+    console.warn(`[cli-version] Could not read init-options.json for agent: ${err}`);
     return null;
   }
 }

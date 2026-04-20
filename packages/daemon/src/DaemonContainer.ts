@@ -179,6 +179,7 @@ export class DaemonContainer {
       this.bridge,
       this.githubReleasesGateway,
       this.npmRegistryGateway,
+      this.configManager,
     );
   }
 

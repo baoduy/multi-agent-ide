@@ -4,6 +4,7 @@ import { ArrowUpCircle, RefreshCw, Loader2, ExternalLink } from "lucide-react";
 import {
   CLI_TOOLS,
   CLI_TOOL_IDS,
+  resolveCliToolSpec,
   type CliToolId,
   type CliToolStatus,
 } from "@magenta/shared/cliTools";
@@ -12,6 +13,7 @@ import {
   useCliVersionStore,
   type CliUpgradeState,
 } from "../../store/cliVersionStore";
+import { useConfigStore } from "../../store/configStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { MagentaTerminal } from "../common/MagentaTerminal";
 import {
@@ -151,7 +153,13 @@ function CliToolRow({
   onUpgrade,
   onDismiss,
 }: CliToolRowProps): React.ReactElement {
-  const spec = CLI_TOOLS[tool.tool];
+  const override = useConfigStore((s) => s.cliTools[tool.tool]);
+  const specifyTemplate = useConfigStore((s) => s.specifyCommand);
+  const spec = resolveCliToolSpec(tool.tool, override);
+  const displayedCommand =
+    tool.tool === "specify"
+      ? specifyTemplate.replace(/\s+/g, " ").trim()
+      : spec.upgradeCommand;
   const phase = upgrade?.phase ?? "idle";
   const isRunning = phase === "running";
   const isDone = phase === "done";
@@ -231,7 +239,7 @@ function CliToolRow({
           fontFamily: "'SF Mono', ui-monospace, monospace",
         }}
       >
-        $ {spec.upgradeCommand}
+        $ {displayedCommand}
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { CliToolOverridesSchema } from "./cliTools";
+
 /**
  * Default command template for Specify onboarding and upgrades.
  * Placeholder: {agent} = selected AI agent id.
@@ -41,6 +43,13 @@ export const MagentaConfigSchema = z.object({
    * in a repo with no git identity.
    */
   fallbackApproverName: z.string().default(""),
+  /**
+   * Per-tool overrides for CLI install/upgrade commands, version-check args,
+   * and binary names. Empty by default — missing fields fall back to the
+   * hardcoded defaults in `CLI_TOOLS`. Keyed by `CliToolId` ("claude",
+   * "copilot", "specify").
+   */
+  cliTools: CliToolOverridesSchema,
 });
 
 export type MagentaConfig = z.infer<typeof MagentaConfigSchema>;

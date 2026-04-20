@@ -252,6 +252,7 @@ async function main() {
       ipcBridge,
       githubReleasesGateway,
       npmRegistryGateway,
+      configManager,
     );
 
     // Store references for graceful shutdown

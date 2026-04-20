@@ -6,6 +6,7 @@ import {
   DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
   DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
 } from "@magenta/shared/config";
+import type { CliToolId, CliToolOverride, CliToolOverrides } from "@magenta/shared/cliTools";
 import { ipc } from "../utils/ipc";
 import { sendOrThrow } from "../services/ipcClient";
 import { createAsyncAction } from "../services/createStoreAction";
@@ -17,6 +18,7 @@ type ConfigStoreState = {
   specSyncIntervalMinutes: number;
   sessionSyncIntervalMinutes: number;
   fallbackApproverName: string;
+  cliTools: CliToolOverrides;
   isLoading: boolean;
   error: string | null;
   subscriptionsReady: boolean;
@@ -26,6 +28,7 @@ type ConfigStoreState = {
   updateSpecSyncInterval: (minutes: number) => Promise<void>;
   updateSessionSyncInterval: (minutes: number) => Promise<void>;
   updateFallbackApproverName: (name: string) => Promise<void>;
+  updateCliToolOverride: (tool: CliToolId, override: CliToolOverride | null) => Promise<void>;
   fetchConfig: () => Promise<void>;
   initializeSubscriptions: () => void;
 };
@@ -39,6 +42,7 @@ function applyConfig(config: MagentaConfig): Partial<ConfigStoreState> {
     sessionSyncIntervalMinutes:
       config.sessionSyncIntervalMinutes ?? DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
     fallbackApproverName: config.fallbackApproverName ?? "",
+    cliTools: config.cliTools ?? {},
   };
 }
 
@@ -48,6 +52,7 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
   specSyncIntervalMinutes: DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
   sessionSyncIntervalMinutes: DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
   fallbackApproverName: "",
+  cliTools: {},
   isLoading: false,
   error: null,
   subscriptionsReady: false,
@@ -113,6 +118,25 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
         sendOrThrow({
           type: "config:update",
           config: { fallbackApproverName: name },
+        }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
+  },
+
+  updateCliToolOverride(tool: CliToolId, override: CliToolOverride | null) {
+    const current = get().cliTools;
+    const next: CliToolOverrides = { ...current };
+    if (override === null || Object.keys(override).length === 0) {
+      delete next[tool];
+    } else {
+      next[tool] = override;
+    }
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () =>
+        sendOrThrow({
+          type: "config:update",
+          config: { cliTools: next },
         }),
       onSuccess: (response) => applyConfig(response.config),
     })();

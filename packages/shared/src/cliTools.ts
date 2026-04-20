@@ -55,6 +55,51 @@ export const CLI_TOOLS: Record<CliToolId, CliToolSpec> = {
   },
 };
 
+/**
+ * User-editable subset of {@link CliToolSpec}. Saved in `~/.magenta/config.json`
+ * under the `cliTools` field. Fields left unset fall back to the hardcoded
+ * defaults in {@link CLI_TOOLS}.
+ */
+export const CliToolOverrideSchema = z
+  .object({
+    binary: z.string().min(1).optional(),
+    versionArgs: z.array(z.string()).optional(),
+    upgradeCommand: z.string().min(1).optional(),
+  })
+  .strict();
+
+export type CliToolOverride = z.infer<typeof CliToolOverrideSchema>;
+
+export const CliToolOverridesSchema = z
+  .object({
+    claude: CliToolOverrideSchema.optional(),
+    copilot: CliToolOverrideSchema.optional(),
+    specify: CliToolOverrideSchema.optional(),
+  })
+  .default({});
+
+export type CliToolOverrides = z.infer<typeof CliToolOverridesSchema>;
+
+/**
+ * Merges the hardcoded {@link CLI_TOOLS} default for `id` with any
+ * user-supplied overrides from config. Only `binary`, `versionArgs`, and
+ * `upgradeCommand` can be overridden; metadata (displayName, source, infoUrl)
+ * always comes from the default.
+ */
+export function resolveCliToolSpec(
+  id: CliToolId,
+  overrides?: CliToolOverride,
+): CliToolSpec {
+  const base = CLI_TOOLS[id];
+  if (!overrides) return base;
+  return {
+    ...base,
+    binary: overrides.binary ?? base.binary,
+    versionArgs: overrides.versionArgs ?? base.versionArgs,
+    upgradeCommand: overrides.upgradeCommand ?? base.upgradeCommand,
+  };
+}
+
 export const CliToolStatusSchema = z.object({
   tool: CliToolIdSchema,
   installed: z.boolean(),

@@ -26,7 +26,7 @@ export function registerCliVersionHandlers({
   });
 
   safeHandle(bridge, "cli:upgrade", async (msg) => {
-    cliVersionService.startUpgrade(msg.tool);
+    cliVersionService.startUpgrade(msg.tool, msg.repoPath);
     return { type: "cli:upgrade:started", tool: msg.tool };
   });
 

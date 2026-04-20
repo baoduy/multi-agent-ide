@@ -10,7 +10,7 @@ import { Search } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import {
-  selectVisibleItems,
+  computeVisibleItems,
   useExtensionsMockStore,
 } from "./extensionsMockStore";
 import {
@@ -37,8 +37,12 @@ export function ExtensionsBrowserView(): React.ReactElement {
   const selectedItemId = useExtensionsMockStore((s) => s.selectedItemId);
   const setSelectedItemId = useExtensionsMockStore((s) => s.setSelectedItemId);
   const toggleEnabled = useExtensionsMockStore((s) => s.toggleEnabled);
+  const enabledOverrides = useExtensionsMockStore((s) => s.enabledOverrides);
 
-  const items = useExtensionsMockStore(selectVisibleItems);
+  const items = React.useMemo(
+    () => computeVisibleItems(scope, category, search, enabledOverrides),
+    [scope, category, search, enabledOverrides],
+  );
   const rawCount = MOCK[mockKey(scope, category)]?.length ?? 0;
   const tabs = categoriesForScope(scope);
 

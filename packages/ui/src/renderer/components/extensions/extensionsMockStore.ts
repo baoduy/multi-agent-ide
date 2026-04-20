@@ -68,16 +68,23 @@ export const useExtensionsMockStore = create<ExtensionsMockState>((set) => ({
 }));
 
 /**
- * Helper selector: returns the list for the current (scope, category) with
- * enabled overrides applied and search filter honored.
+ * Pure helper (not a zustand selector) — components pass the raw state bits in
+ * via `useMemo` so the derived array is memoized on the React side. Using this
+ * as a zustand selector would break `useSyncExternalStore`'s stable-snapshot
+ * contract (new array every call ⇒ infinite re-render).
  */
-export function selectVisibleItems(state: ExtensionsMockState): ExtensionItem[] {
-  const base = MOCK[mockKey(state.scope, state.category)] ?? [];
-  const needle = state.search.trim().toLowerCase();
+export function computeVisibleItems(
+  scope: ExtensionScope,
+  category: ExtensionCategory,
+  search: string,
+  enabledOverrides: Overrides,
+): ExtensionItem[] {
+  const base = MOCK[mockKey(scope, category)] ?? [];
+  const needle = search.trim().toLowerCase();
   return base
     .map((item) => {
-      const k = overrideKey(state.scope, state.category, item.id);
-      const override = state.enabledOverrides[k];
+      const k = overrideKey(scope, category, item.id);
+      const override = enabledOverrides[k];
       return override === undefined ? item : { ...item, enabled: override };
     })
     .filter((item) => {

@@ -8,7 +8,7 @@ import React from "react";
 import { FolderOpen, FileText } from "lucide-react";
 
 import { colors } from "../../utils/colors";
-import { useExtensionsMockStore, selectVisibleItems } from "./extensionsMockStore";
+import { useExtensionsMockStore, computeVisibleItems } from "./extensionsMockStore";
 import type { ExtensionCategory, ExtensionScope } from "./mockData";
 
 const TYPE_LABEL: Record<ExtensionCategory, string> = {
@@ -27,9 +27,13 @@ export function ExtensionInspectorView(): React.ReactElement {
   const scope = useExtensionsMockStore((s) => s.scope);
   const category = useExtensionsMockStore((s) => s.category);
   const selectedItemId = useExtensionsMockStore((s) => s.selectedItemId);
-  const items = useExtensionsMockStore(selectVisibleItems);
+  const search = useExtensionsMockStore((s) => s.search);
+  const enabledOverrides = useExtensionsMockStore((s) => s.enabledOverrides);
 
-  const item = items.find((i) => i.id === selectedItemId) ?? null;
+  const item = React.useMemo(() => {
+    const items = computeVisibleItems(scope, category, search, enabledOverrides);
+    return items.find((i) => i.id === selectedItemId) ?? null;
+  }, [scope, category, search, enabledOverrides, selectedItemId]);
 
   if (!item) {
     return (

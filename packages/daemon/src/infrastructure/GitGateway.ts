@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { createGit } from "./utils/createGit";
 import { AppError } from "../errors/AppError";
@@ -141,7 +142,7 @@ export class GitGateway {
    * Returns list of changed files with their status.
    */
   async getWorktreeStatus(worktreePath: string): Promise<{
-    files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }>;
+    files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked"; mtimeMs?: number }>;
     ahead: number;
     behind: number;
   }> {
@@ -151,7 +152,7 @@ export class GitGateway {
     // Use simple-git's structured status output
     const statusResult = await git.status();
 
-    const files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }> = [];
+    const files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked"; mtimeMs?: number }> = [];
 
     // Map simple-git FileStatusResult to our simplified status
     for (const f of statusResult.not_added) {
@@ -176,6 +177,18 @@ export class GitGateway {
         files.push({ path: f, status: "modified" });
       }
     }
+
+    await Promise.all(
+      files.map(async (f) => {
+        if (f.status === "deleted") return;
+        try {
+          const stat = await fsp.stat(path.join(resolved, f.path));
+          f.mtimeMs = stat.mtimeMs;
+        } catch {
+          // ignore
+        }
+      }),
+    );
 
     return {
       files,

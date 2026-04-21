@@ -40,6 +40,8 @@ export type FileChangeItem = {
   status: FileChangeStatus;
   /** Present for rename entries. Shown as "from <oldPath>" under the new name. */
   oldPath?: string;
+  /** Working-tree file mtime (ms since epoch). When present on any row, rows are sorted most-recent first. */
+  mtimeMs?: number;
 };
 
 export type FileChangesListProps<T extends FileChangeItem = FileChangeItem> = {
@@ -80,9 +82,15 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
   const selectable = !!selectedKeys && !!onToggleSelect && !!keyOf;
   const base = basePath.endsWith("/") ? basePath.slice(0, -1) : basePath;
 
+  // Sort most-recently-modified first. Rows without an mtime sink to the bottom
+  // (e.g. deleted files) while preserving their incoming relative order.
+  const sorted = files.some((f) => typeof f.mtimeMs === "number")
+    ? [...files].sort((a, b) => (b.mtimeMs ?? -1) - (a.mtimeMs ?? -1))
+    : files;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      {files.map((file) => {
+      {sorted.map((file) => {
         const isDirectory = file.path.endsWith("/");
         const isDeleted = file.status === "deleted";
         const fileName = file.path.split("/").pop() ?? file.path;

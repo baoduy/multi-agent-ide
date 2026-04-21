@@ -35,7 +35,7 @@ export class WorktreeApplicationService {
   }
 
   async getWorktreeStatus(repoPath: string, worktreePath: string): Promise<{
-    files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked" }>;
+    files: Array<{ path: string; status: "added" | "modified" | "deleted" | "renamed" | "copied" | "untracked"; mtimeMs?: number }>;
     ahead: number;
     behind: number;
   }> {

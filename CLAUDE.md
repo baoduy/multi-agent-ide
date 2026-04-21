@@ -4,7 +4,7 @@ This file is the authoritative reference for AI agents (and human contributors) 
 
 ## Architecture at a Glance
 
-Magenta IDE is an Electron 30 + React 19 desktop app with four packages:
+Magenta IDE is an Electron 41.2.0 + React 19 desktop app with four packages:
 
 - **packages/shared** — Zod schemas, TypeScript types, IPC contracts, constants
 - **packages/daemon** — Node.js background service (layered architecture)
@@ -182,9 +182,4 @@ When adding a new feature, verify these locations:
 
 ## Tech Stack Reference
 
-Electron 30 · React 19 · Vite · shadcn/ui · Tailwind CSS v4 · Zustand · CodeMirror 6 · Node.js 22 · LMDB (embedded, memory-mapped key-value store) · simple-git · Zod · Vitest · Playwright · electron-builder
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-<!-- SPECKIT END -->
+Electron 41.2.0 · React 19 · Vite · shadcn/ui · Tailwind CSS v4 · Zustand · CodeMirror 6 · Node.js 22 · LMDB (embedded, memory-mapped key-value store) · simple-git · Zod · Vitest · Playwright · electron-builder

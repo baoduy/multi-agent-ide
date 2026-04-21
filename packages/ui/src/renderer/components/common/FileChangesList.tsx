@@ -307,7 +307,7 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
         </ScrollableText>
         <span
           style={{
-            fontSize: 9,
+            //fontSize: 9,
             color: colors.textTertiary,
             marginLeft: 4,
             flexShrink: 0,
@@ -426,7 +426,7 @@ function FileRowInner<T extends FileChangeItem>({
         {file.oldPath ? (
           <ScrollableText
             style={{
-              fontSize: 10,
+              //fontSize: 10,
               color: colors.textTertiary,
               fontStyle: "italic",
             }}

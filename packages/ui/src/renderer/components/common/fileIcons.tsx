@@ -236,7 +236,7 @@ export function ExtensionBadge({ fileName }: { fileName: string }): React.ReactE
   return (
     <span
       style={{
-        fontSize: 9,
+        //fontSize: 9,
         fontWeight: 600,
         textTransform: "uppercase",
         color: colors.textTertiary,

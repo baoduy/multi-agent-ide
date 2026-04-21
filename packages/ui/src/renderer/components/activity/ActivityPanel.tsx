@@ -42,7 +42,7 @@ function Section({
       >
         <ScrollableText
           style={{
-            fontSize: 10,
+            //fontSize: 10,
             fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.08em",

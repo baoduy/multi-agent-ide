@@ -15,7 +15,7 @@ export function FormLabel({ htmlFor, children, style }: FormLabelProps): React.R
       htmlFor={htmlFor}
       style={{
         display: "block",
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 600,
         color: colors.textSecondary,
         marginBottom: 6,
@@ -61,7 +61,7 @@ export function FormInput({
       style={{
         width: "100%",
         padding: "4px 8px",
-        fontSize: 11,
+        //fontSize: 11,
         border: `1px solid ${error ? colors.error : colors.border}`,
         borderRadius: 4,
         outline: "none",
@@ -121,7 +121,7 @@ export function FormTextarea({
       style={{
         width: "100%",
         padding: "4px 8px",
-        fontSize: 11,
+        //fontSize: 11,
         border: `1px solid ${error ? colors.error : colors.border}`,
         borderRadius: 4,
         outline: "none",
@@ -154,7 +154,7 @@ export function SectionHeader({ children, style }: SectionHeaderProps): React.Re
   return (
     <div
       style={{
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.08em",
@@ -176,7 +176,12 @@ type FormErrorProps = {
 export function FormError({ message }: FormErrorProps): React.ReactElement | null {
   if (!message) return null;
   return (
-    <p style={{ fontSize: 11, color: colors.error, margin: "6px 0 0", fontWeight: 500 }}>
+    <p style={{ 
+      //fontSize: 11, 
+      color: colors.error, 
+      margin: "6px 0 0", 
+      fontWeight: 500 
+    }}>
       {message}
     </p>
   );

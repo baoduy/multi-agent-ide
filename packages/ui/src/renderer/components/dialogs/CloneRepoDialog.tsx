@@ -149,7 +149,9 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
             onClick={() => void handleClone()}
             disabled={!canSubmit}
             style={{
-              padding: "5px 10px", fontSize: 11, fontWeight: 600,
+              padding: "5px 10px", 
+              //fontSize: 11, 
+              fontWeight: 600,
               color: colors.textWhite,
               background: !canSubmit ? colors.textTertiary : colors.primary,
               border: "none", borderRadius: 6,
@@ -180,7 +182,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
           {workingDirs.length === 0 ? (
             <div
               style={{
-                fontSize: 11,
+                //fontSize: 11,
                 color: colors.warningText,
                 background: colors.warningSoft,
                 border: `1px solid ${colors.warningBorderSoft}`,
@@ -199,7 +201,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
                 style={{
                   flex: 1,
                   padding: "8px 10px",
-                  fontSize: 11,
+                  //fontSize: 11,
                   border: `1px solid ${colors.border}`,
                   borderRadius: 6,
                   background: colors.bgSurface,
@@ -217,7 +219,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
                 title="Browse… (must be an existing working directory)"
                 style={{
                   padding: "7px 10px",
-                  fontSize: 11,
+                  //fontSize: 11,
                   fontWeight: 500,
                   color: colors.text,
                   background: "transparent",
@@ -234,7 +236,9 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
               </button>
             </div>
           )}
-          <p style={{ fontSize: 11, color: colors.textTertiary, margin: "5px 0 0", lineHeight: 1.5 }}>
+          <p style={{ 
+            //fontSize: 11, 
+            color: colors.textTertiary, margin: "5px 0 0", lineHeight: 1.5 }}>
             The repo is cloned as a child folder inside one of your configured working directories.
           </p>
         </div>
@@ -266,7 +270,9 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
               percent={currentClone.percent}
               color={failed ? colors.error : colors.primary}
             />
-            <p style={{ fontSize: 11, color: failed ? colors.error : colors.textTertiary, marginTop: 6, fontFamily: "var(--font-sans)" }}>
+            <p style={{ 
+              //fontSize: 11, 
+              color: failed ? colors.error : colors.textTertiary, marginTop: 6, fontFamily: "var(--font-sans)" }}>
               {failed ? (currentClone.error ?? "Clone failed.") : currentClone.phase + (currentClone.percent > 0 ? ` · ${currentClone.percent}%` : "")}
             </p>
           </div>

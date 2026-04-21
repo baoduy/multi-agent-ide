@@ -182,7 +182,9 @@ function CliToolRow({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: colors.text }}>
+            <span style={{ 
+              //fontSize: 11,
+               fontWeight: 600, color: colors.text }}>
               {spec.displayName}
             </span>
             <a
@@ -197,7 +199,9 @@ function CliToolRow({
           </div>
           <VersionLine tool={tool} isChecking={isChecking} success={success} />
           {tool.checkError && (
-            <div style={{ fontSize: 10, color: colors.warningText, marginTop: 2 }}>
+            <div style={{ 
+              //fontSize: 10, 
+              color: colors.warningText, marginTop: 2 }}>
               {tool.checkError}
             </div>
           )}
@@ -239,7 +243,7 @@ function CliToolRow({
 
       <div
         style={{
-          fontSize: 10,
+          //fontSize: 10,
           color: colors.textTertiary,
           marginTop: 8,
           fontFamily: "'SF Mono', ui-monospace, monospace",
@@ -262,7 +266,9 @@ function VersionLine({
 }): React.ReactElement {
   if (!tool.installed) {
     return (
-      <div style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
+      <div style={{ 
+        //fontSize: 11, 
+        color: colors.textTertiary, marginTop: 2 }}>
         Not installed locally
       </div>
     );
@@ -271,7 +277,9 @@ function VersionLine({
     fontFamily: "'SF Mono', ui-monospace, monospace",
   };
   return (
-    <div style={{ fontSize: 11, color: colors.textMuted, marginTop: 2 }}>
+    <div style={{ 
+      //fontSize: 11, 
+      color: colors.textMuted, marginTop: 2 }}>
       <code style={monoStyle}>{tool.currentVersion ?? "?"}</code>
       {" → "}
       {tool.latestVersion ? (
@@ -312,7 +320,9 @@ function renderRowAction({
   onDismiss: () => void;
 }): React.ReactElement | null {
   if (isRunning) {
-    return <span style={{ fontSize: 11, color: colors.textMuted }}>Running…</span>;
+    return <span style={{ 
+      //fontSize: 11, 
+      color: colors.textMuted }}>Running…</span>;
   }
   if (isDone && upgrade) {
     return (
@@ -337,7 +347,9 @@ function renderRowAction({
     if (tool.tool === "specify") {
       return (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 11, color: colors.success, fontWeight: 500 }}>
+          <span style={{ 
+            //fontSize: 11, 
+            color: colors.success, fontWeight: 500 }}>
             Up to date
           </span>
           <SecondaryButton

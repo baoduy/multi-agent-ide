@@ -170,7 +170,7 @@ function PickerTrigger({
         background: disabled ? "transparent" : (isOpen || hovered ? colors.bgHover : "transparent"),
         border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 500,
         color: disabled ? colors.textTertiary : (selected ? colors.text : colors.textTertiary),
         opacity: disabled ? 0.55 : 1,
@@ -275,7 +275,7 @@ function DropdownPanel<T extends string>({
               flex: 1,
               border: "none",
               outline: "none",
-              fontSize: 11,
+              //fontSize: 11,
               color: colors.text,
               background: "transparent",
               fontFamily: "inherit",
@@ -313,7 +313,7 @@ function DropdownPanel<T extends string>({
           <div
             style={{
               padding: 12,
-              fontSize: 11,
+              //fontSize: 11,
               color: colors.textTertiary,
               textAlign: "center",
             }}
@@ -366,7 +366,7 @@ function DropdownItemComponent<T extends string>({
             <span
               style={{
                 display: "block",
-                fontSize: 11,
+                //fontSize: 11,
                 color: colors.textTertiary,
                 marginTop: 1,
                 lineHeight: 1.3,
@@ -386,7 +386,7 @@ function DropdownItemComponent<T extends string>({
           <span style={{ flex: 1, minWidth: 0 }}>
             <ScrollableText
               style={{
-                fontSize: 11,
+                //fontSize: 11,
                 fontWeight: 500,
                 color: colors.text,
                 lineHeight: 1.4,
@@ -403,7 +403,7 @@ function DropdownItemComponent<T extends string>({
               <span
                 style={{
                   display: "block",
-                  fontSize: 11,
+                  //fontSize: 11,
                   color: colors.textTertiary,
                   marginTop: 1,
                   lineHeight: 1.3,

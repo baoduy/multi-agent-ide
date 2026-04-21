@@ -222,7 +222,7 @@ function ContextMenuItem({
             !isDisabled && (hovered || submenuOpen) ? colors.bgHover : "transparent",
           padding: "5px 10px",
           cursor: isDisabled ? "not-allowed" : hasSubmenu ? "default" : "pointer",
-          fontSize: 11,
+          //fontSize: 11,
           color: isDisabled ? colors.textMuted : colors.text,
           opacity: isDisabled ? 0.55 : 1,
           textAlign: "left",
@@ -240,7 +240,7 @@ function ContextMenuItem({
               strokeWidth={1.8}
             />
           ) : item.emoji ? (
-            <span style={{ fontSize: 11 }}>{item.emoji}</span>
+            <span>{item.emoji}</span>
           ) : null}
         </span>
         <span style={{ flex: 1 }}>{item.label}</span>

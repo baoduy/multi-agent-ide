@@ -31,7 +31,11 @@ export function LoadingSpinner({ message = "Loading..." }: LoadingSpinnerProps):
           animation: "spin 1s linear infinite",
         }}
       />
-      <p style={{ fontSize: 11, color: colors.textSecondary, margin: 0 }}>{message}</p>
+      <p style={{ 
+        //fontSize: 11, 
+        color: colors.textSecondary, 
+        margin: 0 
+      }}>{message}</p>
     </div>
   );
 }

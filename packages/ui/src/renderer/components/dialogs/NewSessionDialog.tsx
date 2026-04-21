@@ -652,7 +652,7 @@ export function NewSessionDialog({
                     <div
                       style={{
                         padding: "8px 6px 8px 12px",
-                        fontSize: 11,
+                        //fontSize: 11,
                         fontFamily: "var(--font-sans)",
                         color: colors.textTertiary,
                         background: colors.bgMuted,
@@ -679,7 +679,7 @@ export function NewSessionDialog({
                       style={{
                         flex: 1,
                         padding: "8px 12px",
-                        fontSize: 11,
+                        //fontSize: 11,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
                         borderRadius: "0 6px 6px 0",
                         outline: "none",
@@ -704,7 +704,7 @@ export function NewSessionDialog({
                   {fullWorktreeName && (
                     <p
                       style={{
-                        fontSize: 11,
+                        //fontSize: 11,
                         color: colors.textTertiary,
                         margin: "4px 0 0",
                         lineHeight: 1.4,
@@ -721,7 +721,9 @@ export function NewSessionDialog({
                     </p>
                   )}
                   {!worktreeCustomName.trim() && (
-                    <p style={{ fontSize: 11, color: colors.textTertiary, margin: "4px 0 0" }}>
+                    <p style={{ 
+                      //fontSize: 11, 
+                      color: colors.textTertiary, margin: "4px 0 0" }}>
                       Leave blank to auto-generate
                     </p>
                   )}
@@ -797,7 +799,7 @@ function WorktreeList({
             <div style={{ flex: 1, minWidth: 0 }}>
               <ScrollableText
                 style={{
-                  fontSize: 11,
+                  //fontSize: 11,
                   fontWeight: 500,
                   color: colors.text,
                 }}

@@ -231,7 +231,7 @@ function FolderNode({
         {showCountBadge && countItems && (
           <span
             style={{
-              fontSize: 9,
+              //fontSize: 9,
               color: colors.borderStrong,
               marginLeft: "auto",
               flexShrink: 0,
@@ -244,7 +244,9 @@ function FolderNode({
 
         {/* Loading */}
         {loading && (
-          <span style={{ fontSize: 9, color: colors.textTertiary, marginLeft: "auto", flexShrink: 0 }}>...</span>
+          <span style={{ 
+            //fontSize: 9,
+             color: colors.textTertiary, marginLeft: "auto", flexShrink: 0 }}>...</span>
         )}
       </button>
 
@@ -272,7 +274,7 @@ function FolderNode({
         <div
           style={{
             padding: `3px 8px 3px ${22 + indent}px`,
-            fontSize: 10,
+            //fontSize: 10,
             color: colors.borderStrong,
             fontStyle: "italic",
           }}

@@ -179,7 +179,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
           flex: 1,
           minWidth: 0,
           padding: "8px 12px",
-          fontSize: 11,
+          //fontSize: 11,
           border: `1px solid ${commitError ? colors.error : colors.border}`,
           borderRadius: 6,
           outline: "none",
@@ -241,7 +241,9 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
       ) : loadError ? (
         <FormError message={loadError} />
       ) : files.length === 0 ? (
-        <p style={{ fontSize: 11, color: colors.textSecondary, margin: 0 }}>
+        <p style={{ 
+          //fontSize: 11, 
+          color: colors.textSecondary, margin: 0 }}>
           No changes to commit on <strong style={{ color: colors.text }}>{currentBranch}</strong>.
         </p>
       ) : (
@@ -256,7 +258,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
               type="button"
               onClick={toggleAll}
               style={{
-                fontSize: 11,
+                //fontSize: 11,
                 fontWeight: 500,
                 color: colors.primary,
                 background: "none",
@@ -286,7 +288,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
               <div key={group.title} style={{ marginBottom: 4 }}>
                 <div
                   style={{
-                    fontSize: 10,
+                    //fontSize: 10,
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -309,7 +311,9 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
 
           {/* Inline hint + error — sits between the file list and the footer's message input */}
           {!hasUpstream && (
-            <p style={{ fontSize: 11, color: colors.textTertiary, marginTop: 0, marginBottom: 0, lineHeight: 1.5, flexShrink: 0 }}>
+            <p style={{ 
+              //fontSize: 11, 
+              color: colors.textTertiary, marginTop: 0, marginBottom: 0, lineHeight: 1.5, flexShrink: 0 }}>
               Branch <strong style={{ color: colors.textSecondary }}>{currentBranch}</strong> has no upstream.
               Pushing will set <code style={{ fontFamily: "var(--font-sans)" }}>origin/{currentBranch}</code> as upstream.
             </p>
@@ -368,7 +372,7 @@ function SplitButton({
         disabled={disabled}
         style={{
           padding: "5px 10px",
-          fontSize: 11,
+          //fontSize: 11,
           fontWeight: 600,
           color: colors.textWhite,
           background: baseBg,
@@ -449,7 +453,7 @@ function SplitButton({
               alignItems: "center",
               gap: 8,
               padding: "8px 10px",
-              fontSize: 11,
+              //fontSize: 11,
               fontWeight: 500,
               color: colors.text,
               background: "transparent",

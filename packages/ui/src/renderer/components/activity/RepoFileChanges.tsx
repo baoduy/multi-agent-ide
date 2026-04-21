@@ -97,7 +97,7 @@ export function RepoFileChanges({
       {status && (status.ahead > 0 || status.behind > 0) && (
         <div
           style={{
-            fontSize: 11,
+            //fontSize: 11,
             color: colors.textTertiary,
             marginBottom: 8,
           }}
@@ -115,7 +115,9 @@ export function RepoFileChanges({
 
       {/* Empty state */}
       {!isLoading && status && filteredFiles.length === 0 && (
-        <div style={{ color: colors.textTertiary, fontSize: 11, padding: "8px 0" }}>
+        <div style={{ color: colors.textTertiary, 
+        //fontSize: 11,
+         padding: "8px 0" }}>
           {searchQuery.trim()
             ? `No matches for \u201c${searchQuery}\u201d`
             : "No changed files."}

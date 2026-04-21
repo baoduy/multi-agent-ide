@@ -10,7 +10,7 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
  * leave the text slides back.
  *
  * Usage:
- *   <ScrollableText style={{ fontSize: 11, fontWeight: 600 }}>
+ *   <ScrollableText style={{ fontWeight: 600 }}>
  *     {someLongText}
  *   </ScrollableText>
  */

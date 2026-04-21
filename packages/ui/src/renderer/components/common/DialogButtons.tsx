@@ -16,7 +16,7 @@ export function CancelButton({ onClick, children = "Cancel" }: CancelButtonProps
       onClick={onClick}
       style={{
         padding: "4px 10px",
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 500,
         color: colors.textSecondary,
         background: colors.bgMuted,
@@ -58,7 +58,7 @@ export function PrimaryButton({
       disabled={isDisabled}
       style={{
         padding: "4px 10px",
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 600,
         color: colors.textWhite,
         background: isDisabled ? colors.textTertiary : bgColor,
@@ -94,7 +94,7 @@ export function DangerButton({ onClick, children, icon }: DangerButtonProps): Re
       onClick={onClick}
       style={{
         padding: "4px 10px",
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 500,
         color: colors.errorDark,
         background: colors.errorSoft,
@@ -137,7 +137,7 @@ export function SecondaryButton({
       title={title}
       style={{
         padding: "4px 10px",
-        fontSize: 11,
+        //fontSize: 11,
         fontWeight: 500,
         color: disabled ? colors.textTertiary : colors.textSecondary,
         background: colors.bgMuted,

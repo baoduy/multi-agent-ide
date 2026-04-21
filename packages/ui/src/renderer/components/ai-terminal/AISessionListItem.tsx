@@ -87,8 +87,8 @@ function AISessionListItemComponent({
       <ClickableRow
         onClick={() => onSelect(session.id)}
         onContextMenu={openContextMenu}
-        padding={`${d.rowPadY + 2}px ${d.rowPadX + 4}px`}
-        gap={d.rowGap + 4}
+        padding={`${d.rowPadY}px ${d.rowPadX}px`}
+        gap={d.rowGap}
         borderBottom={`1px solid ${colors.border}`}
         defaultBackground={colors.bgSurface}
         hoverBackground={colors.bgHover}

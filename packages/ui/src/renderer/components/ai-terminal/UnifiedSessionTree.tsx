@@ -357,10 +357,10 @@ const SyncedSessionRow = React.memo(function SyncedSessionRow({
       onMouseLeave={() => setHovered(false)}
       style={{
         width: "100%",
-        padding: `${d.rowPadY + 1}px ${d.rowPadX}px ${d.rowPadY + 1}px ${d.indentStep + 12}px`,
+        padding: `${d.rowPadY}px ${d.rowPadX}px ${d.rowPadY}px ${d.indentStep * 2}px`,
         display: "flex",
         alignItems: "center",
-        gap: d.rowGap + 2,
+        gap: d.rowGap,
         borderBottom: `1px solid ${colors.borderLight}`,
         background: hovered ? colors.bgHover : "transparent",
         transition: "background 0.12s",

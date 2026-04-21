@@ -14,6 +14,8 @@ type DragOverlayProps = {
   active: boolean;
   /** The view ID being dragged */
   dragViewId: string | null;
+  /** The region the view is being dragged from */
+  fromRegion: DockRegion | null;
   /** Callback when dropped on a region */
   onDrop: (region: DockRegion) => void;
   /** Callback when drag is cancelled */
@@ -23,10 +25,14 @@ type DragOverlayProps = {
 export const DockDragOverlay = React.memo(function DockDragOverlay({
   active,
   dragViewId,
+  fromRegion,
   onDrop,
   onCancel,
 }: DragOverlayProps): React.ReactElement | null {
   if (!active || !dragViewId) return null;
+
+  // Sidebar views render as accordion sections and can't live as tabs.
+  const centerDisabled = fromRegion === "left" || fromRegion === "right";
 
   return (
     <div
@@ -57,7 +63,12 @@ export const DockDragOverlay = React.memo(function DockDragOverlay({
         }}
       >
         <DropZone region="left" label="Left Sidebar" onDrop={onDrop} />
-        <DropZone region="center" label="Center (Tab)" onDrop={onDrop} />
+        <DropZone
+          region="center"
+          label={centerDisabled ? "Tab View (not allowed)" : "Center (Tab)"}
+          onDrop={onDrop}
+          disabled={centerDisabled}
+        />
         <DropZone region="right" label="Right Sidebar" onDrop={onDrop} />
         <div /> {/* empty cell */}
         <DropZone region="bottom" label="Bottom Panel" onDrop={onDrop} />
@@ -73,12 +84,15 @@ function DropZone({
   region,
   label,
   onDrop,
+  disabled = false,
 }: {
   region: DockRegion;
   label: string;
   onDrop: (region: DockRegion) => void;
+  disabled?: boolean;
 }): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const active = hovered && !disabled;
 
   return (
     <div
@@ -86,6 +100,7 @@ function DropZone({
       onMouseLeave={() => setHovered(false)}
       onClick={(e) => {
         e.stopPropagation();
+        if (disabled) return;
         onDrop(region);
       }}
       style={{
@@ -93,12 +108,13 @@ function DropZone({
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 6,
-        border: `2px dashed ${hovered ? colors.primary : colors.border}`,
-        background: hovered ? `color-mix(in srgb, ${colors.primary} 10%, transparent)` : `color-mix(in srgb, ${colors.border} 24%, transparent)`,
-        color: hovered ? colors.primary : colors.textTertiary,
+        border: `2px dashed ${active ? colors.primary : colors.border}`,
+        background: active ? `color-mix(in srgb, ${colors.primary} 10%, transparent)` : `color-mix(in srgb, ${colors.border} 24%, transparent)`,
+        color: active ? colors.primary : colors.textTertiary,
         fontSize: 11,
         fontWeight: 500,
-        cursor: "pointer",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.4 : 1,
         transition: "all 0.15s",
       }}
     >

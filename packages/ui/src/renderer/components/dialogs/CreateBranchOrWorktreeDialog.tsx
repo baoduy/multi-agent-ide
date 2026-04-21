@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GitBranch, GitFork } from "lucide-react";
 
-import { isValidBranchName, isValidWorktreeName, sanitizeWorktreeName } from "@magenta/shared/sanitize";
+import { sanitizeGitName, sanitizeWorktreeName } from "@magenta/shared/sanitize";
 import { colors } from "../../utils/colors";
 import { sendOrThrow } from "../../services/ipcClient";
 import { useRepoStore } from "../../store/repoStore";
@@ -93,23 +93,26 @@ export function CreateBranchOrWorktreeDialog({
     if (!isBranch) setName((prev) => (prev === "" ? sanitizeWorktreeName(b) : prev));
   }, [isBranch]);
 
-  // Per-kind validation
-  const validateName = useCallback((trimmed: string): string | null => {
-    if (!trimmed) return isBranch ? "Branch name cannot be empty." : "Worktree name cannot be empty.";
-    if (isBranch) {
-      if (!isValidBranchName(trimmed)) return "Invalid branch name. Use letters, numbers, dashes, dots, or slashes.";
-      if (branches.includes(trimmed)) return "A branch with this name already exists.";
-    } else {
-      if (!isValidWorktreeName(trimmed)) return "Only letters, numbers, dashes, and underscores are allowed.";
-    }
-    return null;
-  }, [isBranch, branches]);
+  // Auto-transform the raw input into a safe git/worktree name.
+  const normalizeName = useCallback((raw: string): string => {
+    const trimmed = raw.trim();
+    return isBranch ? sanitizeGitName(trimmed) : sanitizeWorktreeName(trimmed);
+  }, [isBranch]);
 
   const handleConfirm = useCallback(async () => {
-    const trimmed = name.trim();
-    const err = validateName(trimmed);
-    if (err) { setNameError(err); return; }
+    const finalName = normalizeName(name);
+    if (!finalName) {
+      setNameError(isBranch ? "Branch name cannot be empty." : "Worktree name cannot be empty.");
+      return;
+    }
+    if (isBranch && branches.includes(finalName)) {
+      setNameError("A branch with this name already exists.");
+      return;
+    }
+    // Reflect the sanitized name back to the user so they can see what got created.
+    if (finalName !== name) setName(finalName);
     if (!baseBranch) { setCreateError("Please select a base branch."); return; }
+    const trimmed = finalName;
 
     setIsCreating(true);
     setCreateError(null);
@@ -142,8 +145,8 @@ export function CreateBranchOrWorktreeDialog({
       setIsCreating(false);
     }
   }, [
-    name, baseBranch, isBranch, switchAfter, repoPath,
-    validateName, fetchRepos, addWorktree, patchSession,
+    name, baseBranch, isBranch, branches, switchAfter, repoPath,
+    normalizeName, fetchRepos, addWorktree, patchSession,
     expandedRepos, toggleRepoExpanded, setExpandedWorktreePath, onClose,
   ]);
 

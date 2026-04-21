@@ -5,6 +5,7 @@ import { SpecItem } from "./SpecItem";
 import { colors } from "../../utils/colors";
 import { useSortedSpecs } from "../../hooks/useSortedSpecs";
 import { useViewSearchStore } from "../../store/viewSearchStore";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 type SpecTreeProps = {
   specs: SpecFolder[];
@@ -36,6 +37,7 @@ export const SpecTree = React.memo(function SpecTree({
   selectedSpecPath,
   onSelectSpec,
 }: SpecTreeProps): React.ReactElement {
+  const d = useDensityTokens();
   // Sort MUST be called unconditionally (React hooks rules)
   const sortedSpecs = useSortedSpecs(specs);
   const searchQuery = useViewSearchStore((s) => s.queries["specs"] ?? "");
@@ -57,7 +59,7 @@ export const SpecTree = React.memo(function SpecTree({
 
   if (sortedSpecs.length === 0) {
     return (
-      <div style={{ padding: "5px 10px", fontSize: 11, color: colors.textTertiary }}>
+      <div style={{ padding: "5px 10px", fontSize: d.font, color: colors.textTertiary }}>
         No specs found
       </div>
     );
@@ -65,7 +67,7 @@ export const SpecTree = React.memo(function SpecTree({
 
   if (filteredSpecs.length === 0) {
     return (
-      <div style={{ padding: "5px 10px", fontSize: 11, color: colors.textTertiary }}>
+      <div style={{ padding: "5px 10px", fontSize: d.font, color: colors.textTertiary }}>
         No matches for &ldquo;{searchQuery}&rdquo;
       </div>
     );

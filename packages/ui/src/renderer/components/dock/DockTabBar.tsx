@@ -12,6 +12,7 @@ import { X, Terminal, ChevronDown, Copy, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
 import { viewRegistry } from "./ViewRegistry";
 import { useDockDrag } from "./useDockDrag";
+import { useLayoutStore } from "./layoutStore";
 import { ProviderIcon } from "../common/ProviderIcon";
 import { ScrollableText } from "../common/ScrollableText";
 import { ContextMenu, useContextMenu } from "../common/ContextMenu";
@@ -434,10 +435,20 @@ const TabItem = React.memo(function TabItem({
 
   const isBeingDragged = isDragging && dragViewId === viewId;
 
+  const handleDoubleClick = useCallback(() => {
+    if (viewId !== "agent-session") return;
+    const { layout, setRegionCollapsed } = useLayoutStore.getState();
+    const bothCollapsed = layout.left.collapsed && layout.right.collapsed;
+    const nextCollapsed = !bothCollapsed;
+    setRegionCollapsed("left", nextCollapsed);
+    setRegionCollapsed("right", nextCollapsed);
+  }, [viewId]);
+
   return (
     <button
       type="button"
       onMouseDown={handleMouseDown}
+      onDoubleClick={handleDoubleClick}
       onContextMenu={onContextMenu}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

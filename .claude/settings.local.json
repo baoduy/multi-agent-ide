@@ -41,7 +41,8 @@
       "Bash(grep -nB 2 -A 1 \"Set the \\\\`cycles\\\\` parameter\" /Users/steven/_CODE/GIT/multi-agent-ide/node_modules/.pnpm/zod@4.3.6/node_modules/zod/v4/core/json-schema-processors.js)",
       "Bash(rtk ls *)",
       "Bash(rtk wc *)",
-      "Bash(pnpm -F ui typecheck)"
+      "Bash(pnpm -F ui typecheck)",
+      "Bash(pnpm -C packages/ui build)"
     ]
   }
 }

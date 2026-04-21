@@ -7,7 +7,7 @@ import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { filterSessionGroups } from "../../utils/sessionTreeBuilder";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
-import { SearchSyncToolbar } from "../common/SearchSyncToolbar";
+import { ViewToolbar } from "../common/ViewToolbar";
 import { colors } from "../../utils/colors";
 import { resolveWorktreeParent } from "../../utils/formatters";
 import { sendOrThrow, onEvent } from "../../services/ipcClient";
@@ -294,7 +294,7 @@ export function AISessionsView({
         height: "100%",
       }}
     >
-      <SearchSyncToolbar
+      <ViewToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSync={handleRefresh}

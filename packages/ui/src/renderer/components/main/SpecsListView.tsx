@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   FileText,
   ClipboardList,
@@ -13,7 +13,12 @@ import {
 import type { SpecFolder } from "@magenta/shared/models";
 import { colors } from "../../utils/colors";
 import { Tag } from "../common/Tag";
+import { ViewToolbar } from "../common/ViewToolbar";
 import { useSortedSpecs } from "../../hooks/useSortedSpecs";
+import { useDensityTokens } from "../../hooks/useComponentSize";
+import { useRepoStore } from "../../store/repoStore";
+import { useSpecStore } from "../../store/specStore";
+import { sendOrThrow } from "../../services/ipcClient";
 
 /* ═══════════════════════════════════════════════════════
    Spec high-level state derivation
@@ -246,6 +251,7 @@ const SpecSticker = React.memo(function SpecSticker({
   onSelect: (specPath: string) => void;
   onOpen: (specPath: string) => void;
 }): React.ReactElement {
+  const d = useDensityTokens();
   const [hovered, setHovered] = useState(false);
   const specState = deriveSpecState(spec);
   const stateConfig = STATE_CONFIG[specState];
@@ -320,7 +326,7 @@ const SpecSticker = React.memo(function SpecSticker({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div
             style={{
-              fontSize: 11,
+              fontSize: d.font,
               fontWeight: 650,
               color: colors.textStrong,
               overflow: "hidden",
@@ -455,7 +461,25 @@ export function SpecsListView({
   onSelectSpec,
   onOpenSpec,
 }: SpecsListViewProps): React.ReactElement {
+  const d = useDensityTokens();
   const [filterState, setFilterState] = useState<SpecState | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const activeRepoPath = useRepoStore((s) => s.activeRepoPath);
+  const fetchSpecs = useSpecStore((s) => s.fetchSpecs);
+
+  const handleRefresh = useCallback(async () => {
+    if (isSyncing || !activeRepoPath) return;
+    setIsSyncing(true);
+    try {
+      await sendOrThrow({ type: "repo:force-reload", repoPath: activeRepoPath });
+      await fetchSpecs(activeRepoPath);
+    } catch (err) {
+      console.error("[SpecsListView] Refresh failed:", err);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing, activeRepoPath, fetchSpecs]);
 
   // Sort by createdAt descending (newest first)
   const sortedSpecs = useSortedSpecs(specs);
@@ -475,112 +499,124 @@ export function SpecsListView({
     return g;
   }, [sortedSpecs]);
 
-  // Apply filter
+  // Apply state filter
   const filteredSpecs = filterState ? grouped[filterState] : sortedSpecs;
+
+  const filterPills = (
+    <div
+      style={{
+        display: "flex",
+        gap: 3,
+        flex: 1,
+        alignItems: "center",
+        flexWrap: "wrap",
+      }}
+    >
+      {STEPS.map((state) => {
+        const cfg = STATE_CONFIG[state];
+        const count = grouped[state].length;
+        const isActive = filterState === state;
+        return (
+          <button
+            type="button"
+            key={state}
+            onClick={() => setFilterState(isActive ? null : state)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: 4,
+              border: isActive
+                ? `1px solid ${cfg.border}`
+                : "1px solid transparent",
+              background: isActive ? cfg.bg : "transparent",
+              cursor: count > 0 ? "pointer" : "default",
+              opacity: count > 0 ? 1 : 0.4,
+              pointerEvents: count > 0 ? "auto" : "none",
+              transition: "all 0.15s",
+            }}
+          >
+            <cfg.Icon
+              size={11}
+              color={isActive ? cfg.color : colors.textTertiary}
+              strokeWidth={1.8}
+            />
+            <span
+              style={{
+                fontSize: d.font,
+                fontWeight: 600,
+                color: isActive ? cfg.color : colors.textMuted,
+              }}
+            >
+              {count}
+            </span>
+            <span
+              style={{
+                fontSize: 10,
+                color: isActive ? cfg.color : colors.textTertiary,
+              }}
+            >
+              {cfg.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const toolbar = (
+    <ViewToolbar
+      leftSlot={filterPills}
+      onSync={handleRefresh}
+      isSyncing={isSyncing}
+      syncEnabled={!!activeRepoPath}
+      syncTitle="Re-scan specs for the selected repo"
+      syncAriaLabel="Refresh specs"
+    />
+  );
 
   if (specs.length === 0) {
     return (
-      <div
-        style={{
-          padding: 12,
-          color: colors.textTertiary,
-          fontSize: 11,
-          textAlign: "center",
-        }}
-      >
-        <Layers
-          size={24}
-          color={colors.borderMuted}
-          strokeWidth={1.5}
-          style={{ marginBottom: 8 }}
-        />
-        <div>No specs found for this repository.</div>
-        <div style={{ fontSize: 10, marginTop: 4 }}>
-          Create a spec folder under{" "}
-          <code
-            style={{
-              background: colors.bgCodeInline,
-              padding: "1px 3px",
-              borderRadius: 3,
-            }}
-          >
-            specs/
-          </code>{" "}
-          to get started.
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {toolbar}
+        <div
+          style={{
+            padding: 12,
+            color: colors.textTertiary,
+            fontSize: d.font,
+            textAlign: "center",
+          }}
+        >
+          <Layers
+            size={24}
+            color={colors.borderMuted}
+            strokeWidth={1.5}
+            style={{ marginBottom: 8 }}
+          />
+          <div>No specs found for this repository.</div>
+          <div style={{ fontSize: 10, marginTop: 4 }}>
+            Create a spec folder under{" "}
+            <code
+              style={{
+                background: colors.bgCodeInline,
+                padding: "1px 3px",
+                borderRadius: 3,
+              }}
+            >
+              specs/
+            </code>{" "}
+            to get started.
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 10 }}>
-      {/* Summary filter bar */}
-      <div
-        style={{
-          display: "flex",
-          gap: 3,
-          marginBottom: 10,
-          padding: "4px 6px",
-          background: colors.bgPanel,
-          borderRadius: 6,
-          border: `1px solid ${colors.border}`,
-          flexWrap: "wrap",
-        }}
-      >
-        {STEPS.map((state) => {
-          const cfg = STATE_CONFIG[state];
-          const count = grouped[state].length;
-          const isActive = filterState === state;
-          return (
-            <button
-              type="button"
-              key={state}
-              onClick={() =>
-                setFilterState(isActive ? null : state)
-              }
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-                padding: "3px 8px",
-                borderRadius: 4,
-                border: isActive
-                  ? `1px solid ${cfg.border}`
-                  : "1px solid transparent",
-                background: isActive ? cfg.bg : "transparent",
-                cursor: count > 0 ? "pointer" : "default",
-                opacity: count > 0 ? 1 : 0.4,
-                pointerEvents: count > 0 ? "auto" : "none",
-                transition: "all 0.15s",
-              }}
-            >
-              <cfg.Icon
-                size={11}
-                color={isActive ? cfg.color : colors.textTertiary}
-                strokeWidth={1.8}
-              />
-              <span
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: isActive ? cfg.color : colors.textMuted,
-                }}
-              >
-                {count}
-              </span>
-              <span
-                style={{
-                  fontSize: 10,
-                  color: isActive ? cfg.color : colors.textTertiary,
-                }}
-              >
-                {cfg.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      {toolbar}
+      <div style={{ padding: 10 }}>
       {/* Flex-wrap sticker grid */}
       <div
         style={{
@@ -607,12 +643,13 @@ export function SpecsListView({
               textAlign: "center",
                             padding: 12,
               color: colors.textTertiary,
-              fontSize: 11,
+              fontSize: d.font,
             }}
           >
             No specs match this filter.
           </div>
         )}
+      </div>
       </div>
     </div>
   );

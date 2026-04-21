@@ -5,6 +5,7 @@ import { ClickableRow } from "../common/ClickableRow";
 import { ScrollableText } from "../common/ScrollableText";
 import { StageDots } from "./StageDots";
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 type SpecItemProps = {
   spec: SpecFolder;
@@ -13,6 +14,7 @@ type SpecItemProps = {
 };
 
 export const SpecItem = React.memo(function SpecItem({ spec, isSelected, onSelect }: SpecItemProps): React.ReactElement {
+  const d = useDensityTokens();
   const handleClick = React.useCallback(() => onSelect(spec.path), [onSelect, spec.path]);
 
   return (
@@ -29,7 +31,7 @@ export const SpecItem = React.memo(function SpecItem({ spec, isSelected, onSelec
     >
       <ScrollableText
         style={{
-          fontSize: 11,
+          fontSize: d.font,
           fontWeight: isSelected ? 500 : 400,
           color: colors.textStrong,
           flex: 1,

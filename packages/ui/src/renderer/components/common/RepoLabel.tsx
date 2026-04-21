@@ -1,7 +1,7 @@
 import React from "react";
 import { FolderGit2, GitBranch } from "lucide-react";
 import { colors } from "../../utils/colors";
-import { useComponentSize } from "../../hooks/useComponentSize";
+import { useComponentSize, useDensityTokens } from "../../hooks/useComponentSize";
 import { type LabelSize, type LabelVariant, sizeMap, boxedIconMap } from "./labelConstants";
 import { ScrollableText } from "./ScrollableText";
 import { Tag } from "./Tag";
@@ -45,6 +45,7 @@ function RepoLabelComponent({
   const resolvedSize: LabelSize = size ?? density;
   const sz = sizeMap[resolvedSize];
   const b = boxedIconMap[resolvedSize];
+  const d = useDensityTokens();
 
   const iconNode = boxed ? (
     <span
@@ -71,7 +72,7 @@ function RepoLabelComponent({
   const nameNode = (
     <ScrollableText
       style={{
-        fontSize: sz.font,
+        fontSize: d.font,
         fontWeight: 500,
         color: colors.text,
         textTransform: uppercase ? "uppercase" : undefined,

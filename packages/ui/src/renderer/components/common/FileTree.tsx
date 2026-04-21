@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 import { FileIconBadge, FolderIconBadge, ExtensionBadge } from "./fileIcons";
 import { ScrollableText } from "./ScrollableText";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
@@ -111,6 +112,7 @@ function FolderNode({
   autoExpandPaths,
   indentPx = 14,
 }: NodeProps): React.ReactElement {
+  const d = useDensityTokens();
   // Auto-expand if this path is in autoExpandPaths
   const shouldAutoExpand = autoExpandPaths?.has(entry.path) ?? false;
   const [expanded, setExpanded] = useState(shouldAutoExpand);
@@ -212,7 +214,7 @@ function FolderNode({
         {renderItemContent?.(entry, depth) ?? (
           <ScrollableText
             style={{
-              fontSize: 11,
+              fontSize: d.font,
               fontWeight: 500,
               color: folderColor,
               flex: 1,
@@ -298,6 +300,7 @@ function FileNode({
   showExtensionBadge = true,
   indentPx = 14,
 }: NodeProps): React.ReactElement {
+  const d = useDensityTokens();
   const [hovered, setHovered] = useState(false);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
@@ -333,7 +336,7 @@ function FileNode({
         {renderItemContent?.(entry, depth) ?? (
           <ScrollableText
             style={{
-              fontSize: 11,
+              fontSize: d.font,
               fontWeight: 500,
               color: colors.text,
               flex: 1,

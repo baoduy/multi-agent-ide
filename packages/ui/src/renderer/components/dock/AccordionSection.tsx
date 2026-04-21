@@ -16,6 +16,7 @@ import { ChevronRight, ChevronDown, GripVertical, Search, X } from "lucide-react
 import { colors } from "../../utils/colors";
 import { ScrollableText } from "../common/ScrollableText";
 import { useDockDrag } from "./useDockDrag";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 import type { DockRegion } from "./types";
 
 type AccordionSectionProps = {
@@ -53,6 +54,7 @@ export const AccordionSection = React.memo(function AccordionSection({
   onSearchChange,
   searchPlaceholder,
 }: AccordionSectionProps): React.ReactElement {
+  const d = useDensityTokens();
   const [headerHovered, setHeaderHovered] = useState(false);
   const [gripHovered, setGripHovered] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -172,7 +174,7 @@ export const AccordionSection = React.memo(function AccordionSection({
           alignItems: "center",
           gap: 4,
           padding: "7px 8px",
-          fontSize: 11,
+          fontSize: d.headerFont,
           fontWeight: 600,
           textTransform: "uppercase",
           letterSpacing: "0.06em",
@@ -244,7 +246,7 @@ export const AccordionSection = React.memo(function AccordionSection({
                 border: "none",
                 background: "transparent",
                 outline: "none",
-                fontSize: 11,
+                fontSize: d.font,
                 color: colors.textStrong,
                 padding: 0,
                 lineHeight: "16px",

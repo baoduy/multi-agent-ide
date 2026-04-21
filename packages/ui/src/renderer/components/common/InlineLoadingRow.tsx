@@ -36,7 +36,7 @@ export function InlineLoadingRow({
         ...style,
       }}
     >
-      <Loader2 size={size} strokeWidth={strokeWidth} style={{ animation: "spin 1s linear infinite" }} />
+      <Loader2 size={size} strokeWidth={strokeWidth} className="spin" />
       <span>{label}</span>
     </div>
   );

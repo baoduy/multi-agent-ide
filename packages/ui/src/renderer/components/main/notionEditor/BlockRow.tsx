@@ -489,7 +489,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 style={{
                   border: "none",
                   background: "transparent",
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-sans)",
                   fontSize: 11,
                   color: colors.textMuted,
                   outline: "none",
@@ -502,7 +502,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
               style={{
                 padding: "6px 10px",
                 outline: "none",
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-sans)",
                 fontSize: 12,
                 lineHeight: 1.55,
                 color: colors.text,
@@ -532,7 +532,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 padding: "4px 10px",
                 borderBottom: `1px solid ${colors.border}`,
                 background: colors.bgSurface,
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-sans)",
                 fontSize: 11,
                 color: colors.textMuted,
               }}
@@ -545,7 +545,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 style={{
                   padding: "6px 10px",
                   outline: "none",
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-sans)",
                   fontSize: 13,
                   lineHeight: 1.55,
                   color: colors.text,
@@ -932,7 +932,7 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
                 borderRadius: 4,
                 padding: "2px 6px",
                 fontSize: 11,
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-sans)",
                 color: colors.textMuted,
                 background: colors.dialogBg,
                 outline: "none",

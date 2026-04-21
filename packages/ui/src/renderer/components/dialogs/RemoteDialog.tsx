@@ -15,8 +15,6 @@ type RemoteDialogProps = {
   onClose: () => void;
 };
 
-const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
-
 /** Redact `user:token@` from git URLs so tokens aren't displayed. */
 function redactToken(url: string): string {
   return url.replace(/:\/\/([^@/]+:[^@/]+)@/, "://***@");
@@ -91,10 +89,10 @@ export function RemoteDialog({ repoPath, onClose }: RemoteDialogProps): React.Re
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.text, fontFamily: "var(--font-mono)" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: colors.text, fontFamily: "var(--font-sans)" }}>
                         {r.name}
                       </span>
-                      <ScrollableText style={{ flex: 1, fontSize: 11, color: colors.textTertiary, fontFamily: "var(--font-mono)" }}>
+                      <ScrollableText style={{ flex: 1, fontSize: 11, color: colors.textTertiary, fontFamily: "var(--font-sans)" }}>
                         {redactToken(r.fetchUrl)}
                       </ScrollableText>
                     </div>
@@ -178,7 +176,7 @@ export function RemoteDialog({ repoPath, onClose }: RemoteDialogProps): React.Re
                 fontFamily: "inherit",
               }}
             >
-              {busy === "add" ? <Loader2 size={12} style={spin} /> : <Plus size={12} strokeWidth={2.2} />}
+              {busy === "add" ? <Loader2 size={12} className="spin" /> : <Plus size={12} strokeWidth={2.2} />}
               Add remote
             </button>
           </div>
@@ -215,7 +213,7 @@ function MiniButton({
         borderRadius: 4, cursor: busy ? "default" : "pointer", fontFamily: "inherit",
       }}
     >
-      {busy ? <Loader2 size={10} style={spin} /> : null}
+      {busy ? <Loader2 size={10} className="spin" /> : null}
       {children}
     </button>
   );

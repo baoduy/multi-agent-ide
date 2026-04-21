@@ -5,6 +5,7 @@ import { FileStatusBadge } from "./FileStatusBadge";
 import { FileIconBadge } from "./fileIcons";
 import { FileTree, type TreeEntry } from "./FileTree";
 import { ScrollableText } from "./ScrollableText";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 /** Union of every status value the two file-change data shapes emit today. */
 export type FileChangeStatus =
@@ -225,6 +226,7 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
   onToggleSelect,
   keyOf,
 }: FileChangesListProps<T>): React.ReactElement | null {
+  const d = useDensityTokens();
   const selectable = !!selectedKeys && !!onToggleSelect && !!keyOf;
   const effectiveKeyOf = keyOf ?? ((f: T) => f.path);
 
@@ -258,7 +260,7 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
     const node = nodeIndex.get(entry.id);
     if (!node || node.kind !== "dir") {
       return (
-        <ScrollableText style={{ fontSize: 11, fontWeight: 500, color: "var(--foreground)", flex: 1 }}>
+        <ScrollableText style={{ fontSize: d.font, fontWeight: 500, color: "var(--foreground)", flex: 1 }}>
           {entry.name}
         </ScrollableText>
       );
@@ -296,8 +298,7 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
         )}
         <ScrollableText
           style={{
-            fontSize: 11,
-            fontWeight: 500,
+            fontSize: d.font,
             color: "var(--foreground)",
             flex: 1,
           }}
@@ -306,11 +307,11 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
         </ScrollableText>
         <span
           style={{
-            fontSize: 9,
+            //fontSize: 9,
             color: colors.textTertiary,
             marginLeft: 4,
             flexShrink: 0,
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-sans)",
           }}
         >
           {keys.length}
@@ -380,6 +381,7 @@ function FileRowInner<T extends FileChangeItem>({
   onOpenClick,
   indent,
 }: FileRowInnerProps<T>): React.ReactElement {
+  const d = useDensityTokens();
   const [hovered, setHovered] = useState(false);
   const isDeleted = file.status === "deleted";
   const fileName = file.path.split("/").pop() ?? file.path;
@@ -414,8 +416,7 @@ function FileRowInner<T extends FileChangeItem>({
       <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
         <ScrollableText
           style={{
-            fontSize: 11,
-            fontWeight: 600,
+            fontSize: d.font,
             color: openClickable && hovered ? colors.primary : colors.text,
             transition: "color 0.1s",
           }}
@@ -425,9 +426,8 @@ function FileRowInner<T extends FileChangeItem>({
         {file.oldPath ? (
           <ScrollableText
             style={{
-              fontSize: 10,
+              //fontSize: 10,
               color: colors.textTertiary,
-              fontFamily: "var(--font-mono)",
               fontStyle: "italic",
             }}
           >

@@ -26,17 +26,20 @@
 ## Feature Readiness
 
 - [x] All functional requirements have clear acceptance criteria
-- [x] User scenarios cover primary flows (browse/toggle, agent settings, dual-scope, search, generate, import, diagnose)
+- [x] User scenarios cover primary flows (browse/toggle, global-top/local-bottom grouping, per-agent settings, Claude/Copilot provider config, dual-scope, search, generate, import, diagnose)
 - [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
 ## Notes
 
-- All items passed on first validation pass of the enhanced spec.
-- Two major enhancements added over v1:
-  1. **Agent settings management** (US-2, FR-006–FR-009): Users can view and edit per-agent settings directly in the Inspector, with inherited values from user scope clearly labelled and workspace overrides removable.
-  2. **Dual-scope management** (US-3, FR-010–FR-013): Three-tier scope model — `user` (global, `~/.magenta/extensions/`), `workspace` (repo-level, `.magenta/extensions/`), `builtin` (read-only). Workspace overrides user; user overrides built-in. Panel has a scope switcher.
-- Scope resolution order documented in FR-009 and Assumptions.
-- User-scope location assumption (`~/.magenta/extensions/`) documented and can be revisited during planning.
+- All items passed on third validation pass.
+- **v3 enhancements** applied over v2:
+  1. **Global-top / local-bottom layout** (US-2, FR-002): Every category accordion and center grid must group User (Global) extensions at the top and Workspace (Local) at the bottom with labelled dividers.
+  2. **Per-category Inspector UI design** (UI Design section): Detailed field-by-field Inspector layouts specified for all seven extension types — Agents, Skills, MCP Servers, Hooks, Prompts, Instructions, Plugins.
+  3. **Claude-first / Copilot reuse** (US-4, FR-011–FR-013): Agent settings schema is shared across providers; switching from Claude to Copilot carries over compatible fields (system prompt, temperature, max tokens, tools). Provider-specific fields shown only when that provider is selected. Credentials always secret-store backed.
+  4. **Scope switcher** (US-2 AC-4/5, FR-006): Sidebar scope switcher filters all categories to User / Workspace / All.
+  5. **User stories expanded** from 7 to 9; FRs from 26 to 31; SCs from 13 to 15.
+- Scope resolution order: workspace → user → built-in (FR-009, Assumptions).
+- Phase 1 minimum shippable increment: Agents end-to-end (settings, Claude/Copilot provider config, dual-scope, grouping layout) — documented in FR-031 and Assumptions.
 - Ready to proceed to `/speckit.clarify` or `/speckit.plan`.
 

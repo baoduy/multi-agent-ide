@@ -249,7 +249,7 @@ export function SpecifyOnboardBanner({
             style={{
               margin: 0,
               fontSize: 10,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-sans)",
               lineHeight: 1.5,
               color: colors.text,
               whiteSpace: "pre-wrap",

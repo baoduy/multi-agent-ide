@@ -7,7 +7,7 @@ import { usePinnedSessionsStore } from "../../store/pinnedSessionsStore";
 import { buildUnifiedGroups, SessionGroupNodeView } from "./UnifiedSessionTree";
 import { filterSessionGroups } from "../../utils/sessionTreeBuilder";
 import { NewSessionDialog } from "../dialogs/NewSessionDialog";
-import { SearchSyncToolbar } from "../common/SearchSyncToolbar";
+import { ViewToolbar } from "../common/ViewToolbar";
 import { colors } from "../../utils/colors";
 import { resolveWorktreeParent } from "../../utils/formatters";
 import { sendOrThrow, onEvent } from "../../services/ipcClient";
@@ -294,7 +294,7 @@ export function AISessionsView({
         height: "100%",
       }}
     >
-      <SearchSyncToolbar
+      <ViewToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSync={handleRefresh}
@@ -339,7 +339,7 @@ export function AISessionsView({
               padding: 12,
               textAlign: "center",
               color: colors.textTertiary,
-              fontSize: 11,
+              //fontSize: 11,
             }}
           >
             No sessions matching &ldquo;{searchQuery.trim()}&rdquo;
@@ -359,14 +359,16 @@ export function AISessionsView({
                 color: colors.textTertiary,
               }}
             >
-              <div style={{ fontSize: 11, marginBottom: 6 }}>
+              <div style={{ 
+                //fontSize: 11,
+                 marginBottom: 6 }}>
                 No sessions yet.
               </div>
               <button
                 type="button"
                 onClick={handleNewSession}
                 style={{
-                  fontSize: 11,
+                  //fontSize: 11,
                   color: colors.primary,
                   background: "transparent",
                   border: "none",

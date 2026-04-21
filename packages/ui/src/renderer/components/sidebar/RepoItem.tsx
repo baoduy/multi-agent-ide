@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
-  Star, Clipboard, Rocket, ArrowUpCircle, RefreshCw, GitFork,
+  Star, Clipboard, Rocket, ArrowUpCircle, GitFork,
   GitBranch, ArrowDown, ArrowUp, Download, GitCommit,
 } from "lucide-react";
 
@@ -124,16 +124,6 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       submenu: gitSubmenu,
     },
   ];
-
-  // Force reload: rescan repo + refresh spec info
-  ctxItems.push({
-    label: "Refresh",
-    Icon: RefreshCw,
-    separator: true,
-    action: () => {
-      void sendOrThrow({ type: "repo:force-reload", repoPath: repo.path });
-    },
-  });
 
   // Show "Onboard to Specify" when the repo hasn't been onboarded yet, and
   // always show "Upgrade Tools" — the global CLI version dialog for claude,

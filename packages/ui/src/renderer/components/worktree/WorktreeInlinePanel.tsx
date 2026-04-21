@@ -164,7 +164,7 @@ export function WorktreeInlinePanel({
               gap: 4,
               color: colors.textTertiary,
               fontSize: 10,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-sans)",
             }}
             title={worktree.worktreePath}
           >

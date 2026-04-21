@@ -179,13 +179,13 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
           flex: 1,
           minWidth: 0,
           padding: "8px 12px",
-          fontSize: 11,
+          //fontSize: 11,
           border: `1px solid ${commitError ? colors.error : colors.border}`,
           borderRadius: 6,
           outline: "none",
           background: colors.bgSurface,
           color: colors.text,
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-sans)",
           boxSizing: "border-box",
           transition: "border-color 0.15s",
         }}
@@ -206,7 +206,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
         }
         primaryIcon={
           isCommitting && pushIntent.current
-            ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+            ? <Loader2 size={12} className="spin" />
             : <Upload size={12} strokeWidth={2.2} />
         }
         onPrimary={() => void doCommit(true)}
@@ -215,7 +215,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
         menuItem={{
           label: isCommitting && !pushIntent.current ? "Committing..." : "Commit only",
           icon: isCommitting && !pushIntent.current
-            ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+            ? <Loader2 size={12} className="spin" />
             : <GitCommit size={12} strokeWidth={2.2} />,
           onSelect: () => { setMenuOpen(false); void doCommit(false); },
           disabled: primaryDisabled,
@@ -241,7 +241,9 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
       ) : loadError ? (
         <FormError message={loadError} />
       ) : files.length === 0 ? (
-        <p style={{ fontSize: 11, color: colors.textSecondary, margin: 0 }}>
+        <p style={{ 
+          //fontSize: 11, 
+          color: colors.textSecondary, margin: 0 }}>
           No changes to commit on <strong style={{ color: colors.text }}>{currentBranch}</strong>.
         </p>
       ) : (
@@ -256,7 +258,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
               type="button"
               onClick={toggleAll}
               style={{
-                fontSize: 11,
+                //fontSize: 11,
                 fontWeight: 500,
                 color: colors.primary,
                 background: "none",
@@ -286,7 +288,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
               <div key={group.title} style={{ marginBottom: 4 }}>
                 <div
                   style={{
-                    fontSize: 10,
+                    //fontSize: 10,
                     fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -309,9 +311,11 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
 
           {/* Inline hint + error — sits between the file list and the footer's message input */}
           {!hasUpstream && (
-            <p style={{ fontSize: 11, color: colors.textTertiary, marginTop: 0, marginBottom: 0, lineHeight: 1.5, flexShrink: 0 }}>
+            <p style={{ 
+              //fontSize: 11, 
+              color: colors.textTertiary, marginTop: 0, marginBottom: 0, lineHeight: 1.5, flexShrink: 0 }}>
               Branch <strong style={{ color: colors.textSecondary }}>{currentBranch}</strong> has no upstream.
-              Pushing will set <code style={{ fontFamily: "var(--font-mono)" }}>origin/{currentBranch}</code> as upstream.
+              Pushing will set <code style={{ fontFamily: "var(--font-sans)" }}>origin/{currentBranch}</code> as upstream.
             </p>
           )}
 
@@ -368,7 +372,7 @@ function SplitButton({
         disabled={disabled}
         style={{
           padding: "5px 10px",
-          fontSize: 11,
+          //fontSize: 11,
           fontWeight: 600,
           color: colors.textWhite,
           background: baseBg,
@@ -376,7 +380,7 @@ function SplitButton({
           borderTopLeftRadius: 6,
           borderBottomLeftRadius: 6,
           cursor,
-          fontFamily: "inherit",
+          fontFamily: "var(--font-sans)",
           display: "flex",
           alignItems: "center",
           gap: 6,
@@ -449,7 +453,7 @@ function SplitButton({
               alignItems: "center",
               gap: 8,
               padding: "8px 10px",
-              fontSize: 11,
+              //fontSize: 11,
               fontWeight: 500,
               color: colors.text,
               background: "transparent",
@@ -457,7 +461,7 @@ function SplitButton({
               borderRadius: 4,
               cursor: menuItem.disabled ? "default" : "pointer",
               textAlign: "left",
-              fontFamily: "inherit",
+              fontFamily: "var(--font-sans)",
               opacity: menuItem.disabled ? 0.5 : 1,
             }}
             onMouseEnter={(e) => { if (!menuItem.disabled) e.currentTarget.style.background = colors.bgHover; }}

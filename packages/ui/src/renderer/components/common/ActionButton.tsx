@@ -125,7 +125,7 @@ export function ActionButton({
         ...style,
       }}
     >
-      {loading ? <Loader2 size={12} strokeWidth={2} style={{ animation: "spin 1s linear infinite" }} /> : icon}
+      {loading ? <Loader2 size={12} strokeWidth={2} className="spin" /> : icon}
       {loading && loadingText ? loadingText : children}
     </button>
   );

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { GitBranch, GitFork, FolderPlus, Loader2, Shield, Zap, ShieldOff, FolderGit2, Sparkles, RotateCcw } from "lucide-react";
 
-import { isValidWorktreeName } from "@magenta/shared/sanitize";
+import { sanitizeWorktreeName } from "@magenta/shared/sanitize";
 import { sendOrThrow } from "../../services/ipcClient";
 import { ipc } from "../../utils/ipc";
 import { useAISessionStore } from "../../store/aiSessionStore";
@@ -67,7 +67,7 @@ export function NewSessionDialog({
 
   /* ── Form state ── */
   const [provider, setProvider] = useState<AIProvider>("claude");
-  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("auto");
+  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("default");
 
   // Workspace
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(initialRepoPath ?? null);
@@ -247,7 +247,7 @@ export function NewSessionDialog({
     if (open) {
       setSelectedRepoPath(initialRepoPath ?? null);
       setProvider(resumeContext?.provider ?? "claude");
-      setPermissionMode("auto");
+      setPermissionMode("default");
       setWorkspaceTarget("branch");
       setSelectedWorktreePath(null);
       setWorktreeCustomName("");
@@ -372,12 +372,11 @@ export function NewSessionDialog({
       return;
     }
 
-    // Validate worktree name if custom
+    // Auto-sanitize worktree name — reflect the cleaned value back to the user.
+    let sanitizedCustomName = "";
     if (workspaceTarget === "new-worktree" && worktreeCustomName.trim()) {
-      if (!isValidWorktreeName(worktreeCustomName.trim())) {
-        setWorktreeNameError("Only letters, numbers, dashes, and underscores.");
-        return;
-      }
+      sanitizedCustomName = sanitizeWorktreeName(worktreeCustomName.trim());
+      if (sanitizedCustomName !== worktreeCustomName) setWorktreeCustomName(sanitizedCustomName);
     }
 
     setIsCreating(true);
@@ -402,8 +401,8 @@ export function NewSessionDialog({
         worktreePathToUse = wt.worktreePath;
         branchToUse = wt.branch;
       } else if (workspaceTarget === "new-worktree") {
-        const wtName = worktreeCustomName.trim()
-          ? `${providerPrefix}${worktreeCustomName.trim()}`
+        const wtName = sanitizedCustomName
+          ? `${providerPrefix}${sanitizedCustomName}`
           : `${provider}-${Date.now()}`;
 
         const result = await sendOrThrow({
@@ -509,9 +508,9 @@ export function NewSessionDialog({
           ? <RotateCcw size={16} color={colors.primary} strokeWidth={2} />
           : <Sparkles size={16} color={colors.primary} strokeWidth={2} />
       }
-      width={680}
+      width={420}
       scrollable
-      minHeight="70vh"
+      minHeight="50vh"
       maxHeight="90vh"
       onClose={onClose}
       footer={
@@ -542,55 +541,54 @@ export function NewSessionDialog({
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* ─── Agent + Workspace on one row ─── */}
-        <div style={{ display: "flex", gap: 8 }}>
-          <div style={{ flex: "1 1 0", minWidth: 0 }}>
-            <FormLabel>Agent</FormLabel>
-            <DoublePicker<AIProvider, SimplifiedPermission>
-              left={{
-                options: providerOptions,
-                value: provider,
-                onChange: setProvider,
-                placeholder: "Provider",
-                minPanelWidth: 180,
-              }}
-              right={{
-                options: permissionOptions,
-                value: permissionMode,
-                onChange: setPermissionMode,
-                placeholder: "Permission",
-                minPanelWidth: 220,
-              }}
-            />
-          </div>
+        {/* ─── Agent ─── */}
+        <div>
+          <FormLabel>Agent</FormLabel>
+          <DoublePicker<AIProvider, SimplifiedPermission>
+            left={{
+              options: providerOptions,
+              value: provider,
+              onChange: setProvider,
+              placeholder: "Provider",
+              minPanelWidth: 180,
+            }}
+            right={{
+              options: permissionOptions,
+              value: permissionMode,
+              onChange: setPermissionMode,
+              placeholder: "Permission",
+              minPanelWidth: 220,
+            }}
+          />
+        </div>
 
-          <div style={{ flex: "1 1 0", minWidth: 0 }}>
-            <FormLabel>Workspace</FormLabel>
-            <DoublePicker<string, string>
-              left={{
-                options: repoOptions,
-                value: selectedRepoPath ?? "",
-                onChange: handleRepoSelect,
-                placeholder: "Select repository",
-                searchable: repos.length > 5,
-                searchPlaceholder: "Search repositories...",
-                minPanelWidth: 280,
-              }}
-              right={{
-                options: branchOptions,
-                value: selectedBranch,
-                onChange: setSelectedBranch,
-                placeholder: hasRepo ? "Select branch" : "Branch",
-                searchable: branches.length > 5,
-                searchPlaceholder: "Search branches...",
-                minPanelWidth: 240,
-                disabled:
-                  !hasRepo ||
-                  isLoadingBranches ||
-                  workspaceTarget === "existing-worktree",
-              }}
-            />
-          </div>
+        {/* ─── Workspace ─── */}
+        <div>
+          <FormLabel>Workspace</FormLabel>
+          <DoublePicker<string, string>
+            left={{
+              options: repoOptions,
+              value: selectedRepoPath ?? "",
+              onChange: handleRepoSelect,
+              placeholder: "Select repository",
+              searchable: repos.length > 5,
+              searchPlaceholder: "Search repositories...",
+              minPanelWidth: 280,
+            }}
+            right={{
+              options: branchOptions,
+              value: selectedBranch,
+              onChange: setSelectedBranch,
+              placeholder: hasRepo ? "Select branch" : "Branch",
+              searchable: branches.length > 5,
+              searchPlaceholder: "Search branches...",
+              minPanelWidth: 240,
+              disabled:
+                !hasRepo ||
+                isLoadingBranches ||
+                workspaceTarget === "existing-worktree",
+            }}
+          />
         </div>
 
         {/* ─── Loading branches indicator ─── */}
@@ -654,8 +652,8 @@ export function NewSessionDialog({
                     <div
                       style={{
                         padding: "8px 6px 8px 12px",
-                        fontSize: 11,
-                        fontFamily: "var(--font-mono)",
+                        //fontSize: 11,
+                        fontFamily: "var(--font-sans)",
                         color: colors.textTertiary,
                         background: colors.bgMuted,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
@@ -681,13 +679,13 @@ export function NewSessionDialog({
                       style={{
                         flex: 1,
                         padding: "8px 12px",
-                        fontSize: 11,
+                        //fontSize: 11,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
                         borderRadius: "0 6px 6px 0",
                         outline: "none",
                         background: colors.bgSurface,
                         color: colors.text,
-                        fontFamily: "var(--font-mono)",
+                        fontFamily: "var(--font-sans)",
                         boxSizing: "border-box",
                         transition: "border-color 0.15s",
                       }}
@@ -706,7 +704,7 @@ export function NewSessionDialog({
                   {fullWorktreeName && (
                     <p
                       style={{
-                        fontSize: 11,
+                        //fontSize: 11,
                         color: colors.textTertiary,
                         margin: "4px 0 0",
                         lineHeight: 1.4,
@@ -715,7 +713,7 @@ export function NewSessionDialog({
                       Full name:{" "}
                       <code
                         style={{
-                          fontFamily: "var(--font-mono)",
+                          fontFamily: "var(--font-sans)",
                         }}
                       >
                         {fullWorktreeName}
@@ -723,7 +721,9 @@ export function NewSessionDialog({
                     </p>
                   )}
                   {!worktreeCustomName.trim() && (
-                    <p style={{ fontSize: 11, color: colors.textTertiary, margin: "4px 0 0" }}>
+                    <p style={{ 
+                      //fontSize: 11, 
+                      color: colors.textTertiary, margin: "4px 0 0" }}>
                       Leave blank to auto-generate
                     </p>
                   )}
@@ -799,7 +799,7 @@ function WorktreeList({
             <div style={{ flex: 1, minWidth: 0 }}>
               <ScrollableText
                 style={{
-                  fontSize: 11,
+                  //fontSize: 11,
                   fontWeight: 500,
                   color: colors.text,
                 }}

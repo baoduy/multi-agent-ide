@@ -205,7 +205,7 @@ export function SlashMenu({ anchor, query, onPick, onClose }: SlashMenuProps): R
             {cmd.kbd && (
               <span
                 style={{
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-sans)",
                   fontSize: 9,
                   color: colors.textTertiary,
                   background: colors.bgMuted,

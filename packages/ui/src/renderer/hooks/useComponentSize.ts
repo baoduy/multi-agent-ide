@@ -71,10 +71,10 @@ export type DensityTokens = {
 
 const TOKENS: Record<ComponentDensity, DensityTokens> = {
   xs: {
-    font: 10,
-    mutedFont: 9,
-    smallFont: 9,
-    headerFont: 10,
+    font: 11,
+    mutedFont: 10,
+    smallFont: 10,
+    headerFont: 11,
 
     rowPadX: 8,
     rowPadY: 2,

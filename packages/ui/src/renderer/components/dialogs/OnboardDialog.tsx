@@ -136,7 +136,7 @@ export function OnboardDialog({
         <>
           <p
             style={{
-              fontSize: 11,
+              //fontSize: 11,
               color: colors.textMuted,
               margin: "0 0 16px",
               lineHeight: 1.5,
@@ -156,7 +156,7 @@ export function OnboardDialog({
               style={{
                 width: "100%",
                 padding: "8px 12px",
-                fontSize: 11,
+                //fontSize: 11,
                 border: `1px solid ${colors.border}`,
                 borderRadius: 6,
                 background: colors.bgSurface,
@@ -210,7 +210,7 @@ export function OnboardDialog({
                     style={{
                       width: "100%",
                       padding: "8px 12px",
-                      fontSize: 11,
+                      //fontSize: 11,
                       border: "none",
                       background:
                         agent.id === selectedAgent
@@ -260,7 +260,7 @@ export function OnboardDialog({
               style={{
                 flex: 1,
                 padding: "6px 10px",
-                fontSize: 11,
+                //fontSize: 11,
                 border: `1.5px solid ${!useWorktree ? colors.primary : colors.border}`,
                 borderRadius: 6,
                 background: !useWorktree ? colors.primaryAlpha : colors.bgSurface,
@@ -283,7 +283,9 @@ export function OnboardDialog({
                 <div style={{ fontWeight: 600, lineHeight: 1.3 }}>
                   Current branch
                 </div>
-                <div style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
+                <div style={{ 
+                  //fontSize: 11, 
+                  color: colors.textTertiary, marginTop: 2 }}>
                   Install directly in the working tree
                 </div>
               </div>
@@ -319,7 +321,9 @@ export function OnboardDialog({
                 <div style={{ fontWeight: 600, lineHeight: 1.3 }}>
                   New worktree
                 </div>
-                <div style={{ fontSize: 11, color: colors.textTertiary, marginTop: 2 }}>
+                <div style={{ 
+                  //fontSize: 11, 
+                  color: colors.textTertiary, marginTop: 2 }}>
                   Create an isolated branch first
                 </div>
               </div>

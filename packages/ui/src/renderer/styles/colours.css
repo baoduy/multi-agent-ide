@@ -32,7 +32,7 @@
   --color-sidebar-ring: var(--sidebar-ring);
   --font-sans: var(--font-sans);
   --font-heading: var(--font-heading);
-  --font-mono: var(--font-mono);
+  --font-mono: var(--font-sans);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -48,306 +48,83 @@
 
 :root {
   --background: oklch(1 0 0);
-  --foreground: oklch(0.25 0.044 49);
+  --foreground: oklch(0.25 0.065 0.6);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.25 0.044 49);
+  --card-foreground: oklch(0.25 0.065 0.6);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.25 0.044 49);
-  --primary: oklch(0.555 0.146 49);
+  --popover-foreground: oklch(0.25 0.065 0.6);
+  --primary: oklch(0.592 0.218 0.6);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.955 0.015 49);
-  --secondary-foreground: oklch(0.25 0.073 49);
-  --muted: oklch(0.97 0.003 49);
-  --muted-foreground: oklch(0.52 0.029 49);
-  --accent: oklch(0.965 0.004 49);
-  --accent-foreground: oklch(0.25 0.044 49);
+  --secondary: oklch(0.955 0.022 0.6);
+  --secondary-foreground: oklch(0.25 0.109 0.6);
+  --muted: oklch(0.97 0.004 0.6);
+  --muted-foreground: oklch(0.52 0.044 0.6);
+  --accent: oklch(0.965 0.007 0.6);
+  --accent-foreground: oklch(0.25 0.065 0.6);
   --destructive: oklch(0.584 0.239 28.5);
   --destructive-foreground: oklch(1 0 0);
-  --border: oklch(0.925 0.007 49);
-  --input: oklch(0.925 0.007 49);
-  --ring: oklch(0.555 0.146 49 / 0.9);
-  --chart-1: oklch(0.25 0.146 49);
-  --chart-2: oklch(0.35 0.146 49);
-  --chart-3: oklch(0.55 0.146 49);
-  --chart-4: oklch(0.75 0.146 49);
-  --chart-5: oklch(0.85 0.13 49);
-  --sidebar: oklch(0.984 0.003 49);
-  --sidebar-foreground: oklch(0.25 0.044 49);
-  --sidebar-primary: oklch(0.555 0.146 49);
+  --border: oklch(0.925 0.011 0.6);
+  --input: oklch(0.925 0.011 0.6);
+  --ring: oklch(0.592 0.218 0.6 / 0.9);
+  --chart-1: oklch(0.25 0.218 0.6);
+  --chart-2: oklch(0.35 0.218 0.6);
+  --chart-3: oklch(0.55 0.218 0.6);
+  --chart-4: oklch(0.75 0.18 0.6);
+  --chart-5: oklch(0.85 0.13 0.6);
+  --sidebar: oklch(0.984 0.004 0.6);
+  --sidebar-foreground: oklch(0.25 0.065 0.6);
+  --sidebar-primary: oklch(0.592 0.218 0.6);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.965 0.004 49);
-  --sidebar-accent-foreground: oklch(0.25 0.044 49);
-  --sidebar-border: oklch(0.925 0.007 49);
-  --sidebar-ring: oklch(0.925 0.007 49);
+  --sidebar-accent: oklch(0.965 0.007 0.6);
+  --sidebar-accent-foreground: oklch(0.25 0.065 0.6);
+  --sidebar-border: oklch(0.925 0.011 0.6);
+  --sidebar-ring: oklch(0.925 0.011 0.6);
   --font-sans: "JetBrains Mono", ui-monospace, monospace;
-  --font-heading: "Host Grotesk", sans-serif;
+  --font-heading: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
   --radius: 0.5rem;
-  --shadow-2xs: 0 1px 0 0 oklch(0.55 0.022 49 / 0.05);
-  --shadow-xs: 0 1px 2px 0 oklch(0.55 0.022 49 / 0.05);
-  --shadow-sm: 0 1px 3px 0 oklch(0.55 0.022 49 / 0.1), 0 1px 2px -1px oklch(0.55 0.022 49 / 0.1);
-  --shadow-md: 0 4px 6px -1px oklch(0.55 0.022 49 / 0.1), 0 2px 4px -2px oklch(0.55 0.022 49 / 0.1);
-  --shadow-lg: 0 10px 15px -3px oklch(0.55 0.022 49 / 0.1), 0 4px 6px -4px oklch(0.55 0.022 49 / 0.1);
-  --shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.1), 0 8px 10px -6px oklch(0.55 0.022 49 / 0.1);
-  --shadow-2xl: 0 25px 50px -12px oklch(0.55 0.022 49 / 0.15);
-
-  --tabbar-bg: oklch(0.97 0 0);
-  --tabbar-active-bg: oklch(1 0 0);
-  --tabbar-border: oklch(0.922 0 0);
-  --tabbar-fg: oklch(0.145 0 0);
-  --tabbar-fg-muted: oklch(0.556 0 0);
-
-  --flow-bg: oklch(1 0 0);
-  --flow-grid: oklch(0.922 0 0);
-  --flow-node-bg: oklch(1 0 0);
-  --flow-node-border: oklch(0.922 0 0);
-  --flow-node-text: oklch(0.145 0 0);
-  /* Flow/pipeline node statuses — neutralized so workflow diagrams stay quiet.
-     Only destructive/error keeps its vivid tone elsewhere. */
-  --flow-status-pending-bg: var(--muted);
-  --flow-status-pending-border: var(--border);
-  --flow-status-pending-text: var(--muted-foreground);
-  --flow-status-review-bg: var(--muted);
-  --flow-status-review-border: var(--border);
-  --flow-status-review-text: var(--muted-foreground);
-  --flow-status-approved-bg: var(--muted);
-  --flow-status-approved-border: var(--border);
-  --flow-status-approved-text: var(--muted-foreground);
-
-  --panel: oklch(0.97 0 0);
-  --panel-soft: oklch(0.98 0 0);
-  --code-inline-bg: oklch(0.95 0 0);
-  --surface: oklch(1 0 0);
-  --border-muted: oklch(0.85 0 0);
-  --border-strong: oklch(0.75 0 0);
-  --text-strong: oklch(0.145 0 0);
-  --text-on-primary: oklch(1 0 0);
-
-  /* Status tokens — neutralized. Only --destructive/--error-soft stay
-     vivid (handled separately) so real errors still grab attention. */
-  --success: var(--foreground);
-  --success-hover: var(--foreground);
-  --success-soft: var(--muted);
-  --success-soft-border: var(--border);
-  --success-muted: var(--muted-foreground);
-  --success-text: var(--muted-foreground);
-
-  --warning-soft: var(--muted);
-  --warning-text: var(--muted-foreground);
-  --warning-border: var(--border);
-  --warning-text-strong: var(--muted-foreground);
-  --warning-text-deep: var(--muted-foreground);
-  --warning-border-soft: var(--border);
-
-  --info-soft: var(--muted);
-  --info-text: var(--muted-foreground);
-  --info-border: var(--border);
-  --info: var(--muted-foreground);
-  --accent-purple: var(--muted-foreground);
-
-  --progress-soft: var(--muted);
-  --progress-text: var(--muted-foreground);
-  --progress-border: var(--border);
-
-  --error-soft: #fef2f2;
-  --error-soft-border: #fecaca;
-
-  /* Stage tokens — all workflow stages read as muted pills. */
-  --stage-pending-bg: var(--muted);
-  --stage-pending-fg: var(--muted-foreground);
-  --stage-pending-dot: var(--muted-foreground);
-  --stage-pending-border-muted: var(--border);
-  --stage-review-dot: var(--muted-foreground);
-  --stage-default-bg: var(--muted);
-  --stage-default-fg: var(--muted-foreground);
-  --stage-default-dot: var(--muted-foreground);
-  --stage-default-border-muted: var(--border);
-
-  /* Branch tag — muted so branch chips don't pull focus from code. */
-  --branch-bg: var(--muted);
-  --branch-fg: var(--muted-foreground);
-
-  /* Terminal reconnect banner — kept as an urgent warning signal. */
-  --terminal-banner-bg: rgba(255, 180, 0, 0.18);
-  --terminal-banner-fg: #ffb400;
-
-  /* File-type icons — all monochrome, matching VS Code's default look.
-     Icon shape + extension label still differentiate file types. */
-  --icon-blue: var(--muted-foreground);
-  --icon-cyan: var(--muted-foreground);
-  --icon-gold: var(--muted-foreground);
-  --icon-purple: var(--muted-foreground);
-  --icon-pink: var(--muted-foreground);
-  --icon-brown: var(--muted-foreground);
-
-  --logo-bg-start: #1a1a2e;
-  --logo-bg-end: #16213e;
-  --logo-magenta-start: #ff00ff;
-  --logo-magenta-mid: #e040fb;
-  --logo-magenta-end: #aa00ff;
-  --logo-accent-start: #e040fb;
-  --logo-accent-end: #7c4dff;
-  --logo-grid: #e040fb;
-  --logo-node-primary: #ff80ff;
-  --logo-node-center: #ffffff;
-  --logo-node-secondary: #ce93d8;
-  --logo-node-orbit-start: #e040fb;
-  --logo-node-orbit-end: #7c4dff;
-
-  --scrollbar-xterm-thumb: rgba(56, 58, 66, 0.2);
-  --scrollbar-xterm-thumb-hover: rgba(56, 58, 66, 0.35);
-  --shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.2), 0 2px 8px rgba(0, 0, 0, 0.08);
-  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.1);
-  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.12);
-  --shadow-context-menu: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0, 0, 0, 0.06);
-  --backdrop-bg: rgba(0, 0, 0, 0.55);
+  --shadow-2xs: 0 1px 0 0 oklch(0.55 0.033 0.6 / 0.05);
+  --shadow-xs: 0 1px 2px 0 oklch(0.55 0.033 0.6 / 0.05);
+  --shadow-sm: 0 1px 3px 0 oklch(0.55 0.033 0.6 / 0.1), 0 1px 2px -1px oklch(0.55 0.033 0.6 / 0.1);
+  --shadow-md: 0 4px 6px -1px oklch(0.55 0.033 0.6 / 0.1), 0 2px 4px -2px oklch(0.55 0.033 0.6 / 0.1);
+  --shadow-lg: 0 10px 15px -3px oklch(0.55 0.033 0.6 / 0.1), 0 4px 6px -4px oklch(0.55 0.033 0.6 / 0.1);
+  --shadow-xl: 0 20px 25px -5px oklch(0 0 0 / 0.1), 0 8px 10px -6px oklch(0.55 0.033 0.6 / 0.1);
+  --shadow-2xl: 0 25px 50px -12px oklch(0.55 0.033 0.6 / 0.15);
 }
 
 .dark {
-  /* Softer dark background — was oklch(0.15 0.015 49) which read as near-black
-     and felt too heavy on wide surfaces like WorkflowView / empty states.
-     Lifting to oklch(0.2) sits closer to VS Code's #1e1e1e baseline. */
-  --background: oklch(0.2 0.01 49);
+  --background: oklch(0.15 0.022 0.6);
   --foreground: oklch(0.98 0 0);
-  --card: oklch(0.23 0.01 49);
+  --card: oklch(0.17 0.022 0.6);
   --card-foreground: oklch(0.98 0 0);
-  --popover: oklch(0.24 0.01 49);
+  --popover: oklch(0.18 0.022 0.6);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.555 0.146 49);
+  --primary: oklch(0.592 0.218 0.6);
   --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.635 0.146 49 / 0.25);
-  --secondary-foreground: oklch(0.9 0.146 49);
-  --muted: oklch(0.25 0.01 49);
-  --muted-foreground: oklch(0.75 0.022 49);
-  --accent: oklch(0.38 0.015 49);
+  --secondary: oklch(0.672 0.218 0.6 / 0.25);
+  --secondary-foreground: oklch(0.9 0.218 0.6);
+  --muted: oklch(0.25 0.015 0.6);
+  --muted-foreground: oklch(0.75 0.033 0.6);
+  --accent: oklch(0.38 0.022 0.6);
   --accent-foreground: oklch(0.98 0 0);
   --destructive: oklch(0.69 0.2 23.9);
   --destructive-foreground: oklch(0 0 0);
-  --border: oklch(0.29 0.01 49);
-  --input: oklch(0.29 0.01 49);
-  --ring: oklch(0.635 0.146 49);
-  --chart-1: oklch(0.35 0.146 49);
-  --chart-2: oklch(0.55 0.146 49);
-  --chart-3: oklch(0.75 0.146 49);
-  --chart-4: oklch(0.9 0.146 49);
-  --chart-5: oklch(0.99 0.11 49);
-  --sidebar: oklch(0.11 0.01 49);
+  --border: oklch(0.29 0.015 0.6);
+  --input: oklch(0.29 0.015 0.6);
+  --ring: oklch(0.672 0.218 0.6);
+  --chart-1: oklch(0.35 0.218 0.6);
+  --chart-2: oklch(0.55 0.218 0.6);
+  --chart-3: oklch(0.75 0.18 0.6);
+  --chart-4: oklch(0.9 0.15 0.6);
+  --chart-5: oklch(0.99 0.11 0.6);
+  --sidebar: oklch(0.11 0.015 0.6);
   --sidebar-foreground: oklch(0.98 0 0);
   --sidebar-primary: oklch(1 0 0);
-  --sidebar-primary-foreground: oklch(0.2 0.01 49);
-  --sidebar-accent: oklch(0.24 0.01 49);
+  --sidebar-primary-foreground: oklch(0.2 0.015 0.6);
+  --sidebar-accent: oklch(0.24 0.015 0.6);
   --sidebar-accent-foreground: oklch(0.98 0 0);
-  --sidebar-border: oklch(0.28 0.01 49);
-  --sidebar-ring: oklch(0.635 0.146 49);
-
-  --tabbar-bg: oklch(0.18 0 0);
-  --tabbar-active-bg: oklch(0.205 0 0);
-  --tabbar-border: oklch(0.3 0 0);
-  --tabbar-fg: oklch(0.985 0 0);
-  --tabbar-fg-muted: oklch(0.65 0 0);
-
-  --flow-bg: oklch(0.2 0.005 49);
-  --flow-grid: oklch(0.3 0.005 49);
-  --flow-node-bg: oklch(0.269 0 0);
-  --flow-node-border: oklch(0.32 0 0);
-  --flow-node-text: oklch(0.985 0 0);
-  /* Flow/pipeline node statuses — neutralized (dark). */
-  --flow-status-pending-bg: var(--muted);
-  --flow-status-pending-border: var(--border);
-  --flow-status-pending-text: var(--muted-foreground);
-  --flow-status-review-bg: var(--muted);
-  --flow-status-review-border: var(--border);
-  --flow-status-review-text: var(--muted-foreground);
-  --flow-status-approved-bg: var(--muted);
-  --flow-status-approved-border: var(--border);
-  --flow-status-approved-text: var(--muted-foreground);
-
-  --panel: oklch(0.24 0 0);
-  --panel-soft: oklch(0.27 0 0);
-  --code-inline-bg: oklch(0.28 0 0);
-  --surface: oklch(0.269 0 0);
-  --border-muted: oklch(0.35 0 0);
-  --border-strong: oklch(0.42 0 0);
-  --text-strong: oklch(0.985 0 0);
-  --text-on-primary: oklch(1 0 0);
-
-  /* Status tokens — neutralized (dark). Only --destructive/--error-soft
-     stay vivid. */
-  --success: var(--foreground);
-  --success-hover: var(--foreground);
-  --success-soft: var(--muted);
-  --success-soft-border: var(--border);
-  --success-muted: var(--muted-foreground);
-  --success-text: var(--muted-foreground);
-
-  --warning-soft: var(--muted);
-  --warning-text: var(--muted-foreground);
-  --warning-border: var(--border);
-  --warning-text-strong: var(--muted-foreground);
-  --warning-text-deep: var(--muted-foreground);
-  --warning-border-soft: var(--border);
-
-  --info-soft: var(--muted);
-  --info-text: var(--muted-foreground);
-  --info-border: var(--border);
-  --info: var(--muted-foreground);
-  --accent-purple: var(--muted-foreground);
-
-  --progress-soft: var(--muted);
-  --progress-text: var(--muted-foreground);
-  --progress-border: var(--border);
-
-  --error-soft: rgba(239, 68, 68, 0.15);
-  --error-soft-border: rgba(239, 68, 68, 0.3);
-
-  --repo-badge-missing-fg: #fca5a5;
-  /* Spec badge neutralized — repo chips shouldn't pull focus. */
-  --repo-badge-spec-fg: var(--muted-foreground);
-  --stage-pending-bg: var(--muted);
-  --stage-pending-fg: var(--muted-foreground);
-  --stage-pending-dot: var(--muted-foreground);
-  --stage-pending-border-muted: var(--border);
-
-  /* Branch tag — muted on dark surfaces too. */
-  --branch-bg: var(--muted);
-  --branch-fg: var(--muted-foreground);
-
-  --terminal-banner-bg: rgba(255, 180, 0, 0.22);
-  --terminal-banner-fg: #fcd34d;
-
-  /* File-type icons — monochrome in dark mode. */
-  --icon-blue: var(--muted-foreground);
-  --icon-cyan: var(--muted-foreground);
-  --icon-gold: var(--muted-foreground);
-  --icon-green: var(--muted-foreground);
-  --icon-orange: var(--muted-foreground);
-  --icon-purple: var(--muted-foreground);
-  --icon-pink: var(--muted-foreground);
-  --icon-red: var(--muted-foreground);
-  --icon-brown: var(--muted-foreground);
-
-  --logo-bg-start: #131326;
-  --logo-bg-end: #101a33;
-  --logo-magenta-start: #f564ff;
-  --logo-magenta-mid: #eb7cf7;
-  --logo-magenta-end: #b48dff;
-  --logo-accent-start: #eb7cf7;
-  --logo-accent-end: #9a88ff;
-  --logo-grid: #e87cf5;
-  --logo-node-primary: #f8a6ff;
-  --logo-node-center: #ffffff;
-  --logo-node-secondary: #d9b4e5;
-  --logo-node-orbit-start: #eb7cf7;
-  --logo-node-orbit-end: #9a88ff;
-
-  --scrollbar-xterm-thumb: rgba(237, 237, 237, 0.25);
-  --scrollbar-xterm-thumb-hover: rgba(237, 237, 237, 0.45);
-  --shadow-dialog: 0 16px 48px rgba(0, 0, 0, 0.42), 0 2px 8px rgba(0, 0, 0, 0.28);
-  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.3);
-  --shadow-popover: 0 8px 24px rgba(0, 0, 0, 0.35);
-  --shadow-context-menu: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.2);
-  --backdrop-bg: rgba(0, 0, 0, 0.6);
-
+  --sidebar-border: oklch(0.28 0.015 0.6);
+  --sidebar-ring: oklch(0.672 0.218 0.6);
   --shadow-2xs: 0 1px 3px 0 hsl(0 0% 0% / 0.05);
   --shadow-xs: 0 1px 3px 0 hsl(0 0% 0% / 0.05);
   --shadow-sm: 0 1px 3px 0 hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);

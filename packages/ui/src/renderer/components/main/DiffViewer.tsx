@@ -113,7 +113,7 @@ export function DiffViewer({
       isDark ? githubDark : githubLight,
       EditorView.theme({
         "&": { height: "100%", fontSize: "12px" },
-        ".cm-content": { fontFamily: "var(--font-mono)", lineHeight: "1.55" },
+        ".cm-content": { fontFamily: "var(--font-sans)", lineHeight: "1.55" },
       }),
       EditorState.readOnly.of(true),
       EditorView.editable.of(false),
@@ -244,7 +244,7 @@ export function DiffViewer({
           style={{
             fontSize: 10,
             color: colors.textTertiary,
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-sans)",
           }}
         >
           {refMode
@@ -262,7 +262,7 @@ export function DiffViewer({
                 fontSize: 11,
                 fontWeight: 600,
                 color: colors.success,
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-sans)",
               }}
             >
               +{diffStats.added}
@@ -274,7 +274,7 @@ export function DiffViewer({
                 fontSize: 11,
                 fontWeight: 600,
                 color: colors.error,
-                fontFamily: "var(--font-mono)",
+                fontFamily: "var(--font-sans)",
               }}
             >
               -{diffStats.removed}

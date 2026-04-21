@@ -295,6 +295,7 @@ function StatusBarButton({
         fontSize: 11,
         opacity: disabled ? 0.5 : 1,
         transition: "background 0.1s, color 0.1s, opacity 0.1s",
+        fontFamily: "var(--font-sans)",
       }}
     >
       {icon}

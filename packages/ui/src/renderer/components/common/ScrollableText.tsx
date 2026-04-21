@@ -10,7 +10,7 @@ import React, { useRef, useState, useCallback, useEffect } from "react";
  * leave the text slides back.
  *
  * Usage:
- *   <ScrollableText style={{ fontSize: 11, fontWeight: 600 }}>
+ *   <ScrollableText style={{ fontWeight: 600 }}>
  *     {someLongText}
  *   </ScrollableText>
  */
@@ -148,6 +148,7 @@ export const ScrollableText = React.memo(function ScrollableText({
         overflow: "hidden",
         textOverflow: "clip",
         whiteSpace: "nowrap",
+        fontFamily: "var(--font-sans)",
         ...style,
       }}
     >
@@ -156,6 +157,7 @@ export const ScrollableText = React.memo(function ScrollableText({
         style={{
           display: "inline-block",
           whiteSpace: "nowrap",
+          fontFamily: "var(--font-sans)",
         }}
       >
         {children}

@@ -70,7 +70,9 @@ export function ApproverNameDialog({
         </>
       }
     >
-      <p style={{ fontSize: 11, color: colors.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>
+      <p style={{ 
+        //fontSize: 11, 
+        color: colors.textMuted, margin: "0 0 8px", lineHeight: 1.5 }}>
         No git <code>user.name</code> or <code>user.email</code> was found for this repo.
         Enter a name to stamp on the approval — it will be saved as a fallback and
         reused for future approvals in repos without a git identity.

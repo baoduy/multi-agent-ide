@@ -5,7 +5,7 @@ import type { Repository } from "@magenta/shared/models";
 import { useWorktreeStore, type WorktreeInfo } from "../../store/worktreeStore";
 import { useRepoStore } from "../../store/repoStore";
 import { onEvent } from "../../services/ipcClient";
-import { SearchSyncToolbar } from "../common/SearchSyncToolbar";
+import { ViewToolbar } from "../common/ViewToolbar";
 import { WorktreeInlinePanel } from "../worktree/WorktreeInlinePanel";
 import { colors } from "../../utils/colors";
 import { TreeRepoHeader } from "../common/TreeRepoHeader";
@@ -215,7 +215,7 @@ export function WorktreesView({ onOpenFile }: WorktreesViewProps): React.ReactEl
 
   return (
     <div style={{ display: "flex", flexDirection: "column" }}>
-      <SearchSyncToolbar
+      <ViewToolbar
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onSync={handleRefresh}

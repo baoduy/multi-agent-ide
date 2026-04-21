@@ -75,7 +75,7 @@ function ButtonGroupComponent<T extends string = string>({
               borderRight: i < options.length - 1 ? `1px solid ${colors.border}` : "none",
               background: bg,
               color: fg,
-              fontSize: 11,
+              //fontSize: 11,
               fontWeight: 500,
               fontFamily: "inherit",
               opacity: opt.disabled ? 0.4 : 1,

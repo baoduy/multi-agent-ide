@@ -75,7 +75,7 @@ export function LogViewer(): React.ReactElement {
           justifyContent: "space-between",
           padding: "4px 8px",
           borderBottom: `1px solid ${colors.border}`,
-          fontSize: 11,
+          //fontSize: 11,
           color: colors.textTertiary,
           flexShrink: 0,
         }}
@@ -97,7 +97,7 @@ export function LogViewer(): React.ReactElement {
             background: "transparent",
             color: colors.textTertiary,
             cursor: "pointer",
-            fontSize: 11,
+            //fontSize: 11,
           }}
         >
           <RefreshCw size={11} />
@@ -114,7 +114,7 @@ export function LogViewer(): React.ReactElement {
           overflow: "auto",
           padding: "4px 8px",
           fontFamily: "'SF Mono', 'Fira Code', ui-monospace, monospace",
-          fontSize: 11,
+          //fontSize: 11,
           lineHeight: 1.5,
           whiteSpace: "pre",
           tabSize: 2,

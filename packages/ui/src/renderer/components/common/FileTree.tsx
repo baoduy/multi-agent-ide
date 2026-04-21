@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { ChevronDown } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 import { FileIconBadge, FolderIconBadge, ExtensionBadge } from "./fileIcons";
 import { ScrollableText } from "./ScrollableText";
 import { ContextMenu, useContextMenu } from "./ContextMenu";
@@ -111,6 +112,7 @@ function FolderNode({
   autoExpandPaths,
   indentPx = 14,
 }: NodeProps): React.ReactElement {
+  const d = useDensityTokens();
   // Auto-expand if this path is in autoExpandPaths
   const shouldAutoExpand = autoExpandPaths?.has(entry.path) ?? false;
   const [expanded, setExpanded] = useState(shouldAutoExpand);
@@ -187,6 +189,7 @@ function FolderNode({
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.1s",
+          fontFamily: "var(--font-sans)",
         }}
       >
         {/* Chevron */}
@@ -200,6 +203,8 @@ function FolderNode({
             transition: "transform 0.12s",
             transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
             color: colors.textTertiary,
+            fontFamily: "var(--font-sans)",
+
           }}
         >
           {hasChildren ? <ChevronDown size={12} strokeWidth={2} /> : null}
@@ -212,7 +217,7 @@ function FolderNode({
         {renderItemContent?.(entry, depth) ?? (
           <ScrollableText
             style={{
-              fontSize: 11,
+              fontSize: d.font,
               fontWeight: 500,
               color: folderColor,
               flex: 1,
@@ -226,11 +231,11 @@ function FolderNode({
         {showCountBadge && countItems && (
           <span
             style={{
-              fontSize: 9,
+              //fontSize: 9,
               color: colors.borderStrong,
               marginLeft: "auto",
               flexShrink: 0,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-sans)",
             }}
           >
             {countItems(entry)}
@@ -239,7 +244,9 @@ function FolderNode({
 
         {/* Loading */}
         {loading && (
-          <span style={{ fontSize: 9, color: colors.textTertiary, marginLeft: "auto", flexShrink: 0 }}>...</span>
+          <span style={{ 
+            //fontSize: 9,
+             color: colors.textTertiary, marginLeft: "auto", flexShrink: 0 }}>...</span>
         )}
       </button>
 
@@ -267,7 +274,7 @@ function FolderNode({
         <div
           style={{
             padding: `3px 8px 3px ${22 + indent}px`,
-            fontSize: 10,
+            //fontSize: 10,
             color: colors.borderStrong,
             fontStyle: "italic",
           }}
@@ -298,6 +305,7 @@ function FileNode({
   showExtensionBadge = true,
   indentPx = 14,
 }: NodeProps): React.ReactElement {
+  const d = useDensityTokens();
   const [hovered, setHovered] = useState(false);
   const { contextMenu, openContextMenu, closeContextMenu } = useContextMenu();
 
@@ -333,7 +341,7 @@ function FileNode({
         {renderItemContent?.(entry, depth) ?? (
           <ScrollableText
             style={{
-              fontSize: 11,
+              fontSize: d.font,
               fontWeight: 500,
               color: colors.text,
               flex: 1,

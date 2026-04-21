@@ -1,5 +1,11 @@
 import React from "react";
-import { Icon } from "@iconify/react";
+import { Icon, addCollection } from "@iconify/react";
+import { icons as materialIconTheme } from "@iconify-json/material-icon-theme";
+
+// Preload the material-icon-theme pack so icons render offline (packaged
+// Electron app has no network → Iconify API fetch would fail silently).
+// Uses the package's named ESM export, which bundles reliably through Vite.
+addCollection(materialIconTheme);
 import {
   File,
   FileText,
@@ -13,7 +19,6 @@ import {
   Palette,
   Folder,
   FolderOpen,
-  FolderCode,
   Hash,
 } from "lucide-react";
 import { colors } from "../../utils/colors";
@@ -72,81 +77,80 @@ const EXT_MAP: Record<string, FileIconInfo> = {
 const DEFAULT_FILE_ICON: FileIconInfo = { Icon: File, color: colors.iconNeutral, label: "" };
 const FOLDER_ICON: FileIconInfo       = { Icon: Folder, color: colors.iconNeutral, label: "" };
 const FOLDER_OPEN_ICON: FileIconInfo  = { Icon: FolderOpen, color: colors.iconNeutral, label: "" };
-const FOLDER_CODE_ICON: FileIconInfo  = { Icon: FolderCode, color: colors.iconPurple, label: "" };
 
-/* ── Iconify (vscode-icons) map — powers the visible FileIconBadge ── */
+/* ── Iconify (material-icon-theme) map — powers the visible FileIconBadge ── */
 
-const VSCODE_EXT_MAP: Record<string, string> = {
+const MATERIAL_EXT_MAP: Record<string, string> = {
   // TypeScript / JavaScript
-  ts:   "vscode-icons:file-type-typescript-official",
-  tsx:  "vscode-icons:file-type-reactts",
-  js:   "vscode-icons:file-type-js-official",
-  jsx:  "vscode-icons:file-type-reactjs",
-  mjs:  "vscode-icons:file-type-js-official",
-  cjs:  "vscode-icons:file-type-js-official",
+  ts:   "material-icon-theme:typescript",
+  tsx:  "material-icon-theme:react-ts",
+  js:   "material-icon-theme:javascript",
+  jsx:  "material-icon-theme:react",
+  mjs:  "material-icon-theme:javascript",
+  cjs:  "material-icon-theme:javascript",
 
   // Markdown / text
-  md:   "vscode-icons:file-type-markdown",
-  mdx:  "vscode-icons:file-type-mdx",
-  txt:  "vscode-icons:file-type-text",
+  md:   "material-icon-theme:markdown",
+  mdx:  "material-icon-theme:mdx",
+  txt:  "material-icon-theme:document",
 
   // Data / Config
-  json: "vscode-icons:file-type-json",
-  yaml: "vscode-icons:file-type-yaml",
-  yml:  "vscode-icons:file-type-yaml",
-  toml: "vscode-icons:file-type-toml",
-  xml:  "vscode-icons:file-type-xml",
-  env:  "vscode-icons:file-type-dotenv",
-  ini:  "vscode-icons:file-type-ini",
-  cfg:  "vscode-icons:file-type-config",
-  lock: "vscode-icons:file-type-lock",
+  json: "material-icon-theme:json",
+  yaml: "material-icon-theme:yaml",
+  yml:  "material-icon-theme:yaml",
+  toml: "material-icon-theme:settings",
+  xml:  "material-icon-theme:xml",
+  env:  "material-icon-theme:tune",
+  ini:  "material-icon-theme:settings",
+  cfg:  "material-icon-theme:settings",
+  lock: "material-icon-theme:lock",
 
   // Web
-  html: "vscode-icons:file-type-html",
-  css:  "vscode-icons:file-type-css",
-  scss: "vscode-icons:file-type-scss",
-  sass: "vscode-icons:file-type-sass",
-  less: "vscode-icons:file-type-less",
+  html: "material-icon-theme:html",
+  css:  "material-icon-theme:css",
+  scss: "material-icon-theme:sass",
+  sass: "material-icon-theme:sass",
+  less: "material-icon-theme:less",
 
   // Languages
-  py:    "vscode-icons:file-type-python",
-  rs:    "vscode-icons:file-type-rust",
-  go:    "vscode-icons:file-type-go-gopher",
-  java:  "vscode-icons:file-type-java",
-  kt:    "vscode-icons:file-type-kotlin",
-  swift: "vscode-icons:file-type-swift",
-  rb:    "vscode-icons:file-type-ruby",
-  php:   "vscode-icons:file-type-php",
-  c:     "vscode-icons:file-type-c",
-  h:     "vscode-icons:file-type-cheader",
-  cpp:   "vscode-icons:file-type-cpp",
-  cs:    "vscode-icons:file-type-csharp",
+  py:    "material-icon-theme:python",
+  rs:    "material-icon-theme:rust",
+  go:    "material-icon-theme:go",
+  java:  "material-icon-theme:java",
+  kt:    "material-icon-theme:kotlin",
+  swift: "material-icon-theme:swift",
+  rb:    "material-icon-theme:ruby",
+  php:   "material-icon-theme:php",
+  c:     "material-icon-theme:c",
+  h:     "material-icon-theme:h",
+  cpp:   "material-icon-theme:cpp",
+  cs:    "material-icon-theme:csharp",
 
   // Shell
-  sh:   "vscode-icons:file-type-shell",
-  bash: "vscode-icons:file-type-shell",
-  zsh:  "vscode-icons:file-type-shell",
-  fish: "vscode-icons:file-type-shell",
+  sh:   "material-icon-theme:console",
+  bash: "material-icon-theme:console",
+  zsh:  "material-icon-theme:console",
+  fish: "material-icon-theme:console",
 
   // Images
-  svg:  "vscode-icons:file-type-svg",
-  png:  "vscode-icons:file-type-image",
-  jpg:  "vscode-icons:file-type-image",
-  jpeg: "vscode-icons:file-type-image",
-  gif:  "vscode-icons:file-type-image",
-  webp: "vscode-icons:file-type-image",
+  svg:  "material-icon-theme:svg",
+  png:  "material-icon-theme:image",
+  jpg:  "material-icon-theme:image",
+  jpeg: "material-icon-theme:image",
+  gif:  "material-icon-theme:image",
+  webp: "material-icon-theme:image",
 
   // DB / API
-  sql:     "vscode-icons:file-type-sql",
-  graphql: "vscode-icons:file-type-graphql",
-  proto:   "vscode-icons:file-type-protobuf",
+  sql:     "material-icon-theme:database",
+  graphql: "material-icon-theme:graphql",
+  proto:   "material-icon-theme:proto",
 
   // Docker / CI
-  dockerfile:   "vscode-icons:file-type-docker",
-  dockerignore: "vscode-icons:file-type-docker",
+  dockerfile:   "material-icon-theme:docker",
+  dockerignore: "material-icon-theme:docker",
 };
 
-const DEFAULT_VSCODE_ICON = "vscode-icons:default-file";
+const DEFAULT_MATERIAL_ICON = "material-icon-theme:document";
 
 /* ── Public API ── */
 
@@ -163,43 +167,41 @@ export function getFolderIconInfo(isOpen: boolean): FileIconInfo {
   return isOpen ? FOLDER_OPEN_ICON : FOLDER_ICON;
 }
 
-export function getRepoFolderIconInfo(): FileIconInfo {
-  return FOLDER_CODE_ICON;
-}
-
 /* ── Render helpers ── */
 
-const FILE_ICON_BADGE_STYLE: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 22,
-  height: 22,
-  flexShrink: 0,
-};
-
 /**
- * Renders a coloured VSCode-style file-type icon (22×22 container).
- * Uses Iconify + the vscode-icons pack for authentic per-extension glyphs.
+ * Renders a coloured Material-Design file-type icon.
+ * Uses Iconify + the material-icon-theme pack for authentic per-extension glyphs.
  */
 export function FileIconBadge({
   fileName,
-  size = 16,
+  size = 14,
 }: {
   fileName: string;
   size?: number;
 }): React.ReactElement {
   const ext = getFileExtension(fileName);
-  const iconName = VSCODE_EXT_MAP[ext] ?? DEFAULT_VSCODE_ICON;
+  const iconName = MATERIAL_EXT_MAP[ext] ?? DEFAULT_MATERIAL_ICON;
   return (
-    <span style={FILE_ICON_BADGE_STYLE}>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: size,
+        height: size,
+        flexShrink: 0,
+      }}
+    >
       <Icon icon={iconName} width={size} height={size} />
     </span>
   );
 }
 
 /**
- * Renders a folder icon badge (22×22) for use in tree views.
+ * Renders a folder icon. Uses lucide (outline) — the material-icon-theme
+ * pack has no generic "folder" glyph, only per-tech variants like folder-src,
+ * so an outline folder matches our muted-monochrome aesthetic best.
  */
 export function FolderIconBadge({
   isOpen,
@@ -215,8 +217,8 @@ export function FolderIconBadge({
         display: "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        width: 22,
-        height: 22,
+        width: size,
+        height: size,
         flexShrink: 0,
       }}
     >

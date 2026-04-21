@@ -15,6 +15,8 @@ export const RepositorySchema = z.object({
   status: z.enum(REPO_STATUSES),
   scannedAt: z.number().int().nonnegative(),
   createdAt: z.number().int().nonnegative(),
+  specifyWorkingDir: z.string().nullable().optional(),
+  specifyAgent: z.string().nullable().optional(),
 });
 
 export const PipelineStageSchema = z.object({

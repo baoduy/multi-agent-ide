@@ -140,6 +140,13 @@ export const AccordionSection = React.memo(function AccordionSection({
 
   const isBeingDragged = isDragging && dragViewId === viewId;
 
+  // Normalize sidebar header icons to a single size so views registered
+  // with larger activity-bar icons (size=20) don't look out of place
+  // alongside other sidebar section headers (size=14).
+  const normalizedIcon = React.isValidElement(icon)
+    ? React.cloneElement(icon as React.ReactElement<{ size?: number }>, { size: 14 })
+    : icon;
+
   return (
     <div
       style={{
@@ -160,6 +167,7 @@ export const AccordionSection = React.memo(function AccordionSection({
         onMouseEnter={() => setHeaderHovered(true)}
         onMouseLeave={() => setHeaderHovered(false)}
         style={{
+          position: "relative",
           display: "flex",
           alignItems: "center",
           gap: 4,
@@ -176,18 +184,23 @@ export const AccordionSection = React.memo(function AccordionSection({
           userSelect: "none",
         }}
       >
-        {/* Drag handle */}
+        {/* Drag handle — absolutely positioned so it doesn't shift centered content */}
         {region && !searchOpen && (
           <span
             onMouseDown={handleGripMouseDown}
             onMouseEnter={() => setGripHovered(true)}
             onMouseLeave={() => setGripHovered(false)}
             style={{
+              position: "absolute",
+              left: 4,
+              top: "50%",
+              transform: "translateY(-50%)",
               display: "inline-flex",
               cursor: "grab",
               color: colors.textTertiary,
               opacity: headerHovered || gripHovered ? 0.7 : 0,
               transition: "opacity 0.15s",
+              zIndex: 1,
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -260,16 +273,38 @@ export const AccordionSection = React.memo(function AccordionSection({
             </button>
           </div>
         ) : (
-          /* ── Normal mode: chevron + icon + title ── */
+          /* ── Normal mode: chevron (left) + centered icon+title + search (right) ── */
           <>
+            {/* Chevron — absolutely positioned on the left */}
+            <span
+              style={{
+                position: "absolute",
+                left: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                display: "inline-flex",
+                alignItems: "center",
+                color: colors.textTertiary,
+                pointerEvents: "none",
+              }}
+            >
+              {expanded ? (
+                <ChevronDown size={12} strokeWidth={2} />
+              ) : (
+                <ChevronRight size={12} strokeWidth={2} />
+              )}
+            </span>
+
             <button
               type="button"
               onClick={onToggle}
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
+                justifyContent: "center",
+                gap: 6,
                 flex: 1,
+                minWidth: 0,
                 background: "none",
                 border: "none",
                 cursor: "pointer",
@@ -280,30 +315,27 @@ export const AccordionSection = React.memo(function AccordionSection({
                 padding: 0,
               }}
             >
-              {/* Chevron */}
-              {expanded ? (
-                <ChevronDown size={12} strokeWidth={2} style={{ flexShrink: 0 }} />
-              ) : (
-                <ChevronRight size={12} strokeWidth={2} style={{ flexShrink: 0 }} />
-              )}
-
-              {/* Icon */}
+              {/* Icon (normalized size) */}
               <span style={{ display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
-                {icon}
+                {normalizedIcon}
               </span>
 
-              {/* Title */}
-              <ScrollableText style={{ flex: 1 }}>
+              {/* Title — shrinks to fit, centered alongside icon */}
+              <ScrollableText style={{ flexShrink: 1, minWidth: 0 }}>
                 {title}
               </ScrollableText>
             </button>
 
-            {/* Search toggle button */}
+            {/* Search toggle — absolutely positioned on the right */}
             {searchable && (
               <button
                 type="button"
                 onClick={handleSearchToggle}
                 style={{
+                  position: "absolute",
+                  right: 6,
+                  top: "50%",
+                  transform: "translateY(-50%)",
                   background: "none",
                   border: "none",
                   cursor: "pointer",

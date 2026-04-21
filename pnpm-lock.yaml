@@ -161,6 +161,9 @@ importers:
       '@codemirror/view':
         specifier: ^6.41.1
         version: 6.41.1
+      '@iconify-json/material-icon-theme':
+        specifier: ^1.2.59
+        version: 1.2.59
       '@iconify/react':
         specifier: ^6.0.2
         version: 6.0.2(react@19.2.5)
@@ -857,6 +860,9 @@ packages:
     engines: {node: '>=18.14.1'}
     peerDependencies:
       hono: ^4
+
+  '@iconify-json/material-icon-theme@1.2.59':
+    resolution: {integrity: sha512-tm5at2S/bm/WMkkQNDD9szc0v1F0Zx2nqdsu5F6SDmK60UJTOZeNqIDEflSXHjptVCepq05/sDh3vLgEHDhqnQ==}
 
   '@iconify/react@6.0.2':
     resolution: {integrity: sha512-SMmC2sactfpJD427WJEDN6PMyznTFMhByK9yLW0gOTtnjzzbsi/Ke/XqsumsavFPwNiXs8jSiYeZTmLCLwO+Fg==}
@@ -4813,6 +4819,10 @@ snapshots:
   '@hono/node-server@1.19.14(hono@4.12.14)':
     dependencies:
       hono: 4.12.14
+
+  '@iconify-json/material-icon-theme@1.2.59':
+    dependencies:
+      '@iconify/types': 2.0.0
 
   '@iconify/react@6.0.2(react@19.2.5)':
     dependencies:

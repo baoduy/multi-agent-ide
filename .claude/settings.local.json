@@ -39,7 +39,8 @@
       "Bash(python3 -c \"import json,sys;d=json.load\\(sys.stdin\\);print\\('deps:',list\\(d.get\\('dependencies',{}\\).keys\\(\\)\\)\\);print\\('devDeps:',list\\(d.get\\('devDependencies',{}\\).keys\\(\\)\\)\\)\")",
       "Bash(awk 'NR==40 {print substr\\($0, 1, 2000\\)}' /Users/steven/_CODE/GIT/multi-agent-ide/node_modules/.pnpm/zod@4.3.6/node_modules/zod/v4/core/json-schema-processors.js)",
       "Bash(grep -nB 2 -A 1 \"Set the \\\\`cycles\\\\` parameter\" /Users/steven/_CODE/GIT/multi-agent-ide/node_modules/.pnpm/zod@4.3.6/node_modules/zod/v4/core/json-schema-processors.js)",
-      "Bash(rtk ls *)"
+      "Bash(rtk ls *)",
+      "Bash(rtk wc *)"
     ]
   }
 }

@@ -72,6 +72,14 @@ export class RepoRepository {
         specCount: repo.specCount,
         status: repo.status,
         scannedAt: repo.scannedAt,
+        specifyWorkingDir:
+          repo.specifyWorkingDir !== undefined
+            ? repo.specifyWorkingDir
+            : existing.specifyWorkingDir ?? null,
+        specifyAgent:
+          repo.specifyAgent !== undefined
+            ? repo.specifyAgent
+            : existing.specifyAgent ?? null,
       };
       this.databaseService.transactionSync(() => {
         this.db.putSync(`repo:${merged.id}`, merged);
@@ -92,6 +100,8 @@ export class RepoRepository {
       status: repo.status,
       scannedAt: repo.scannedAt,
       createdAt,
+      specifyWorkingDir: repo.specifyWorkingDir ?? null,
+      specifyAgent: repo.specifyAgent ?? null,
     };
 
     this.databaseService.transactionSync(() => {

@@ -7,6 +7,7 @@ import type { BackgroundJobManager } from "./BackgroundJobManager";
 import type { RepoRepository } from "./RepoRepository";
 import type { SpecRepository } from "./SpecRepository";
 import { SpecReader } from "./SpecReader";
+import { findSpecifyRoot } from "./SpecifyDiscovery";
 
 const TAG = "[SpecSync]";
 
@@ -90,7 +91,13 @@ export class SpecSyncService {
     this.bridge.emit({ type: "spec:sync:started" as const, repoPath });
 
     try {
-      const freshSpecs = await this.specReader.listAllBranchSpecs(repoPath);
+      const specifyLocation = findSpecifyRoot(repoPath);
+      this.persistSpecifyLocation(repoPath, specifyLocation);
+
+      const freshSpecs = await this.specReader.listAllBranchSpecs(
+        repoPath,
+        specifyLocation?.dir,
+      );
       const result = this.specRepository.syncSpecs(repoPath, freshSpecs);
 
       console.log(
@@ -107,5 +114,25 @@ export class SpecSyncService {
 
   getSpecsFromDb(repoPath: string): SpecFolder[] {
     return this.specRepository.getByRepoPath(repoPath);
+  }
+
+  private persistSpecifyLocation(
+    repoPath: string,
+    location: { dir: string; agent: string | null } | null,
+  ): void {
+    const repo = this.repoRepository.findByPath(repoPath);
+    if (!repo) return;
+
+    const nextDir = location?.dir ?? null;
+    const nextAgent = location?.agent ?? null;
+    if (repo.specifyWorkingDir === nextDir && repo.specifyAgent === nextAgent) {
+      return;
+    }
+
+    this.repoRepository.upsert({
+      ...repo,
+      specifyWorkingDir: nextDir,
+      specifyAgent: nextAgent,
+    });
   }
 }

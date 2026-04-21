@@ -8,6 +8,7 @@ import { DEFAULT_SPECIFY_COMMAND } from "@magenta/shared/config";
 import { AppError } from "../errors/AppError";
 import { sanitizeName } from "../domain/sanitizeName";
 import type { SpecifyExtensionApplicationService } from "./SpecifyExtensionApplicationService";
+import { readSpecifyAgent } from "../services/SpecifyDiscovery";
 
 /**
  * Supported AI agents for Specify onboarding.
@@ -301,49 +302,8 @@ export class OnboardApplicationService {
   getSpecifyStatus(repoPath: string): { hasSpecs: boolean; currentAgent: string | null } {
     const specifyDir = join(repoPath, ".specify");
     const hasSpecs = existsSync(specifyDir);
-    const currentAgent = hasSpecs
-      ? this.readCurrentIntegration(repoPath) ?? this.readInitOptionsAgent(repoPath)
-      : null;
+    const currentAgent = hasSpecs ? readSpecifyAgent(repoPath) : null;
     return { hasSpecs, currentAgent };
-  }
-
-  /**
-   * Reads the current integration from .specify/integration.json.
-   * This is the canonical source after `specify integration switch`.
-   */
-  private readCurrentIntegration(repoPath: string): string | null {
-    const integrationPath = join(repoPath, ".specify", "integration.json");
-    try {
-      if (existsSync(integrationPath)) {
-        const content = readFileSync(integrationPath, "utf-8");
-        const data = JSON.parse(content) as Record<string, unknown>;
-        if (typeof data.integration === "string") {
-          return data.integration;
-        }
-      }
-    } catch (err) {
-      console.warn(`[onboard-service] Could not read integration.json: ${err}`);
-    }
-    return null;
-  }
-
-  /**
-   * Reads the AI agent from .specify/init-options.json if it exists.
-   */
-  private readInitOptionsAgent(repoPath: string): string | null {
-    const optionsPath = join(repoPath, ".specify", "init-options.json");
-    try {
-      if (existsSync(optionsPath)) {
-        const content = readFileSync(optionsPath, "utf-8");
-        const options = JSON.parse(content) as Record<string, unknown>;
-        if (typeof options.ai === "string") {
-          return options.ai;
-        }
-      }
-    } catch (err) {
-      console.warn(`[onboard-service] Could not read init-options.json: ${err}`);
-    }
-    return null;
   }
 
   /**

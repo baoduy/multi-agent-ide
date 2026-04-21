@@ -10,6 +10,14 @@ export interface Repository {
   status: RepoStatus;
   scannedAt: number;
   createdAt: number;
+  /**
+   * Absolute path to the directory containing `.specify/` for this repo.
+   * Discovered by walking up to 3 levels from the repo root. `null` when
+   * no `.specify/` folder is found. Constraint: one per repo.
+   */
+  specifyWorkingDir?: string | null;
+  /** AI agent configured for Specify (from .specify/integration.json or init-options.json). */
+  specifyAgent?: string | null;
 }
 
 export interface PipelineStageMetadata {

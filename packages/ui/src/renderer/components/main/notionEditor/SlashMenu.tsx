@@ -13,6 +13,11 @@ import {
   Minus,
   Image as ImageIcon,
   Activity,
+  Info,
+  ChevronRight,
+  Table as TableIcon,
+  Columns2,
+  Link as LinkIcon,
 } from "lucide-react";
 import type { BlockType } from "./blockModel";
 import { colors } from "../../../utils/colors";
@@ -41,6 +46,11 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { type: "mermaid", label: "Mermaid", hint: "Diagram from ```mermaid", icon: Activity },
   { type: "divider", label: "Divider", hint: "Horizontal rule", icon: Minus, kbd: "---" },
   { type: "image", label: "Image", hint: "Embed an image", icon: ImageIcon },
+  { type: "callout", label: "Callout", hint: "Highlighted note block", icon: Info },
+  { type: "toggle", label: "Toggle list", hint: "Collapsible block", icon: ChevronRight },
+  { type: "table", label: "Table", hint: "3×3 grid, editable cells", icon: TableIcon },
+  { type: "columns", label: "2 columns", hint: "Side-by-side layout", icon: Columns2 },
+  { type: "page-link", label: "Page link", hint: "Link to another page", icon: LinkIcon },
 ];
 
 export type SlashMenuProps = {

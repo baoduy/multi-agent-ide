@@ -61,11 +61,13 @@ export class SpecGitGateway {
   /**
    * Lists spec directory names under `specs/` on the given branch via `git ls-tree`.
    */
-  async gitListSpecDirs(repoPath: string, branch: string): Promise<string[]> {
+  async gitListSpecDirs(repoPath: string, branch: string, prefix: string = ""): Promise<string[]> {
     const git = createGit(repoPath);
+    const specsPath = `${prefix}specs/`;
     try {
-      const raw = await git.raw(["ls-tree", "--name-only", branch, "--", "specs/"]);
-      return parseLines(raw).map((line) => line.replace(/^specs\//, ""));
+      const raw = await git.raw(["ls-tree", "--name-only", branch, "--", specsPath]);
+      const stripRe = new RegExp(`^${specsPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+      return parseLines(raw).map((line) => line.replace(stripRe, ""));
     } catch {
       return [];
     }
@@ -74,11 +76,12 @@ export class SpecGitGateway {
   /**
    * Lists files inside a spec directory on the given branch via `git ls-tree`.
    */
-  async gitListSpecFiles(repoPath: string, branch: string, specName: string): Promise<string[]> {
+  async gitListSpecFiles(repoPath: string, branch: string, specName: string, prefix: string = ""): Promise<string[]> {
     const git = createGit(repoPath);
+    const specDirPath = `${prefix}specs/${specName}/`;
     try {
-      const raw = await git.raw(["ls-tree", "--name-only", branch, "--", `specs/${specName}/`]);
-      return parseLines(raw).map((line) => line.replace(`specs/${specName}/`, ""));
+      const raw = await git.raw(["ls-tree", "--name-only", branch, "--", specDirPath]);
+      return parseLines(raw).map((line) => line.replace(specDirPath, ""));
     } catch {
       return [];
     }

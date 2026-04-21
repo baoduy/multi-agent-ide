@@ -2,6 +2,67 @@
 
 This file is the authoritative reference for AI agents (and human contributors) working on the Magenta IDE codebase. Follow these rules when implementing new features, fixing bugs, or refactoring.
 
+---
+
+## Coding Behavior (Read First)
+
+These four principles govern *how* you work in this repo. The architecture rules below govern *where* things go. When they conflict, behavior wins — a clean architecture built on wrong assumptions is still wrong. Bias toward caution over speed; for trivial edits, use judgment.
+
+### 1. Think Before Coding
+
+Don't assume. Don't hide confusion. Surface tradeoffs before touching code.
+
+- State assumptions explicitly. If you're uncertain, ask — don't guess.
+- If multiple valid interpretations exist, list them and let the user pick. Don't silently choose.
+- If a simpler approach exists than what was requested, say so and push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask one concrete question.
+
+This project has layered architecture with strict rules — a wrong assumption here usually means rewriting across `shared` → `daemon` → `ui`. Cheaper to ask.
+
+### 2. Simplicity First
+
+Write the minimum code that solves the problem. Nothing speculative.
+
+- No features beyond what was asked.
+- No abstractions for single-use code. Three similar lines beats a premature helper.
+- No "flexibility" or configurability that wasn't requested.
+- No error handling for scenarios that can't happen (trust internal invariants; validate only at system boundaries — IPC, `fs`, user input).
+- If you wrote 200 lines and 50 would do, rewrite it.
+
+Senior-engineer test: would they say this is overcomplicated? If yes, simplify.
+
+### 3. Surgical Changes
+
+Touch only what the task requires. Clean up only your own mess.
+
+- Don't "improve" adjacent code, comments, formatting, or imports you didn't need to change.
+- Don't refactor working code that isn't in scope. If you spot unrelated dead code or tech debt, **mention it** — don't delete it. (`mcp__ccd_session__spawn_task` is the right venue for out-of-scope cleanups.)
+- Match existing style even if you'd do it differently. Consistency beats personal preference.
+- Remove imports/variables/functions that *your* changes orphaned. Don't remove pre-existing dead code unless asked.
+
+Test: every changed line should trace directly to the user's request. Drive-by edits expand review surface and cause regressions.
+
+### 4. Goal-Driven Execution
+
+Turn vague tasks into verifiable success criteria, then loop until they're met.
+
+- "Add validation" → "Inputs X, Y, Z rejected with error code V; typecheck + build clean."
+- "Fix the bug" → "Reproduce steps no longer produce the error; related behavior unchanged."
+- "Refactor X" → "Public API unchanged; typecheck + build clean; no new warnings."
+
+For multi-step work, state a brief plan up front:
+
+```
+1. [step] → verify: [check]
+2. [step] → verify: [check]
+```
+
+Per project convention, verification stops at **typecheck + build** — don't launch the app; the user tests manually (see `feedback_verification.md`). Strong criteria let you finish without check-ins; weak criteria ("make it work") produce thrash.
+
+**These guidelines are working when:** diffs contain no unrelated changes, no rewrites triggered by overcomplication, and clarifying questions come *before* implementation rather than after mistakes.
+
+---
+
 ## Architecture at a Glance
 
 Magenta IDE is an Electron 41.2.0 + React 19 desktop app with four packages:

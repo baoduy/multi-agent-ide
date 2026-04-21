@@ -1,6 +1,18 @@
 import React, { useEffect, useRef } from "react";
-import { Check, GripVertical, ImageOff } from "lucide-react";
-import type { Block, BlockType } from "./blockModel";
+import {
+  Check,
+  ChevronRight,
+  GripVertical,
+  ImageOff,
+  Info as InfoIcon,
+  AlertTriangle,
+  CheckCircle2,
+  Ban,
+  Link as LinkIcon,
+  Plus,
+  X,
+} from "lucide-react";
+import type { Block, BlockType, CalloutVariant } from "./blockModel";
 import { renderInline } from "./inlineMarkdown";
 import { MermaidDiagram } from "../MermaidDiagram";
 import { colors } from "../../../utils/colors";
@@ -22,6 +34,19 @@ export type BlockRowProps = {
   onStartDrag: (id: string) => void;
   /** Resolve `src` against the .md file's directory for relative-path images. */
   resolveImageSrc: (src: string) => string;
+  /** Toggle block collapsed/expanded. */
+  onToggleCollapse?: (id: string) => void;
+  /** Callout variant cycle. */
+  onCalloutVariantChange?: (id: string, variant: CalloutVariant) => void;
+  /** Table cell edit. */
+  onTableCellChange?: (id: string, row: number, col: number, value: string) => void;
+  /** Add a table row/col. */
+  onTableAddRow?: (id: string) => void;
+  onTableAddCol?: (id: string) => void;
+  onTableRemoveRow?: (id: string, row: number) => void;
+  onTableRemoveCol?: (id: string, col: number) => void;
+  /** Page-link href change. */
+  onPageLinkHrefChange?: (id: string, href: string) => void;
 };
 
 const PLACEHOLDER_BY_TYPE: Record<BlockType, string> = {
@@ -40,7 +65,24 @@ const PLACEHOLDER_BY_TYPE: Record<BlockType, string> = {
   mermaid: "graph TD…",
   divider: "",
   image: "",
+  callout: "Callout",
+  toggle: "Toggle summary",
+  table: "",
+  columns: "",
+  "page-link": "Linked page",
 };
+
+const CALLOUT_STYLES: Record<
+  CalloutVariant,
+  { bg: string; border: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }
+> = {
+  info: { bg: "color-mix(in srgb, var(--primary) 8%, transparent)", border: "var(--primary)", icon: InfoIcon },
+  warn: { bg: "color-mix(in srgb, #f59e0b 12%, transparent)", border: "#f59e0b", icon: AlertTriangle },
+  success: { bg: "color-mix(in srgb, #10b981 12%, transparent)", border: "#10b981", icon: CheckCircle2 },
+  danger: { bg: "color-mix(in srgb, #ef4444 12%, transparent)", border: "#ef4444", icon: Ban },
+};
+
+const CALLOUT_CYCLE: CalloutVariant[] = ["info", "warn", "success", "danger"];
 
 type Tag = "div" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" | "blockquote" | "code";
 
@@ -149,12 +191,14 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
     renderAsPreview: readOnly,
   };
 
+  const indentLevel = Math.max(0, block.indent ?? 0);
   const wrapperStyle: React.CSSProperties = {
     position: "relative",
     display: "flex",
     alignItems: "flex-start",
     gap: 4,
     padding: "1px 0",
+    paddingLeft: indentLevel > 0 ? indentLevel * 22 : undefined,
   };
 
   const handle = readOnly ? null : (
@@ -567,6 +611,338 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
           />
         );
 
+      case "callout": {
+        const variant = block.calloutVariant ?? "info";
+        const style = CALLOUT_STYLES[variant];
+        const Icon = style.icon;
+        return (
+          <div
+            className="nm-callout"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              padding: "10px 12px",
+              borderRadius: 6,
+              borderLeft: `3px solid ${style.border}`,
+              background: style.bg,
+              margin: "6px 0",
+            }}
+          >
+            <button
+              type="button"
+              aria-label="Change callout style"
+              title="Click to change variant"
+              disabled={readOnly}
+              onClick={() => {
+                if (readOnly || !props.onCalloutVariantChange) return;
+                const idx = CALLOUT_CYCLE.indexOf(variant);
+                const next = CALLOUT_CYCLE[(idx + 1) % CALLOUT_CYCLE.length];
+                props.onCalloutVariantChange(block.id, next);
+              }}
+              style={{
+                flexShrink: 0,
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                marginTop: 2,
+                color: style.border,
+                cursor: readOnly ? "default" : "pointer",
+                display: "inline-flex",
+              }}
+            >
+              <Icon size={16} strokeWidth={1.8} />
+            </button>
+            <Editable
+              {...editableProps}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                outline: "none",
+                fontSize: 13.5,
+                lineHeight: 1.6,
+                color: colors.text,
+              }}
+            />
+          </div>
+        );
+      }
+
+      case "toggle": {
+        const collapsed = block.collapsed ?? true;
+        const children = block.children ?? [];
+        return (
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
+              <button
+                type="button"
+                aria-label={collapsed ? "Expand" : "Collapse"}
+                aria-expanded={!collapsed}
+                onClick={() => props.onToggleCollapse?.(block.id)}
+                className="nm-toggle-caret"
+                style={{
+                  flexShrink: 0,
+                  marginTop: 3,
+                  width: 18,
+                  height: 18,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "transparent",
+                  border: "none",
+                  color: colors.textMuted,
+                  cursor: "pointer",
+                  borderRadius: 3,
+                  transform: collapsed ? "rotate(0deg)" : "rotate(90deg)",
+                  transition: "transform 120ms",
+                }}
+              >
+                <ChevronRight size={14} strokeWidth={2} />
+              </button>
+              <Editable
+                {...editableProps}
+                style={{
+                  flex: 1,
+                  minWidth: 0,
+                  outline: "none",
+                  fontSize: 13.5,
+                  fontWeight: 500,
+                  lineHeight: 1.6,
+                  color: colors.text,
+                }}
+              />
+            </div>
+            {!collapsed && (
+              <div
+                className="nm-toggle-children"
+                style={{
+                  marginLeft: 24,
+                  paddingLeft: 10,
+                  borderLeft: `1px solid ${colors.border}`,
+                  fontSize: 13,
+                  color: colors.textMuted,
+                  lineHeight: 1.55,
+                }}
+              >
+                {children.length === 0 ? (
+                  <div style={{ fontStyle: "italic", color: colors.textTertiary }}>Empty toggle — edit markdown to add content.</div>
+                ) : (
+                  children.map((child) => (
+                    <div key={child.id} style={{ padding: "2px 0" }}>
+                      {renderInline(child.content || "")}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "table": {
+        const rows = block.tableRows ?? [[""]];
+        const cols = rows[0]?.length ?? 1;
+        return (
+          <div
+            className="nm-table-wrap"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              overflowX: "auto",
+              border: `1px solid ${colors.border}`,
+              borderRadius: 6,
+              margin: "6px 0",
+            }}
+          >
+            <table
+              className="nm-table"
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: 12.5,
+              }}
+            >
+              <tbody>
+                {rows.map((row, rIdx) => (
+                  <tr key={rIdx} className={rIdx === 0 ? "nm-table-header" : undefined}>
+                    {Array.from({ length: cols }, (_, cIdx) => (
+                      <td
+                        key={cIdx}
+                        contentEditable={!readOnly}
+                        suppressContentEditableWarning
+                        spellCheck={false}
+                        onBlur={(e) =>
+                          props.onTableCellChange?.(
+                            block.id,
+                            rIdx,
+                            cIdx,
+                            e.currentTarget.innerText,
+                          )
+                        }
+                        style={{
+                          border: `1px solid ${colors.border}`,
+                          padding: "4px 8px",
+                          minWidth: 80,
+                          outline: "none",
+                          fontWeight: rIdx === 0 ? 600 : 400,
+                          background: rIdx === 0 ? colors.bgSurface : "transparent",
+                          color: colors.text,
+                          verticalAlign: "top",
+                        }}
+                      >
+                        {row[cIdx] ?? ""}
+                      </td>
+                    ))}
+                    {!readOnly && (
+                      <td style={{ width: 24, border: "none", padding: 2 }}>
+                        <button
+                          type="button"
+                          title="Remove row"
+                          onClick={() => props.onTableRemoveRow?.(block.id, rIdx)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: colors.textTertiary,
+                            cursor: "pointer",
+                            padding: 2,
+                            borderRadius: 3,
+                          }}
+                        >
+                          <X size={11} strokeWidth={1.8} />
+                        </button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!readOnly && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 4,
+                  padding: 4,
+                  borderTop: `1px solid ${colors.border}`,
+                  background: colors.bgSurface,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => props.onTableAddRow?.(block.id)}
+                  style={tableActionBtnStyle}
+                >
+                  <Plus size={11} strokeWidth={1.8} /> Row
+                </button>
+                <button
+                  type="button"
+                  onClick={() => props.onTableAddCol?.(block.id)}
+                  style={tableActionBtnStyle}
+                >
+                  <Plus size={11} strokeWidth={1.8} /> Col
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      case "columns": {
+        const cols = block.columnChildren ?? [[], []];
+        return (
+          <div
+            className="nm-columns"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "grid",
+              gridTemplateColumns: `repeat(${cols.length}, minmax(0, 1fr))`,
+              gap: 12,
+              margin: "6px 0",
+            }}
+          >
+            {cols.map((col, ci) => (
+              <div
+                key={ci}
+                style={{
+                  padding: 10,
+                  border: `1px dashed ${colors.border}`,
+                  borderRadius: 6,
+                  minHeight: 60,
+                  fontSize: 13,
+                  color: colors.textMuted,
+                  lineHeight: 1.55,
+                }}
+              >
+                {col.length === 0 ? (
+                  <div style={{ color: colors.textTertiary, fontStyle: "italic" }}>
+                    Column {ci + 1}
+                  </div>
+                ) : (
+                  col.map((c) => (
+                    <div key={c.id} style={{ padding: "2px 0" }}>
+                      {renderInline(c.content || "")}
+                    </div>
+                  ))
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      }
+
+      case "page-link": {
+        return (
+          <div
+            className="nm-page-link"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "6px 10px",
+              border: `1px solid ${colors.border}`,
+              borderRadius: 6,
+              background: colors.bgMuted,
+              margin: "4px 0",
+            }}
+          >
+            <LinkIcon size={13} strokeWidth={1.8} style={{ color: colors.primary, flexShrink: 0 }} />
+            <Editable
+              {...editableProps}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                outline: "none",
+                fontSize: 13,
+                fontWeight: 500,
+                color: colors.text,
+              }}
+            />
+            <input
+              type="text"
+              placeholder="path/to/page.md"
+              value={block.href ?? ""}
+              disabled={readOnly}
+              onChange={(e) => props.onPageLinkHrefChange?.(block.id, e.target.value)}
+              style={{
+                border: `1px solid ${colors.border}`,
+                borderRadius: 4,
+                padding: "2px 6px",
+                fontSize: 11,
+                fontFamily: "var(--font-mono)",
+                color: colors.textMuted,
+                background: colors.dialogBg,
+                outline: "none",
+                width: 200,
+              }}
+            />
+          </div>
+        );
+      }
+
       case "paragraph":
       default:
         return (
@@ -584,6 +960,19 @@ export function BlockRow(props: BlockRowProps): React.ReactElement {
           />
         );
     }
+  };
+
+  const tableActionBtnStyle: React.CSSProperties = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 3,
+    padding: "2px 6px",
+    fontSize: 10,
+    color: colors.textMuted,
+    background: colors.dialogBg,
+    border: `1px solid ${colors.border}`,
+    borderRadius: 3,
+    cursor: "pointer",
   };
 
   return (

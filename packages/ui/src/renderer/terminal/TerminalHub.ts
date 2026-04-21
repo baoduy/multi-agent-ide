@@ -472,11 +472,6 @@ class TerminalHubImpl {
     if (entry.banner || !entry.mountedIn) return;
     const b = document.createElement("div");
     b.textContent = "reconnecting…";
-    b.style.cssText =
-      "position:absolute;top:6px;right:10px;padding:2px 8px;" +
-      "font-size:10px;font-family:ui-monospace,monospace;border-radius:4px;" +
-      "background:var(--terminal-banner-bg);color:var(--terminal-banner-fg);z-index:10;" +
-      "pointer-events:none;letter-spacing:0.3px;";
     entry.host.appendChild(b);
     entry.banner = b;
     entry.bannerShownAt = Date.now();

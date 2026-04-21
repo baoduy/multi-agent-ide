@@ -88,7 +88,7 @@ function BranchPickerComponent({
           borderRadius: 6,
           background: colors.bgSurface,
           color: value ? colors.text : colors.textTertiary,
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-sans)",
           cursor: disabled ? "not-allowed" : "pointer",
           outline: "none",
           textAlign: "left",

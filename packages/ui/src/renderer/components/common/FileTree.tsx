@@ -189,6 +189,7 @@ function FolderNode({
           cursor: "pointer",
           textAlign: "left",
           transition: "background 0.1s",
+          fontFamily: "var(--font-sans)",
         }}
       >
         {/* Chevron */}
@@ -202,6 +203,8 @@ function FolderNode({
             transition: "transform 0.12s",
             transform: expanded ? "rotate(0deg)" : "rotate(-90deg)",
             color: colors.textTertiary,
+            fontFamily: "var(--font-sans)",
+
           }}
         >
           {hasChildren ? <ChevronDown size={12} strokeWidth={2} /> : null}
@@ -232,7 +235,7 @@ function FolderNode({
               color: colors.borderStrong,
               marginLeft: "auto",
               flexShrink: 0,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-sans)",
             }}
           >
             {countItems(entry)}

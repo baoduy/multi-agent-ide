@@ -148,6 +148,7 @@ export const ScrollableText = React.memo(function ScrollableText({
         overflow: "hidden",
         textOverflow: "clip",
         whiteSpace: "nowrap",
+        fontFamily: "var(--font-sans)",
         ...style,
       }}
     >
@@ -156,6 +157,7 @@ export const ScrollableText = React.memo(function ScrollableText({
         style={{
           display: "inline-block",
           whiteSpace: "nowrap",
+          fontFamily: "var(--font-sans)",
         }}
       >
         {children}

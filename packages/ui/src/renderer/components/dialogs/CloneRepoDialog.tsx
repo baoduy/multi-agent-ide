@@ -16,8 +16,6 @@ type CloneRepoDialogProps = {
   onClose: () => void;
 };
 
-const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
-
 /** Pull the last path segment out of a typical git URL to suggest a folder name. */
 function deriveFolderName(url: string): string {
   const trimmed = url.trim();
@@ -159,7 +157,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
               display: "flex", alignItems: "center", gap: 6, fontFamily: "inherit",
             }}
           >
-            {isRunning ? <Loader2 size={12} style={spin} /> : <Download size={12} strokeWidth={2.2} />}
+            {isRunning ? <Loader2 size={12} className="spin" /> : <Download size={12} strokeWidth={2.2} />}
             {isRunning ? "Cloning…" : "Clone"}
           </button>
         </>
@@ -206,7 +204,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
                   borderRadius: 6,
                   background: colors.bgSurface,
                   color: colors.text,
-                  fontFamily: "var(--font-mono)",
+                  fontFamily: "var(--font-sans)",
                 }}
               >
                 {workingDirs.map((wd) => (
@@ -268,7 +266,7 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
               percent={currentClone.percent}
               color={failed ? colors.error : colors.primary}
             />
-            <p style={{ fontSize: 11, color: failed ? colors.error : colors.textTertiary, marginTop: 6, fontFamily: "var(--font-mono)" }}>
+            <p style={{ fontSize: 11, color: failed ? colors.error : colors.textTertiary, marginTop: 6, fontFamily: "var(--font-sans)" }}>
               {failed ? (currentClone.error ?? "Clone failed.") : currentClone.phase + (currentClone.percent > 0 ? ` · ${currentClone.percent}%` : "")}
             </p>
           </div>

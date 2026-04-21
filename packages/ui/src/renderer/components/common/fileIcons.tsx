@@ -244,7 +244,7 @@ export function ExtensionBadge({ fileName }: { fileName: string }): React.ReactE
         padding: "2px 5px",
         borderRadius: 3,
         flexShrink: 0,
-        fontFamily: "var(--font-mono)",
+        fontFamily: "var(--font-sans)",
       }}
     >
       {ext}

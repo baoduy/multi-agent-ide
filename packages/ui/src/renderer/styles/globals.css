@@ -171,6 +171,25 @@
   --animation-duration-pulse: 1.2s;
   --animation-timing-linear: linear;
   --animation-timing-ease: ease;
+
+  /* ── Density / sizing tokens ──
+     Shared primitives for the hundreds of inline `fontSize: 11`, `gap: 6`,
+     `borderRadius: 4` literals scattered across the renderer. Prefer these
+     over raw numbers so density/theme changes land in one place. */
+  --font-xs: 10px;
+  --font-sm: 11px;
+  --font-base: 12px;
+  --font-md: 13.5px;
+  --font-lg: 14.5px;
+
+  --gap-xs: 2px;
+  --gap-tight: 3px;
+  --gap-base: 6px;
+  --gap-loose: 8px;
+
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
 }
 
 /*
@@ -337,8 +356,9 @@
   button,
   input,
   select,
+  div,
   textarea {
-    font-family: var(--font-sans);
+    font-family: var(--font-sans) !important;
   }
 
   body {
@@ -381,7 +401,7 @@
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 1px 5px;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: 0.9em;
     color: var(--foreground);
   }
@@ -492,7 +512,7 @@
     margin: 10px 0;
     text-align: center;
     overflow-x: auto;
-    font-family: var(--font-mono);
+    font-family: var(--font-sans);
     font-size: 11px;
     color: var(--muted-foreground);
     white-space: pre;
@@ -592,5 +612,56 @@
 .cm-merge-theme > .cm-mergeView {
   flex: 1;
   min-height: 0;
+}
+
+/*
+ * Layout utility classes for inline-styled components.
+ *
+ * The renderer currently styles elements with inline `style={{}}` props rather
+ * than Tailwind classes; these utilities give that code a way to drop the most
+ * repetitive flex/centering shapes without adopting Tailwind wholesale.
+ */
+@layer components {
+  .row        { display: flex; align-items: center; }
+  .row-tight  { display: flex; align-items: center; gap: var(--gap-tight); }
+  .row-base   { display: flex; align-items: center; gap: var(--gap-base); }
+  .row-loose  { display: flex; align-items: center; gap: var(--gap-loose); }
+  .inline-row { display: inline-flex; align-items: center; gap: var(--gap-base); }
+  .center-all { display: flex; align-items: center; justify-content: center; }
+  .truncate-flex { min-width: 0; }
+
+  /* Pure-CSS hover for ToolbarIconButton — keeps the 24-file `useState(hovered)`
+     pattern out of the common toolbar button case. */
+  .toolbar-icon-btn:not(:disabled):hover {
+    background: var(--accent);
+  }
+
+  /* Shared spinner animation — replaces the 18 copies of
+     `style={{ animation: "spin 1s linear infinite" }}` scattered across
+     dialogs and status rows. `@keyframes spin` is defined above. */
+  .spin {
+    animation: spin var(--animation-duration-spinner) var(--animation-timing-linear) infinite;
+  }
+
+  /* Fixed-width icon slot for aligned icon + text rows (context menus, tree
+     nodes, status bars). Replaces inline
+     `width: 16; justify-content: center; flex-shrink: 0`. */
+  .icon-slot {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    flex-shrink: 0;
+  }
+
+  /* Shared disabled look for buttons, rows, and other interactive elements.
+     Replaces inline `opacity: disabled ? 0.55 : 1; cursor: disabled ? "default" : "pointer"`.
+     Add `.is-disabled` alongside existing classes and let the underlying
+     element's `disabled` attribute drive any state; pointer-events are
+     preserved so tooltips still fire. */
+  .is-disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
 }
 

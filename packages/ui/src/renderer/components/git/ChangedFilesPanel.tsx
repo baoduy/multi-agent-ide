@@ -61,11 +61,11 @@ export function ChangedFilesPanel({
       >
         <span>Files</span>
         {selected.kind === "working" ? (
-          <span style={{ fontFamily: "var(--font-mono)", color: colors.warningText, fontSize: 10 }}>
+          <span style={{ fontFamily: "var(--font-sans)", color: colors.warningText, fontSize: 10 }}>
             (working tree)
           </span>
         ) : (
-          <span style={{ fontFamily: "var(--font-mono)", color: colors.textTertiary, fontSize: 10 }}>
+          <span style={{ fontFamily: "var(--font-sans)", color: colors.textTertiary, fontSize: 10 }}>
             ({selected.sha.slice(0, 7)})
           </span>
         )}
@@ -208,7 +208,7 @@ function CommitFileRow({ file, onClick }: { file: CommitFile; onClick: () => voi
             style={{
               fontSize: 10,
               color: colors.textTertiary,
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-sans)",
             }}
           >
             {dirPath}
@@ -216,10 +216,10 @@ function CommitFileRow({ file, onClick }: { file: CommitFile; onClick: () => voi
         )}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-        <span style={{ fontSize: 10, color: colors.success, fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 10, color: colors.success, fontFamily: "var(--font-sans)" }}>
           +{file.additions}
         </span>
-        <span style={{ fontSize: 10, color: colors.error, fontFamily: "var(--font-mono)" }}>
+        <span style={{ fontSize: 10, color: colors.error, fontFamily: "var(--font-sans)" }}>
           -{file.deletions}
         </span>
         <FileStatusBadge status={badgeStatus} />

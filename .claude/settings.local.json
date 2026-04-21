@@ -42,7 +42,8 @@
       "Bash(rtk ls *)",
       "Bash(rtk wc *)",
       "Bash(pnpm -F ui typecheck)",
-      "Bash(pnpm -C packages/ui build)"
+      "Bash(pnpm -C packages/ui build)",
+      "Bash(rtk grep *)"
     ]
   }
 }

@@ -44,8 +44,3 @@ Class-first OOP for all daemon services. Zustand stores own state only — cross
 
 Use claude-mem's MCP search tools for manual memory queries.
 </claude-mem-context>
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-<!-- SPECKIT END -->

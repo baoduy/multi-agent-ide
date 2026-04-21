@@ -299,7 +299,6 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
         <ScrollableText
           style={{
             fontSize: d.font,
-            fontWeight: 500,
             color: "var(--foreground)",
             flex: 1,
           }}
@@ -312,7 +311,7 @@ export function FileChangesList<T extends FileChangeItem = FileChangeItem>({
             color: colors.textTertiary,
             marginLeft: 4,
             flexShrink: 0,
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-sans)",
           }}
         >
           {keys.length}
@@ -418,7 +417,6 @@ function FileRowInner<T extends FileChangeItem>({
         <ScrollableText
           style={{
             fontSize: d.font,
-            fontWeight: 600,
             color: openClickable && hovered ? colors.primary : colors.text,
             transition: "color 0.1s",
           }}
@@ -430,7 +428,6 @@ function FileRowInner<T extends FileChangeItem>({
             style={{
               fontSize: 10,
               color: colors.textTertiary,
-              fontFamily: "var(--font-mono)",
               fontStyle: "italic",
             }}
           >

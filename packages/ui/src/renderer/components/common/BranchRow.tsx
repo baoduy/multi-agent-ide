@@ -96,7 +96,7 @@ function BranchRowComponent({
         background,
         cursor: nonInteractive ? "default" : "pointer",
         fontSize: 11,
-        fontFamily: "var(--font-mono)",
+        fontFamily: "var(--font-sans)",
         color: textColor,
         fontWeight,
         textAlign: "left",

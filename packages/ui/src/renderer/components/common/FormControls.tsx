@@ -67,7 +67,7 @@ export function FormInput({
         outline: "none",
         background: colors.bgSurface,
         color: colors.text,
-        fontFamily: "var(--font-mono)",
+        fontFamily: "var(--font-sans)",
         boxSizing: "border-box",
         transition: "border-color 0.15s",
       }}
@@ -127,7 +127,7 @@ export function FormTextarea({
         outline: "none",
         background: colors.bgSurface,
         color: colors.text,
-        fontFamily: mono ? "var(--font-mono)" : "inherit",
+        fontFamily: mono ? "var(--font-sans)" : "inherit",
         boxSizing: "border-box",
         transition: "border-color 0.15s",
         resize: "vertical",

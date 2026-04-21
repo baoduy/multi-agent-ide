@@ -97,7 +97,7 @@ function ExtensionRow({
           {extension.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-          <span style={{ fontSize: 10, color: colors.textMuted, fontFamily: "var(--font-mono)" }}>
+          <span style={{ fontSize: 10, color: colors.textMuted, fontFamily: "var(--font-sans)" }}>
             {extension.repo}
           </span>
           <a
@@ -246,7 +246,7 @@ const codeStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   padding: "4px 8px",
   fontSize: 11,
-  fontFamily: "var(--font-mono)",
+  fontFamily: "var(--font-sans)",
   border: `1px solid ${colors.border}`,
   borderRadius: 4,
   background: colors.bgSurface,

@@ -175,6 +175,31 @@ export function BaseDialog({
 
 /* ── Reusable small components ── */
 
+/**
+ * Split footer layout for dialogs that need extra content on the left
+ * (toggle, checkbox, secondary input) alongside the action buttons on the
+ * right. Pass as `footer={<DialogFooterSplit left={...} right={...} />}`.
+ */
+export function DialogFooterSplit({
+  left,
+  right,
+}: {
+  left?: React.ReactNode;
+  right: React.ReactNode;
+}): React.ReactElement {
+  const d = useDensityTokens();
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", gap: d.dialogGap, flex: 1, minWidth: 0 }}>
+        {left}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: d.dialogGap, flexShrink: 0 }}>
+        {right}
+      </div>
+    </>
+  );
+}
+
 /** Icon-sized button used for close / minimize in the dialog header */
 function DialogIconButton({
   onClick,

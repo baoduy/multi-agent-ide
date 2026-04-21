@@ -185,7 +185,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
           outline: "none",
           background: colors.bgSurface,
           color: colors.text,
-          fontFamily: "var(--font-mono)",
+          fontFamily: "var(--font-sans)",
           boxSizing: "border-box",
           transition: "border-color 0.15s",
         }}
@@ -206,7 +206,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
         }
         primaryIcon={
           isCommitting && pushIntent.current
-            ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+            ? <Loader2 size={12} className="spin" />
             : <Upload size={12} strokeWidth={2.2} />
         }
         onPrimary={() => void doCommit(true)}
@@ -215,7 +215,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
         menuItem={{
           label: isCommitting && !pushIntent.current ? "Committing..." : "Commit only",
           icon: isCommitting && !pushIntent.current
-            ? <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+            ? <Loader2 size={12} className="spin" />
             : <GitCommit size={12} strokeWidth={2.2} />,
           onSelect: () => { setMenuOpen(false); void doCommit(false); },
           disabled: primaryDisabled,
@@ -311,7 +311,7 @@ export function CommitDialog({ repoPath, currentBranch, onClose }: CommitDialogP
           {!hasUpstream && (
             <p style={{ fontSize: 11, color: colors.textTertiary, marginTop: 0, marginBottom: 0, lineHeight: 1.5, flexShrink: 0 }}>
               Branch <strong style={{ color: colors.textSecondary }}>{currentBranch}</strong> has no upstream.
-              Pushing will set <code style={{ fontFamily: "var(--font-mono)" }}>origin/{currentBranch}</code> as upstream.
+              Pushing will set <code style={{ fontFamily: "var(--font-sans)" }}>origin/{currentBranch}</code> as upstream.
             </p>
           )}
 
@@ -376,7 +376,7 @@ function SplitButton({
           borderTopLeftRadius: 6,
           borderBottomLeftRadius: 6,
           cursor,
-          fontFamily: "inherit",
+          fontFamily: "var(--font-sans)",
           display: "flex",
           alignItems: "center",
           gap: 6,
@@ -457,7 +457,7 @@ function SplitButton({
               borderRadius: 4,
               cursor: menuItem.disabled ? "default" : "pointer",
               textAlign: "left",
-              fontFamily: "inherit",
+              fontFamily: "var(--font-sans)",
               opacity: menuItem.disabled ? 0.5 : 1,
             }}
             onMouseEnter={(e) => { if (!menuItem.disabled) e.currentTarget.style.background = colors.bgHover; }}

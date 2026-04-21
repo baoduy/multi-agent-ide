@@ -73,7 +73,7 @@ export function PrimaryButton({
       }}
     >
       {loading && (
-        <Loader2 size={12} style={{ animation: "spin 1s linear infinite" }} />
+        <Loader2 size={12} className="spin" />
       )}
       {loading && loadingText ? loadingText : children}
     </button>

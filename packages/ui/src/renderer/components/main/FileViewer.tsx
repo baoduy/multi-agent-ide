@@ -385,7 +385,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             style={{
               margin: 0,
               padding: "10px 14px",
-              fontFamily: "var(--font-mono)",
+              fontFamily: "var(--font-sans)",
               fontSize: 11,
               lineHeight: 1.55,
               color: colors.text,

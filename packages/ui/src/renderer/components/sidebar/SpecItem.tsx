@@ -31,6 +31,7 @@ export const SpecItem = React.memo(function SpecItem({ spec, isSelected, onSelec
     >
       <ScrollableText
         style={{
+          fontFamily: "var(--font-sans)",
           fontSize: d.font,
           fontWeight: isSelected ? 500 : 400,
           color: colors.textStrong,

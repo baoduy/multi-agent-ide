@@ -15,8 +15,6 @@ type StashDialogProps = {
   onClose: () => void;
 };
 
-const spin: React.CSSProperties = { animation: "spin 1s linear infinite" };
-
 export function StashDialog({ repoPath, onClose }: StashDialogProps): React.ReactElement {
   const [stashes, setStashes] = useState<StashEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -114,7 +112,7 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 10, fontFamily: "var(--font-mono)", color: colors.textTertiary }}>
+                    <span style={{ fontSize: 10, fontFamily: "var(--font-sans)", color: colors.textTertiary }}>
                       [{s.index}]
                     </span>
                     <ScrollableText style={{ fontSize: 11, fontWeight: 500, color: colors.text, flex: 1 }}>
@@ -135,7 +133,7 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
                     <pre
                       style={{
                         marginTop: 6, padding: 8, fontSize: 11,
-                        fontFamily: "var(--font-mono)", background: colors.bgMuted,
+                        fontFamily: "var(--font-sans)", background: colors.bgMuted,
                         borderRadius: 4, maxHeight: 220, overflow: "auto", whiteSpace: "pre",
                         color: colors.textSecondary,
                       }}
@@ -181,7 +179,7 @@ export function StashDialog({ repoPath, onClose }: StashDialogProps): React.Reac
                 cursor: busy ? "default" : "pointer", fontFamily: "inherit",
               }}
             >
-              {busy === "push:new" ? <Loader2 size={12} style={spin} /> : <Plus size={12} strokeWidth={2.2} />}
+              {busy === "push:new" ? <Loader2 size={12} className="spin" /> : <Plus size={12} strokeWidth={2.2} />}
               Create stash
             </button>
           </div>
@@ -218,7 +216,7 @@ function MiniButton({
         borderRadius: 4, cursor: busy ? "default" : "pointer", fontFamily: "inherit",
       }}
     >
-      {busy ? <Loader2 size={10} style={spin} /> : null}
+      {busy ? <Loader2 size={10} className="spin" /> : null}
       {children}
     </button>
   );

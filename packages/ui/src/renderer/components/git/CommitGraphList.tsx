@@ -123,7 +123,7 @@ export function CommitGraphList({
             border: `1px solid ${colors.border}`,
             borderRadius: 4,
             cursor: "pointer",
-            fontFamily: "inherit",
+            fontFamily: "var(--font-sans)",
           }}
         >
           {entry?.isLoading ? <Loader2 size={10} style={spin} /> : <RefreshCw size={10} strokeWidth={2} />}
@@ -180,7 +180,7 @@ export function CommitGraphList({
               border: `1px dashed ${colors.border}`,
               borderRadius: 4,
               cursor: entry.isLoading ? "default" : "pointer",
-              fontFamily: "inherit",
+              fontFamily: "var(--font-sans)",
             }}
           >
             {entry.isLoading ? "Loading…" : "Load more"}
@@ -453,7 +453,7 @@ function CommitRowView({
             {commit.authorName}
           </ScrollableText>
           <span>· {relativeTime(commit.timestamp)}</span>
-          <span style={{ fontFamily: "var(--font-mono)", color: colors.textTertiary, marginLeft: "auto" }}>
+          <span style={{ fontFamily: "var(--font-sans)", color: colors.textTertiary, marginLeft: "auto" }}>
             {commit.shortSha}
           </span>
         </div>
@@ -478,7 +478,7 @@ function RefChip({ ref_ }: { ref_: string }): React.ReactElement {
         alignItems: "center",
         gap: 2,
         fontSize: 9,
-        fontFamily: "var(--font-mono)",
+        fontFamily: "var(--font-sans)",
         fontWeight: 600,
         color: fg,
         background: bg,

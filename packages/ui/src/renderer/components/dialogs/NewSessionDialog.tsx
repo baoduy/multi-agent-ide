@@ -653,7 +653,7 @@ export function NewSessionDialog({
                       style={{
                         padding: "8px 6px 8px 12px",
                         fontSize: 11,
-                        fontFamily: "var(--font-mono)",
+                        fontFamily: "var(--font-sans)",
                         color: colors.textTertiary,
                         background: colors.bgMuted,
                         border: `1px solid ${worktreeNameError ? colors.error : colors.border}`,
@@ -685,7 +685,7 @@ export function NewSessionDialog({
                         outline: "none",
                         background: colors.bgSurface,
                         color: colors.text,
-                        fontFamily: "var(--font-mono)",
+                        fontFamily: "var(--font-sans)",
                         boxSizing: "border-box",
                         transition: "border-color 0.15s",
                       }}
@@ -713,7 +713,7 @@ export function NewSessionDialog({
                       Full name:{" "}
                       <code
                         style={{
-                          fontFamily: "var(--font-mono)",
+                          fontFamily: "var(--font-sans)",
                         }}
                       >
                         {fullWorktreeName}

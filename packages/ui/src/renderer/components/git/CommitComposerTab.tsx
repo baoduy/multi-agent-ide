@@ -45,7 +45,7 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <GitCommit size={16} color={colors.primary} strokeWidth={2} />
           <div style={{ fontSize: 11, fontWeight: 600, color: colors.text }}>
-            Commit on <code style={{ fontFamily: "var(--font-mono)" }}>{c.branch || "…"}</code>
+            Commit on <code style={{ fontFamily: "var(--font-sans)" }}>{c.branch || "…"}</code>
           </div>
           {c.hasUpstream && (c.ahead > 0 || c.behind > 0) && (
             <span style={{ fontSize: 11, color: colors.textTertiary }}>
@@ -140,7 +140,7 @@ function CommitComposerInner({ repoPath }: { repoPath: string }): React.ReactEle
       {!c.hasUpstream && c.branch && (
         <p style={{ fontSize: 11, color: colors.textTertiary, margin: 0, lineHeight: 1.5 }}>
           Branch <strong style={{ color: colors.textSecondary }}>{c.branch}</strong> has no upstream.
-          Pushing will set <code style={{ fontFamily: "var(--font-mono)" }}>origin/{c.branch}</code> as upstream.
+          Pushing will set <code style={{ fontFamily: "var(--font-sans)" }}>origin/{c.branch}</code> as upstream.
         </p>
       )}
 

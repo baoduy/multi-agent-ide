@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Magenta IDE — AI Extensions Mockup</title>
+<style>
+  /* ==========================================================
+     Theme tokens (mirrors Magenta's colours.css :root / .dark)
+     Use var(--xxx) in components — no hardcoded hex.
+     ========================================================== */
+  :root {
+    --bg-app: #f4f5f7;
+    --bg-titlebar: #ebedf0;
+    --bg-activitybar: #2f3136;
+    --bg-activitybar-active: #3b3d44;
+    --bg-sidebar: #f7f8fa;
+    --bg-editor: #ffffff;
+    --bg-panel: #f7f8fa;
+    --bg-tabbar: #eef0f3;
+    --bg-tab-active: #ffffff;
+    --bg-hover: #eceef2;
+    --bg-selected: #dbeafe;
+
+    --fg-primary: #1f2328;
+    --fg-secondary: #4b5563;
+    --fg-muted: #8a8f98;
+    --fg-activitybar: #bdc1c6;
+    --fg-activitybar-active: #ffffff;
+
+    --border: #dcdfe4;
+    --border-strong: #c3c7ce;
+
+    --accent: #2563eb;           /* Pending / primary */
+    --accent-fg: #ffffff;
+    --accent-soft: #e6efff;
+
+    --status-pending: #2563eb;   /* Blue */
+    --status-review: #d97706;    /* Yellow/Amber */
+    --status-approved: #16a34a;  /* Green */
+
+    --status-pending-soft: #e6efff;
+    --status-review-soft: #fef3c7;
+    --status-approved-soft: #dcfce7;
+
+    --shadow-sm: 0 1px 2px rgba(16,24,40,0.06);
+    --shadow-md: 0 4px 12px rgba(16,24,40,0.08);
+
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+
+  html.dark {
+    --bg-app: #1e1f22;
+    --bg-titlebar: #1a1b1e;
+    --bg-activitybar: #17181b;
+    --bg-activitybar-active: #2a2b2f;
+    --bg-sidebar: #222326;
+    --bg-editor: #1e1f22;
+    --bg-panel: #1a1b1e;
+    --bg-tabbar: #1a1b1e;
+    --bg-tab-active: #1e1f22;
+    --bg-hover: #2a2b2f;
+    --bg-selected: #1e3a5f;
+
+    --fg-primary: #e6e8eb;
+    --fg-secondary: #b0b5bb;
+    --fg-muted: #7a7f88;
+    --fg-activitybar: #9aa0a6;
+    --fg-activitybar-active: #ffffff;
+
+    --border: #2d2f34;
+    --border-strong: #3a3d42;
+
+    --accent: #4b8dff;
+    --accent-soft: #1a2b4b;
+
+    --status-pending: #4b8dff;
+    --status-review: #f59e0b;
+    --status-approved: #22c55e;
+
+    --status-pending-soft: #1a2b4b;
+    --status-review-soft: #3a2a0a;
+    --status-approved-soft: #0f2a1a;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg-app);
+    color: var(--fg-primary);
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; }
+
+  /* ==========================================================
+     Magenta dock layout
+     Title Bar
+     ┌───────────────────────────────────────────────────────┐
+     │ Activity │ Left Sidebar │   Center (tabs)   │ Right   │
+     │   Bar    │  (accordion) │   / Bottom Panel  │ Sidebar │
+     └───────────────────────────────────────────────────────┘
+     Status Bar
+     ========================================================== */
+  .ide {
+    display: grid;
+    grid-template-rows: 30px 1fr 22px;
+    height: 100vh;
+  }
+
+  /* ---------- Title bar ---------- */
+  .titlebar {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg-titlebar);
+    border-bottom: 1px solid var(--border);
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--fg-secondary);
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+  .titlebar .traffic { display: flex; gap: 7px; -webkit-app-region: no-drag; }
+  .traffic i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .traffic i.r { background: #ff5f56; }
+  .traffic i.y { background: #ffbd2e; }
+  .traffic i.g { background: #27c93f; }
+  .titlebar .center { font-weight: 500; color: var(--fg-primary); }
+  .titlebar .right { display: flex; align-items: center; gap: 6px; -webkit-app-region: no-drag; }
+  .titlebar .right button {
+    background: transparent; border: none; color: var(--fg-secondary);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 12px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .titlebar .right button:hover { background: var(--bg-hover); color: var(--fg-primary); }
+
+  /* ---------- Main area ---------- */
+  .workbench {
+    display: grid;
+    grid-template-columns: 48px 260px 1fr 320px;
+    min-height: 0;
+  }
+
+  /* ---------- Activity Bar ---------- */
+  .activitybar {
+    background: var(--bg-activitybar);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 6px 0; gap: 2px;
+    border-right: 1px solid var(--border);
+  }
+  .ab-btn {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--fg-activitybar); cursor: pointer;
+    border-left: 2px solid transparent;
+    border-radius: 0;
+    background: transparent; border-top: none; border-right: none; border-bottom: none;
+    position: relative;
+  }
+  .ab-btn:hover { color: var(--fg-activitybar-active); }
+  .ab-btn.active {
+    color: var(--fg-activitybar-active);
+    border-left-color: var(--accent);
+    background: var(--bg-activitybar-active);
+  }
+  .ab-btn .dot-badge {
+    position: absolute; top: 6px; right: 6px;
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--status-review);
+  }
+  .ab-spacer { flex: 1; }
+
+  /* ---------- Left Sidebar ---------- */
+  .sidebar-left {
+    background: var(--bg-sidebar);
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .sidebar-header {
+    padding: 10px 14px 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    color: var(--fg-secondary); letter-spacing: 0.05em;
+  }
+  .sidebar-header .actions { display: flex; gap: 2px; }
+  .icon-btn {
+    width: 24px; height: 24px; border: none; background: transparent;
+    color: var(--fg-secondary); border-radius: 4px; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { background: var(--bg-hover); color: var(--fg-primary); }
+
+  .scope-switcher {
+    margin: 0 10px 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-editor);
+    border-radius: var(--radius);
+    font-size: 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer;
+  }
+  .scope-switcher:hover { border-color: var(--border-strong); }
+  .scope-switcher .scope-label { color: var(--fg-primary); font-weight: 500; }
+  .scope-switcher .scope-hint { color: var(--fg-muted); font-size: 11px; }
+
+  /* Accordion sections in sidebar (matches AccordionSection.tsx pattern) */
+  .accordion { overflow-y: auto; flex: 1; }
+  .acc-section {
+    border-top: 1px solid var(--border);
+  }
+  .acc-section:first-child { border-top: none; }
+  .acc-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 10px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    color: var(--fg-secondary);
+    cursor: pointer; user-select: none;
+  }
+  .acc-header:hover { background: var(--bg-hover); }
+  .acc-header .left { display: flex; align-items: center; gap: 6px; }
+  .acc-caret { transition: transform .15s; }
+  .acc-section.collapsed .acc-caret { transform: rotate(-90deg); }
+  .acc-section.collapsed .acc-body { display: none; }
+  .acc-count {
+    font-size: 11px; color: var(--fg-muted); font-weight: 500;
+    background: var(--bg-hover); padding: 0 6px; border-radius: 8px;
+  }
+
+  .acc-body { padding: 2px 0 8px; }
+  .tree-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 10px 4px 22px;
+    font-size: 13px; color: var(--fg-primary);
+    cursor: pointer; white-space: nowrap;
+    position: relative;
+  }
+  .tree-item:hover { background: var(--bg-hover); }
+  .tree-item.active { background: var(--bg-selected); }
+  .tree-item .t-icon { color: var(--fg-muted); display: inline-flex; }
+  .tree-item.active .t-icon { color: var(--accent); }
+  .tree-item .t-name { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+  .tree-item .t-count { color: var(--fg-muted); font-size: 11px; }
+  .tree-item .status-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--status-pending);
+  }
+  .tree-item .status-dot.review { background: var(--status-review); }
+  .tree-item .status-dot.approved { background: var(--status-approved); }
+
+  /* ---------- Center (tabs + editor + bottom panel) ---------- */
+  .center {
+    display: grid;
+    grid-template-rows: 1fr 200px;
+    min-width: 0;
+  }
+
+  .editor-area {
+    display: flex; flex-direction: column;
+    background: var(--bg-editor);
+    min-height: 0;
+  }
+
+  /* Tab bar (DockTabBar) */
+  .tabbar {
+    display: flex;
+    background: var(--bg-tabbar);
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    height: 34px;
+    flex: none;
+  }
+  .tab {
+    display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; height: 34px;
+    border-right: 1px solid var(--border);
+    font-size: 13px; color: var(--fg-secondary);
+    cursor: pointer; white-space: nowrap;
+    background: transparent; border-top: 2px solid transparent;
+  }
+  .tab:hover { background: var(--bg-hover); color: var(--fg-primary); }
+  .tab.active {
+    background: var(--bg-tab-active);
+    border-top-color: var(--accent);
+    color: var(--fg-primary);
+    border-bottom: 1px solid var(--bg-tab-active);
+    margin-bottom: -1px;
+  }
+  .tab .close {
+    width: 16px; height: 16px; border-radius: 3px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: var(--fg-muted);
+  }
+  .tab .close:hover { background: var(--bg-hover); color: var(--fg-primary); }
+  .tab .dot-modified {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--status-review);
+  }
+
+  .editor-toolbar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-editor);
+  }
+  .search-box {
+    flex: 1; position: relative;
+  }
+  .search-box input {
+    width: 100%; padding: 6px 10px 6px 30px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-editor); color: var(--fg-primary);
+    font-size: 13px; outline: none;
+  }
+  .search-box input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .search-box svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--fg-muted); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-editor);
+    color: var(--fg-primary);
+    padding: 6px 10px;
+    border-radius: var(--radius);
+    font-size: 12px; cursor: pointer;
+  }
+  .btn:hover { background: var(--bg-hover); }
+  .btn.primary {
+    background: var(--accent); color: var(--accent-fg); border-color: var(--accent);
+  }
+  .btn.primary:hover { filter: brightness(0.95); }
+  .btn-split {
+    display: inline-flex; align-items: stretch;
+    border: 1px solid var(--accent); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .btn-split .btn.primary {
+    border: none; border-radius: 0;
+  }
+  .btn-split .split-caret {
+    background: var(--accent); color: var(--accent-fg);
+    border: none; border-left: 1px solid rgba(255,255,255,.25);
+    padding: 0 8px; cursor: pointer;
+  }
+
+  .editor-body { flex: 1; overflow: auto; padding: 12px; }
+
+  /* Grid of extension cards */
+  .ext-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 10px;
+  }
+  .ext-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    background: var(--bg-editor);
+    cursor: pointer;
+    display: flex; gap: 10px;
+    transition: border-color .1s, transform .05s;
+  }
+  .ext-card:hover { border-color: var(--border-strong); }
+  .ext-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .ext-icon {
+    width: 36px; height: 36px; flex: none;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--status-pending-soft); color: var(--status-pending);
+    border: 1px solid var(--border);
+    font-weight: 700; font-size: 13px;
+  }
+  .ext-icon.skill  { background: var(--status-review-soft); color: var(--status-review); }
+  .ext-icon.hook   { background: var(--status-approved-soft); color: var(--status-approved); }
+  .ext-body { flex: 1; min-width: 0; }
+  .ext-title {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-weight: 600; color: var(--fg-primary);
+  }
+  .ext-name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+  .ext-desc {
+    color: var(--fg-secondary); font-size: 12.5px; margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .ext-footer {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 8px;
+  }
+  .ext-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10.5px; padding: 1px 6px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--bg-sidebar); color: var(--fg-secondary);
+  }
+  .tag.pending  { background: var(--status-pending-soft);  color: var(--status-pending);  border-color: transparent; }
+  .tag.review   { background: var(--status-review-soft);   color: var(--status-review);   border-color: transparent; }
+  .tag.approved { background: var(--status-approved-soft); color: var(--status-approved); border-color: transparent; }
+
+  /* Toggle */
+  .toggle {
+    --w: 30px; --h: 16px;
+    width: var(--w); height: var(--h);
+    background: var(--border-strong); border-radius: 999px;
+    position: relative; cursor: pointer; flex: none;
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; background: #fff; border-radius: 50%;
+    transition: left .15s; box-shadow: 0 1px 2px rgba(0,0,0,.2);
+  }
+  .toggle.on { background: var(--status-approved); }
+  .toggle.on::after { left: 16px; }
+
+  /* ---------- Bottom Panel (PanelContainer) ---------- */
+  .bottom-panel {
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    min-height: 0;
+  }
+  .bp-tabs {
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-tabbar);
+    padding: 0 8px 0 0;
+    height: 32px;
+  }
+  .bp-tablist { display: flex; }
+  .bp-tab {
+    padding: 0 14px; height: 32px;
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--fg-secondary);
+    cursor: pointer; background: transparent; border: none;
+    border-bottom: 2px solid transparent;
+  }
+  .bp-tab:hover { color: var(--fg-primary); }
+  .bp-tab.active { color: var(--fg-primary); border-bottom-color: var(--accent); }
+  .bp-content {
+    flex: 1; overflow: auto; padding: 10px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: var(--fg-secondary);
+    background: var(--bg-editor);
+  }
+  .log-line { padding: 1px 0; white-space: pre-wrap; }
+  .log-line .time { color: var(--fg-muted); }
+  .log-line .tag-ok  { color: var(--status-approved); }
+  .log-line .tag-warn { color: var(--status-review); }
+  .log-line .tag-info { color: var(--status-pending); }
+
+  /* ---------- Right Sidebar (Inspector) ---------- */
+  .sidebar-right {
+    background: var(--bg-sidebar);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    min-width: 0;
+  }
+  .insp-header {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    color: var(--fg-secondary); letter-spacing: 0.05em;
+  }
+  .insp-body { flex: 1; overflow: auto; padding: 14px; }
+  .insp-title {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 15px; font-weight: 600; color: var(--fg-primary);
+    margin: 0 0 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .insp-desc { color: var(--fg-secondary); font-size: 13px; margin: 0 0 14px; }
+  .insp-field {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; font-size: 12px;
+    border-bottom: 1px dashed var(--border);
+  }
+  .insp-field .k { color: var(--fg-muted); }
+  .insp-field .v { color: var(--fg-primary); font-weight: 500; }
+  .insp-section {
+    margin-top: 14px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    color: var(--fg-secondary); letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .insp-code {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: var(--fg-secondary);
+    white-space: pre-wrap;
+  }
+  .insp-actions { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+
+  /* ---------- Status Bar ---------- */
+  .statusbar {
+    background: var(--accent);
+    color: var(--accent-fg);
+    font-size: 11.5px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px;
+  }
+  .statusbar .group { display: flex; gap: 14px; align-items: center; }
+  .statusbar .group span { display: flex; align-items: center; gap: 4px; }
+
+  /* ---------- Resize handles (decorative) ---------- */
+  .resize-handle { width: 1px; background: var(--border); cursor: col-resize; }
+
+  /* ---------- Empty ---------- */
+  .empty { padding: 40px; color: var(--fg-muted); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="ide">
+  <!-- ============== Title bar ============== -->
+  <div class="titlebar">
+    <div class="traffic"><i class="r"></i><i class="y"></i><i class="g"></i></div>
+    <div class="center">Magenta IDE — AI Extensions</div>
+    <div class="right">
+      <button id="themeToggle" title="Toggle theme">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <span id="themeLabel">Light</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============== Workbench ============== -->
+  <div class="workbench">
+
+    <!-- Activity Bar -->
+    <div class="activitybar">
+      <button class="ab-btn" title="Explorer">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      </button>
+      <button class="ab-btn" title="Specs">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      </button>
+      <button class="ab-btn" title="AI Sessions">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      </button>
+      <button class="ab-btn active" title="AI Extensions">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v4H5v4a4 4 0 0 0 4 4v6h6v-6a4 4 0 0 0 4-4V6h-4V2"/></svg>
+        <span class="dot-badge" title="2 updates available"></span>
+      </button>
+      <button class="ab-btn" title="Source Control">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+      </button>
+      <div class="ab-spacer"></div>
+      <button class="ab-btn" title="Settings">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <!-- Left Sidebar -->
+    <aside class="sidebar-left">
+      <div class="sidebar-header">
+        <span>AI Extensions</span>
+        <div class="actions">
+          <button class="icon-btn" title="Refresh">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+          </button>
+          <button class="icon-btn" title="Collapse all">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+          <button class="icon-btn" title="More">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="scope-switcher" title="Scope">
+        <span class="scope-label">Local</span>
+        <span class="scope-hint">workspace ▾</span>
+      </div>
+
+      <div class="accordion" id="accordion">
+        <!-- populated by JS -->
+      </div>
+    </aside>
+
+    <!-- Center -->
+    <div class="center">
+      <!-- Editor area (tabs + toolbar + content) -->
+      <div class="editor-area">
+        <div class="tabbar" id="tabbar">
+          <!-- tabs injected -->
+        </div>
+
+        <div class="editor-toolbar" id="toolbar">
+          <div class="search-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input id="search" placeholder="Search extensions in this category…" />
+          </div>
+          <div class="btn-split">
+            <button class="btn primary" id="generateBtn">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+              <span id="generateLabel">Generate Agent</span>
+            </button>
+            <button class="split-caret" title="More create options">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+          <button class="btn" title="Import">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import
+          </button>
+        </div>
+
+        <div class="editor-body" id="editor"></div>
+      </div>
+
+      <!-- Bottom Panel -->
+      <div class="bottom-panel">
+        <div class="bp-tabs">
+          <div class="bp-tablist">
+            <button class="bp-tab active">Extension Logs</button>
+            <button class="bp-tab">Terminal</button>
+            <button class="bp-tab">Problems <span class="tag review">1</span></button>
+            <button class="bp-tab">Output</button>
+          </div>
+          <div>
+            <button class="icon-btn" title="Clear">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            </button>
+            <button class="icon-btn" title="Hide">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="bp-content" id="logs"></div>
+      </div>
+    </div>
+
+    <!-- Right Sidebar (Inspector) -->
+    <aside class="sidebar-right">
+      <div class="insp-header">
+        <span>Inspector</span>
+        <button class="icon-btn" title="Pin">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.68-6.71a2 2 0 0 0-.95-1.32L15 8V3h-6v5L7.63 8.97a2 2 0 0 0-.95 1.32z"/></svg>
+        </button>
+      </div>
+      <div class="insp-body" id="inspector"></div>
+    </aside>
+
+  </div>
+
+  <!-- ============== Status bar ============== -->
+  <div class="statusbar">
+    <div class="group">
+      <span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><line x1="6" y1="9" x2="6" y2="21"/></svg>
+        main
+      </span>
+      <span>magenta-ide</span>
+      <span>daemon: ready</span>
+    </div>
+    <div class="group">
+      <span id="sbCount">9 agents enabled</span>
+      <span>Local scope</span>
+      <span>UTF-8</span>
+      <span>LF</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   DATA — categories modeled after Magenta's registry approach.
+   ========================================================================= */
+const DATA = {
+  agents: { label: 'Agent', noun: 'agents', icon: '◆',
+    sections: [
+      { title: 'Workspace', items: [
+        { name: 'arch.review', desc: 'Architecture review, code review, security review, cleanup, OWASP.', on: true, status: 'approved', scope: 'workspace', source: '.magenta/agents/arch-review.yaml', tools: ['Read','Grep','WebFetch'] },
+        { name: 'speckit.git.commit', desc: 'Auto-commit changes after a Spec Kit command completes.', on: true, status: 'approved', scope: 'workspace', source: '.magenta/agents/speckit-commit.yaml', tools: ['Bash'] },
+        { name: 'speckit.git.feature', desc: 'Create a feature branch with sequential or timestamp numbering.', on: false, status: 'pending', scope: 'workspace', source: '.magenta/agents/speckit-feature.yaml', tools: ['Bash'] },
+        { name: 'speckit.git.initialize', desc: 'Initialize a Git repository with an initial commit.', on: false, status: 'pending', scope: 'workspace', source: '.magenta/agents/speckit-init.yaml', tools: ['Bash'] },
+        { name: 'speckit.git.remote', desc: 'Detect Git remote URL for GitHub integration.', on: true, status: 'approved', scope: 'workspace', source: '.magenta/agents/speckit-remote.yaml', tools: ['Bash'] },
+        { name: 'speckit.git.validate', desc: 'Validate current branch follows feature naming conventions.', on: true, status: 'review', scope: 'workspace', source: '.magenta/agents/speckit-validate.yaml', tools: ['Bash','Read'] },
+      ]},
+      { title: 'Built-in', items: [
+        { name: 'Ask', desc: 'Answers questions without making changes.', on: true, status: 'approved', scope: 'builtin', builtin: true, tools: ['Read','Grep','WebFetch'] },
+        { name: 'Explore', desc: 'Fast read-only codebase exploration and Q&A subagent.', on: true, status: 'approved', scope: 'builtin', builtin: true, tools: ['Read','Grep','Glob'] },
+        { name: 'Plan', desc: 'Researches and outlines multi-step plans.', on: true, status: 'approved', scope: 'builtin', builtin: true, tools: ['Read','Grep'] },
+      ]},
+    ]},
+  skills: { label: 'Skill', noun: 'skills', icon: '★',
+    sections: [
+      { title: 'Workspace', items: [
+        { name: 'docx',  desc: 'Create, read, and edit Word documents.', on: true, status: 'approved', iconKind: 'skill', scope: 'workspace' },
+        { name: 'xlsx',  desc: 'Excel handling: formulas, formatting, charts.', on: true, status: 'approved', iconKind: 'skill', scope: 'workspace' },
+        { name: 'pdf',   desc: 'PDF creation, merging, splitting, extraction.', on: false, status: 'pending', iconKind: 'skill', scope: 'workspace' },
+        { name: 'pptx',  desc: 'Slide decks, pitch decks, presentations.', on: true, status: 'approved', iconKind: 'skill', scope: 'workspace' },
+      ]},
+      { title: 'Built-in', items: [
+        { name: 'doc-coauthoring', desc: 'Structured documentation workflow.', on: true, builtin: true, status: 'approved', iconKind: 'skill' },
+        { name: 'skill-creator',   desc: 'Create, edit, and optimize skills.', on: false, builtin: true, status: 'pending', iconKind: 'skill' },
+      ]},
+    ]},
+  instructions: { label: 'Instruction', noun: 'instruction', icon: 'I',
+    sections: [
+      { title: 'Workspace', items: [
+        { name: 'coding-style.md', desc: 'House coding conventions and review expectations.', on: true, status: 'approved', scope: 'workspace' },
+      ]},
+    ]},
+  prompts: { label: 'Prompt', noun: 'prompts', icon: '❯',
+    sections: [
+      { title: 'Workspace', items: [
+        { name: 'review-pr',           desc: 'Review a pull request for correctness and style.', on: true, status: 'approved' },
+        { name: 'draft-release-notes', desc: 'Turn recent commits into a release note draft.',   on: true, status: 'review' },
+        { name: 'bug-triage',          desc: 'Triage an incoming bug report — severity, repro, owner.', on: false, status: 'pending' },
+        { name: 'security-scan',       desc: 'Scan the diff for common security red flags.', on: true, status: 'approved' },
+      ]},
+      { title: 'Built-in', items: [
+        { name: 'summarize', desc: 'Summarize the current conversation.', on: true, builtin: true, status: 'approved' },
+        { name: 'explain',   desc: 'Explain a selected piece of code.',   on: true, builtin: true, status: 'approved' },
+        { name: 'refactor',  desc: 'Suggest a refactor for the selection.', on: true, builtin: true, status: 'approved' },
+      ]},
+    ]},
+  hooks: { label: 'Hook', noun: 'hooks', icon: '⚡',
+    sections: [
+      { title: 'Workspace', items: [
+        { name: 'on-save.lint',    desc: 'Run linter after every file save.',    on: true, status: 'approved', iconKind: 'hook' },
+        { name: 'on-commit.test',  desc: 'Run test suite on commit.',            on: true, status: 'approved', iconKind: 'hook' },
+        { name: 'pre-push.build',  desc: 'Build project before git push.',       on: false, status: 'pending', iconKind: 'hook' },
+        { name: 'on-open.welcome', desc: 'Show a welcome panel on workspace open.', on: false, status: 'pending', iconKind: 'hook' },
+        { name: 'on-error.notify', desc: 'Post a Slack ping when CI fails on main.', on: true, status: 'review', iconKind: 'hook' },
+      ]},
+    ]},
+  mcp: { label: 'MCP Server', noun: 'servers', icon: '⚙',
+    sections: [
+      { title: 'Workspace', items: [
+        { name: 'github-mcp', desc: 'Read repos, PRs, and issues via Model Context Protocol.', on: true, status: 'approved' },
+        { name: 'linear-mcp', desc: 'Query and update Linear tickets from the assistant.',    on: false, status: 'pending' },
+      ]},
+    ]},
+  plugins: { label: 'Plugin', noun: 'plugins', icon: '⊞',
+    sections: [
+      { title: 'Installed', items: [
+        { name: 'engineering',               desc: 'Bundle of skills: review, debug, standup, system design.', on: true, status: 'approved' },
+        { name: 'cowork-plugin-management',  desc: 'Create and customize Cowork plugins.',                      on: true, status: 'approved' },
+        { name: 'ms-office-suite',           desc: 'Office document creation: docx, xlsx, pptx, pdf.',          on: false, status: 'pending' },
+      ]},
+      { title: 'Marketplace', items: [
+        { name: 'security-tools', desc: 'Available to install — vulnerability scanners and audit helpers.', on: false, install: true, status: 'pending' },
+      ]},
+    ]},
+};
+
+const CATEGORIES = Object.keys(DATA);
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+let openTabs = ['agents'];           // currently open category tabs
+let activeTab = 'agents';            // currently active tab
+let selectedItem = null;             // { cat, name }
+let query = '';
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+const $ = (s, root=document) => root.querySelector(s);
+const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+
+function initialLetter(s) {
+  return s.replace(/^[^a-z0-9]+/i, '').charAt(0).toUpperCase() || '•';
+}
+function countItems(cat) {
+  return DATA[cat].sections.reduce((n, s) => n + s.items.length, 0);
+}
+function countEnabled(cat) {
+  return DATA[cat].sections.reduce((n, s) => n + s.items.filter(i => i.on).length, 0);
+}
+function findItem(cat, name) {
+  for (const s of DATA[cat].sections) {
+    const found = s.items.find(i => i.name === name);
+    if (found) return found;
+  }
+  return null;
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* =========================================================================
+   RENDER — Left Sidebar (accordion with category tree)
+   ========================================================================= */
+function renderAccordion() {
+  const acc = $('#accordion');
+  acc.innerHTML = CATEGORIES.map(cat => {
+    const meta = DATA[cat];
+    const items = meta.sections.flatMap(s => s.items);
+    const isActive = cat === activeTab;
+    return `
+      <section class="acc-section ${isActive ? '' : 'collapsed'}" data-cat="${cat}">
+        <div class="acc-header" onclick="toggleAccSection('${cat}')">
+          <div class="left">
+            <span class="acc-caret">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="6 9 12 15 18 9"/></svg>
+            </span>
+            <span>${meta.label}s</span>
+          </div>
+          <span class="acc-count">${items.length}</span>
+        </div>
+        <div class="acc-body">
+          ${items.map(it => `
+            <div class="tree-item ${selectedItem && selectedItem.cat === cat && selectedItem.name === it.name ? 'active' : ''}"
+                 onclick="selectItem('${cat}','${escapeHtml(it.name)}')">
+              <span class="t-icon">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/></svg>
+              </span>
+              <span class="t-name">${it.name}</span>
+              <span class="status-dot ${it.status}"></span>
+            </div>
+          `).join('')}
+        </div>
+      </section>
+    `;
+  }).join('');
+}
+
+function toggleAccSection(cat) {
+  // Opening an accordion section also opens it as a tab
+  if (!openTabs.includes(cat)) openTabs.push(cat);
+  activeTab = cat;
+  selectedItem = null;
+  query = '';
+  if ($('#search')) $('#search').value = '';
+  renderAll();
+}
+
+/* =========================================================================
+   RENDER — Tab bar
+   ========================================================================= */
+function renderTabs() {
+  const bar = $('#tabbar');
+  bar.innerHTML = openTabs.map(cat => {
+    const meta = DATA[cat];
+    return `
+      <div class="tab ${cat === activeTab ? 'active' : ''}" onclick="switchTab('${cat}')">
+        <span class="dot-modified" style="display:${cat==='prompts' ? 'inline-block':'none'}"></span>
+        <span>${meta.label}s</span>
+        <span class="close" onclick="event.stopPropagation(); closeTab('${cat}')" title="Close">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </span>
+      </div>
+    `;
+  }).join('') + `
+    <div class="tab" style="border-right:none;color:var(--fg-muted);" onclick="openNewTab()" title="Open another category">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </div>
+  `;
+}
+
+function switchTab(cat) { activeTab = cat; query = ''; $('#search').value = ''; renderAll(); }
+function closeTab(cat) {
+  openTabs = openTabs.filter(t => t !== cat);
+  if (activeTab === cat) activeTab = openTabs[0] || null;
+  renderAll();
+}
+function openNewTab() {
+  const notOpen = CATEGORIES.find(c => !openTabs.includes(c));
+  if (notOpen) { openTabs.push(notOpen); activeTab = notOpen; renderAll(); }
+}
+
+/* =========================================================================
+   RENDER — Editor (grid of cards)
+   ========================================================================= */
+function renderEditor() {
+  const editor = $('#editor');
+  const cat = activeTab;
+  if (!cat) { editor.innerHTML = '<div class="empty">No category open.</div>'; return; }
+
+  const meta = DATA[cat];
+  $('#generateLabel').textContent = `Generate ${meta.label}`;
+  $('#search').placeholder = `Search ${meta.noun}…`;
+
+  const q = query.trim().toLowerCase();
+  const allCards = [];
+  meta.sections.forEach(sec => {
+    const hits = sec.items.filter(it =>
+      !q || it.name.toLowerCase().includes(q) || it.desc.toLowerCase().includes(q)
+    );
+    if (hits.length === 0) return;
+    allCards.push(`
+      <div style="grid-column: 1 / -1; display:flex; align-items:center; gap:8px; margin-top:8px; color: var(--fg-secondary); font-size: 11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em;">
+        <span>${sec.title}</span>
+        <span style="flex:1; height:1px; background: var(--border);"></span>
+        <span class="acc-count">${hits.length}</span>
+      </div>
+    `);
+    hits.forEach(it => allCards.push(cardHTML(cat, it)));
+  });
+
+  editor.innerHTML = allCards.length
+    ? `<div class="ext-grid">${allCards.join('')}</div>`
+    : `<div class="empty">No ${meta.noun} match “${q}”.</div>`;
+}
+
+function cardHTML(cat, it) {
+  const isSelected = selectedItem && selectedItem.cat === cat && selectedItem.name === it.name;
+  const iconKind = it.iconKind || (cat === 'skills' ? 'skill' : cat === 'hooks' ? 'hook' : '');
+  const tags = [];
+  if (it.builtin) tags.push('<span class="tag">Built-in</span>');
+  if (it.install) tags.push('<span class="tag review">Install</span>');
+  tags.push(`<span class="tag ${it.status}">${it.status}</span>`);
+
+  return `
+    <div class="ext-card ${isSelected ? 'selected' : ''}" onclick="selectItem('${cat}','${escapeHtml(it.name)}')">
+      <div class="ext-icon ${iconKind}">${initialLetter(it.name)}</div>
+      <div class="ext-body">
+        <div class="ext-title">
+          <span class="ext-name">${it.name}</span>
+        </div>
+        <div class="ext-desc">${it.desc}</div>
+        <div class="ext-footer">
+          <div class="ext-tags">${tags.join('')}</div>
+          <div class="toggle ${it.on ? 'on' : ''}" onclick="event.stopPropagation(); toggleItemOn('${cat}','${escapeHtml(it.name)}')"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleItemOn(cat, name) {
+  const it = findItem(cat, name);
+  if (it) it.on = !it.on;
+  renderAll();
+}
+
+/* =========================================================================
+   RENDER — Right sidebar (Inspector)
+   ========================================================================= */
+function renderInspector() {
+  const box = $('#inspector');
+  if (!selectedItem) {
+    box.innerHTML = `
+      <div style="color: var(--fg-muted); font-size: 12.5px; padding: 12px 4px;">
+        Select an extension from the sidebar or the grid to inspect its details, tools, and source file.
+      </div>
+      <div class="insp-section">Tips</div>
+      <div class="insp-code">• Click the toggle on a card to enable/disable
+• Drag a tab to split horizontally
+• Cmd/Ctrl+K to jump between extensions</div>
+    `;
+    return;
+  }
+
+  const { cat, name } = selectedItem;
+  const it = findItem(cat, name);
+  if (!it) { selectedItem = null; renderInspector(); return; }
+
+  const iconKind = it.iconKind || (cat === 'skills' ? 'skill' : cat === 'hooks' ? 'hook' : '');
+
+  box.innerHTML = `
+    <h3 class="insp-title">
+      <span class="ext-icon ${iconKind}" style="width:28px;height:28px;font-size:12px;">${initialLetter(name)}</span>
+      ${name}
+    </h3>
+    <p class="insp-desc">${it.desc}</p>
+
+    <div class="insp-field"><span class="k">Type</span><span class="v">${DATA[cat].label}</span></div>
+    <div class="insp-field"><span class="k">Scope</span><span class="v">${it.scope || (it.builtin ? 'Built-in' : 'Workspace')}</span></div>
+    <div class="insp-field"><span class="k">Status</span><span class="v"><span class="tag ${it.status}">${it.status}</span></span></div>
+    <div class="insp-field"><span class="k">Enabled</span><span class="v">${it.on ? 'Yes' : 'No'}</span></div>
+    ${it.tools ? `<div class="insp-field"><span class="k">Tools</span><span class="v">${it.tools.join(', ')}</span></div>` : ''}
+    ${it.source ? `<div class="insp-field"><span class="k">Source</span><span class="v" style="font-family:ui-monospace,Menlo,monospace;font-size:11px;">${it.source}</span></div>` : ''}
+
+    <div class="insp-section">Preview</div>
+    <div class="insp-code">${it.name}:
+  description: "${it.desc.replace(/"/g,'\\"')}"
+  status: ${it.status}
+  enabled: ${it.on}
+${it.tools ? '  tools: [' + it.tools.join(', ') + ']' : ''}</div>
+
+    <div class="insp-actions">
+      <button class="btn primary" onclick="toggleItemOn('${cat}','${escapeHtml(name)}')">
+        ${it.on ? 'Disable' : 'Enable'}
+      </button>
+      <button class="btn">Edit</button>
+      <button class="btn">Duplicate</button>
+      <button class="btn">Open file</button>
+    </div>
+  `;
+}
+
+function selectItem(cat, name) {
+  selectedItem = { cat, name };
+  activeTab = cat;
+  if (!openTabs.includes(cat)) openTabs.push(cat);
+  renderAll();
+}
+
+/* =========================================================================
+   RENDER — Bottom panel logs (purely decorative mock)
+   ========================================================================= */
+function renderLogs() {
+  const lines = [
+    ['10:04:12', 'info', 'Loaded workspace extensions (agents=9, skills=6, hooks=5, prompts=7, mcp=2, plugins=4)'],
+    ['10:04:12', 'ok',   'Registry hydrated from .magenta/extensions.json'],
+    ['10:04:15', 'info', 'Enabled: speckit.git.validate → hook chain registered'],
+    ['10:04:19', 'warn', 'Skill "pdf" requires build step — disabled until rebuild'],
+    ['10:04:21', 'ok',   'MCP server "github-mcp" connected (pid 81422)'],
+    ['10:04:22', 'info', 'Plugin "engineering" installed 9 skills into workspace scope'],
+  ];
+  $('#logs').innerHTML = lines.map(([t, kind, msg]) => {
+    const cls = kind === 'ok' ? 'tag-ok' : kind === 'warn' ? 'tag-warn' : 'tag-info';
+    const label = kind === 'ok' ? 'OK' : kind === 'warn' ? 'WRN' : 'INF';
+    return `<div class="log-line"><span class="time">[${t}]</span> <span class="${cls}">${label}</span> ${msg}</div>`;
+  }).join('');
+}
+
+/* =========================================================================
+   RENDER ALL
+   ========================================================================= */
+function renderAll() {
+  renderAccordion();
+  renderTabs();
+  renderEditor();
+  renderInspector();
+  updateStatusBar();
+}
+
+function updateStatusBar() {
+  if (!activeTab) return;
+  const meta = DATA[activeTab];
+  const enabled = countEnabled(activeTab);
+  $('#sbCount').textContent = `${enabled} ${meta.noun} enabled`;
+}
+
+/* =========================================================================
+   Events
+   ========================================================================= */
+$('#search').addEventListener('input', (e) => { query = e.target.value; renderEditor(); });
+$('#generateBtn').addEventListener('click', () => {
+  alert(`(Mockup) Open a "Generate ${DATA[activeTab].label}" wizard — form + AI-assisted authoring.`);
+});
+
+$('#themeToggle').addEventListener('click', () => {
+  document.documentElement.classList.toggle('dark');
+  $('#themeLabel').textContent = document.documentElement.classList.contains('dark') ? 'Dark' : 'Light';
+});
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+renderAll();
+renderLogs();
+</script>
+</body>
+</html>

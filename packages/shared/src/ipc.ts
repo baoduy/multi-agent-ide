@@ -15,6 +15,8 @@ export const RepositorySchema = z.object({
   status: z.enum(REPO_STATUSES),
   scannedAt: z.number().int().nonnegative(),
   createdAt: z.number().int().nonnegative(),
+  specifyWorkingDir: z.string().nullable().optional(),
+  specifyAgent: z.string().nullable().optional(),
 });
 
 export const PipelineStageSchema = z.object({
@@ -289,6 +291,8 @@ export const GitFileStatusSchema = z.object({
   status: z.enum(["modified", "added", "deleted", "renamed", "untracked", "conflicted"]),
   staged: z.boolean(),
   oldPath: z.string().optional(),
+  /** Working-tree file mtime in ms-since-epoch. Absent for deleted files. */
+  mtimeMs: z.number().optional(),
 });
 
 export const CommitSummarySchema = z.object({
@@ -425,6 +429,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     files: z.array(z.object({
       path: z.string(),
       status: z.enum(["added", "modified", "deleted", "renamed", "copied", "untracked"]),
+      mtimeMs: z.number().optional(),
     })),
     ahead: z.number().int().nonnegative(),
     behind: z.number().int().nonnegative(),

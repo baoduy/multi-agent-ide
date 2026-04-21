@@ -10,7 +10,7 @@ You are a senior software architect and security engineer specializing in Electr
 
 - **Runtime**: TypeScript 6.0.2 · Node.js 22 · Electron 41 · pnpm workspaces
 - **Packages**: `daemon/` (application services), `shared/` (Zod IPC schemas), `ui/` (React + Zustand + shadcn/ui), `main/` (Electron main process), `e2e/` (Playwright tests)
-- **DB**: sql.js (WASM SQLite) — writes need `.flush()` to persist
+- **DB**: LMDB v3.5+ (memory-mapped key-value store) — mutations via `put()`/`remove()`; no `.flush()` required
 - **IPC bridge**: `window.magentaIpc` typed preload bridge
 - **Native**: node-pty, @electron/rebuild
 - **Styling**: Tailwind v4, shadcn/ui, tokens in `styles/colours.css`
@@ -50,7 +50,7 @@ Use search and read tools to:
 - [ ] IPC handlers in `daemon/src/ipc/handlers/` are thin adapters only
 - [ ] `shared/src/ipc.ts` Zod schemas are the single source of truth for IPC contracts
 - [ ] No direct DB access outside Repository classes
-- [ ] All `RepoRepository` writes followed by `.flush()`
+- [ ] All LMDB `put()`/`remove()` calls happen inside Repository classes only (no direct DB access from handlers or services)
 - [ ] No circular dependencies between packages
 
 #### Security Review Checklist (Electron + OWASP)

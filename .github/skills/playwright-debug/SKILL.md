@@ -1,1 +1,0 @@
-Moved to .claude/skills/playwright-debug

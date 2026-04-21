@@ -11,12 +11,15 @@ import React, {
 import {
   type Block,
   type BlockType,
+  type CalloutVariant,
   blocksToMarkdown,
+  INDENTABLE_TYPES,
   makeBlock,
   parseMarkdown,
 } from "./blockModel";
 import { BlockRow } from "./BlockRow";
 import { SLASH_COMMANDS, SlashMenu, type SlashCommand } from "./SlashMenu";
+import { SelectionToolbar } from "./SelectionToolbar";
 import { makeImageUploadHandler } from "../markdownImageUpload";
 import { colors } from "../../../utils/colors";
 
@@ -76,11 +79,79 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
     const [blocks, setBlocks] = useState<Block[]>(() => parseMarkdown(value));
     const [slash, setSlash] = useState<SlashState | null>(null);
     const [focusedId, setFocusedId] = useState<string | null>(null);
+    /** Bumped on undo/redo so BlockRow keys remount, forcing uncontrolled
+     *  contentEditable nodes to re-seed from restored block content. */
+    const [editorVersion, setEditorVersion] = useState(0);
 
     const blocksRef = useRef(blocks);
     useEffect(() => {
       blocksRef.current = blocks;
     }, [blocks]);
+
+    /* ─── Undo / redo history ─────────────────────────────────────────── */
+
+    const HISTORY_LIMIT = 20;
+    /** Past markdown snapshots — oldest at index 0, most recent at end. */
+    const historyRef = useRef<string[]>([]);
+    /** Undone snapshots available for redo. */
+    const futureRef = useRef<string[]>([]);
+    /** Current markdown, tracked so we can diff incoming changes. */
+    const currentMdRef = useRef(value);
+    /** Debounce handle so a flurry of keystrokes produces one history entry. */
+    const snapshotTimerRef = useRef<number | null>(null);
+    /** Set during undo/redo so the effect doesn't re-capture the restore. */
+    const applyingHistoryRef = useRef(false);
+
+    // After any block change, debounce and push the PREVIOUS markdown into
+    // history. This gives us coarse undo steps keyed to typing pauses rather
+    // than per-keystroke granularity.
+    useEffect(() => {
+      if (applyingHistoryRef.current) {
+        applyingHistoryRef.current = false;
+        return;
+      }
+      const md = blocksToMarkdown(blocks);
+      if (md === currentMdRef.current) return;
+      const prev = currentMdRef.current;
+      currentMdRef.current = md;
+      if (snapshotTimerRef.current) window.clearTimeout(snapshotTimerRef.current);
+      snapshotTimerRef.current = window.setTimeout(() => {
+        historyRef.current.push(prev);
+        if (historyRef.current.length > HISTORY_LIMIT) historyRef.current.shift();
+        futureRef.current = [];
+      }, 400);
+    }, [blocks]);
+
+    const applyHistory = useCallback(
+      (md: string) => {
+        applyingHistoryRef.current = true;
+        currentMdRef.current = md;
+        setBlocks(parseMarkdown(md));
+        setEditorVersion((v) => v + 1);
+        onChange(md);
+      },
+      [onChange],
+    );
+
+    const undo = useCallback(() => {
+      if (snapshotTimerRef.current) {
+        window.clearTimeout(snapshotTimerRef.current);
+        snapshotTimerRef.current = null;
+      }
+      if (historyRef.current.length === 0) return;
+      const prev = historyRef.current.pop() as string;
+      futureRef.current.push(currentMdRef.current);
+      if (futureRef.current.length > HISTORY_LIMIT) futureRef.current.shift();
+      applyHistory(prev);
+    }, [applyHistory]);
+
+    const redo = useCallback(() => {
+      if (futureRef.current.length === 0) return;
+      const next = futureRef.current.pop() as string;
+      historyRef.current.push(currentMdRef.current);
+      if (historyRef.current.length > HISTORY_LIMIT) historyRef.current.shift();
+      applyHistory(next);
+    }, [applyHistory]);
 
     // Refs to each block's editable DOM element keyed by block id. Used for
     // imperative focus, caret placement, and caret-based slash anchoring.
@@ -324,6 +395,19 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
           }
         }
 
+        // Tab / Shift-Tab — indent/outdent list-like blocks.
+        if (e.key === "Tab") {
+          if (INDENTABLE_TYPES.has(block.type)) {
+            e.preventDefault();
+            const delta = e.shiftKey ? -1 : 1;
+            const nextIndent = Math.max(0, Math.min(6, (block.indent ?? 0) + delta));
+            if (nextIndent !== (block.indent ?? 0)) {
+              updateBlock(id, { indent: nextIndent });
+            }
+            return;
+          }
+        }
+
         if (e.key === "Enter" && !e.shiftKey) {
           e.preventDefault();
           // Empty list/quote item → revert to paragraph.
@@ -339,6 +423,10 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
           const nextType: BlockType = repeat ? block.type : "paragraph";
           const nextBlock = makeBlock(nextType, "");
           if (nextType === "todo") nextBlock.checked = false;
+          // Preserve indent level for list-style continuations.
+          if (INDENTABLE_TYPES.has(nextType) && (block.indent ?? 0) > 0) {
+            nextBlock.indent = block.indent;
+          }
           insertAfter(id, nextBlock);
           return;
         }
@@ -427,6 +515,36 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
           changeType(id, cmd.type, {
             content: "",
             language: cmd.type === "code" ? (cmd.language ?? "ts") : undefined,
+          });
+        } else if (cmd.type === "callout") {
+          changeType(id, "callout", {
+            content: keep,
+            calloutVariant: "info",
+          });
+        } else if (cmd.type === "toggle") {
+          changeType(id, "toggle", {
+            content: keep || "Toggle",
+            collapsed: true,
+            children: [],
+          });
+        } else if (cmd.type === "table") {
+          changeType(id, "table", {
+            content: "",
+            tableRows: [
+              ["Col 1", "Col 2", "Col 3"],
+              ["", "", ""],
+              ["", "", ""],
+            ],
+          });
+        } else if (cmd.type === "columns") {
+          changeType(id, "columns", {
+            content: "",
+            columnChildren: [[], []],
+          });
+        } else if (cmd.type === "page-link") {
+          changeType(id, "page-link", {
+            content: keep || "Linked page",
+            href: "",
           });
         } else {
           // Block-type change; preserve any pre-slash text so `# foo/h1` works.
@@ -573,6 +691,20 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
           if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
           onBlur?.();
         }}
+        onKeyDownCapture={(e) => {
+          // Intercept undo/redo before contentEditable's native handler runs —
+          // our snapshot-based history replaces the browser's per-keystroke
+          // undo for consistency across block mutations.
+          const mod = e.metaKey || e.ctrlKey;
+          if (!mod || readOnly) return;
+          if (e.key === "z" && !e.shiftKey) {
+            e.preventDefault();
+            undo();
+          } else if ((e.key === "z" && e.shiftKey) || e.key === "y") {
+            e.preventDefault();
+            redo();
+          }
+        }}
         onPaste={handlePaste}
         onDragOver={onContainerDragOver}
         onDrop={onContainerDrop}
@@ -590,7 +722,7 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
             // when switching between Preview and Edit, so the contentEditable
             // nodes pick up the current block content on entry into edit
             // mode (the seeding effect only fires on mount).
-            key={`${block.id}:${block.type}:${readOnly ? "ro" : "rw"}`}
+            key={`${block.id}:${block.type}:${readOnly ? "ro" : "rw"}:v${editorVersion}`}
             block={block}
             index={i}
             numberedIndex={numberedIndices[i]}
@@ -607,8 +739,51 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
             onCodeLanguageChange={(id, language) => updateBlock(id, { language })}
             onStartDrag={onStartDrag}
             resolveImageSrc={resolveImageSrc}
+            onToggleCollapse={(id) => {
+              const b = blocksRef.current.find((x) => x.id === id);
+              if (b) updateBlock(id, { collapsed: !(b.collapsed ?? true) });
+            }}
+            onCalloutVariantChange={(id, variant: CalloutVariant) =>
+              updateBlock(id, { calloutVariant: variant })
+            }
+            onTableCellChange={(id, row, col, value) => {
+              const b = blocksRef.current.find((x) => x.id === id);
+              if (!b || !b.tableRows) return;
+              const rows = b.tableRows.map((r, ri) =>
+                ri === row ? r.map((c, ci) => (ci === col ? value : c)) : r,
+              );
+              updateBlock(id, { tableRows: rows });
+            }}
+            onTableAddRow={(id) => {
+              const b = blocksRef.current.find((x) => x.id === id);
+              if (!b || !b.tableRows) return;
+              const cols = b.tableRows[0]?.length ?? 1;
+              const rows = [...b.tableRows, Array.from({ length: cols }, () => "")];
+              updateBlock(id, { tableRows: rows });
+            }}
+            onTableAddCol={(id) => {
+              const b = blocksRef.current.find((x) => x.id === id);
+              if (!b || !b.tableRows) return;
+              const rows = b.tableRows.map((r) => [...r, ""]);
+              updateBlock(id, { tableRows: rows });
+            }}
+            onTableRemoveRow={(id, row) => {
+              const b = blocksRef.current.find((x) => x.id === id);
+              if (!b || !b.tableRows || b.tableRows.length <= 1) return;
+              const rows = b.tableRows.filter((_, i) => i !== row);
+              updateBlock(id, { tableRows: rows });
+            }}
+            onTableRemoveCol={(id, col) => {
+              const b = blocksRef.current.find((x) => x.id === id);
+              if (!b || !b.tableRows || (b.tableRows[0]?.length ?? 0) <= 1) return;
+              const rows = b.tableRows.map((r) => r.filter((_, i) => i !== col));
+              updateBlock(id, { tableRows: rows });
+            }}
+            onPageLinkHrefChange={(id, href) => updateBlock(id, { href })}
           />
         ))}
+
+        {!readOnly && <SelectionToolbar />}
 
         {slash && !readOnly && (
           <SlashMenu

@@ -42,8 +42,9 @@ export class SpecReader {
    * Each spec gets `isCurrentBranch: true`.
    * Note: This method reads from the filesystem (not git), so it remains synchronous.
    */
-  listSpecs(repoPath: string, branch?: string): SpecFolder[] {
-    const specsDir = path.join(repoPath, "specs");
+  listSpecs(repoPath: string, branch?: string, specifyRoot?: string): SpecFolder[] {
+    const root = specifyRoot ?? repoPath;
+    const specsDir = path.join(root, "specs");
 
     if (!fs.existsSync(specsDir)) {
       return [];
@@ -60,7 +61,7 @@ export class SpecReader {
         }
 
         const specPath = path.join(specsDir, entry.name);
-        const spec = this.parseSpecFolder(repoPath, specPath, entry.name);
+        const spec = this.parseSpecFolder(repoPath, specPath, entry.name, root);
 
         if (spec) {
           spec.isCurrentBranch = true;
@@ -85,11 +86,15 @@ export class SpecReader {
    * Specs from non-current branches use `git ls-tree` / `git show` and get
    * virtual file paths in the form `gitref://<branch>/specs/<name>/<file>`.
    */
-  async listAllBranchSpecs(repoPath: string): Promise<SpecFolder[]> {
+  async listAllBranchSpecs(repoPath: string, specifyRoot?: string): Promise<SpecFolder[]> {
     const currentBranch = await this.gitGateway.getCurrentBranch(repoPath);
+    const root = specifyRoot ?? repoPath;
+    // Git paths are relative to repo root; derive the "specs" prefix inside the tree.
+    const relRoot = path.relative(repoPath, root);
+    const gitSpecsPrefix = relRoot ? `${relRoot.split(path.sep).join("/")}/` : "";
 
     // 1. Specs from working tree (current branch) — full filesystem parsing
-    const currentSpecs = this.listSpecs(repoPath, currentBranch);
+    const currentSpecs = this.listSpecs(repoPath, currentBranch, root);
 
     // Current-branch specs always win — no need to compare timestamps
     const currentSpecNames = new Set(currentSpecs.map((s) => s.name));
@@ -106,7 +111,7 @@ export class SpecReader {
       if (branch === currentBranch) continue;
 
       try {
-        const specNames = await this.gitGateway.gitListSpecDirs(repoPath, branch);
+        const specNames = await this.gitGateway.gitListSpecDirs(repoPath, branch, gitSpecsPrefix);
 
         for (const specName of specNames) {
           // Current-branch specs always take priority
@@ -115,7 +120,7 @@ export class SpecReader {
           const ts = await this.gitGateway.getLatestCommitTimestamp(
             repoPath,
             branch,
-            `specs/${specName}`,
+            `${gitSpecsPrefix}specs/${specName}`,
           );
 
           const existing = bestCandidates.get(specName);
@@ -131,7 +136,7 @@ export class SpecReader {
     // 4. Parse only the winning branch for each spec
     const otherSpecs: SpecFolder[] = [];
     for (const [specName, { branch }] of bestCandidates) {
-      const spec = await this.parseGitSpecFolder(repoPath, branch, specName);
+      const spec = await this.parseGitSpecFolder(repoPath, branch, specName, gitSpecsPrefix);
       if (spec) {
         otherSpecs.push(spec);
       }
@@ -165,19 +170,20 @@ export class SpecReader {
     repoPath: string,
     branch: string,
     specName: string,
+    prefix: string = "",
   ): Promise<SpecFolder | null> {
     try {
-      const stages = await this.parseGitStages(repoPath, branch, specName);
-      const fileNames = await this.gitGateway.gitListSpecFiles(repoPath, branch, specName);
+      const stages = await this.parseGitStages(repoPath, branch, specName, prefix);
+      const fileNames = await this.gitGateway.gitListSpecFiles(repoPath, branch, specName, prefix);
 
-      // Virtual file paths with gitref:// prefix
+      // Virtual file paths with gitref:// prefix (still scheme-relative to repo)
       const files = fileNames.map(
-        (f) => `gitref://${branch}/specs/${specName}/${f}`,
+        (f) => `gitref://${branch}/${prefix}specs/${specName}/${f}`,
       );
 
       // Parse the "Created: YYYY-MM-DD" line from spec.md content on this branch
       let createdAt = Date.now();
-      const specMdRelPath = `specs/${specName}/spec.md`;
+      const specMdRelPath = `${prefix}specs/${specName}/spec.md`;
       const specMdContent = await this.gitGateway.readGitFile(repoPath, branch, specMdRelPath);
       if (specMdContent) {
         createdAt = SpecReader.parseCreatedDate(specMdContent) ?? Date.now();
@@ -187,7 +193,7 @@ export class SpecReader {
         id: ulid(),
         repoPath,
         name: specName,
-        path: `gitref://${branch}/specs/${specName}`,
+        path: `gitref://${branch}/${prefix}specs/${specName}`,
         branch,
         isCurrentBranch: false,
         stages,
@@ -204,11 +210,12 @@ export class SpecReader {
     repoPath: string,
     branch: string,
     specName: string,
+    prefix: string = "",
   ): Promise<PipelineStage[]> {
     const stages: PipelineStage[] = [];
 
     for (const stageName of PIPELINE_STAGES) {
-      const stage = await this.parseGitStage(repoPath, branch, specName, stageName);
+      const stage = await this.parseGitStage(repoPath, branch, specName, stageName, prefix);
       stages.push(stage);
     }
 
@@ -220,23 +227,24 @@ export class SpecReader {
     branch: string,
     specName: string,
     stageName: PipelineStageName,
+    prefix: string = "",
   ): Promise<PipelineStage> {
     // ── Implementation — derived from tasks.md checkbox progress ──
     if (stageName === "implementation") {
-      return this.buildGitImplementationStage(repoPath, branch, specName);
+      return this.buildGitImplementationStage(repoPath, branch, specName, prefix);
     }
 
     // ── File-based stages (constitution, spec, plan, tasks) ──────
     let relativePath: string;
     if (stageName === "constitution") {
-      relativePath = ".specify/memory/constitution.md";
+      relativePath = `${prefix}.specify/memory/constitution.md`;
     } else {
       const stageFileMap: Record<string, string> = {
         spec: "spec.md",
         plan: "plan.md",
         tasks: "tasks.md",
       };
-      relativePath = `specs/${specName}/${stageFileMap[stageName]}`;
+      relativePath = `${prefix}specs/${specName}/${stageFileMap[stageName]}`;
     }
 
     const exists = await this.gitGateway.gitPathExists(repoPath, branch, relativePath);
@@ -282,8 +290,9 @@ export class SpecReader {
     repoPath: string,
     branch: string,
     specName: string,
+    prefix: string = "",
   ): Promise<PipelineStage> {
-    const tasksRelPath = `specs/${specName}/tasks.md`;
+    const tasksRelPath = `${prefix}specs/${specName}/tasks.md`;
     const exists = await this.gitGateway.gitPathExists(repoPath, branch, tasksRelPath);
 
     if (!exists) {
@@ -306,9 +315,14 @@ export class SpecReader {
      Filesystem-based spec parsing (current branch)
      ═══════════════════════════════════════════════════════ */
 
-  private parseSpecFolder(repoPath: string, specPath: string, specName: string): SpecFolder | null {
+  private parseSpecFolder(
+    repoPath: string,
+    specPath: string,
+    specName: string,
+    specifyRoot: string,
+  ): SpecFolder | null {
     try {
-      const stages = this.parseStages(repoPath, specPath);
+      const stages = this.parseStages(specifyRoot, specPath);
       const files = this.listSpecFiles(specPath);
 
       // Parse the "Created: YYYY-MM-DD" line from spec.md content

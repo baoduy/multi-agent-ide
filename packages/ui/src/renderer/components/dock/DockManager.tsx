@@ -119,7 +119,12 @@ export const DockManager = React.memo(function DockManager({
   const handleDrop = useCallback(
     (toRegion: DockRegion) => {
       if (dragViewId && fromRegion && fromRegion !== toRegion) {
-        moveView(dragViewId, fromRegion, toRegion);
+        // Sidebar tools (accordion views) don't render as tabs — block drops
+        // into the center Tab View to avoid orphaning them.
+        const isSidebarSource = fromRegion === "left" || fromRegion === "right";
+        if (!(isSidebarSource && toRegion === "center")) {
+          moveView(dragViewId, fromRegion, toRegion);
+        }
       }
       endDrag();
     },
@@ -253,6 +258,7 @@ export const DockManager = React.memo(function DockManager({
       <DockDragOverlay
         active={isDragging}
         dragViewId={dragViewId}
+        fromRegion={fromRegion}
         onDrop={handleDrop}
         onCancel={handleDragCancel}
       />

@@ -18,6 +18,37 @@
       },
       "registered_skills": [],
       "installed_at": "2026-04-10T02:48:12.213298+00:00"
+    },
+    "worktrees": {
+      "version": "1.3.1",
+      "source": "local",
+      "manifest_hash": "sha256:bd8bdc12bf9402b6378e5750bd8dfd0f42abbc29e022f4e725b4179cc69fba26",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "agy": [
+          "speckit.worktrees.create",
+          "speckit.worktrees.list",
+          "speckit.worktrees.clean"
+        ],
+        "claude": [
+          "speckit.worktrees.create",
+          "speckit.worktrees.list",
+          "speckit.worktrees.clean"
+        ],
+        "codex": [
+          "speckit.worktrees.create",
+          "speckit.worktrees.list",
+          "speckit.worktrees.clean"
+        ],
+        "copilot": [
+          "speckit.worktrees.create",
+          "speckit.worktrees.list",
+          "speckit.worktrees.clean"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T00:50:49.982006+00:00"
     }
   }
 }

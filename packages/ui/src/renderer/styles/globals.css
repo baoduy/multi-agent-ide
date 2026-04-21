@@ -314,6 +314,32 @@
   background: color-mix(in srgb, var(--muted) 40%, transparent);
 }
 
+/* Callout / toggle / table / columns / page-link blocks. */
+[data-notion-editor] .nm-callout [contenteditable="true"]:empty::before,
+[data-notion-editor] .nm-page-link [contenteditable="true"]:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  opacity: 0.55;
+}
+
+[data-notion-editor] .nm-toggle-caret:hover {
+  background: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+[data-notion-editor] .nm-table td:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--primary) 40%, transparent);
+  outline-offset: -2px;
+}
+
+[data-notion-editor] .nm-columns > div:hover {
+  border-color: color-mix(in srgb, var(--primary) 50%, var(--border));
+}
+
+/* Floating selection toolbar — small icon buttons with hover highlight. */
+.nm-selection-toolbar .nm-selection-btn:hover {
+  background: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
 /* Hide scrollbar on dock tab bars while keeping scroll functionality */
 .dock-tab-bar-no-scrollbar {
   scrollbar-width: none; /* Firefox */

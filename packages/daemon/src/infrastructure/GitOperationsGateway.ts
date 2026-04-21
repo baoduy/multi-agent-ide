@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import path from "node:path";
 import type { GitFileStatus } from "@magenta/shared/ipc";
 import { createGit } from "./utils/createGit";
@@ -137,6 +138,8 @@ export class GitOperationsGateway {
       files.push({ path: f, status: "untracked", staged: false });
     }
 
+    await attachMtimes(files, path.resolve(repoPath));
+
     return {
       files,
       branch: s.current ?? "",
@@ -219,4 +222,25 @@ export class GitOperationsGateway {
     const out = await git.raw(args);
     return { message: out.trim() || `Reverted ${sha.slice(0, 7)}.` };
   }
+}
+
+/**
+ * Stat each non-deleted file and attach its mtime. Files that fail to stat
+ * (race with deletion, permission errors) are silently left without mtime.
+ */
+async function attachMtimes(
+  files: Array<{ path: string; status: string; mtimeMs?: number }>,
+  baseDir: string,
+): Promise<void> {
+  await Promise.all(
+    files.map(async (f) => {
+      if (f.status === "deleted") return;
+      try {
+        const stat = await fs.stat(path.join(baseDir, f.path));
+        f.mtimeMs = stat.mtimeMs;
+      } catch {
+        // ignore
+      }
+    }),
+  );
 }

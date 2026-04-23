@@ -18,6 +18,10 @@ export interface AskArgs {
   history: ChatTurn[];
   documentText: string;
   selection?: { start: number; end: number; text: string };
+  /** Streaming + session-continuity optionals. Forwarded to the CLI gateway. */
+  onChunk?: (delta: string) => void;
+  onSessionId?: (sessionId: string) => void;
+  resumeSessionId?: string;
 }
 
 export interface EditSelectionArgs {
@@ -40,6 +44,10 @@ export interface AskSpecArgs {
   currentFileName?: string;
   userMessage: string;
   history: ChatTurn[];
+  /** Streaming + session-continuity optionals. Forwarded to the CLI gateway. */
+  onChunk?: (delta: string) => void;
+  onSessionId?: (sessionId: string) => void;
+  resumeSessionId?: string;
 }
 
 /**
@@ -77,7 +85,11 @@ export class AiEditApplicationService {
       documentText: args.documentText,
       selection: args.selection,
     });
-    return this.run(args.repoPath, prompt);
+    return this.run(args.repoPath, prompt, {
+      onChunk: args.onChunk,
+      onSessionId: args.onSessionId,
+      resumeSessionId: args.resumeSessionId,
+    });
   }
 
   async editSelection(args: EditSelectionArgs): Promise<string> {
@@ -133,16 +145,41 @@ export class AiEditApplicationService {
       cwd: args.repoPath,
       systemPromptAppend,
       permissionMode: "plan",
+      // Pre-approve the three read-only tools the agent needs. Without this
+      // the CLI hangs on every file read waiting for interactive approval.
+      allowedTools: ["Read", "Glob", "Grep"],
+      // Strip write / exec tools from the model's palette entirely. Belt-
+      // and-braces on top of the system prompt's read-only instructions.
+      disallowedTools: ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit"],
+      // Streaming + session continuity for conversational turns.
+      onChunk: args.onChunk,
+      onSessionId: args.onSessionId,
+      resumeSessionId: args.resumeSessionId,
     });
     return stripOuterFencing(raw);
   }
 
-  private async run(repoPath: string, prompt: string): Promise<string> {
+  /**
+   * Used by the one-shot endpoints (edit-selection / modify-document) and
+   * by `ask`. The optional streaming hooks are only wired by `ask`.
+   */
+  private async run(
+    repoPath: string,
+    prompt: string,
+    streamOpts?: {
+      onChunk?: (delta: string) => void;
+      onSessionId?: (sessionId: string) => void;
+      resumeSessionId?: string;
+    },
+  ): Promise<string> {
     const config = this.configRepo.loadConfig(repoPath);
     return this.cliGateway.run(config.provider, config.model, prompt, {
       timeoutMs: config.timeoutMs,
       extraArgs: config.extraArgs,
       cwd: repoPath,
+      onChunk: streamOpts?.onChunk,
+      onSessionId: streamOpts?.onSessionId,
+      resumeSessionId: streamOpts?.resumeSessionId,
     });
   }
 }

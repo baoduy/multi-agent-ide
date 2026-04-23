@@ -454,12 +454,14 @@ function registerIpcHandler() {
       daemonProcess!.send({ kind: "request", id, payload: request });
 
       // AI chat requests spawn an external CLI (`claude` / `copilot`) which
-      // can easily take 30–90s to return for a substantive response. The
-      // daemon itself enforces a tighter internal timeout per request
-      // (config.timeoutMs, default 60s, user-configurable). Everything else
-      // sticks to the original 30s budget — git, file IO, spec sync should
-      // never need longer, and a generous default would mask real hangs.
-      const timeoutMs = requestType.startsWith("ai-chat:") ? 300_000 : 30_000;
+      // streams responses back over push events. Spec-level chats in
+      // particular can take several minutes when the agent explores a
+      // large spec folder. Streaming keeps the user engaged visually so a
+      // generous wall-clock cap is fine; we just want it high enough that
+      // long answers don't 504 mid-stream. Everything else sticks to the
+      // original 30s budget — git, file IO, spec sync should never need
+      // longer, and a generous default would mask real hangs.
+      const timeoutMs = requestType.startsWith("ai-chat:") ? 600_000 : 30_000;
       setTimeout(() => {
         if (pendingRequests.has(id)) {
           pendingRequests.delete(id);

@@ -1,9 +1,13 @@
 import { create } from "zustand";
 import { sendOrThrow } from "../services/ipcClient";
+import { ipc } from "../utils/ipc";
 
 /**
  * A single chat turn. `pending` is transient UI state — renders a loading
- * bubble until the IPC response flips it to `done` or `error`.
+ * bubble until the IPC response flips it to `done` or `error`. When
+ * streaming is on, `text` fills in gradually while `status` stays
+ * `"pending"` — the bubble renders the partial text instead of the dots
+ * once any token has arrived.
  */
 export type ChatMessage = {
   id: string;
@@ -36,6 +40,20 @@ export type ChatThread = {
   pendingSelection: CapturedSelection | null;
   sending: boolean;
   lastError: string | null;
+  /**
+   * Claude provider session id captured from the first streaming event of
+   * this thread. Reused on every subsequent turn via `--resume` so the
+   * agent keeps its cached understanding of files it already read.
+   */
+  sessionId: string | null;
+  /**
+   * UUID of the currently-streaming turn, used to route incoming
+   * `ai-chat:stream:delta` / `:session` events back to the right message.
+   * Null when no turn is in flight.
+   */
+  pendingStreamId: string | null;
+  /** Id of the assistant message currently being streamed into. */
+  pendingAssistantId: string | null;
 };
 
 const MAX_HISTORY = 20;
@@ -48,11 +66,25 @@ function emptyThread(): ChatThread {
     pendingSelection: null,
     sending: false,
     lastError: null,
+    sessionId: null,
+    pendingStreamId: null,
+    pendingAssistantId: null,
   };
 }
 
 function nextId(): string {
   return `msg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * `crypto.randomUUID` is available in Electron renderers (Node crypto +
+ * modern browser). Guard with a polyfill fallback just in case.
+ */
+function newStreamId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `stream-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
 type State = {
@@ -64,10 +96,10 @@ type State = {
   setMode: (filePath: string, mode: ChatMode) => void;
   /** Update the captured selection chip shown above the input. */
   setPendingSelection: (filePath: string, selection: CapturedSelection | null) => void;
-  /** Clear the thread's messages and error state. */
+  /** Clear the thread's messages, session, and error state. */
   clear: (filePath: string) => void;
 
-  /** Send an "Ask" message — appends user + assistant bubbles. */
+  /** Send an "Ask" message — appends user + assistant bubbles. Streams. */
   sendAsk: (
     filePath: string,
     repoPath: string,
@@ -78,8 +110,7 @@ type State = {
   /**
    * Request an edit-selection rewrite. Does NOT mutate the editor — returns
    * the replacement text to the caller so it can show a preview dialog.
-   * Also records a user message + pending assistant bubble so the chat
-   * reflects the exchange.
+   * Non-streaming, stateless (no session reuse) in v1.
    */
   requestEditSelection: (
     filePath: string,
@@ -92,6 +123,7 @@ type State = {
   /**
    * Request a whole-document modification. Returns the new full-document
    * text; caller applies it directly via the editor's `setMarkdown`.
+   * Non-streaming, stateless.
    */
   requestModifyDocument: (
     filePath: string,
@@ -168,6 +200,7 @@ export const useAiChatStore = create<State>((set, get) => ({
 
   async sendAsk(filePath, repoPath, text, documentText) {
     if (!text.trim()) return;
+    const streamId = newStreamId();
     const userMsg: ChatMessage = {
       id: nextId(),
       role: "user",
@@ -183,12 +216,24 @@ export const useAiChatStore = create<State>((set, get) => ({
       createdAt: Date.now(),
     };
     let historyForApi: { role: "user" | "assistant"; text: string }[] = [];
+    let resumeSessionId: string | undefined;
+    let pendingSelectionPayload:
+      | { start: number; end: number; text: string }
+      | undefined;
     set((s) => {
       const thread = s.threadsByFile[filePath] ?? emptyThread();
       historyForApi = thread.messages
         .filter((m) => (m.role === "user" || m.role === "assistant") && m.status === "done")
         .slice(-MAX_HISTORY)
         .map((m) => ({ role: m.role as "user" | "assistant", text: m.text }));
+      resumeSessionId = thread.sessionId ?? undefined;
+      if (thread.pendingSelection) {
+        pendingSelectionPayload = {
+          start: thread.pendingSelection.localStart,
+          end: thread.pendingSelection.localEnd,
+          text: thread.pendingSelection.text,
+        };
+      }
       return {
         threadsByFile: {
           ...s.threadsByFile,
@@ -197,6 +242,8 @@ export const useAiChatStore = create<State>((set, get) => ({
             sending: true,
             lastError: null,
             messages: [...thread.messages, userMsg, assistantMsg],
+            pendingStreamId: streamId,
+            pendingAssistantId: assistantMsg.id,
           },
         },
       };
@@ -209,13 +256,9 @@ export const useAiChatStore = create<State>((set, get) => ({
         userMessage: text,
         history: historyForApi,
         documentText,
-        selection: get().threadsByFile[filePath]?.pendingSelection
-          ? {
-              start: get().threadsByFile[filePath]!.pendingSelection!.localStart,
-              end: get().threadsByFile[filePath]!.pendingSelection!.localEnd,
-              text: get().threadsByFile[filePath]!.pendingSelection!.text,
-            }
-          : undefined,
+        selection: pendingSelectionPayload,
+        streamId,
+        resumeSessionId,
       });
       set((s) => {
         const thread = s.threadsByFile[filePath];
@@ -226,6 +269,8 @@ export const useAiChatStore = create<State>((set, get) => ({
             [filePath]: {
               ...thread,
               sending: false,
+              pendingStreamId: null,
+              pendingAssistantId: null,
               messages: thread.messages.map((m) =>
                 m.id === assistantMsg.id ? { ...m, text: response.text, status: "done" } : m,
               ),
@@ -244,6 +289,8 @@ export const useAiChatStore = create<State>((set, get) => ({
             [filePath]: {
               ...thread,
               sending: false,
+              pendingStreamId: null,
+              pendingAssistantId: null,
               lastError: message,
               messages: thread.messages.map((m) =>
                 m.id === assistantMsg.id ? { ...m, text: message, status: "error" } : m,
@@ -416,6 +463,56 @@ export const useAiChatStore = create<State>((set, get) => ({
     }
   },
 }));
+
+/* ─── Streaming subscriptions ────────────────────────────────────────── */
+
+/**
+ * Subscribe once at module load to the two AI-chat streaming push events.
+ * Each event carries a `streamId`; we scan every thread in this store for
+ * one with a matching `pendingStreamId` and mutate it. Events whose
+ * streamId doesn't match any thread (e.g. belonging to a spec-chat turn
+ * handled by `aiSpecChatStore`) are silently ignored.
+ */
+ipc.on("ai-chat:stream:delta", (event) => {
+  const { streamId, delta } = event;
+  useAiChatStore.setState((s) => {
+    const entry = Object.entries(s.threadsByFile).find(
+      ([, t]) => t.pendingStreamId === streamId,
+    );
+    if (!entry) return s;
+    const [filePath, thread] = entry;
+    const assistantId = thread.pendingAssistantId;
+    if (!assistantId) return s;
+    return {
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: {
+          ...thread,
+          messages: thread.messages.map((m) =>
+            m.id === assistantId ? { ...m, text: m.text + delta } : m,
+          ),
+        },
+      },
+    };
+  });
+});
+
+ipc.on("ai-chat:stream:session", (event) => {
+  const { streamId, sessionId } = event;
+  useAiChatStore.setState((s) => {
+    const entry = Object.entries(s.threadsByFile).find(
+      ([, t]) => t.pendingStreamId === streamId,
+    );
+    if (!entry) return s;
+    const [filePath, thread] = entry;
+    return {
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: { ...thread, sessionId },
+      },
+    };
+  });
+});
 
 /**
  * Convenience selector — returns the thread for a file, or a default empty

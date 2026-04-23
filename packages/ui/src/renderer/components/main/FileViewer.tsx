@@ -401,12 +401,15 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
       </div>
       {/* AI chat bubble — rendered outside the scrollable content so it
           stays pinned to the bottom-right of the file-viewer pane while
-          the user scrolls. Only shown for Markdown files in edit mode. */}
-      {isMd && viewMode !== "preview" && canEdit && (
+          the user scrolls. Shown for every Markdown file; in preview mode
+          or on a non-editable file it opens in read-only (Ask-only) mode
+          so the user can still chat about the doc. */}
+      {isMd && (
         <ChatBubble
           filePath={filePath}
           repoPath={repoPath ?? getFileDir(filePath)}
           editorRef={editorRef}
+          readOnly={viewMode === "preview" || !canEdit}
         />
       )}
     </div>

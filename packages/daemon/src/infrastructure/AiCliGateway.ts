@@ -28,6 +28,34 @@ export interface RunOptions {
    * stateless chat endpoints don't change behaviour.
    */
   permissionMode?: "plan" | "default" | "acceptEdits" | "auto" | "dontAsk" | "bypassPermissions";
+  /**
+   * Tools to pre-approve. In `claude -p` mode, tools that aren't explicitly
+   * allowed will block waiting for interactive approval (which never comes),
+   * so this list is essential for agent-style read-only usage.
+   */
+  allowedTools?: readonly string[];
+  /**
+   * Tools to remove from the model's tool palette entirely — stronger than
+   * just not approving them, this also stops the model from attempting them.
+   */
+  disallowedTools?: readonly string[];
+  /**
+   * Called once per text delta as the agent streams output. When set,
+   * enables `--output-format stream-json` on the Claude adapter. Ignored
+   * by providers that don't support structured streaming.
+   */
+  onChunk?: (delta: string) => void;
+  /**
+   * Called once with the provider-assigned session id the first time it
+   * appears in the stream. Used by the caller to persist the id for
+   * `--resume` on subsequent turns.
+   */
+  onSessionId?: (sessionId: string) => void;
+  /**
+   * Provider session id from a prior turn. When set, the Claude adapter
+   * adds `--resume <id>` so the agent continues where it left off.
+   */
+  resumeSessionId?: string;
 }
 
 /**
@@ -37,6 +65,10 @@ export interface RunOptions {
 interface AdapterExtras {
   systemPromptAppend?: string;
   permissionMode?: RunOptions["permissionMode"];
+  allowedTools?: readonly string[];
+  disallowedTools?: readonly string[];
+  streaming?: boolean;
+  resumeSessionId?: string;
 }
 
 /**
@@ -57,21 +89,23 @@ interface CliAdapter {
    * to the child's stdin (safer for long prompts).
    */
   promptChannel: "argv" | "stdin";
+  /**
+   * When true, stdout is parsed as line-delimited JSON events instead of
+   * plain text. The gateway extracts `session_id` + text deltas from the
+   * stream and surfaces them via `onSessionId` / `onChunk`.
+   */
+  streamJsonSupported: boolean;
 }
 
 /**
  * `claude -p "<prompt>"` is the documented non-interactive mode of Claude Code.
  * We prefer stdin because prompts can contain the user's document text and
  * exceed the shell's argv limits.
- *
- * Optional extras (used by spec-folder review chat):
- *   - `systemPromptAppend` → `--append-system-prompt <text>`
- *   - `permissionMode`     → `--permission-mode <mode>`
- * Both are omitted when not provided so existing callers see the same argv.
  */
 const claudeAdapter: CliAdapter = {
   command: "claude",
   promptChannel: "stdin",
+  streamJsonSupported: true,
   buildArgs(model, _prompt, extraArgs, extras) {
     const args: string[] = ["-p", "--model", model];
     if (extras?.systemPromptAppend) {
@@ -79,6 +113,21 @@ const claudeAdapter: CliAdapter = {
     }
     if (extras?.permissionMode) {
       args.push("--permission-mode", extras.permissionMode);
+    }
+    if (extras?.allowedTools && extras.allowedTools.length > 0) {
+      args.push("--allowedTools", ...extras.allowedTools);
+    }
+    if (extras?.disallowedTools && extras.disallowedTools.length > 0) {
+      args.push("--disallowedTools", ...extras.disallowedTools);
+    }
+    if (extras?.resumeSessionId) {
+      args.push("--resume", extras.resumeSessionId);
+    }
+    if (extras?.streaming) {
+      // stream-json emits one NDJSON event per stdout line. Requires
+      // --verbose per the Claude Code reference so full event payloads are
+      // produced (without it, the CLI errors or prints minimal output).
+      args.push("--verbose", "--output-format", "stream-json");
     }
     args.push(...extraArgs);
     return args;
@@ -89,11 +138,12 @@ const claudeAdapter: CliAdapter = {
  * GitHub Copilot CLI has a `copilot -p "<prompt>"` non-interactive mode.
  * Copilot does not currently expose a per-call model flag in the public CLI,
  * so `model` is passed only via `extraArgs` if the user wires one up.
- * Copilot ignores `systemPromptAppend` / `permissionMode` (no equivalent).
+ * Copilot ignores streaming / resume extras in v1.
  */
 const copilotAdapter: CliAdapter = {
   command: "copilot",
   promptChannel: "stdin",
+  streamJsonSupported: false,
   buildArgs(_model, _prompt, extraArgs, _extras) {
     return ["-p", ...extraArgs];
   },
@@ -106,12 +156,19 @@ const ADAPTERS: Record<AIProvider, CliAdapter> = {
 
 /**
  * Thin wrapper around `child_process.spawn` that runs an AI provider CLI
- * in non-interactive mode, pipes the prompt in via stdin, and returns stdout.
+ * in non-interactive mode, pipes the prompt in via stdin, and returns the
+ * full assistant text.
  *
- * v1 spawns a fresh subprocess per call — consistent with the decision in
- * `/Users/steven/.claude/plans/currently-we-have-md-purrfect-wombat.md` to
- * skip autocomplete. If latency becomes a problem later, this class is the
- * swap-in point for a long-lived session.
+ * Supports streaming mode (see `onChunk`, `onSessionId` in `RunOptions`).
+ * When the caller opts in, stdout is parsed as NDJSON (one event per line)
+ * and the gateway dispatches text deltas + the first session-id it sees.
+ * If the stream produces zero text deltas by close (unexpected CLI output
+ * format), we fall back to firing `onChunk(allStdout)` once so the caller
+ * still gets the full response.
+ *
+ * `resumeSessionId` passes `--resume <id>` so subsequent turns continue a
+ * prior agent session. If that fails (session expired / invalidated), the
+ * gateway retries the call once without `--resume`.
  */
 export class AiCliGateway {
   async run(
@@ -125,9 +182,42 @@ export class AiCliGateway {
       throw new AppError("AI_PROVIDER_NOT_AVAILABLE", `Unknown provider: ${provider}`);
     }
 
+    const streaming =
+      adapter.streamJsonSupported && (options.onChunk !== undefined || options.onSessionId !== undefined);
+
+    try {
+      return await this.runOnce(adapter, provider, model, prompt, options, streaming, options.resumeSessionId);
+    } catch (err) {
+      // If --resume failed, try once more without a session id. This handles
+      // the common case where the agent's session was GC'd between turns.
+      if (
+        options.resumeSessionId &&
+        err instanceof AppError &&
+        err.code === "AI_CLI_FAILED" &&
+        looksLikeResumeFailure(err.message)
+      ) {
+        return this.runOnce(adapter, provider, model, prompt, options, streaming, undefined);
+      }
+      throw err;
+    }
+  }
+
+  private async runOnce(
+    adapter: CliAdapter,
+    provider: AIProvider,
+    model: string,
+    prompt: string,
+    options: RunOptions,
+    streaming: boolean,
+    resumeSessionId: string | undefined,
+  ): Promise<string> {
     const args = adapter.buildArgs(model, prompt, options.extraArgs, {
       systemPromptAppend: options.systemPromptAppend,
       permissionMode: options.permissionMode,
+      allowedTools: options.allowedTools,
+      disallowedTools: options.disallowedTools,
+      streaming,
+      resumeSessionId,
     });
 
     return new Promise<string>((resolve, reject) => {
@@ -153,6 +243,12 @@ export class AiCliGateway {
       let stderr = "";
       let settled = false;
 
+      // Streaming state — used only when `streaming === true`.
+      let streamAccum = "";
+      let streamBuf = "";
+      let sessionIdSeen = false;
+      let deltaFired = false;
+
       const timer = setTimeout(() => {
         if (settled) return;
         settled = true;
@@ -169,8 +265,58 @@ export class AiCliGateway {
         );
       }, options.timeoutMs);
 
+      const handleJsonLine = (line: string) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        let event: unknown;
+        try {
+          event = JSON.parse(trimmed);
+        } catch {
+          return; // skip malformed line
+        }
+        if (!event || typeof event !== "object") return;
+        const e = event as Record<string, unknown>;
+
+        // Session id appears at the top level of most Claude stream-json events.
+        // Capture the first one we see.
+        if (!sessionIdSeen && typeof e.session_id === "string" && options.onSessionId) {
+          sessionIdSeen = true;
+          try {
+            options.onSessionId(e.session_id as string);
+          } catch {
+            /* consumer-side errors must not crash the stream */
+          }
+        }
+
+        // Claude stream-json surfaces assistant text inside
+        //   { type: "assistant", message: { content: [{ type: "text", text: "…" }] } }
+        // events. content_block_delta events also carry deltas on newer versions;
+        // handle both shapes defensively.
+        const delta = extractTextDelta(e);
+        if (delta && options.onChunk) {
+          deltaFired = true;
+          streamAccum += delta;
+          try {
+            options.onChunk(delta);
+          } catch {
+            /* consumer-side errors must not crash the stream */
+          }
+        }
+      };
+
       child.stdout.on("data", (chunk: Buffer) => {
-        stdout += chunk.toString("utf8");
+        const text = chunk.toString("utf8");
+        stdout += text;
+        if (streaming) {
+          streamBuf += text;
+          let nl = streamBuf.indexOf("\n");
+          while (nl !== -1) {
+            const line = streamBuf.slice(0, nl);
+            streamBuf = streamBuf.slice(nl + 1);
+            handleJsonLine(line);
+            nl = streamBuf.indexOf("\n");
+          }
+        }
       });
       child.stderr.on("data", (chunk: Buffer) => {
         stderr += chunk.toString("utf8");
@@ -196,17 +342,40 @@ export class AiCliGateway {
         if (settled) return;
         settled = true;
         clearTimeout(timer);
-        if (code === 0) {
-          resolve(stdout.trim());
+
+        if (code !== 0) {
+          const snippet = stderr.trim() || stdout.trim() || `exit code ${code}`;
+          reject(
+            new AppError(
+              "AI_CLI_FAILED",
+              `${adapter.command} failed (exit ${code}): ${truncate(snippet, 500)}`,
+            ),
+          );
           return;
         }
-        const snippet = stderr.trim() || stdout.trim() || `exit code ${code}`;
-        reject(
-          new AppError(
-            "AI_CLI_FAILED",
-            `${adapter.command} failed (exit ${code}): ${truncate(snippet, 500)}`,
-          ),
-        );
+
+        if (streaming) {
+          // Flush any trailing line that didn't end with \n.
+          if (streamBuf.trim()) handleJsonLine(streamBuf);
+          // Fallback: no text deltas reached the caller. Fire the raw stdout
+          // once so downstream stores still get a body — better than a
+          // silent empty bubble if the CLI output format ever shifts.
+          if (!deltaFired && options.onChunk) {
+            const body = stdout.trim();
+            if (body) {
+              streamAccum = body;
+              try {
+                options.onChunk(body);
+              } catch {
+                /* ignore */
+              }
+            }
+          }
+          resolve(streamAccum.trim());
+          return;
+        }
+
+        resolve(stdout.trim());
       });
 
       if (adapter.promptChannel === "stdin") {
@@ -216,6 +385,60 @@ export class AiCliGateway {
       }
     });
   }
+}
+
+/**
+ * Pull text from a Claude stream-json event. Handles:
+ *   - { type: "assistant", message: { content: [{ type: "text", text }] } }
+ *   - { type: "content_block_delta", delta: { type: "text_delta", text } }
+ * Returns empty string when the event carries no visible assistant text
+ * (tool-use events, progress pings, etc.).
+ */
+function extractTextDelta(event: Record<string, unknown>): string {
+  const type = event.type;
+
+  // `assistant` message: full content array. We union all text parts.
+  if (type === "assistant") {
+    const message = event.message as Record<string, unknown> | undefined;
+    const content = message?.content;
+    if (Array.isArray(content)) {
+      const parts: string[] = [];
+      for (const part of content) {
+        if (part && typeof part === "object") {
+          const p = part as Record<string, unknown>;
+          if (p.type === "text" && typeof p.text === "string") parts.push(p.text);
+        }
+      }
+      return parts.join("");
+    }
+    return "";
+  }
+
+  // Per-block delta events used in some versions.
+  if (type === "content_block_delta") {
+    const delta = event.delta as Record<string, unknown> | undefined;
+    if (delta && (delta.type === "text_delta" || delta.type === "text")) {
+      if (typeof delta.text === "string") return delta.text;
+    }
+    return "";
+  }
+
+  return "";
+}
+
+/**
+ * Heuristic — does this CLI error look like a session-resume failure?
+ * Claude's exact wording varies across versions, so we match the common
+ * token ("session", "resume", "not found", "expired"). False positives are
+ * acceptable: the cost is one extra spawn without --resume.
+ */
+function looksLikeResumeFailure(msg: string): boolean {
+  const m = msg.toLowerCase();
+  return (
+    (m.includes("session") && (m.includes("not found") || m.includes("expired") || m.includes("invalid"))) ||
+    m.includes("no such session") ||
+    m.includes("resume failed")
+  );
 }
 
 function truncate(s: string, max: number): string {

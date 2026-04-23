@@ -44,7 +44,10 @@
       "Bash(pnpm -F ui typecheck)",
       "Bash(pnpm -C packages/ui build)",
       "Bash(rtk grep *)",
-      "mcp__plugin_claude-mem_mcp-search__smart_outline"
+      "mcp__plugin_claude-mem_mcp-search__smart_outline",
+      "Bash(pnpm --filter @magenta/shared build)",
+      "Bash(pnpm -w typecheck)",
+      "Bash(pnpm -w build)"
     ]
   }
 }

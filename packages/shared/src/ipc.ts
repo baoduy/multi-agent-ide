@@ -313,6 +313,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
         text: z.string(),
       })
       .optional(),
+    /** Per-turn UUID from the UI; used to route streaming deltas back. */
+    streamId: z.string().optional(),
+    /** Claude provider session id from a previous turn — enables `--resume`. */
+    resumeSessionId: z.string().optional(),
   }),
   z.object({
     type: z.literal("ai-chat:edit-selection"),
@@ -348,6 +352,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
         text: z.string(),
       }),
     ),
+    /** Per-turn UUID from the UI; used to route streaming deltas back. */
+    streamId: z.string().optional(),
+    /** Claude provider session id from a previous turn — enables `--resume`. */
+    resumeSessionId: z.string().optional(),
   }),
 ]);
 
@@ -714,6 +722,18 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-chat:edit-selection:result"), newText: z.string() }),
   z.object({ type: z.literal("ai-chat:modify-document:result"), newDocumentText: z.string() }),
   z.object({ type: z.literal("ai-chat:ask-spec:result"), text: z.string() }),
+  // Streaming push events for conversational chat turns. Routed by
+  // `streamId` (the UI-generated UUID the request carried).
+  z.object({
+    type: z.literal("ai-chat:stream:delta"),
+    streamId: z.string(),
+    delta: z.string(),
+  }),
+  z.object({
+    type: z.literal("ai-chat:stream:session"),
+    streamId: z.string(),
+    sessionId: z.string(),
+  }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

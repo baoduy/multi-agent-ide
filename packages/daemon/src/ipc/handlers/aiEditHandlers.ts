@@ -30,16 +30,30 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
     actions: aiEditService.listActions(msg.repoPath),
   }));
 
-  safeHandle(bridge, "ai-chat:ask", async (msg) => ({
-    type: "ai-chat:ask:result" as const,
-    text: await aiEditService.ask({
-      repoPath: msg.repoPath,
-      userMessage: msg.userMessage,
-      history: msg.history,
-      documentText: msg.documentText,
-      selection: msg.selection,
-    }),
-  }));
+  safeHandle(bridge, "ai-chat:ask", async (msg) => {
+    // Streaming fan-out: if the UI supplied a streamId, emit deltas + the
+    // first session_id back as push events the renderer routes by streamId.
+    const streamId = msg.streamId;
+    const onChunk = streamId
+      ? (delta: string) => bridge.emit({ type: "ai-chat:stream:delta", streamId, delta })
+      : undefined;
+    const onSessionId = streamId
+      ? (sessionId: string) => bridge.emit({ type: "ai-chat:stream:session", streamId, sessionId })
+      : undefined;
+    return {
+      type: "ai-chat:ask:result" as const,
+      text: await aiEditService.ask({
+        repoPath: msg.repoPath,
+        userMessage: msg.userMessage,
+        history: msg.history,
+        documentText: msg.documentText,
+        selection: msg.selection,
+        onChunk,
+        onSessionId,
+        resumeSessionId: msg.resumeSessionId,
+      }),
+    };
+  });
 
   safeHandle(bridge, "ai-chat:edit-selection", async (msg) => ({
     type: "ai-chat:edit-selection:result" as const,
@@ -60,15 +74,27 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
     }),
   }));
 
-  safeHandle(bridge, "ai-chat:ask-spec", async (msg) => ({
-    type: "ai-chat:ask-spec:result" as const,
-    text: await aiEditService.askSpec({
-      repoPath: msg.repoPath,
-      specName: msg.specName,
-      specRelPath: msg.specRelPath,
-      currentFileName: msg.currentFileName,
-      userMessage: msg.userMessage,
-      history: msg.history,
-    }),
-  }));
+  safeHandle(bridge, "ai-chat:ask-spec", async (msg) => {
+    const streamId = msg.streamId;
+    const onChunk = streamId
+      ? (delta: string) => bridge.emit({ type: "ai-chat:stream:delta", streamId, delta })
+      : undefined;
+    const onSessionId = streamId
+      ? (sessionId: string) => bridge.emit({ type: "ai-chat:stream:session", streamId, sessionId })
+      : undefined;
+    return {
+      type: "ai-chat:ask-spec:result" as const,
+      text: await aiEditService.askSpec({
+        repoPath: msg.repoPath,
+        specName: msg.specName,
+        specRelPath: msg.specRelPath,
+        currentFileName: msg.currentFileName,
+        userMessage: msg.userMessage,
+        history: msg.history,
+        onChunk,
+        onSessionId,
+        resumeSessionId: msg.resumeSessionId,
+      }),
+    };
+  });
 }

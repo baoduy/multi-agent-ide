@@ -9,6 +9,14 @@ export interface ChatBubbleProps {
   filePath: string;
   repoPath: string;
   editorRef: React.RefObject<MarkdownEditorMethods | null>;
+  /**
+   * When true, the chat is Ask-only — the mode pills are hidden and
+   * "Edit selection" / "Modify document" are unavailable. Used when the
+   * editor is in preview mode or the file is not editable (git-ref paths,
+   * read-only permissions, etc.) so the user can still discuss the doc
+   * without any risk of accidental modification.
+   */
+  readOnly?: boolean;
 }
 
 /**
@@ -21,7 +29,7 @@ export interface ChatBubbleProps {
  * Markdown file in edit mode — the bubble stays out of preview / non-MD
  * contexts to avoid cluttering read-only views.
  */
-export function ChatBubble({ filePath, repoPath, editorRef }: ChatBubbleProps): React.ReactElement {
+export function ChatBubble({ filePath, repoPath, editorRef, readOnly = false }: ChatBubbleProps): React.ReactElement {
   const open = useAiChatStore((s) => s.threadsByFile[filePath]?.open ?? false);
   const setOpen = useAiChatStore((s) => s.setOpen);
 
@@ -32,6 +40,7 @@ export function ChatBubble({ filePath, repoPath, editorRef }: ChatBubbleProps): 
           filePath={filePath}
           repoPath={repoPath}
           editorRef={editorRef}
+          readOnly={readOnly}
           onClose={() => setOpen(filePath, false)}
         />
       )}

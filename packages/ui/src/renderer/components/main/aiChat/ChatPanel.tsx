@@ -15,6 +15,13 @@ export interface ChatPanelProps {
   repoPath: string;
   editorRef: React.RefObject<MarkdownEditorMethods | null>;
   onClose: () => void;
+  /**
+   * When true, force Ask-only mode: mode pills are hidden, selection chip
+   * is suppressed, and edit-selection / modify-document paths are
+   * unreachable. Used when the host file viewer is in preview / read-only
+   * mode so the user can chat about the doc without any edit affordances.
+   */
+  readOnly?: boolean;
 }
 
 /**
@@ -28,7 +35,7 @@ export interface ChatPanelProps {
  * Layout is absolute-positioned inside the editor wrapper; the parent
  * bubble owns the open/close toggle.
  */
-export function ChatPanel({ filePath, repoPath, editorRef, onClose }: ChatPanelProps): React.ReactElement {
+export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = false }: ChatPanelProps): React.ReactElement {
   const thread = useAiChatStore((s) => s.threadsByFile[filePath]);
   const setMode = useAiChatStore((s) => s.setMode);
   const setPendingSelection = useAiChatStore((s) => s.setPendingSelection);
@@ -38,10 +45,22 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose }: ChatPanelP
   const requestModifyDocument = useAiChatStore((s) => s.requestModifyDocument);
   const appendSystemMessage = useAiChatStore((s) => s.appendSystemMessage);
 
-  const mode = thread?.mode ?? "ask";
+  // Effective mode — always "ask" when read-only, regardless of any leftover
+  // state from a previous editable session on the same file.
+  const storedMode = thread?.mode ?? "ask";
+  const mode = readOnly ? "ask" : storedMode;
   const messages = thread?.messages ?? [];
-  const pendingSelection = thread?.pendingSelection ?? null;
+  const pendingSelection = readOnly ? null : (thread?.pendingSelection ?? null);
   const sending = thread?.sending ?? false;
+
+  // If read-only mode is turned on while a non-Ask mode was set, snap the
+  // store back to "ask" so the panel's state stays consistent after
+  // switching into preview mode.
+  useEffect(() => {
+    if (readOnly && storedMode !== "ask") {
+      setMode(filePath, "ask");
+    }
+  }, [readOnly, storedMode, filePath, setMode]);
 
   const [input, setInput] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
@@ -52,10 +71,13 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose }: ChatPanelP
   // When the panel first mounts, capture whatever selection is active in the
   // editor so the user can open the bubble *after* selecting text and still
   // end up in a sensible starting state. Also re-captures on input focus.
+  // Disabled in read-only mode — selection is irrelevant when only Ask is
+  // available, and skipping this avoids the chip flashing in preview mode.
   const captureCurrentSelection = useCallback(() => {
+    if (readOnly) return;
     const sel = editorRef.current?.getSelection();
     if (sel) setPendingSelection(filePath, sel);
-  }, [editorRef, filePath, setPendingSelection]);
+  }, [editorRef, filePath, setPendingSelection, readOnly]);
 
   useEffect(() => {
     captureCurrentSelection();
@@ -251,17 +273,19 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose }: ChatPanelP
           background: colors.dialogBg,
         }}
       >
-        {pendingSelection && (
+        {!readOnly && pendingSelection && (
           <SelectionChip
             text={pendingSelection.text}
             onClear={() => setPendingSelection(filePath, null)}
           />
         )}
-        <ModePills
-          mode={mode}
-          hasSelection={pendingSelection !== null}
-          onChange={(next) => setMode(filePath, next)}
-        />
+        {!readOnly && (
+          <ModePills
+            mode={mode}
+            hasSelection={pendingSelection !== null}
+            onChange={(next) => setMode(filePath, next)}
+          />
+        )}
         <div
           style={{
             display: "flex",
@@ -508,7 +532,7 @@ function placeholderFor(mode: ChatMode, hasSelection: boolean): string {
   if (mode === "edit-selection") {
     return hasSelection ? "How should I rewrite the selection?" : "Select text in the editor first";
   }
-  return "Describe a change to the whole document…";
+  return "Describe a change...";
 }
 
 function canSendTitle(mode: ChatMode, hasSelection: boolean, input: string, sending: boolean): string {

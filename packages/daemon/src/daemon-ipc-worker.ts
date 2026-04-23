@@ -323,6 +323,9 @@ async function main() {
       "cli:upgrade:output",
       "cli:upgrade:complete",
       "git:repo:changed",
+      // AI chat streaming — per-turn deltas and session-id capture.
+      "ai-chat:stream:delta",
+      "ai-chat:stream:session",
     ];
 
     for (const eventType of pushEventTypes) {

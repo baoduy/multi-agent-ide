@@ -176,317 +176,155 @@ As a developer investigating unexpected AI behaviour, I want to see a live log o
 
 ---
 
-## UI Design *(per extension type)*
+## UI Design
 
-This section describes the user-facing configuration panel that appears in the right-sidebar Inspector when an extension is selected. All panels follow the same structural pattern: **Identity → Provider/Settings → Scope fields → Actions**.
+### Left sidebar layout
 
-### Layout model
-
-The left sidebar accordion follows a fixed top-to-bottom grouping within every category section:
+The AI Extensions feature is integrated into the existing left sidebar — it does not replace or hide the current file explorer (RepoTree). The sidebar is divided into two vertically-stacked regions:
 
 ```
-▼ Agents                         (category section header, count badge)
-    ── User (Global) ──────────────────────────────  ← user scope first
-      ◆ arch.review                        ● approved
-      ◆ speckit.git.commit                 ● approved
-    ── Workspace (Local) ──────────────────────────  ← workspace scope second
-      ◆ project-reviewer                   ● pending
-    ── Built-in ───────────────────────────────────  ← built-in last (read-only)
-      ◆ Ask                                ● approved
-      ◆ Explore                            ● approved
+┌─────────────────────────────────────┐
+│  RepoTree (unchanged)               │  ← existing file explorer, unchanged
+│    ▶ src/                           │
+│    ▶ packages/                      │
+│    ▶ docs/                          │
+│    …                                │
+├─────────────────────────────────────┤  ← resizable divider
+│  AI Extensions                      │  ← new accordion below RepoTree
+│                                     │
+│  ▼ Agents                           │
+│    ── User (Global) ──────────────  │  ← ~/.claude/ items first
+│      ◆ arch.review          ● on   │
+│      ◆ speckit              ● on   │
+│    ── Workspace (Local) ─────────  │  ← .claude/ items second
+│      ◆ project-reviewer    ● off  │
+│    ── Built-in ──────────────────  │  ← read-only last
+│      ◆ Ask                  ● on   │
+│                                     │
+│  ▶ Skills                           │
+│  ▶ Prompts                          │
+│  ▶ MCP Servers                      │
+│  ▶ Hooks                            │
+│  ▶ Instructions                     │
+│  ▶ Plugins                          │
+└─────────────────────────────────────┘
 ```
 
-The scope switcher at the top of the sidebar filters across all categories at once. The center grid tab mirrors the same three-group layout with labelled horizontal dividers.
+Within each accordion section, items are always grouped in the fixed top-to-bottom order: **User (Global) → Workspace (Local) → Built-in**. A labelled divider separates each group. Each item shows its name, an enabled toggle, and a status dot.
 
 ---
 
-### Agent Inspector panel
+### File-editor model
 
-```
-[ ◆ Icon ]  arch.review                    ● approved
-            Architecture review, code review, security audit…
+All extension configuration is stored in ordinary files on disk — either **Markdown (`.md`)** or **JSON (`.json`)**. When the user clicks any extension item in the sidebar accordion, the IDE opens that file in the **existing code editor** (the same editor used for any other file in the RepoTree). There is no custom settings form, no inspector panel with individual field controls, and no approval button — the user edits the file directly and saves with the standard `Cmd/Ctrl+S` shortcut.
 
-  Type        Agent
-  Scope       User (Global)                  [Edit location]
-  Enabled     ●──── ON                       [Disable]
-
-  ── AI Provider ──────────────────────────────────────────
-  Provider    [ Claude ▾ ]
-  Model       [ claude-sonnet-4.6 ▾ ]        (inherited: User default)
-  API Key     ••••••••••••••••               [Change]
-  Base URL    https://api.anthropic.com      (default)  [Override]
-
-  ── Behaviour ────────────────────────────────────────────
-  System      [____________________________________]
-  Prompt      [  (inherited: "You are a senior…")  ]  [Reset]
-  Temperature  ●────────── 0.3               (inherited: 0.3)  [Override]
-  Max tokens   4096                          (workspace override)  [Reset]
-  Thinking     OFF                           [Enable]
-
-  ── Tool Permissions ─────────────────────────────────────
-  Mode        [ review ▾ ]  (ask before running tools)
-  Allowed     [x] Read  [x] Grep  [x] WebFetch  [ ] Bash  [ ] Edit
-
-  ── Source ───────────────────────────────────────────────
-  Path        ~/.magenta/extensions/agents/arch-review.yaml
-
-  [Save]  [Cancel]  [Duplicate]  [Open file]  [Delete]
-```
-
-**Configurable fields for agents**:
-
-| Field | Description | Scope |
-|---|---|---|
-| Provider | Claude or Copilot (dropdown) | Per-agent or inherited from user default |
-| Model | Model name from the selected provider's available list | Per-agent or inherited |
-| API Key / Token | Credential for the provider; stored in secret store | User scope only |
-| Base URL | Provider endpoint override (e.g., for enterprise deployments) | User or workspace |
-| System Prompt | Freeform text prepended to every conversation with this agent | Per-agent; inheritable |
-| Temperature | 0.0 – 1.0 slider; lower = more deterministic | Per-agent or inherited |
-| Max tokens | Maximum response length | Per-agent or inherited |
-| Thinking mode | Enables extended reasoning (Claude-specific; harmlessly ignored by Copilot) | Per-agent |
-| Permission mode | One of six modes: auto, review, semi-auto, manual, disabled, locked | Per-agent |
-| Allowed tools | Multi-select checkbox list of declared tools | Per-agent; workspace can restrict subset of user list |
-
-**Copilot reuse model**: When provider is switched to Copilot, the fields System Prompt, Temperature, Max tokens, and Tool permissions carry over directly. The only Copilot-specific fields are the GitHub token and the Copilot model identifier. This means a user who has configured a Claude agent can clone it and switch to Copilot with two field changes.
+The sidebar accordion items are essentially a structured view into the actual files on disk, surfaced by category rather than by directory.
 
 ---
 
-### Skill Inspector panel
+### Claude scope paths
 
-```
-[ ★ Icon ]  docx                           ● approved
-            Create, read, and edit Word documents.
+For Claude (the primary AI provider), the IDE respects Claude Code's own directory conventions. No Magenta-specific directories are created for Claude configuration; the existing Claude directories are read directly:
 
-  Type        Skill
-  Scope       Workspace (Local)
-  Enabled     ●──── ON                       [Disable]
+| Scope | Directory / File | Contents | Writable |
+|---|---|---|---|
+| User (Global) | `~/.claude/` | User-level agent configs, instructions, settings | Yes |
+| User (Global) settings | `~/.claude/settings.json` | Global Claude settings (model, permissions, etc.) | Yes |
+| User (Global) instructions | `~/.claude/CLAUDE.md` | System-wide instructions injected into every session | Yes |
+| Workspace (Local) | `.claude/` | Project-level agent configs, instructions, settings | Yes |
+| Workspace (Local) settings | `.claude/settings.json` | Project Claude settings (overrides user settings) | Yes |
+| Workspace (Local) instructions | `.claude/CLAUDE.md` | Project instructions injected into every session | Yes |
+| Workspace personal | `.claude/settings.local.json` | Personal local overrides; git-ignored by convention | Yes |
+| Built-in | Compiled into IDE | Default agent definitions | No |
 
-  ── Skill Parameters ─────────────────────────────────────
-  (Skills have no AI provider settings — they are tool bundles.)
-  No configurable parameters for this skill.
+Scope resolution order: `settings.local.json` → `.claude/settings.json` → `~/.claude/settings.json` → built-in defaults.
 
-  ── Source ───────────────────────────────────────────────
-  Path        .magenta/extensions/skills/docx/SKILL.md
-
-  [View SKILL.md]  [Duplicate to User scope]  [Delete]
-```
-
-Skills are capability bundles, not conversation participants. They have no provider, model, or prompt settings. The only configurable state is enable/disable and scope. If a skill exposes optional parameters (defined in SKILL.md frontmatter), those are shown as simple key-value fields.
+When the user clicks a Claude config item in the sidebar, the IDE opens the actual file (`CLAUDE.md`, `settings.json`, or `settings.local.json`) in the code editor at the correct path. The user edits the JSON or Markdown content and saves normally. The sidebar reflects the updated state without any additional confirmation step.
 
 ---
 
-### MCP Server Inspector panel
+### Sidebar item metadata strip
+
+Clicking an item opens its file in the editor. A compact metadata strip is shown at the top of the editor tab (not a separate panel) to provide context without interrupting editing:
 
 ```
-[ ⚙ Icon ]  github-mcp                     ● approved
-            Read repos, PRs, and issues via Model Context Protocol.
-
-  Type        MCP Server
-  Scope       Workspace (Local)
-  Enabled     ●──── ON                       [Disable]
-
-  ── Connection ───────────────────────────────────────────
-  Transport   [ stdio ▾ ]          (stdio | sse | websocket)
-  Command     npx @modelcontextprotocol/server-github
-  Args        [ --port 3000 ]
-  Env vars    GITHUB_TOKEN  ••••••••••••      [Change]
-              GITHUB_ORG    myorg             [Edit]
-                                              [+ Add variable]
-
-  ── Status ───────────────────────────────────────────────
-  Connection  Connected (pid 81422)
-  Last ping   2s ago
-
-  ── Source ───────────────────────────────────────────────
-  Path        .magenta/extensions/mcp/github-mcp.json
-
-  [Reconnect]  [Edit]  [Duplicate to User scope]  [Delete]
+  ◆ arch.review  │  Agent  │  User (Global) · ~/.claude/agents/arch-review.md  │  ● approved  │  [Enable] [Reveal in RepoTree]
 ```
 
-**Configurable fields for MCP servers**:
-
-| Field | Description | Notes |
-|---|---|---|
-| Transport | How the server is started: stdio (subprocess), SSE (HTTP), or websocket | |
-| Command | The executable and arguments to launch (stdio only) | |
-| Args | Additional command-line arguments | |
-| Env vars | Key-value pairs passed to the server process; secret values stored in secret store | Secret values masked |
-| Base URL | Server URL (SSE/websocket only) | |
-
-MCP credentials (tokens, API keys in env vars) are always stored in the system secret store. Plain-text values are accepted in the form but are moved to the secret store on save and replaced with a reference token.
+This strip is read-only and dismissible. It does not contain editable form fields. The enable/disable toggle in the strip is the only action that does not require opening the file — it writes the `enabled` flag directly to the relevant scope's settings file.
 
 ---
 
-### Hook Inspector panel
+### Scope switcher
 
-```
-[ ⚡ Icon ]  on-save.lint                   ● approved
-            Run linter after every file save.
+A compact scope switcher dropdown sits at the top of the AI Extensions accordion. Selecting a scope filters all accordion sections to show only items from that scope:
 
-  Type        Hook
-  Scope       Workspace (Local)
-  Enabled     ●──── ON                       [Disable]
+- **All** (default) — User (Global) + Workspace (Local) + Built-in visible across all categories
+- **User (Global)** — only `~/.claude/` (and equivalent for Copilot) items shown
+- **Workspace (Local)** — only `.claude/` items shown
 
-  ── Trigger ──────────────────────────────────────────────
-  Event       [ on-save ▾ ]   (on-save | on-commit | pre-push | on-open | on-error)
-  Condition   *.ts, *.tsx                    (glob pattern, optional)
-
-  ── Execution ────────────────────────────────────────────
-  Command     pnpm lint --fix
-  Permission  [ review ▾ ]   (ask before running)
-  Timeout     30s
-
-  ── Source ───────────────────────────────────────────────
-  Path        .magenta/extensions/hooks/on-save.lint.yaml
-
-  [Save]  [Cancel]  [Test hook]  [Open file]  [Delete]
-```
-
-**Configurable fields for hooks**:
-
-| Field | Description |
-|---|---|
-| Trigger event | Lifecycle event that fires the hook |
-| Condition | Optional glob or expression that limits when the hook fires |
-| Command | Shell command to execute |
-| Permission mode | One of the six modes from the AI Terminal feature (default: review) |
-| Timeout | Maximum seconds before the hook is killed |
+The switcher does not filter the RepoTree above it.
 
 ---
 
-### Prompt Inspector panel
+## Clarifications
 
-```
-[ ❯ Icon ]  review-pr                      ● approved
-            Review a pull request for correctness and style.
+### Session 2026-04-22
 
-  Type        Prompt
-  Scope       Workspace (Local)
-  Enabled     ●──── ON                       [Disable]
-
-  ── Content ──────────────────────────────────────────────
-  [ Review this pull request for:                         ]
-  [ 1. Correctness — does the change do what it claims?   ]
-  [ 2. Style — does it match the project conventions?     ]
-  [ …                                                     ]
-  [Edit inline ↗]
-
-  ── Variables ────────────────────────────────────────────
-  {{repo}}    auto-filled from workspace context
-  {{branch}}  auto-filled from git HEAD
-
-  ── Source ───────────────────────────────────────────────
-  Path        .magenta/extensions/prompts/review-pr.md
-
-  [Save]  [Cancel]  [Open file]  [Duplicate]  [Delete]
-```
-
-Prompts are edited directly inline in the Inspector. Template variables (double-brace syntax) are discovered automatically and listed with their resolution source. No AI provider settings — prompts are templates, not agents.
+- Q: Where should the AI Extensions UI live in the left sidebar? → A: Below the existing RepoTree as an accordion; the RepoTree is unchanged and the two regions share the left sidebar with a resizable divider.
+- Q: How should extension configuration be edited — custom form or file editor? → A: File-editor model: clicking any extension item opens its source file (MD or JSON) in the existing IDE code editor. No custom settings form is shown. No approval button. A read-only metadata strip appears at the top of the editor tab.
+- Q: What are the canonical scope paths for Claude configuration? → A: `~/.claude/` for user (global) scope, `.claude/` for workspace (project) scope, `.claude/settings.local.json` for local personal overrides (git-ignored by convention). The IDE reads and writes these Claude Code directories directly; no Magenta-specific equivalent is created for Claude.
 
 ---
 
-### Instructions Inspector panel
 
-```
-[ I Icon ]  coding-style.md                ● approved
-            House coding conventions and review expectations.
-
-  Type        Instruction
-  Scope       Workspace (Local)
-  Enabled     ●──── ON                       [Disable]
-
-  ── Content ──────────────────────────────────────────────
-  [ # Coding Style                                        ]
-  [ Use TypeScript 6 strict mode. No `any`.               ]
-  [ Class-first OOP in daemon services.                   ]
-  [ …                                                     ]
-  [Edit inline ↗]
-
-  Path        .magenta/extensions/instructions/coding-style.md
-
-  [Save]  [Cancel]  [Open file]  [Duplicate]  [Delete]
-```
-
-Instructions are free-form markdown documents injected into every AI conversation. No provider or parameter settings. The only configuration is the markdown content itself and the enable/disable toggle.
-
----
-
-### Plugin Inspector panel
-
-```
-[ ⊞ Icon ]  engineering                    ● approved
-            Bundle of skills: review, debug, standup, system design.
-
-  Type        Plugin
-  Scope       Workspace (Installed)
-  Enabled     ●──── ON                       [Disable]
-
-  ── Included skills ──────────────────────────────────────
-  [x] review     [x] debug     [x] standup     [ ] system-design
-
-  ── Version ──────────────────────────────────────────────
-  Installed   1.2.0
-  Latest      1.2.0    ● Up to date
-
-  ── Source ───────────────────────────────────────────────
-  Registry    marketplace.magenta.dev
-  Local path  .magenta/extensions/plugins/engineering/
-
-  [Disable]  [Uninstall]  [Check for updates]
-```
-
-Plugins are bundles. Configuration is limited to selecting which included skills are active. Marketplace plugins additionally show version and update status.
-
----
-
-## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST display all seven extension categories in a single accessible panel, each showing an accurate count of installed extensions across all active scopes.
-- **FR-002**: Within each category's sidebar section and center grid, extensions MUST be grouped in a fixed top-to-bottom order: User (Global) first, Workspace (Local) second, Built-in last. Each group MUST have a visible labelled divider.
-- **FR-003**: Each extension MUST be classified with exactly one storage scope — `user` (global), `workspace` (current repository), or `builtin` (read-only, shipped with IDE) — and the scope MUST be visually clear at all times.
-- **FR-004**: Users MUST be able to enable or disable any extension without editing files directly; the enabled state MUST persist across app restarts and MUST survive deletion of the database cache.
-- **FR-005**: Users MUST be able to search for extensions by name or description across all categories and scopes, with results filtering as they type.
-- **FR-006**: The sidebar MUST include a scope switcher that filters the entire panel to show only User (Global) or only Workspace (Local) extensions when selected, or all scopes when set to "All".
-- **FR-007**: Selecting an extension MUST open the Inspector showing the extension's identity, all configurable settings with their current effective values, and a clear indication of whether each value comes from workspace scope, user scope, or the built-in default.
-- **FR-008**: For each inherited setting value, the Inspector MUST show an "Override" action that creates a workspace-scope value and a "Reset" action (when an override exists) that removes the workspace value and restores the inherited one.
-- **FR-009**: The scope resolution order for all settings MUST be: workspace overrides → user defaults → built-in defaults. This order MUST be enforced consistently across all extension types.
-- **FR-010**: Agent extensions MUST expose the following configurable settings in the Inspector: AI provider (Claude or Copilot), model, system prompt, temperature, maximum response length, thinking mode (Claude-specific), permission mode, and allowed tools list.
-- **FR-011**: The system MUST support Claude and Copilot as AI providers for agents. The settings schema for both MUST share the fields: system prompt, temperature, maximum response length, permission mode, and allowed tools. Provider-specific fields (Claude: API key, base URL, thinking mode; Copilot: GitHub token, Copilot model) MUST be shown only when that provider is selected.
-- **FR-012**: When an agent's provider is changed, shared settings (system prompt, temperature, max tokens, tools) MUST carry over automatically; only the provider-specific credential fields MUST be re-entered.
-- **FR-013**: All provider credentials (API keys, tokens) MUST be stored in the system secret store. They MUST be masked in the Inspector UI and MUST never appear in plaintext on screen or in log output.
-- **FR-014**: MCP server extensions MUST expose the following configurable settings: transport type (stdio, SSE, websocket), launch command and arguments (stdio), server URL (SSE/websocket), environment variables, and connection timeout. Environment variable values that are treated as secrets MUST be stored in the secret store.
-- **FR-015**: Hook extensions MUST expose the following configurable settings: trigger event, optional condition expression or glob, shell command, permission mode (from the six AI Terminal modes), and execution timeout.
-- **FR-016**: Prompt and Instruction extensions MUST be editable inline in the Inspector with a rich-text or code editor appropriate to the content type (markdown for instructions, freeform for prompts). Template variables MUST be auto-discovered and shown with their resolution source.
-- **FR-017**: Skill extensions MUST display any parameters declared in their definition file as editable fields, or a "no configurable parameters" message if none are declared. Skills do not have AI provider settings.
+- **FR-001**: The system MUST display all seven extension categories in the AI Extensions accordion in the existing left sidebar, below the RepoTree. Each category MUST show an accurate count of installed extensions across all active scopes.
+- **FR-002**: Within each category accordion section, extensions MUST be grouped in a fixed top-to-bottom order: User (Global) first, Workspace (Local) second, Built-in last. Each group MUST have a visible labelled divider.
+- **FR-003**: Each extension MUST be classified with exactly one storage scope — `user` (global), `workspace` (current repository), or `builtin` (read-only, shipped with IDE) — and the scope MUST be visually clear at all times in both the accordion and the editor tab metadata strip.
+- **FR-004**: Users MUST be able to enable or disable any extension from the sidebar accordion without opening the file; the enabled state MUST be written to the relevant scope's settings file and MUST persist across app restarts.
+- **FR-005**: Users MUST be able to search for extensions by name or description within the accordion, with results filtering as they type.
+- **FR-006**: The AI Extensions accordion MUST include a scope switcher dropdown that filters all sections to show only User (Global), only Workspace (Local), or All scopes simultaneously.
+- **FR-007**: Clicking an extension item in the accordion MUST open its source file (Markdown or JSON) in the existing IDE code editor. The editor opens at the exact file path for the selected scope. No custom settings form is shown; editing is done directly in the file.
+- **FR-008**: When an extension file is opened in the editor, a compact read-only metadata strip MUST appear at the top of the editor tab showing: extension name, type, scope, file path, status, and an enable/disable toggle. This strip does NOT contain editable form fields.
+- **FR-009**: The scope resolution order for Claude settings MUST be: `.claude/settings.local.json` → `.claude/settings.json` → `~/.claude/settings.json` → built-in defaults. The IDE MUST follow this order when determining the effective value of any Claude configuration key.
+- **FR-010**: Claude user-scope configuration MUST be read from and written to `~/.claude/` (settings as `settings.json`, instructions as `CLAUDE.md`). The IDE MUST NOT create any alternative global settings directory for Claude.
+- **FR-011**: Claude workspace-scope configuration MUST be read from and written to `.claude/` at the repository root (settings as `settings.json`, instructions as `CLAUDE.md`, personal local overrides as `settings.local.json`).
+- **FR-012**: `settings.local.json` MUST be treated as a personal local override file. When a workspace is opened for the first time and `.claude/settings.local.json` does not exist, a `.gitignore` entry for it MUST be suggested (but not automatically added without user confirmation).
+- **FR-013**: All provider credentials (API keys, tokens) found in settings files MUST be masked in the editor's metadata strip. The raw file content shown in the code editor is outside the masking scope — the user is responsible for not committing secrets.
+- **FR-014**: The system MUST support Claude and GitHub Copilot as AI providers. Shared configuration fields (system prompt, temperature, maximum response length, permission mode, allowed tools) MUST be expressed in a common schema that both providers can read. Provider-specific fields are defined per provider and stored only when that provider is configured.
+- **FR-015**: When the user clicks a Claude config entry (e.g., `~/.claude/CLAUDE.md` or `.claude/settings.json`), the existing code editor MUST open the file with syntax highlighting appropriate to its type (Markdown or JSON). There is no separate approval step.
+- **FR-016**: The accordion MUST surface the following Claude config files as named, categorised entries — not as raw file paths:
+  - Under **User (Global)**: `~/.claude/CLAUDE.md` (labelled "User Instructions"), `~/.claude/settings.json` (labelled "User Settings"), and any agent definition files in `~/.claude/`
+  - Under **Workspace (Local)**: `.claude/CLAUDE.md` (labelled "Project Instructions"), `.claude/settings.json` (labelled "Project Settings"), `.claude/settings.local.json` (labelled "Local Overrides"), and any agent definition files in `.claude/`
+- **FR-017**: Skills, Prompts, Hooks, Instructions, and Plugin extension files MUST also follow the file-editor model: clicking opens the file in the existing editor; no custom form is shown.
 - **FR-018**: Plugin extensions MUST display the list of included skills and allow the user to toggle individual skills on or off within the plugin bundle. Marketplace plugins MUST show installed vs. latest version and an update action.
-- **FR-019**: Users MUST be able to generate a new extension in any category by providing a natural-language description; the wizard MUST ask for a target scope (user or workspace) before saving.
+- **FR-019**: Users MUST be able to generate a new extension in any category by providing a natural-language description; the wizard MUST ask for a target scope (user or workspace) before saving, and MUST save to the correct scope directory.
 - **FR-020**: Generated and imported extensions MUST be validated against their category's schema before being persisted; the user MUST see specific errors if validation fails.
 - **FR-021**: Users MUST be able to import extension files from disk into either user or workspace scope; conflicting names within the target scope MUST trigger a confirmation dialog before any changes are written.
-- **FR-022**: User-scope extensions MUST be stored at `~/.magenta/extensions/` independent of any repository; the system MUST create this directory structure if it does not exist.
-- **FR-023**: When the same extension name exists at both user and workspace scope, the list MUST show a single merged entry with a "Workspace override active" indicator; the user MUST be able to inspect or remove the override.
-- **FR-024**: The system MUST display a dedicated Extension Logs panel streaming lifecycle events (load, enable, disable, settings changes, validation errors, provider connection events) in real time, each event tagged with its scope.
+- **FR-022**: User-scope extensions for Claude are stored at `~/.claude/`; user-scope extensions for other providers or generic extensions are stored at `~/.magenta/extensions/`. Both directories are created automatically if they do not exist.
+- **FR-023**: When the same extension name exists at both user and workspace scope, the accordion MUST show a single merged entry with a "Workspace override active" indicator; clicking it opens the workspace-scope file.
+- **FR-024**: The system MUST display a dedicated Extension Logs tab in the bottom panel streaming lifecycle events (load, enable, disable, file-save, validation errors, provider connection events) in real time, each event tagged with its scope and file path.
 - **FR-025**: The log panel tab MUST show a count badge when unread error-level events exist since the panel was last viewed.
-- **FR-026**: All interactive elements MUST be navigable by keyboard with visible focus indicators; the tree and grid MUST support arrow-key navigation, Enter to open, and Space to toggle.
-- **FR-027**: The entire surface MUST honour the IDE's light, dark, and system theme without any hardcoded colour values. All new colour tokens MUST be defined with both light and dark variants.
-- **FR-028**: Extensions that declare tool requirements not present in the current environment MUST surface a warning when enabled; the system MUST NOT silently drop required tools.
+- **FR-026**: All interactive elements MUST be navigable by keyboard with visible focus indicators; the accordion tree MUST support arrow-key navigation, Enter to open file, and Space to toggle enabled state.
+- **FR-027**: The entire surface MUST honour the IDE's light, dark, and system theme without any hardcoded colour values.
+- **FR-028**: Extensions that declare tool requirements not present in the current environment MUST surface a warning in the metadata strip when the file is opened; the system MUST NOT silently drop required tools.
 - **FR-029**: Write operations from Generate and Import MUST be confined to the target scope's designated directory; any path escaping the scope root MUST be rejected.
-- **FR-030**: A command-palette shortcut (`Cmd/Ctrl+K → "Go to Extension…"`) MUST list all extensions across all categories and scopes for rapid navigation.
-- **FR-031**: The feature MUST be deliverable in phases behind a feature flag; Phase 1 covers Agents end-to-end, including per-agent settings, Claude/Copilot provider configuration, and dual-scope support.
+- **FR-030**: A command-palette shortcut (`Cmd/Ctrl+K → "Go to Extension…"`) MUST list all extensions across all categories and scopes for rapid navigation, opening the selected item's file in the editor.
+- **FR-031**: The feature MUST be deliverable in phases behind a feature flag; Phase 1 covers Claude Agents end-to-end, including the file-editor model, scope-aware accordion layout (global top, local bottom), and dual-scope path support (`~/.claude/` and `.claude/`).
 
 ### Key Entities
 
-- **Extension**: A registered AI artifact with a category, name, storage scope, status (pending/review/approved), enabled state, optional description, type-specific settings, and — for non-builtin extensions — a source file path.
-- **Category**: One of seven mutually exclusive types (agents, skills, instructions, prompts, hooks, MCP servers, plugins) that determine the extension's settings schema and authoring rules.
-- **Storage Scope**: Where an extension's source file lives — `user` (`~/.magenta/extensions/`), `workspace` (`.magenta/extensions/`), or `builtin` (compiled into IDE, read-only).
-- **Extension Settings**: Named configuration values specific to an extension instance. Each value can exist independently at user scope, workspace scope, or be inherited from a higher scope.
-- **Effective Settings**: The resolved value set computed by merging workspace overrides on top of user defaults on top of built-in defaults. This is what the running agent actually uses.
-- **Scope Override**: A workspace-scope value that shadows a user-scope value for the same setting key. Removing it restores inheritance.
-- **AI Provider Config**: The provider identity (Claude or Copilot) plus provider-specific credentials and shared parameters (system prompt, temperature, max tokens, tools) for an agent.
-- **Extension Log Entry**: A timestamped lifecycle record with severity, originating scope, and optional extension reference.
-- **Generate Draft**: The intermediate unsaved output of the AI-assisted wizard, validated before the user confirms saving to a chosen scope.
+- **Extension**: A registered AI artifact with a category, name, storage scope, status (pending/review/approved), enabled state, optional description, and a source file path on disk (MD or JSON).
+- **Category**: One of seven mutually exclusive types (agents, skills, instructions, prompts, hooks, MCP servers, plugins) that determine what files are surfaced in the accordion section.
+- **Storage Scope**: Where an extension's source file physically lives — `user` (global, `~/.claude/` for Claude; `~/.magenta/extensions/` for others), `workspace` (`.claude/` for Claude; project-relative path for others), or `builtin` (compiled into IDE, read-only).
+- **Claude Scope Files**: The actual files on disk that Claude Code uses — `~/.claude/settings.json`, `~/.claude/CLAUDE.md`, `.claude/settings.json`, `.claude/CLAUDE.md`, `.claude/settings.local.json`. The IDE surfaces these as named extension entries, not raw paths.
+- **Metadata Strip**: The compact read-only bar shown at the top of the editor tab when a Claude/extension config file is opened. Shows name, type, scope, file path, status, and the enable/disable toggle. Contains no editable form fields.
+- **Effective Settings**: The resolved configuration computed by the IDE by merging scope layers: `settings.local.json` → workspace `settings.json` → user `settings.json` → built-in defaults. Used by the running agent.
+- **Extension Log Entry**: A timestamped lifecycle record with severity, originating scope, file path, and optional extension reference.
+- **Generate Draft**: The intermediate unsaved output of the AI-assisted wizard, validated before the user confirms saving to a chosen scope directory.
 
 ---
 
@@ -498,10 +336,10 @@ Plugins are bundles. Configuration is limited to selecting which included skills
 - **SC-002**: Within each category, User (Global) extensions always appear above Workspace (Local) extensions in both the sidebar tree and the center grid — verified in 100% of renders.
 - **SC-003**: Search results filter in real time for workspaces with up to 500 extensions across all scopes, with updates visible within 200ms of keypress.
 - **SC-004**: An extension toggled off in one session remains off after the IDE is restarted, even if the database cache is deleted, in 100% of cases.
-- **SC-005**: A workspace-scope settings override takes effect within 1 second of saving; the user-scope value is verifiably unchanged.
+- **SC-005**: Saving a config file in the editor (Cmd/Ctrl+S) causes the updated setting to take effect within 1 second, without any secondary confirmation step.
 - **SC-006**: Switching the scope switcher between All / User / Workspace completes in under 500ms with no full reload required.
 - **SC-007**: A user-scope extension appears in the extension list of every repository opened in Magenta IDE without any per-repository configuration, verified across at least two separate repositories.
-- **SC-008**: When switching an agent's provider from Claude to Copilot, shared settings (system prompt, temperature, max tokens, tools) carry over in 100% of cases; no shared field is reset to blank.
+- **SC-008**: When a user opens a Claude extension file in the editor, the metadata strip appears within 200ms and shows the correct scope, file path, and status without any additional navigation.
 - **SC-009**: Provider credentials are never shown in plaintext anywhere in the UI, log output, or exported files — verified by audit of all Inspector renders and log lines.
 - **SC-010**: A generated extension passes schema validation and appears in the chosen scope's section within 5 seconds of the user confirming the draft (excluding AI response latency).
 - **SC-011**: An imported extension file with a naming conflict never silently overwrites an existing extension — the conflict dialog appears 100% of the time.
@@ -514,15 +352,17 @@ Plugins are bundles. Configuration is limited to selecting which included skills
 
 ## Assumptions
 
-- The IDE's existing DockManager, ActivityBar, and theme system are available and stable; the AI Extensions panel plugs in as a new set of registered views.
+- The IDE's existing DockManager, ActivityBar, RepoTree, and code editor are available and stable. The AI Extensions accordion is added below the RepoTree in the existing left sidebar; no new sidebar panel is introduced.
+- The existing code editor (used for all other files) is the editing surface for extension config files. No custom settings form is built. The metadata strip is a lightweight overlay, not a separate panel.
+- Claude Code's directory conventions (`~/.claude/`, `.claude/`, `.claude/settings.local.json`) are treated as canonical. The IDE reads and writes these paths directly; no Magenta-specific equivalent directories are created for Claude.
+- For non-Claude extensions and generic extension metadata, `~/.magenta/extensions/` (user scope) and `.magenta/extensions/` (workspace scope) remain in use. Both are created automatically if absent.
 - The AI Terminal feature's six permission modes are reused as-is for agents and hooks; this spec adds no new modes.
-- Claude is the primary AI provider in Phase 1. GitHub Copilot is the secondary provider. The shared settings schema is designed to be provider-agnostic so additional providers (e.g., OpenAI, Gemini) can be added without schema changes.
-- The user-scope storage location is `~/.magenta/extensions/`; this is created automatically if it does not exist.
-- Scope resolution is strictly: workspace → user → built-in. There is no team, org, or project-group scope in this version.
-- When provider is Claude and thinking mode is enabled for an agent, Copilot-linked copies of that agent silently ignore the thinking mode field (it is not an error).
-- Built-in extension enable/disable is treated as a workspace-scope override (not a user-scope preference), so it can be different per repository.
-- Cloud sync of user-scope settings across machines is out of scope; users must manage user-scope extensions independently per machine.
+- Claude is the primary AI provider in Phase 1. GitHub Copilot is the secondary provider. The shared settings schema is designed to accommodate both without requiring provider-specific directories.
+- `.claude/settings.local.json` is git-ignored by convention. The IDE MUST NOT add it to git automatically; it MAY suggest a `.gitignore` entry on first creation.
+- Scope resolution for Claude settings is fixed at four layers: `settings.local.json` → `.claude/settings.json` → `~/.claude/settings.json` → built-in defaults. No team or org scope exists in this version.
+- Cloud sync of user-scope settings across machines is out of scope; users manage `~/.claude/` independently per machine.
 - Plugin marketplace and installation lifecycle are deferred to Phase 5; Phase 1–4 cover local management only.
-- When two IDE windows modify the same scope simultaneously, the last write wins and the push channel reconciles the other window's state.
-- Phase 1 (Agents only: settings management, Claude/Copilot provider config, dual-scope support, global-top / local-bottom layout) is the minimum shippable increment.
+- When two IDE windows modify the same scope file simultaneously, the last write wins; the push channel reconciles the other window's state.
+- Phase 1 minimum shippable increment: Claude Agents accordion with file-editor model, scope-aware grouping (global top, local bottom), `~/.claude/` and `.claude/` path support, metadata strip, and enable/disable toggle.
+- The existing editor's JSON schema validation can be leveraged for `.claude/settings.json` and `settings.local.json` by registering the Claude settings schema; this is an implementation detail, not a new user-facing feature.
 

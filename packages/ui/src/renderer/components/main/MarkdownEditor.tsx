@@ -1,12 +1,14 @@
 import React, { forwardRef } from "react";
 import {
   NotionEditor,
+  type EditorSelection,
   type NotionEditorMethods,
   type NotionEditorProps,
 } from "./notionEditor/NotionEditor";
 
 export type MarkdownEditorMethods = NotionEditorMethods;
 export type MarkdownEditorProps = NotionEditorProps;
+export type { EditorSelection };
 
 /**
  * Public entry point for Magenta's markdown editor. Currently a thin

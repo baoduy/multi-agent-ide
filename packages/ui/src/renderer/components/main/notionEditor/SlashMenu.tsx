@@ -83,7 +83,22 @@ export function SlashMenu({ anchor, query, onPick, onClose }: SlashMenuProps): R
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (filtered.length === 0 && e.key !== "Escape") return;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      // When the query matches no block, only Enter is meaningful — it picks
+      // the plain-text (paragraph) fallback so the slash-prefix doesn't get
+      // stuck; other keys are left alone so typing continues in the block.
+      if (filtered.length === 0) {
+        if (e.key === "Enter" || e.key === "Tab") {
+          e.preventDefault();
+          const paragraph = SLASH_COMMANDS.find((c) => c.type === "paragraph");
+          if (paragraph) onPick(paragraph);
+        }
+        return;
+      }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         setActive((a) => (a + 1) % filtered.length);
@@ -93,9 +108,6 @@ export function SlashMenu({ anchor, query, onPick, onClose }: SlashMenuProps): R
       } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         if (filtered[active]) onPick(filtered[active]);
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onClose();
       }
     }
     window.addEventListener("keydown", onKey, true);

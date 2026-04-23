@@ -459,6 +459,20 @@
     }
   }
 
+  /* Three-dot "AI is thinking" indicator in ChatMessageBubble. */
+  @keyframes nm-chat-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+
   .magenta-terminal-xterm .xterm,
   .magenta-terminal-xterm .xterm-viewport,
   .magenta-terminal-xterm .xterm-screen {

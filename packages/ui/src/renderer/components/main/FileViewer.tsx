@@ -18,6 +18,7 @@ import {
   useActiveHeading,
 } from "./MarkdownTableOfContents";
 import { MarkdownEditor, type MarkdownEditorMethods } from "./MarkdownEditor";
+import { ChatBubble } from "./aiChat/ChatBubble";
 import { ApproveButton } from "./ApproveButton";
 import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
 
@@ -278,7 +279,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   return (
     <div
       data-color-mode={resolved}
-      style={{ height: "100%", display: "flex", flexDirection: "column" }}
+      style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}
     >
       {isMd && (
         <div
@@ -398,6 +399,27 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
           </pre>
         )}
       </div>
+      {/* AI chat bubble — rendered outside the scrollable content so it
+          stays pinned to the bottom-right of the file-viewer pane while
+          the user scrolls. Only shown for Markdown files in edit mode. */}
+      {isMd && viewMode !== "preview" && canEdit && (
+        <ChatBubble
+          filePath={filePath}
+          repoPath={repoPath ?? getFileDir(filePath)}
+          editorRef={editorRef}
+        />
+      )}
     </div>
   );
+}
+
+/**
+ * Fallback repo path for files opened outside a tracked repo. The daemon's
+ * `.magenta/ai/config.json` resolver walks from this path; if nothing
+ * exists locally it falls back to `~/.magenta/ai/` and built-in defaults.
+ */
+function getFileDir(filePath: string): string {
+  const sep = filePath.includes("/") ? "/" : "\\";
+  const idx = filePath.lastIndexOf(sep);
+  return idx > 0 ? filePath.slice(0, idx) : filePath;
 }

@@ -17,11 +17,15 @@ export type CloneState = {
   log: string[];
 };
 
+export type CloneDestinationGroup = { root: string; children: string[] };
+
 type GitCloneStoreState = {
   clones: Map<string, CloneState>;
   /** Latest clone triggered by the UI — handy for the dialog binding. */
   latestId: string | null;
   subscriptionsReady: boolean;
+  /** Configured working dirs + their direct non-git subfolders, refreshed on dialog open. */
+  destinations: CloneDestinationGroup[];
   /**
    * Kick off a clone. Returns the cloneId so the dialog can bind to its progress.
    * Throws on daemon-side validation errors.
@@ -33,6 +37,7 @@ type GitCloneStoreState = {
     depth?: number;
   }) => Promise<string>;
   clearClone: (cloneId: string) => void;
+  fetchDestinations: () => Promise<void>;
   initializeSubscriptions: () => void;
 };
 
@@ -40,32 +45,60 @@ export const useGitCloneStore = create<GitCloneStoreState>((set, get) => ({
   clones: new Map(),
   latestId: null,
   subscriptionsReady: false,
+  destinations: [],
+
+  async fetchDestinations() {
+    const response = await sendOrThrow({ type: "git:list-clone-destinations" });
+    set({ destinations: response.roots });
+  },
 
   async startClone(args) {
-    const response = await sendOrThrow({
-      type: "git:clone",
+    // Seed the store BEFORE awaiting the IPC round-trip. Otherwise fast
+    // progress/complete push events can land before the entry exists and
+    // get dropped by the subscription handlers.
+    const cloneId = crypto.randomUUID();
+    const tentative: CloneState = {
+      cloneId,
       url: args.url,
-      targetDir: args.targetDir,
-      folderName: args.folderName,
-      depth: args.depth,
-    });
-
-    const state: CloneState = {
-      cloneId: response.cloneId,
-      url: args.url,
-      targetPath: response.targetPath,
+      targetPath: "",
       phase: "Starting",
       percent: 0,
       status: "running",
       error: null,
       log: [],
     };
+    const seeded = new Map(get().clones);
+    seeded.set(cloneId, tentative);
+    set({ clones: seeded, latestId: cloneId });
 
-    const next = new Map(get().clones);
-    next.set(response.cloneId, state);
-    set({ clones: next, latestId: response.cloneId });
+    try {
+      const response = await sendOrThrow({
+        type: "git:clone",
+        cloneId,
+        url: args.url,
+        targetDir: args.targetDir,
+        folderName: args.folderName,
+        depth: args.depth,
+      });
+      // Fill in the server-confirmed target path — leave status/percent alone
+      // in case a progress or complete event has already updated them.
+      const current = get().clones.get(cloneId);
+      if (current) {
+        const withPath = new Map(get().clones);
+        withPath.set(cloneId, { ...current, targetPath: response.targetPath });
+        set({ clones: withPath });
+      }
+    } catch (err) {
+      const cleanup = new Map(get().clones);
+      cleanup.delete(cloneId);
+      set({
+        clones: cleanup,
+        latestId: get().latestId === cloneId ? null : get().latestId,
+      });
+      throw err;
+    }
 
-    return response.cloneId;
+    return cloneId;
   },
 
   clearClone(cloneId) {

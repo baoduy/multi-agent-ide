@@ -41,6 +41,9 @@ import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
 import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensionApplicationService";
+import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
+import { AiCliGateway } from "./infrastructure/AiCliGateway";
+import { AiEditApplicationService } from "./application/AiEditApplicationService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -262,6 +265,11 @@ async function main() {
       specifyExtensionService,
     );
 
+    // AI-assisted markdown editor.
+    const aiConfigRepository = new AiConfigRepository();
+    const aiCliGateway = new AiCliGateway();
+    const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway);
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway };
 
@@ -287,6 +295,7 @@ async function main() {
       gitRepoWatcher,
       logCache,
       commitDetailCache,
+      aiEditService,
     });
     console.log("[daemon-worker] All handlers registered");
 

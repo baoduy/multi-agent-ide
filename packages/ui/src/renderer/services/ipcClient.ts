@@ -77,6 +77,7 @@ type ResponseForRequest = {
   "git:commit": Extract<IpcResponse, { type: "git:commit:result" }>;
   "git:ls-files": Extract<IpcResponse, { type: "git:ls-files:result" }>;
   "git:clone": Extract<IpcResponse, { type: "git:clone:started" }>;
+  "git:list-clone-destinations": Extract<IpcResponse, { type: "git:clone-destinations" }>;
   "git:log": Extract<IpcResponse, { type: "git:log:result" }>;
   "git:commit-detail": Extract<IpcResponse, { type: "git:commit-detail:result" }>;
   "git:diff": Extract<IpcResponse, { type: "git:diff:result" }>;
@@ -103,6 +104,14 @@ type ResponseForRequest = {
   "cli:recheck": Extract<IpcResponse, { type: "cli:recheck:started" }>;
   "cli:upgrade": Extract<IpcResponse, { type: "cli:upgrade:started" }>;
   "cli:upgrade:cancel": Extract<IpcResponse, { type: "cli:upgrade:cancel:ack" }>;
+  // AI-assisted markdown editor — settings view only.
+  "ai-edit:get-config": Extract<IpcResponse, { type: "ai-edit:get-config:result" }>;
+  "ai-edit:list-actions": Extract<IpcResponse, { type: "ai-edit:list-actions:result" }>;
+  // AI chat bubble.
+  "ai-chat:ask": Extract<IpcResponse, { type: "ai-chat:ask:result" }>;
+  "ai-chat:edit-selection": Extract<IpcResponse, { type: "ai-chat:edit-selection:result" }>;
+  "ai-chat:modify-document": Extract<IpcResponse, { type: "ai-chat:modify-document:result" }>;
+  "ai-chat:ask-spec": Extract<IpcResponse, { type: "ai-chat:ask-spec:result" }>;
 };
 
 /**

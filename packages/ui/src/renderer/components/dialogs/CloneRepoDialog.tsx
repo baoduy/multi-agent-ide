@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Download, Folder, Loader2 } from "lucide-react";
+import { Check, Download, Loader2 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
-import { selectFolder } from "../../utils/ipc";
 import { useConfigStore } from "../../store/configStore";
 import { useGitCloneStore } from "../../store/gitCloneStore";
 import { useRepoStore } from "../../store/repoStore";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton } from "../common/DialogButtons";
+import { FileTree, type TreeEntry } from "../common/FileTree";
+import { FolderIconBadge } from "../common/fileIcons";
 import { FormLabel, FormInput, FormError, SectionHeader } from "../common/FormControls";
 
 type CloneRepoDialogProps = {
@@ -15,6 +16,11 @@ type CloneRepoDialogProps = {
   defaultTargetDir?: string;
   onClose: () => void;
 };
+
+function basename(p: string): string {
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] ?? p;
+}
 
 /** Pull the last path segment out of a typical git URL to suggest a folder name. */
 function deriveFolderName(url: string): string {
@@ -29,33 +35,57 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
   const startClone = useGitCloneStore((s) => s.startClone);
   const clearClone = useGitCloneStore((s) => s.clearClone);
-  const initializeCloneSubs = useGitCloneStore((s) => s.initializeSubscriptions);
   const clones = useGitCloneStore((s) => s.clones);
+  const destinations = useGitCloneStore((s) => s.destinations);
+  const fetchDestinations = useGitCloneStore((s) => s.fetchDestinations);
   const fetchRepos = useRepoStore((s) => s.fetchRepos);
 
   const [url, setUrl] = useState("");
   const [targetDir, setTargetDir] = useState<string>(
-    defaultTargetDir ?? workingDirs[0] ?? "",
+    defaultTargetDir ?? destinations[0]?.root ?? workingDirs[0] ?? "",
   );
   const [folderName, setFolderName] = useState("");
   const [userEditedFolder, setUserEditedFolder] = useState(false);
-  const [depth, setDepth] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [cloneId, setCloneId] = useState<string | null>(null);
   const urlRef = useRef<HTMLInputElement>(null);
 
-  // Load config (for workingDirs) + subscriptions on open
+  // Load config + destinations on open. Clone subscriptions live at app boot.
   useEffect(() => {
     void fetchConfig();
-    initializeCloneSubs();
-  }, [fetchConfig, initializeCloneSubs]);
+    void fetchDestinations();
+  }, [fetchConfig, fetchDestinations]);
 
-  // Keep targetDir valid if workingDirs arrives late
+  // Build TreeEntry[] for the FileTree: each root is a directory with its
+  // non-git subfolders as pre-loaded leaves (isDirectory=false so the tree
+  // renders them as clickable rows rather than expandable empty folders).
+  const treeEntries = useMemo<TreeEntry[]>(() => {
+    return destinations.map(({ root, children }) => ({
+      id: root,
+      name: root,
+      path: root,
+      isDirectory: true,
+      children: children.map((c) => ({
+        id: c,
+        name: basename(c),
+        path: c,
+        isDirectory: false,
+      })),
+    }));
+  }, [destinations]);
+
+  // Auto-expand every root so subfolders are visible without an extra click.
+  const autoExpandPaths = useMemo(
+    () => new Set(destinations.map((d) => d.root)),
+    [destinations],
+  );
+
+  // Keep targetDir valid if destinations arrive late
   useEffect(() => {
-    if (!targetDir && workingDirs.length > 0) {
-      setTargetDir(workingDirs[0] ?? "");
+    if (!targetDir && destinations.length > 0) {
+      setTargetDir(destinations[0]?.root ?? "");
     }
-  }, [workingDirs, targetDir]);
+  }, [destinations, targetDir]);
 
   // Auto-focus URL input on open
   useEffect(() => {
@@ -92,39 +122,25 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
     );
   }, [url, targetDir, folderName, isRunning]);
 
-  const handleBrowse = useCallback(async () => {
-    const chosen = await selectFolder();
-    if (!chosen) return;
-    // Must be one of the allowlisted working dirs — the daemon will reject otherwise,
-    // but fail fast with a clear message here.
-    const match = workingDirs.find((wd) => wd === chosen);
-    if (!match) {
-      setError(
-        "Selected folder is not a configured working directory. Pick one from the dropdown, " +
-          "or add this folder under Settings → Working directories first.",
-      );
-      return;
-    }
-    setTargetDir(match);
+  const selectDestination = useCallback((p: string) => {
+    setTargetDir(p);
     setError(null);
-  }, [workingDirs]);
+  }, []);
 
   const handleClone = useCallback(async () => {
     if (!canSubmit) return;
     setError(null);
     try {
-      const parsedDepth = depth.trim() ? parseInt(depth.trim(), 10) : undefined;
       const id = await startClone({
         url: url.trim(),
         targetDir,
         folderName: folderName.trim(),
-        depth: Number.isFinite(parsedDepth) ? parsedDepth : undefined,
       });
       setCloneId(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [canSubmit, url, targetDir, folderName, depth, startClone]);
+  }, [canSubmit, url, targetDir, folderName, startClone]);
 
   const failed = currentClone?.status === "error";
 
@@ -178,6 +194,16 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
         </div>
 
         <div>
+          <FormLabel htmlFor="clone-folder">Folder name</FormLabel>
+          <FormInput
+            id="clone-folder"
+            value={folderName}
+            onChange={(v) => { setFolderName(v); setUserEditedFolder(true); }}
+            placeholder="my-repo"
+          />
+        </div>
+
+        <div>
           <FormLabel htmlFor="clone-target">Clone into</FormLabel>
           {workingDirs.length === 0 ? (
             <div
@@ -193,74 +219,45 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
               No working directories configured. Add one in Settings first, then retry.
             </div>
           ) : (
-            <div style={{ display: "flex", gap: 6 }}>
-              <select
-                id="clone-target"
-                value={targetDir}
-                onChange={(e) => setTargetDir(e.target.value)}
-                style={{
-                  flex: 1,
-                  padding: "8px 10px",
-                  //fontSize: 11,
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 6,
-                  background: colors.bgSurface,
-                  color: colors.text,
-                  fontFamily: "var(--font-sans)",
-                }}
-              >
-                {workingDirs.map((wd) => (
-                  <option key={wd} value={wd}>{wd}</option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={() => void handleBrowse()}
-                title="Browse… (must be an existing working directory)"
-                style={{
-                  padding: "7px 10px",
-                  //fontSize: 11,
-                  fontWeight: 500,
-                  color: colors.text,
-                  background: "transparent",
-                  border: `1px solid ${colors.border}`,
-                  borderRadius: 6,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 5,
-                  fontFamily: "inherit",
-                }}
-              >
-                <Folder size={12} strokeWidth={2} /> Browse…
-              </button>
+            <div
+              style={{
+                border: `1px solid ${colors.border}`,
+                borderRadius: 6,
+                background: colors.bgSurface,
+                maxHeight: 200,
+                overflowY: "auto",
+                padding: 4,
+              }}
+            >
+              <FileTree
+                entries={treeEntries}
+                autoExpandPaths={autoExpandPaths}
+                showFileIcons={false}
+                showExtensionBadge={false}
+                onFolderClick={(e) => selectDestination(e.path)}
+                renderItemContent={(entry, depth) => (
+                  <DestinationLabel
+                    label={depth === 0 ? entry.path : entry.name}
+                    selected={targetDir === entry.path}
+                  />
+                )}
+                renderLeaf={(entry, depth) => (
+                  <DestinationLeafRow
+                    key={entry.id}
+                    label={entry.name}
+                    selected={targetDir === entry.path}
+                    depth={depth}
+                    onClick={() => selectDestination(entry.path)}
+                  />
+                )}
+              />
             </div>
           )}
-          <p style={{ 
-            //fontSize: 11, 
+          <p style={{
+            //fontSize: 11,
             color: colors.textTertiary, margin: "5px 0 0", lineHeight: 1.5 }}>
-            The repo is cloned as a child folder inside one of your configured working directories.
+            The repo is cloned as a child folder inside your selected destination.
           </p>
-        </div>
-
-        <div>
-          <FormLabel htmlFor="clone-folder">Folder name</FormLabel>
-          <FormInput
-            id="clone-folder"
-            value={folderName}
-            onChange={(v) => { setFolderName(v); setUserEditedFolder(true); }}
-            placeholder="my-repo"
-          />
-        </div>
-
-        <div>
-          <FormLabel htmlFor="clone-depth">Shallow clone depth (optional)</FormLabel>
-          <FormInput
-            id="clone-depth"
-            value={depth}
-            onChange={setDepth}
-            placeholder="(empty = full history)"
-          />
         </div>
 
         {currentClone && (
@@ -281,6 +278,71 @@ export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogPr
         <FormError message={error} />
       </div>
     </BaseDialog>
+  );
+}
+
+/** Name + optional checkmark for a selected folder row inside the FileTree. */
+function DestinationLabel({ label, selected }: { label: string; selected: boolean }): React.ReactElement {
+  return (
+    <span
+      style={{
+        flex: 1,
+        fontWeight: 500,
+        color: "var(--foreground)",
+        fontFamily: "var(--font-sans)",
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+      {selected && <Check size={12} strokeWidth={2.4} color={colors.primary} />}
+    </span>
+  );
+}
+
+/** Leaf row (non-git direct subfolder) rendered as a folder-styled button. */
+function DestinationLeafRow({
+  label,
+  selected,
+  depth,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  depth: number;
+  onClick: () => void;
+}): React.ReactElement {
+  const [hovered, setHovered] = useState(false);
+  const indent = depth * 14;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        width: "100%",
+        padding: `5px 8px 5px ${22 + indent}px`,
+        border: "none",
+        borderRadius: 4,
+        background: selected ? colors.primaryAlpha : hovered ? colors.bgHover : "transparent",
+        cursor: "pointer",
+        textAlign: "left",
+        transition: "background 0.1s",
+        fontFamily: "var(--font-sans)",
+      }}
+    >
+      <FolderIconBadge isOpen={false} size={14} />
+      <DestinationLabel label={label} selected={selected} />
+    </button>
   );
 }
 

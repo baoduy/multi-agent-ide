@@ -31,6 +31,9 @@ import { GitHubReleasesGateway } from "./infrastructure/GitHubReleasesGateway";
 import { NpmRegistryGateway } from "./infrastructure/NpmRegistryGateway";
 import { CliVersionApplicationService } from "./application/CliVersionApplicationService";
 import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensionApplicationService";
+import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
+import { AiCliGateway } from "./infrastructure/AiCliGateway";
+import { AiEditApplicationService } from "./application/AiEditApplicationService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -75,6 +78,9 @@ export class DaemonContainer {
   readonly npmRegistryGateway: NpmRegistryGateway;
   readonly specifyExtensionService: SpecifyExtensionApplicationService;
   readonly cliVersionService: CliVersionApplicationService;
+  readonly aiConfigRepository: AiConfigRepository;
+  readonly aiCliGateway: AiCliGateway;
+  readonly aiEditService: AiEditApplicationService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -192,6 +198,14 @@ export class DaemonContainer {
       this.configManager,
       this.specifyExtensionService,
     );
+
+    // AI-assisted markdown editor — config/action files + CLI spawn.
+    this.aiConfigRepository = new AiConfigRepository();
+    this.aiCliGateway = new AiCliGateway();
+    this.aiEditService = new AiEditApplicationService(
+      this.aiConfigRepository,
+      this.aiCliGateway,
+    );
   }
 
   /**
@@ -228,6 +242,7 @@ export class DaemonContainer {
       gitRepoWatcher: this.gitRepoWatcher,
       logCache: this.logCache,
       commitDetailCache: this.commitDetailCache,
+      aiEditService: this.aiEditService,
     });
   }
 

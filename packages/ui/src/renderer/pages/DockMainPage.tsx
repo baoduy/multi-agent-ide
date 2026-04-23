@@ -21,6 +21,7 @@ import { useRepoStore } from "../store/repoStore";
 import { useSessionStore } from "../store/sessionStore";
 import { useConfigStore } from "../store/configStore";
 import { useWorktreeStore } from "../store/worktreeStore";
+import { useGitCloneStore } from "../store/gitCloneStore";
 import { WelcomePage } from "./Welcome";
 import { OnboardDialogManager } from "../components/dialogs/OnboardDialogManager";
 import { CliUpgradeDialog } from "../components/dialogs/CliUpgradeDialog";
@@ -118,15 +119,17 @@ export function DockMainPage(): React.ReactElement {
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
   const initWorktreeSubscriptions = useWorktreeStore((s) => s.initializeSubscriptions);
   const loadWorktreesFromDb = useWorktreeStore((s) => s.loadFromDb);
+  const initCloneSubscriptions = useGitCloneStore((s) => s.initializeSubscriptions);
 
   useEffect(() => {
     initRepoSubscriptions();
     initConfigSubscriptions();
     initWorktreeSubscriptions();
+    initCloneSubscriptions();
     void fetchRepos();
     void fetchConfig();
     void loadWorktreesFromDb();
-  }, [initRepoSubscriptions, initConfigSubscriptions, initWorktreeSubscriptions, fetchRepos, fetchConfig, loadWorktreesFromDb]);
+  }, [initRepoSubscriptions, initConfigSubscriptions, initWorktreeSubscriptions, initCloneSubscriptions, fetchRepos, fetchConfig, loadWorktreesFromDb]);
 
   // ── State ──
   const sessionInitialized = useSessionStore((s) => s.initialized);

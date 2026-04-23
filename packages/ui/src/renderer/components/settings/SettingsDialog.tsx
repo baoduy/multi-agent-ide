@@ -6,6 +6,7 @@ import {
   Terminal as TerminalIcon,
   RefreshCw,
   Palette,
+  Wand2,
 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
@@ -15,6 +16,7 @@ import { AppearanceSettings } from "./AppearanceSettings";
 import { CliCommandsSettings } from "./CliCommandsSettings";
 import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
 import { SpecifyExtensionsSettings } from "./SpecifyExtensionsSettings";
+import { AiSettingsView } from "./AiSettingsView";
 import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
 import { BaseDialog } from "../common/BaseDialog";
@@ -25,7 +27,7 @@ type SettingsDialogProps = {
   onClose: () => void;
 };
 
-type TabId = "directories" | "specify" | "cli" | "sync" | "appearance";
+type TabId = "directories" | "specify" | "cli" | "sync" | "appearance" | "ai";
 
 type TabDef = {
   id: TabId;
@@ -39,6 +41,7 @@ const TABS: readonly TabDef[] = [
   { id: "cli", label: "CLI Commands", icon: TerminalIcon },
   { id: "sync", label: "Sync", icon: RefreshCw },
   { id: "appearance", label: "Appearance", icon: Palette },
+  { id: "ai", label: "AI Editor", icon: Wand2 },
 ];
 
 const tabId = (id: TabId): string => `settings-tab-${id}`;
@@ -83,6 +86,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
           {activeTab === "cli" && <CliCommandsSettings />}
           {activeTab === "sync" && <SyncIntervalSettings />}
           {activeTab === "appearance" && <AppearanceSettings />}
+          {activeTab === "ai" && <AiSettingsView />}
 
           {error && (
             <div

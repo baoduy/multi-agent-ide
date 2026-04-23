@@ -23,12 +23,39 @@ import { SelectionToolbar } from "./SelectionToolbar";
 import { makeImageUploadHandler } from "../markdownImageUpload";
 import { colors } from "../../../utils/colors";
 
+/**
+ * A captured selection used by the AI chat bubble to apply targeted edits.
+ * Block-local offsets are simpler and more stable than full-document offsets
+ * because the block id pins the location; `localStart`/`localEnd` index into
+ * that block's `content` string.
+ */
+export type EditorSelection = {
+  blockId: string;
+  localStart: number;
+  localEnd: number;
+  text: string;
+};
+
 export type NotionEditorMethods = {
   /** Replace the editor's markdown content. Used by the Approve flow and
    *  when the parent loads a new file without remounting. */
   setMarkdown: (markdown: string) => void;
   /** Current markdown, computed on demand. */
   getMarkdown: () => string;
+  /**
+   * Snapshot the current user selection as `{ blockId, localStart, localEnd, text }`,
+   * or `null` if the selection is collapsed / spans multiple blocks / is
+   * outside the editor. Used by the chat bubble so "Edit selection" can
+   * apply the AI's reply to the exact range the user had highlighted.
+   */
+  getSelection: () => EditorSelection | null;
+  /**
+   * Replace a range inside a single block with new text. If `newText`
+   * contains block-separator markdown (double newlines), the block is
+   * re-parsed so multiple blocks can result. Falls back silently (no-op)
+   * if the `blockId` no longer exists.
+   */
+  replaceRange: (selection: EditorSelection, newText: string) => void;
 };
 
 export type NotionEditorProps = {
@@ -45,6 +72,32 @@ type SlashState = {
   query: string;
   anchor: { top: number; left: number };
 };
+
+/**
+ * Walk `root`'s text nodes until we hit (`node`, `offset`) and report the
+ * flattened character offset within `root.innerText`. Used by `getSelection`
+ * to map a DOM range to block-local character offsets. Mirrors the helper
+ * in `SelectionToolbar` — kept private here to avoid a cross-file export
+ * just for the chat feature.
+ */
+function flattenedOffset(root: HTMLElement, node: Node, offset: number): number {
+  if (!root.contains(node)) return 0;
+  let total = 0;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let n: Node | null = walker.nextNode();
+  while (n) {
+    if (n === node) return total + offset;
+    total += (n.nodeValue ?? "").length;
+    n = walker.nextNode();
+  }
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    const children = Array.from(node.childNodes).slice(0, offset);
+    for (const child of children) {
+      total += (child.textContent ?? "").length;
+    }
+  }
+  return total;
+}
 
 /** Block types that are "list-like" — Enter in an empty one reverts to
  *  paragraph, Enter in a non-empty one inserts a new block of the same type. */
@@ -207,8 +260,61 @@ export const NotionEditor = forwardRef<NotionEditorMethods, NotionEditorProps>(
           // parent already has latest markdown — no onChange needed here.
         },
         getMarkdown: () => blocksToMarkdown(blocksRef.current),
+        getSelection: () => {
+          const sel = window.getSelection();
+          if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+          const range = sel.getRangeAt(0);
+          // Find the block whose contenteditable host contains the range.
+          let hostId: string | null = null;
+          let hostEl: HTMLElement | null = null;
+          for (const [id, el] of elementRefs.current.entries()) {
+            if (el.contains(range.startContainer) && el.contains(range.endContainer)) {
+              hostId = id;
+              hostEl = el;
+              break;
+            }
+          }
+          if (!hostId || !hostEl) return null;
+          const localStart = flattenedOffset(hostEl, range.startContainer, range.startOffset);
+          const localEnd = flattenedOffset(hostEl, range.endContainer, range.endOffset);
+          const text = hostEl.innerText.slice(localStart, localEnd);
+          if (!text) return null;
+          return { blockId: hostId, localStart, localEnd, text };
+        },
+        replaceRange: (selection: EditorSelection, newText: string) => {
+          setBlocks((prev) => {
+            const idx = prev.findIndex((b) => b.id === selection.blockId);
+            if (idx === -1) return prev;
+            const block = prev[idx];
+            const content = block.content ?? "";
+            let start = selection.localStart;
+            let end = selection.localEnd;
+            // If content has shifted since capture, fall back to first
+            // occurrence of the originally-selected text.
+            if (content.slice(start, end) !== selection.text) {
+              const fallback = content.indexOf(selection.text);
+              if (fallback === -1) return prev;
+              start = fallback;
+              end = fallback + selection.text.length;
+            }
+            const before = content.slice(0, start);
+            const after = content.slice(end);
+            // If newText contains block-separator markdown, re-parse the
+            // whole block's new content so multiple blocks can emerge.
+            const combined = before + newText + after;
+            if (/\n\s*\n/.test(newText)) {
+              const replacement = parseMarkdown(combined);
+              const next = [...prev.slice(0, idx), ...replacement, ...prev.slice(idx + 1)];
+              pushMarkdown(next);
+              return next;
+            }
+            const next = [...prev.slice(0, idx), { ...block, content: combined }, ...prev.slice(idx + 1)];
+            pushMarkdown(next);
+            return next;
+          });
+        },
       }),
-      [],
+      [pushMarkdown],
     );
 
     /* ─── Focus helpers ──────────────────────────────────────────────── */

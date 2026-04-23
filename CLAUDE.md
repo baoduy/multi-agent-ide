@@ -245,6 +245,14 @@ When adding a new feature, verify these locations:
 
 Electron 41.2.0 · React 19 · Vite · shadcn/ui · Tailwind CSS v4 · Zustand · CodeMirror 6 · Node.js 22 · LMDB (embedded, memory-mapped key-value store) · simple-git · Zod · Vitest · Playwright · electron-builder
 
+---
+
+## Superpowers Preferences
+
+These override defaults in the `obra/superpowers` plugin. Per its `using-superpowers` skill, CLAUDE.md instructions take precedence over skill defaults.
+
+- **Plan location:** Save plans written by the `writing-plans` skill to `supers/plans/YYYY-MM-DD-<feature-name>.md` (repo-relative), **not** the default `docs/superpowers/plans/`. All references to the plan path in subsequent skills (`executing-plans`, `subagent-driven-development`, etc.) should use this location.
+
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan

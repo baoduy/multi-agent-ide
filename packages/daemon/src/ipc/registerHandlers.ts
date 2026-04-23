@@ -49,6 +49,8 @@ import type { RepoScanner } from "../services/RepoScanner";
 import type { CliVersionApplicationService } from "../application/CliVersionApplicationService";
 import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
 import type { SpecifyExtensionApplicationService } from "../application/SpecifyExtensionApplicationService";
+import type { AiEditApplicationService } from "../application/AiEditApplicationService";
+import { registerAiEditHandlers } from "./handlers/aiEditHandlers";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
 import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
@@ -79,6 +81,7 @@ export type HandlerContext = {
   gitRepoWatcher: GitRepoWatcher;
   logCache: LruCache<string, LogResult>;
   commitDetailCache: LruCache<string, CommitDetailResult>;
+  aiEditService: AiEditApplicationService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -130,6 +133,7 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
     context.configManager,
     context.scanQueue,
     bridge,
+    fileSystemGateway,
   );
   registerGitCloneHandlers({ bridge, cloneService: gitCloneService });
 
@@ -147,4 +151,6 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerGitRemoteHandlers({ bridge, remoteService });
 
   registerCliVersionHandlers({ bridge, cliVersionService: context.cliVersionService });
+
+  registerAiEditHandlers({ bridge, aiEditService: context.aiEditService });
 }

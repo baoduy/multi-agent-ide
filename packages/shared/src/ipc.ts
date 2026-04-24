@@ -77,6 +77,12 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("file:delete"), filePath: z.string() }),
   z.object({ type: z.literal("file:rename"), oldPath: z.string(), newPath: z.string() }),
+  // Watch a single file for external changes. The daemon opens a chokidar
+  // watcher and pushes `file:changed-on-disk` events whenever the file is
+  // written by someone other than the app itself (self-writes are suppressed
+  // via a short-lived content-match window — see FileWatchService).
+  z.object({ type: z.literal("file:watch"), filePath: z.string() }),
+  z.object({ type: z.literal("file:unwatch"), watchId: z.string() }),
   z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
   // NOTE: session:get / session:update removed — session state now persisted in localStorage
   z.object({ type: z.literal("config:get") }),
@@ -295,9 +301,17 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-edit:list-actions"), repoPath: z.string() }),
   // AI chat bubble — three explicit modes. `history` is truncated by the
   // daemon before being rendered into the prompt (see AiEditApplicationService).
+  //
+  // `filePath` is optional: when present and the file is a markdown file
+  // inside `repoPath`, the daemon switches to "repo-aware" ask mode — it
+  // drops `documentText` from the prompt, sets cwd to `repoPath`, pre-
+  // approves Read/Glob/Grep, and instructs the model to read the file (and
+  // any neighbors it needs) itself. When absent, the legacy packed-prompt
+  // flow is used.
   z.object({
     type: z.literal("ai-chat:ask"),
     repoPath: z.string(),
+    filePath: z.string().optional(),
     userMessage: z.string(),
     history: z.array(
       z.object({
@@ -317,6 +331,8 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     streamId: z.string().optional(),
     /** Claude provider session id from a previous turn — enables `--resume`. */
     resumeSessionId: z.string().optional(),
+    /** UI-selected provider override; falls back to disk config when absent. */
+    provider: z.enum(AI_PROVIDERS).optional(),
   }),
   z.object({
     type: z.literal("ai-chat:edit-selection"),
@@ -479,6 +495,21 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("file:delete:result"), filePath: z.string(), success: z.boolean() }),
   z.object({ type: z.literal("file:rename:result"), oldPath: z.string(), newPath: z.string(), success: z.boolean() }),
+  // File watcher: response for `file:watch` carries the watchId the renderer
+  // must pass back to `file:unwatch`. `file:unwatched` is an ack.
+  z.object({ type: z.literal("file:watched"), filePath: z.string(), watchId: z.string() }),
+  z.object({ type: z.literal("file:unwatched"), watchId: z.string() }),
+  // Push event: emitted when a watched file changes on disk and the change
+  // isn't one of the app's own recent writes. Routed by `watchId` so the
+  // renderer knows which tab to route the event to (handles two tabs open
+  // on the same file independently). `mtime` is ms-since-epoch for dedupe.
+  z.object({
+    type: z.literal("file:changed-on-disk"),
+    watchId: z.string(),
+    filePath: z.string(),
+    newContent: z.string(),
+    mtime: z.number().int().nonnegative(),
+  }),
   z.object({
     type: z.literal("dir:list:result"),
     dirPath: z.string(),

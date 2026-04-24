@@ -73,6 +73,30 @@ export const SideContainer = React.memo(function SideContainer({
   // markdown preview (user requirement).
   const previewActive = useMarkdownPreviewStore((s) => s.active !== null);
 
+  // Auto-collapse sibling right-side sections when the TOC first becomes
+  // visible. The goal: when the user enters preview mode, the TOC owns the
+  // sidebar's vertical space instead of fighting with Changes / Spec Files /
+  // Inspector. Runs only on the false→true transition so the user can still
+  // manually re-expand the siblings afterward — we never stomp on their
+  // choice during a preview session.
+  const prevPreviewActiveRef = useRef<boolean>(false);
+  useEffect(() => {
+    if (region !== "right") return;
+    const wasActive = prevPreviewActiveRef.current;
+    prevPreviewActiveRef.current = previewActive;
+    if (previewActive && !wasActive) {
+      // TOC just came on: fold up every other right-side section and make
+      // sure the TOC itself is expanded.
+      for (const s of container.sections) {
+        if (s.viewId === "markdown-toc") {
+          if (!s.expanded) setSectionExpanded("right", s.viewId, true);
+        } else if (s.expanded) {
+          setSectionExpanded("right", s.viewId, false);
+        }
+      }
+    }
+  }, [region, previewActive, container.sections, setSectionExpanded]);
+
   const sections = useMemo(() => {
     const activeGroup = groups.find((g: ActivityBarGroup) => g.id === activeGroupId);
     if (!activeGroup) return container.sections;

@@ -24,6 +24,8 @@ type ResponseForRequest = {
   "file:write-binary": Extract<IpcResponse, { type: "file:write-binary:result" }>;
   "file:delete": Extract<IpcResponse, { type: "file:delete:result" }>;
   "file:rename": Extract<IpcResponse, { type: "file:rename:result" }>;
+  "file:watch": Extract<IpcResponse, { type: "file:watched" }>;
+  "file:unwatch": Extract<IpcResponse, { type: "file:unwatched" }>;
   "dir:list": Extract<IpcResponse, { type: "dir:list:result" }>;
 "config:get": Extract<IpcResponse, { type: "config:response" }>;
   "config:add-working-dir": Extract<IpcResponse, { type: "config:response" }>;

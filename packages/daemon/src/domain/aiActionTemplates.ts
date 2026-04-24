@@ -238,6 +238,38 @@ export function renderAskSpecPrompt(args: AskSpecArgs): string {
   return lines.join("\n");
 }
 
+/* ─── Repo-aware ask (the file-level chat's "ask" mode) ────────────── */
+
+/**
+ * System prompt for the markdown editor's "Ask" mode when the file is inside
+ * a registered working directory. Passed to Claude via
+ * `--append-system-prompt`. The agent is spawned with `cwd = repoPath`, so
+ * relative paths in this prompt work as-is against the Read/Glob/Grep tools.
+ *
+ * This lets the model answer questions about *neighboring* files in the repo
+ * — which today's `renderAskPrompt` can't do because it only packs the one
+ * open document into the prompt.
+ */
+export function renderAskRepoAwareSystemPrompt(args: {
+  fileRelPath: string;
+  selection?: { text: string };
+}): string {
+  const selectionLine = args.selection && args.selection.text.trim().length > 0
+    ? `The user has the following excerpt selected in that file — it may be what they are asking about:\n\n${args.selection.text}\n`
+    : "The user has no specific selection right now.";
+  return [
+    `You are a read-only assistant helping the user reason about the Markdown file \`${args.fileRelPath}\`.`,
+    "",
+    "When answering, use your Read / Glob / Grep tools to look at that file, and any neighboring files in the working directory that would help answer the question. Prefer reading the user's file first before exploring siblings.",
+    "",
+    "You MUST NOT modify, create, or delete any file. You MUST NOT call Write, Edit, MultiEdit, Bash, or any tool with side effects. Refuse edit requests politely — this conversation is read-only. For edits, the user has separate editor actions they can invoke.",
+    "",
+    "Respond concisely in Markdown. When citing content, name the file (e.g. `plan.md`) rather than line numbers.",
+    "",
+    selectionLine,
+  ].join("\n");
+}
+
 /* ─── Output cleanup ────────────────────────────────────────────────── */
 
 /**

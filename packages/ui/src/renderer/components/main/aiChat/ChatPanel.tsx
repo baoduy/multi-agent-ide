@@ -181,7 +181,15 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
           <Sparkles size={16} strokeWidth={2} />
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>AI Assistant</div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
+            AI Assistant
+            {thread?.provider && (
+              <span style={{ color: colors.textMuted, fontWeight: 400 }}>
+                {" · "}
+                {thread.provider === "claude" ? "Claude" : "Copilot"}
+              </span>
+            )}
+          </div>
           <div
             style={{
               fontSize: 10,

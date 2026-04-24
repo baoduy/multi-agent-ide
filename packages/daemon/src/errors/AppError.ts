@@ -20,7 +20,8 @@ export type AppErrorCode =
   | "AI_CONFIG_INVALID"
   | "AI_PROVIDER_NOT_AVAILABLE"
   | "AI_TIMEOUT"
-  | "AI_CLI_FAILED";
+  | "AI_CLI_FAILED"
+  | "FILE_WATCH_FAILED";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

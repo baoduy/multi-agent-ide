@@ -454,6 +454,9 @@ export function registerAllViews(): void {
     defaultLocation: "right",
     closable: false,
     keepAlive: true,
+    // Ordering in the right sidebar is controlled by `layoutStore`'s
+    // `right.sections[]` (markdown-toc is placed first there). No
+    // activityGroup — this view doesn't surface in the activity bar.
   });
 
   // ── Center Tab Views ──

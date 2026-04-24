@@ -44,6 +44,8 @@ import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensi
 import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
+import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
+import { FileWatchService } from "./application/FileWatchService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -61,6 +63,7 @@ let shutdownServices: {
   aiSessionService?: AISessionApplicationService;
   gitRepoWatcher?: GitRepoWatcher;
   gitBatchGateway?: GitBatchGateway;
+  fileWatchService?: FileWatchService;
 } = {};
 let isShuttingDown = false;
 
@@ -125,6 +128,12 @@ async function gracefulShutdown(reason: string): Promise<void> {
     if (shutdownServices.gitBatchGateway) {
       console.log("[daemon-worker] Disposing git batch gateway...");
       shutdownServices.gitBatchGateway.dispose();
+    }
+
+    // 2f. Close markdown-editor file watchers
+    if (shutdownServices.fileWatchService) {
+      console.log("[daemon-worker] Closing file watchers...");
+      await shutdownServices.fileWatchService.closeAll();
     }
 
     // 3. Flush and close database
@@ -270,8 +279,13 @@ async function main() {
     const aiCliGateway = new AiCliGateway();
     const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway);
 
+    // File watcher — one watcher per open markdown tab so external writes
+    // (AI CLI, teammate, git checkout) land in the editor without reload.
+    const fileWatcherGateway = new FileWatcherGateway();
+    const fileWatchService = new FileWatchService(fileWatcherGateway, ipcBridge);
+
     // Store references for graceful shutdown
-    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway };
+    shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };
 
     registerHandlers(ipcBridge, {
       databaseService,
@@ -296,6 +310,7 @@ async function main() {
       logCache,
       commitDetailCache,
       aiEditService,
+      fileWatchService,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -326,6 +341,9 @@ async function main() {
       // AI chat streaming — per-turn deltas and session-id capture.
       "ai-chat:stream:delta",
       "ai-chat:stream:session",
+      // File watcher — emitted when a watched file changes on disk and the
+      // change wasn't one of the app's own recent writes.
+      "file:changed-on-disk",
     ];
 
     for (const eventType of pushEventTypes) {

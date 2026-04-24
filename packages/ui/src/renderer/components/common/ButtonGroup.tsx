@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 export type ButtonGroupOption<T extends string = string> = {
   /** Unique key for this option (used as the value). */
@@ -36,6 +37,7 @@ function ButtonGroupComponent<T extends string = string>({
   value,
   onChange,
 }: ButtonGroupProps<T>): React.ReactElement {
+  const d = useDensityTokens();
   const handleClick = useCallback(
     (key: T, disabled?: boolean) => {
       if (!disabled) onChange(key);
@@ -75,7 +77,7 @@ function ButtonGroupComponent<T extends string = string>({
               borderRight: i < options.length - 1 ? `1px solid ${colors.border}` : "none",
               background: bg,
               color: fg,
-              //fontSize: 11,
+              fontSize: d.font,
               fontWeight: 500,
               fontFamily: "inherit",
               opacity: opt.disabled ? 0.4 : 1,

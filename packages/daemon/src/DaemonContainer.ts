@@ -34,6 +34,8 @@ import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensi
 import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
+import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
+import { FileWatchService } from "./application/FileWatchService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -81,6 +83,8 @@ export class DaemonContainer {
   readonly aiConfigRepository: AiConfigRepository;
   readonly aiCliGateway: AiCliGateway;
   readonly aiEditService: AiEditApplicationService;
+  readonly fileWatcherGateway: FileWatcherGateway;
+  readonly fileWatchService: FileWatchService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -206,6 +210,12 @@ export class DaemonContainer {
       this.aiConfigRepository,
       this.aiCliGateway,
     );
+
+    // File watcher — the markdown editor opens one watcher per open tab so
+    // external writes (AI CLI edits, teammate edits, git checkout) get folded
+    // into the editor via 3-way merge without the user reopening the file.
+    this.fileWatcherGateway = new FileWatcherGateway();
+    this.fileWatchService = new FileWatchService(this.fileWatcherGateway, this.bridge);
   }
 
   /**
@@ -243,6 +253,7 @@ export class DaemonContainer {
       logCache: this.logCache,
       commitDetailCache: this.commitDetailCache,
       aiEditService: this.aiEditService,
+      fileWatchService: this.fileWatchService,
     });
   }
 
@@ -259,6 +270,8 @@ export class DaemonContainer {
     this.worktreeSyncService.stop();
     this.gitRepoWatcher.stop();
     this.gitBatchGateway.dispose();
+    // Fire-and-forget; shutdown doesn't await async cleanup.
+    void this.fileWatchService.closeAll();
   }
 
   /**

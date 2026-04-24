@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { AIProvider } from "@magenta/shared/aiTerminal";
 import { sendOrThrow } from "../services/ipcClient";
 import { ipc } from "../utils/ipc";
 
@@ -35,6 +36,12 @@ export type CapturedSelection = {
 
 export type ChatThread = {
   open: boolean;
+  /**
+   * Which AI backend this thread talks to. Chosen from the hover picker on
+   * the chat bubble; defaults to Claude. Sent with each `ai-chat:ask` so the
+   * daemon routes to the chosen CLI regardless of the on-disk default.
+   */
+  provider: AIProvider;
   mode: ChatMode;
   messages: ChatMessage[];
   pendingSelection: CapturedSelection | null;
@@ -61,6 +68,7 @@ const MAX_HISTORY = 20;
 function emptyThread(): ChatThread {
   return {
     open: false,
+    provider: "claude",
     mode: "ask",
     messages: [],
     pendingSelection: null,
@@ -92,6 +100,10 @@ type State = {
 
   /** Open or close the panel for a file. */
   setOpen: (filePath: string, open: boolean) => void;
+  /** Open the panel with a specific provider (remembered for the thread). */
+  openWithProvider: (filePath: string, provider: AIProvider) => void;
+  /** Switch AI provider for this thread. Resets the Claude session id. */
+  setProvider: (filePath: string, provider: AIProvider) => void;
   /** Switch mode (Ask / Edit selection / Modify document). */
   setMode: (filePath: string, mode: ChatMode) => void;
   /** Update the captured selection chip shown above the input. */
@@ -149,6 +161,34 @@ export const useAiChatStore = create<State>((set, get) => ({
     const thread = get().threadsByFile[filePath] ?? emptyThread();
     set((s) => ({
       threadsByFile: { ...s.threadsByFile, [filePath]: { ...thread, open } },
+    }));
+  },
+
+  openWithProvider(filePath, provider) {
+    const thread = get().threadsByFile[filePath] ?? emptyThread();
+    const providerChanged = thread.provider !== provider;
+    set((s) => ({
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: {
+          ...thread,
+          open: true,
+          provider,
+          // Switching providers invalidates the Claude-only session id.
+          sessionId: providerChanged ? null : thread.sessionId,
+        },
+      },
+    }));
+  },
+
+  setProvider(filePath, provider) {
+    const thread = get().threadsByFile[filePath] ?? emptyThread();
+    if (thread.provider === provider) return;
+    set((s) => ({
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: { ...thread, provider, sessionId: null },
+      },
     }));
   },
 
@@ -217,6 +257,7 @@ export const useAiChatStore = create<State>((set, get) => ({
     };
     let historyForApi: { role: "user" | "assistant"; text: string }[] = [];
     let resumeSessionId: string | undefined;
+    let provider: AIProvider = "claude";
     let pendingSelectionPayload:
       | { start: number; end: number; text: string }
       | undefined;
@@ -227,6 +268,7 @@ export const useAiChatStore = create<State>((set, get) => ({
         .slice(-MAX_HISTORY)
         .map((m) => ({ role: m.role as "user" | "assistant", text: m.text }));
       resumeSessionId = thread.sessionId ?? undefined;
+      provider = thread.provider;
       if (thread.pendingSelection) {
         pendingSelectionPayload = {
           start: thread.pendingSelection.localStart,
@@ -253,12 +295,14 @@ export const useAiChatStore = create<State>((set, get) => ({
       const response = await sendOrThrow({
         type: "ai-chat:ask",
         repoPath,
+        filePath,
         userMessage: text,
         history: historyForApi,
         documentText,
         selection: pendingSelectionPayload,
         streamId,
         resumeSessionId,
+        provider,
       });
       set((s) => {
         const thread = s.threadsByFile[filePath];

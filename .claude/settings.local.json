@@ -51,7 +51,8 @@
       "Bash(rtk read *)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:novel.sh)",
-      "Bash(pnpm add *)"
+      "Bash(pnpm add *)",
+      "Bash(node node_modules/.pnpm/electron@41.3.0/node_modules/electron/install.js)"
     ]
   }
 }

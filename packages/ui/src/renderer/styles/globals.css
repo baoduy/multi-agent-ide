@@ -573,8 +573,10 @@
 .bn-container textarea,
 .bn-mantine,
 .bn-mantine * {
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system,
-    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  /* Use the app's own font stack (defined at :root as --font-sans) rather
+     than hard-coding Inter. Keeps the markdown editor visually consistent
+     with the rest of the shell when the user customizes typography. */
+  font-family: var(--font-sans) !important;
 }
 
 .bn-container {

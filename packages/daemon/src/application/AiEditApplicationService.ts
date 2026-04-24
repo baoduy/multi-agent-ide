@@ -1,9 +1,12 @@
+import path from "node:path";
 import type { AiEditAction, AiEditConfig } from "@magenta/shared/ipc";
+import type { AIProvider } from "@magenta/shared/aiTerminal";
 import type { AiCliGateway } from "../infrastructure/AiCliGateway";
 import type { AiConfigRepository } from "../infrastructure/AiConfigRepository";
 import { AppError } from "../errors/AppError";
 import {
   renderAskPrompt,
+  renderAskRepoAwareSystemPrompt,
   renderAskSpecPrompt,
   renderAskSpecSystemPrompt,
   renderEditSelectionPrompt,
@@ -14,6 +17,13 @@ import {
 
 export interface AskArgs {
   repoPath: string;
+  /**
+   * Absolute path to the file the user is asking about. When present and
+   * the file lives inside `repoPath`, the service switches to repo-aware
+   * ask mode (see `ask` below). Omitted for callers that don't know the
+   * file path (e.g. legacy tests).
+   */
+  filePath?: string;
   userMessage: string;
   history: ChatTurn[];
   documentText: string;
@@ -22,6 +32,8 @@ export interface AskArgs {
   onChunk?: (delta: string) => void;
   onSessionId?: (sessionId: string) => void;
   resumeSessionId?: string;
+  /** UI-selected provider override; falls back to disk config when absent. */
+  provider?: AIProvider;
 }
 
 export interface EditSelectionArgs {
@@ -79,6 +91,43 @@ export class AiEditApplicationService {
   /* ─── Chat bubble ─────────────────────────────────────────────── */
 
   async ask(args: AskArgs): Promise<string> {
+    const config = this.configRepo.loadConfig(args.repoPath);
+    const provider: AIProvider = args.provider ?? config.provider;
+
+    // Repo-aware branch: Claude reads the file (and neighbors) itself via
+    // its native Read/Glob/Grep tools instead of receiving the whole doc
+    // packed into the prompt. Gives the model real repo visibility without
+    // us building an MCP layer. Triggers when:
+    //   - the file's path is known and sits inside repoPath
+    //   - the provider is Claude (Copilot can't do --append-system-prompt
+    //     or --allowedTools in v1)
+    const fileRelPath = resolveRelPathInside(args.repoPath, args.filePath);
+    if (fileRelPath && provider === "claude") {
+      const systemPromptAppend = renderAskRepoAwareSystemPrompt({
+        fileRelPath,
+        selection: args.selection,
+      });
+      const prompt = renderAskSpecPrompt({
+        userMessage: args.userMessage,
+        history: args.history,
+      });
+      return this.cliGateway.run(provider, config.model, prompt, {
+        timeoutMs: config.timeoutMs,
+        extraArgs: config.extraArgs,
+        cwd: args.repoPath,
+        systemPromptAppend,
+        permissionMode: "plan",
+        allowedTools: ["Read", "Glob", "Grep"],
+        disallowedTools: ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit"],
+        onChunk: args.onChunk,
+        onSessionId: args.onSessionId,
+        resumeSessionId: args.resumeSessionId,
+      });
+    }
+
+    // Legacy packed-prompt fallback. Used when the file path isn't known,
+    // when the file isn't inside the repo (e.g. a stray tab), or when the
+    // provider is Copilot.
     const prompt = renderAskPrompt({
       userMessage: args.userMessage,
       history: args.history,
@@ -89,6 +138,7 @@ export class AiEditApplicationService {
       onChunk: args.onChunk,
       onSessionId: args.onSessionId,
       resumeSessionId: args.resumeSessionId,
+      providerOverride: provider,
     });
   }
 
@@ -161,7 +211,8 @@ export class AiEditApplicationService {
 
   /**
    * Used by the one-shot endpoints (edit-selection / modify-document) and
-   * by `ask`. The optional streaming hooks are only wired by `ask`.
+   * by `ask`'s legacy fallback. The optional streaming hooks are only wired
+   * by `ask`.
    */
   private async run(
     repoPath: string,
@@ -170,10 +221,12 @@ export class AiEditApplicationService {
       onChunk?: (delta: string) => void;
       onSessionId?: (sessionId: string) => void;
       resumeSessionId?: string;
+      providerOverride?: AIProvider;
     },
   ): Promise<string> {
     const config = this.configRepo.loadConfig(repoPath);
-    return this.cliGateway.run(config.provider, config.model, prompt, {
+    const provider = streamOpts?.providerOverride ?? config.provider;
+    return this.cliGateway.run(provider, config.model, prompt, {
       timeoutMs: config.timeoutMs,
       extraArgs: config.extraArgs,
       cwd: repoPath,
@@ -182,4 +235,25 @@ export class AiEditApplicationService {
       resumeSessionId: streamOpts?.resumeSessionId,
     });
   }
+}
+
+/**
+ * If `filePath` is a markdown file inside `repoPath`, return its
+ * repo-relative path. Otherwise return null. Used to decide whether to use
+ * the repo-aware ask mode.
+ *
+ * "Markdown" here means `.md` or `.mdx`. Other file types fall back to the
+ * legacy packed-prompt flow — we don't currently have prompt templates that
+ * make sense for non-markdown content in the chat bubble.
+ */
+function resolveRelPathInside(repoPath: string, filePath: string | undefined): string | null {
+  if (!filePath) return null;
+  const absRepo = path.resolve(repoPath);
+  const absFile = path.resolve(filePath);
+  const rel = path.relative(absRepo, absFile);
+  // Outside the repo, or the same path.
+  if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) return null;
+  const ext = path.extname(rel).toLowerCase();
+  if (ext !== ".md" && ext !== ".mdx") return null;
+  return rel;
 }

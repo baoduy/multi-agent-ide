@@ -17,6 +17,8 @@ import { useMarkdownPreviewStore } from "../../store/markdownPreviewStore";
 import { ChatBubble } from "./aiChat/ChatBubble";
 import { ApproveButton } from "./ApproveButton";
 import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
+import { threeWayMerge } from "../../services/threeWayMerge";
+import { FileChangedBanner, type FileChangedAction } from "./FileChangedBanner";
 
 type ViewMode = "preview" | "edit";
 type SaveStatus = "idle" | "saving" | "saved";
@@ -156,9 +158,24 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  /**
+   * Set when the watcher observes a disk change that the 3-way merge can't
+   * reconcile with the user's unsaved edits. Holds the new disk content so
+   * the banner's "Take disk" action can replace the buffer in one step.
+   */
+  const [pendingDiskChange, setPendingDiskChange] = useState<
+    { newContent: string; mtime: number } | null
+  >(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<MarkdownEditorMethods>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Latest `content` / `editedContent` exposed to the watcher listener without
+  // re-subscribing every keystroke. Without these refs the effect would either
+  // capture stale state or have to re-run constantly.
+  const contentRefLatest = useRef<string | null>(null);
+  const editedContentRefLatest = useRef<string | null>(null);
+  contentRefLatest.current = content;
+  editedContentRefLatest.current = editedContent;
 
   const isGitRef = isGitRefPath(filePath);
   const canEdit = !isGitRef && isMarkdownFile(filePath);
@@ -226,6 +243,97 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   }, [filePath, repoPath]);
 
   useEffect(() => () => clearTimeout(saveTimerRef.current), []);
+
+  /**
+   * Watch the open file for external changes. When one arrives, try a 3-way
+   * merge against the user's unsaved edits:
+   *   - `base`   = last content we read from disk (in `content`)
+   *   - `ours`   = current editor buffer (`editedContent`)
+   *   - `theirs` = newContent from the push event
+   *
+   * Clean merge → replace the buffer via `replaceMarkdownPreservingCursor`
+   * so the viewport doesn't snap to the top.
+   * Conflict → stash the new disk content and show a banner; the user picks
+   * a side.
+   *
+   * Skipped for git-ref paths (read-only views of historical content) and
+   * non-markdown files (the editor renders them as plain <pre>).
+   */
+  useEffect(() => {
+    if (isGitRef || !canEdit) return;
+    let cancelled = false;
+    let watchId: string | null = null;
+
+    void (async () => {
+      try {
+        const resp = await sendOrThrow({ type: "file:watch", filePath });
+        if (cancelled) {
+          // If we already unmounted, immediately unwatch; the component will
+          // never read the id back and we don't want a dangling watcher.
+          void sendOrThrow({ type: "file:unwatch", watchId: resp.watchId }).catch(() => {});
+          return;
+        }
+        watchId = resp.watchId;
+      } catch {
+        // Watcher is non-critical — file editing still works without it.
+        // Swallow errors (likely FILE_WATCH_FAILED on a file that was
+        // just deleted, etc.).
+      }
+    })();
+
+    const off = ipc.on("file:changed-on-disk", (evt) => {
+      if (!watchId || evt.watchId !== watchId) return;
+      const base = contentRefLatest.current ?? "";
+      const ours = editedContentRefLatest.current ?? base;
+      const theirs = evt.newContent;
+      // No local edits in flight → just take the disk content.
+      if (ours === base) {
+        setContent(theirs);
+        setEditedContent(theirs);
+        editorRef.current?.replaceMarkdownPreservingCursor(theirs);
+        return;
+      }
+      const result = threeWayMerge(base, ours, theirs);
+      if (result.ok) {
+        setContent(theirs);
+        setEditedContent(result.merged);
+        editorRef.current?.replaceMarkdownPreservingCursor(result.merged);
+      } else {
+        setPendingDiskChange({ newContent: theirs, mtime: evt.mtime });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      off();
+      if (watchId) {
+        void sendOrThrow({ type: "file:unwatch", watchId }).catch(() => {});
+      }
+    };
+  }, [filePath, isGitRef, canEdit]);
+
+  /**
+   * Banner actions for the conflict case. "Use mine" silently takes the
+   * in-editor buffer and bumps `content` to the pending disk content so
+   * the next merge uses the right base. "Take disk" discards the buffer
+   * and loads the new content.
+   */
+  const handleConflictAction = useCallback(
+    (action: FileChangedAction) => {
+      if (!pendingDiskChange) return;
+      if (action === "use-mine") {
+        // Treat the disk content as the new base — future merges will reason
+        // from here even though we didn't adopt it in the editor.
+        setContent(pendingDiskChange.newContent);
+      } else if (action === "take-disk") {
+        setContent(pendingDiskChange.newContent);
+        setEditedContent(pendingDiskChange.newContent);
+        editorRef.current?.replaceMarkdownPreservingCursor(pendingDiskChange.newContent);
+      }
+      setPendingDiskChange(null);
+    },
+    [pendingDiskChange],
+  );
 
   const displayContent = editedContent ?? content;
 
@@ -360,6 +468,14 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             />
           </div>
         </div>
+      )}
+
+      {pendingDiskChange && (
+        <FileChangedBanner
+          ours={editedContent ?? content ?? ""}
+          theirs={pendingDiskChange.newContent}
+          onAction={handleConflictAction}
+        />
       )}
 
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>

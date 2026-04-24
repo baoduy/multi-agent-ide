@@ -2,6 +2,7 @@ import React from "react";
 import { Loader2 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 type CancelButtonProps = {
   onClick: () => void;
@@ -10,13 +11,14 @@ type CancelButtonProps = {
 
 /** Standard cancel/secondary button for dialog footers. */
 export function CancelButton({ onClick, children = "Cancel" }: CancelButtonProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
         padding: "4px 10px",
-        //fontSize: 11,
+        fontSize: d.font,
         fontWeight: 500,
         color: colors.textSecondary,
         background: colors.bgMuted,
@@ -50,6 +52,7 @@ export function PrimaryButton({
   children,
 }: PrimaryButtonProps): React.ReactElement {
   const isDisabled = disabled || loading;
+  const d = useDensityTokens();
 
   return (
     <button
@@ -58,7 +61,7 @@ export function PrimaryButton({
       disabled={isDisabled}
       style={{
         padding: "4px 10px",
-        //fontSize: 11,
+        fontSize: d.font,
         fontWeight: 600,
         color: colors.textWhite,
         background: isDisabled ? colors.textTertiary : bgColor,
@@ -88,13 +91,14 @@ type DangerButtonProps = {
 
 /** Red/danger action button for cancel operations. */
 export function DangerButton({ onClick, children, icon }: DangerButtonProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <button
       type="button"
       onClick={onClick}
       style={{
         padding: "4px 10px",
-        //fontSize: 11,
+        fontSize: d.font,
         fontWeight: 500,
         color: colors.errorDark,
         background: colors.errorSoft,
@@ -129,6 +133,7 @@ export function SecondaryButton({
   disabled = false,
   title,
 }: SecondaryButtonProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <button
       type="button"
@@ -137,7 +142,7 @@ export function SecondaryButton({
       title={title}
       style={{
         padding: "4px 10px",
-        //fontSize: 11,
+        fontSize: d.font,
         fontWeight: 500,
         color: disabled ? colors.textTertiary : colors.textSecondary,
         background: colors.bgMuted,

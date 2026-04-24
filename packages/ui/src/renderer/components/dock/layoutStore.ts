@@ -36,9 +36,13 @@ export const DEFAULT_LAYOUT: LayoutTree = {
     width: 260,
     collapsed: false,
     sections: [
+      // markdown-toc sits first so it appears at the top of the right
+      // sidebar whenever a markdown file is in preview mode. It's filtered
+      // out of the visible section list in SideContainer when no preview is
+      // active, so keeping it at index 0 costs nothing in other contexts.
+      { viewId: "markdown-toc", expanded: true, size: 240 },
       { viewId: "spec-files", expanded: true, size: 200 },
       { viewId: "repo-changes", expanded: true, size: 200 },
-      { viewId: "markdown-toc", expanded: true, size: 240 },
       { viewId: "extensions-inspector", expanded: true, size: 300 },
     ],
   },
@@ -606,6 +610,18 @@ function loadPersistedLayout(): LayoutTree | null {
         ids.add("markdown-toc");
         group.rightViewIds = Array.from(ids);
       }
+    }
+
+    // ── Migration: pin markdown-toc to the top of the right sidebar. Older
+    //    persisted layouts had it at position 2 or 3; the current default is
+    //    index 0 so it appears first when preview mode activates. Preserve
+    //    the user's persisted `expanded`/`size` state for the section. ──
+    const tocIdx = parsed.right.sections.findIndex(
+      (s: SectionState) => s.viewId === "markdown-toc",
+    );
+    if (tocIdx > 0) {
+      const [tocSection] = parsed.right.sections.splice(tocIdx, 1);
+      parsed.right.sections.unshift(tocSection);
     }
 
     // ── Migration: drop left-sidebar git-file-tree, git-changes, git-branches,

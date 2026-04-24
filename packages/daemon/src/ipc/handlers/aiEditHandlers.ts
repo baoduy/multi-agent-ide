@@ -44,6 +44,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
       type: "ai-chat:ask:result" as const,
       text: await aiEditService.ask({
         repoPath: msg.repoPath,
+        filePath: msg.filePath,
         userMessage: msg.userMessage,
         history: msg.history,
         documentText: msg.documentText,
@@ -51,6 +52,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
         onChunk,
         onSessionId,
         resumeSessionId: msg.resumeSessionId,
+        provider: msg.provider,
       }),
     };
   });

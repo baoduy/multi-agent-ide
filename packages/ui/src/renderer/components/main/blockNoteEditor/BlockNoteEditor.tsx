@@ -35,6 +35,18 @@ export type EditorSelection = {
 
 export type BlockNoteEditorMethods = {
   setMarkdown: (markdown: string) => void;
+  /**
+   * Like `setMarkdown` but preserves scroll position on a best-effort basis.
+   * Used by the file-watcher auto-merge path so when the AI (or any other
+   * external process) writes the file on disk and we fold the change back
+   * into the buffer, the user's viewport doesn't snap to the top.
+   *
+   * Cursor position is NOT preserved — BlockNote assigns fresh block ids
+   * on each `tryParseMarkdownToBlocks` so any snapshot would be stale.
+   * Callers who care about cursor should prefer `replaceRange`, which is
+   * block-id–scoped.
+   */
+  replaceMarkdownPreservingCursor: (markdown: string) => void;
   /** Promise-returning under BlockNote. Callers should `await`. */
   getMarkdown: () => Promise<string>;
   getSelection: () => EditorSelection | null;
@@ -137,6 +149,29 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
             lastEmittedRef.current = md;
           })();
         },
+        replaceMarkdownPreservingCursor: (md) => {
+          void (async () => {
+            // Snapshot the viewport scroll of whichever ancestor is the
+            // scroll container for the editor. We restore it on the next
+            // tick so the block-replace doesn't yank the user to the top
+            // of the document.
+            const tt = (editor as unknown as { _tiptapEditor: TiptapEditor & { view?: { dom?: HTMLElement } } })._tiptapEditor;
+            const rootEl = tt?.view?.dom ?? null;
+            const scrollEl = rootEl ? findScrollParent(rootEl) : null;
+            const prevScrollTop = scrollEl?.scrollTop ?? null;
+
+            const blocks = await editor.tryParseMarkdownToBlocks(md);
+            applyingExternalRef.current = true;
+            editor.replaceBlocks(editor.document, blocks);
+            setTimeout(() => {
+              applyingExternalRef.current = false;
+              if (scrollEl && prevScrollTop !== null) {
+                scrollEl.scrollTop = prevScrollTop;
+              }
+            }, 0);
+            lastEmittedRef.current = md;
+          })();
+        },
         getMarkdown: () => Promise.resolve(editor.blocksToMarkdownLossy()),
         getSelection: () => {
           const tt = (editor as unknown as { _tiptapEditor: TiptapEditor })._tiptapEditor;
@@ -197,6 +232,23 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
     );
   },
 );
+
+/**
+ * Walk the DOM upward from `el` and return the first ancestor whose CSS
+ * overflow makes it a scroll container. Returns null if none found within
+ * the document body. Used by `replaceMarkdownPreservingCursor` to snapshot
+ * and restore viewport position across a full block-replace.
+ */
+function findScrollParent(el: HTMLElement): HTMLElement | null {
+  let cur: HTMLElement | null = el.parentElement;
+  while (cur && cur !== document.body) {
+    const style = window.getComputedStyle(cur);
+    const oy = style.overflowY;
+    if (oy === "auto" || oy === "scroll") return cur;
+    cur = cur.parentElement;
+  }
+  return null;
+}
 
 async function flattenBlockText(editor: BlockNoteCoreEditor, block: any): Promise<string> {
   if (Array.isArray(block.content)) {

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, FileCode, Check, ChevronDown, Clipboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -7,17 +7,13 @@ import { sendOrThrow } from "../../services/ipcClient";
 import { colors } from "../../utils/colors";
 import { useTheme } from "../../theme/ThemeProvider";
 import {
-  extractHeadings,
   getFileName,
   isGitRefPath,
   isMarkdownFile,
   parseGitRef,
 } from "./fileViewerUtils";
-import {
-  MarkdownTableOfContents,
-  useActiveHeading,
-} from "./MarkdownTableOfContents";
 import { MarkdownEditor, type MarkdownEditorMethods } from "./MarkdownEditor";
+import { useMarkdownPreviewStore } from "../../store/markdownPreviewStore";
 import { ChatBubble } from "./aiChat/ChatBubble";
 import { ApproveButton } from "./ApproveButton";
 import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
@@ -233,19 +229,30 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   const displayContent = editedContent ?? content;
 
-  const headings = useMemo(
-    () => (displayContent ? extractHeadings(displayContent) : []),
-    [displayContent],
-  );
-
-  const activeHeadingId = useActiveHeading(
-    contentRef,
-    headings,
-    viewMode === "preview",
-  );
-
   const isMd = displayContent !== null && isMarkdownFile(filePath);
-  const showToc = isMd && viewMode === "preview" && headings.length > 1;
+
+  // Publish the current preview to the right-sidebar TOC panel. Runs only
+  // when we're in preview mode on a markdown file — cleared otherwise and
+  // on unmount. `clearIf` guards against a late unmount stomping on a
+  // newer preview that just took over (tab switches are fast).
+  const setPreviewActive = useMarkdownPreviewStore((s) => s.setActive);
+  const clearPreviewIf = useMarkdownPreviewStore((s) => s.clearIf);
+  useEffect(() => {
+    const shouldPublish =
+      isMd && viewMode === "preview" && displayContent !== null && contentRef.current !== null;
+    if (!shouldPublish) {
+      clearPreviewIf(filePath);
+      return;
+    }
+    setPreviewActive({
+      filePath,
+      content: displayContent,
+      scrollEl: contentRef.current!,
+    });
+    return () => {
+      clearPreviewIf(filePath);
+    };
+  }, [filePath, isMd, viewMode, displayContent, setPreviewActive, clearPreviewIf]);
 
   if (loading) {
     return (
@@ -357,30 +364,18 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>
         {isMd ? (
-          <div style={{ display: "flex", minHeight: "100%" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <MarkdownEditor
-                key={filePath}
-                ref={editorRef}
-                value={displayContent}
-                onChange={(val) => setEditedContent(val)}
-                onBlur={() => {
-                  if (isDirty) void save();
-                }}
-                readOnly={viewMode === "preview" || !canEdit}
-                filePath={filePath}
-                repoPath={repoPath}
-              />
-            </div>
-
-            {showToc && (
-              <MarkdownTableOfContents
-                headings={headings}
-                activeId={activeHeadingId}
-                containerRef={contentRef}
-              />
-            )}
-          </div>
+          <MarkdownEditor
+            key={filePath}
+            ref={editorRef}
+            value={displayContent}
+            onChange={(val) => setEditedContent(val)}
+            onBlur={() => {
+              if (isDirty) void save();
+            }}
+            readOnly={viewMode === "preview" || !canEdit}
+            filePath={filePath}
+            repoPath={repoPath}
+          />
         ) : (
           <pre
             style={{

@@ -11,6 +11,7 @@ import { useLayoutStore } from "./layoutStore";
 import { viewRegistry } from "./ViewRegistry";
 import { AccordionSection } from "./AccordionSection";
 import { useViewSearchStore } from "../../store/viewSearchStore";
+import { useMarkdownPreviewStore } from "../../store/markdownPreviewStore";
 import type { SideContainerState, SectionState, ActivityBarGroup } from "./types";
 
 type SideContainerProps = {
@@ -67,6 +68,11 @@ export const SideContainer = React.memo(function SideContainer({
   const activeGroupId = useLayoutStore((s) => s.layout.activityBar.activeGroupId);
   const groups = useLayoutStore((s) => s.layout.activityBar.groups);
 
+  // Hide the markdown-toc panel entirely when no file is in preview mode —
+  // the panel only earns its spot in the right sidebar alongside an active
+  // markdown preview (user requirement).
+  const previewActive = useMarkdownPreviewStore((s) => s.active !== null);
+
   const sections = useMemo(() => {
     const activeGroup = groups.find((g: ActivityBarGroup) => g.id === activeGroupId);
     if (!activeGroup) return container.sections;
@@ -76,16 +82,21 @@ export const SideContainer = React.memo(function SideContainer({
       return container.sections.filter((s: SectionState) => allowedIds.has(s.viewId));
     }
 
-    // Right sidebar: filter by rightViewIds when present
+    // Right sidebar: filter by rightViewIds when present, then hide
+    // context-dependent panels when their trigger isn't active.
     if (region === "right") {
       const rightIds = activeGroup.rightViewIds;
       if (!rightIds || rightIds.length === 0) return [];
       const allowedIds = new Set(rightIds);
-      return container.sections.filter((s: SectionState) => allowedIds.has(s.viewId));
+      return container.sections.filter((s: SectionState) => {
+        if (!allowedIds.has(s.viewId)) return false;
+        if (s.viewId === "markdown-toc" && !previewActive) return false;
+        return true;
+      });
     }
 
     return container.sections;
-  }, [region, container.sections, activeGroupId, groups]);
+  }, [region, container.sections, activeGroupId, groups, previewActive]);
 
   const expandedCount = useMemo(
     () => sections.filter((s: SectionState) => s.expanded).length,

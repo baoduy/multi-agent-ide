@@ -100,7 +100,7 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
     if (!canSend) return;
     const text = input.trim();
     setInput("");
-    const documentText = editorRef.current?.getMarkdown() ?? "";
+    const documentText = (await editorRef.current?.getMarkdown()) ?? "";
 
     if (mode === "ask") {
       await sendAsk(filePath, repoPath, text, documentText);

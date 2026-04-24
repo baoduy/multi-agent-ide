@@ -18,6 +18,7 @@ import {
   Bot,
   FileCode,
   List,
+  ListTree,
   Terminal,
   ScrollText,
   BookText,
@@ -41,6 +42,7 @@ import { SessionCoordinator } from "../../services/SessionCoordinator";
 import { WorktreesView } from "../main/WorktreesView";
 import { WorkflowView } from "../main/WorkflowView";
 import { FileViewer } from "../main/FileViewer";
+import { MarkdownTocPanel } from "../main/MarkdownTocPanel";
 import { DiffViewer } from "../main/DiffViewer";
 import { AISessionsView } from "../ai-terminal/AISessionsView";
 import { MagentaTerminal } from "../common/MagentaTerminal";
@@ -442,6 +444,16 @@ export function registerAllViews(): void {
     activityOrder: 4,
     searchable: true,
     searchPlaceholder: "Search files…",
+  });
+
+  viewRegistry.register({
+    id: "markdown-toc",
+    title: "Table of Contents",
+    icon: <ListTree size={14} strokeWidth={1.5} />,
+    component: MarkdownTocPanel,
+    defaultLocation: "right",
+    closable: false,
+    keepAlive: true,
   });
 
   // ── Center Tab Views ──

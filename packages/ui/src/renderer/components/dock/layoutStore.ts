@@ -38,6 +38,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
     sections: [
       { viewId: "spec-files", expanded: true, size: 200 },
       { viewId: "repo-changes", expanded: true, size: 200 },
+      { viewId: "markdown-toc", expanded: true, size: 240 },
       { viewId: "extensions-inspector", expanded: true, size: 300 },
     ],
   },
@@ -61,7 +62,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         title: "Specify Explorer",
         iconViewId: "repos",
         viewIds: ["repos", "specs"],
-        rightViewIds: ["spec-files", "repo-changes"],
+        rightViewIds: ["spec-files", "repo-changes", "markdown-toc"],
         ownedCenterViewIds: [
           "specs-list",
           "workflow",
@@ -78,7 +79,7 @@ export const DEFAULT_LAYOUT: LayoutTree = {
         title: "Markdown Manager",
         iconViewId: "md-file-tree",
         viewIds: ["md-file-tree"],
-        rightViewIds: [],
+        rightViewIds: ["markdown-toc"],
         ownedCenterViewIds: ["file-viewer"],
         hidesPinnedMain: true,
       },
@@ -590,6 +591,21 @@ function loadPersistedLayout(): LayoutTree | null {
     }
     if (!parsed.right.sections.some((s: SectionState) => s.viewId === "extensions-inspector")) {
       parsed.right.sections.push({ viewId: "extensions-inspector", expanded: true, size: 300 });
+    }
+
+    // ── Migration: add markdown-toc section + wire it into Explorer and
+    //    Markdown Manager groups so the right sidebar picks it up for both.
+    //    SideContainer filters it out of the visible list when no markdown
+    //    file is in preview mode, so adding it to both groups is safe. ──
+    if (!parsed.right.sections.some((s: SectionState) => s.viewId === "markdown-toc")) {
+      parsed.right.sections.push({ viewId: "markdown-toc", expanded: true, size: 240 });
+    }
+    for (const group of parsed.activityBar.groups) {
+      if (group.id === "explorer" || group.id === "markdown-manager") {
+        const ids = new Set(group.rightViewIds ?? []);
+        ids.add("markdown-toc");
+        group.rightViewIds = Array.from(ids);
+      }
     }
 
     // ── Migration: drop left-sidebar git-file-tree, git-changes, git-branches,

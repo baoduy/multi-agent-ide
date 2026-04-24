@@ -6,8 +6,9 @@ I walked through every file referenced in the architecture review against the ac
 
 - **validators.ts is 14 lines and completely unused** — Zod schemas exist in `shared/src/ipc.ts` and validators exist in `daemon/src/ipc/validators.ts`, but zero handlers call them. Every handler does raw `payload as Record<string, unknown>` casting instead.
 - **AppError is also unused** — defined in `daemon/src/errors/AppError.ts` but no handler catches or throws it. Errors are ad-hoc string messages.
+- 
 - **sessionStore has 10 nearly identical update methods** (lines 69–147) that each do: set local state → fire-and-forget IPC send → no response validation, no error handling.
-- **repoStore and specStore both use `Promise.resolve().then(() => import(...))` to avoid circular deps** with sessionStore — a clear sign that cross-store ownership needs rethinking.
+- **repoStore and specStore both use** `Promise.resolve().then(() => import(...))` to avoid circular deps with sessionStore — a clear sign that cross-store ownership needs rethinking.
 - **worktreeHandlers.ts at 226 lines** is the worst offender: it contains worktree list parsing logic, `execSync` git calls, `.gitignore` mutation, and IPC event broadcasting all in one handler file.
 
 The existing strengths called out in the review (shared contracts, class-based services, ScanQueue, ConfigManager, IPCBridge) are all confirmed and should be preserved.
@@ -72,7 +73,7 @@ The current broad context object (lines 17–25) with selective slicing gets rep
 ### Phase 1 Deliverables
 
 | Before | After |
-|---|---|
+| --- | --- |
 | 15+ raw `payload as Record<string, unknown>` casts | 0 — wrapper validates with Zod |
 | 6 handler files with ad-hoc error formatting | 1 central error normalizer in wrapper |
 | Service construction inside handlers | Constructor injection via application services |
@@ -113,7 +114,7 @@ createStoreAction({
 })
 ```
 
-This eliminates the ~18 lines of boilerplate repeated 3 times in `configStore`, the incomplete pattern in `repoStore`, and the inconsistent error handling across all stores.
+This eliminates the \~18 lines of boilerplate repeated 3 times in `configStore`, the incomplete pattern in `repoStore`, and the inconsistent error handling across all stores.
 
 ### Step 2.3 — Create SessionCoordinator
 
@@ -148,8 +149,8 @@ that sets local state and sends one `session:update` IPC message. Focused select
 ### Phase 2 Deliverables
 
 | Before | After |
-|---|---|
-| ~90 lines of duplicated async/IPC boilerplate across 5 stores | ~15 lines using `createStoreAction` per store |
+| --- | --- |
+| \~90 lines of duplicated async/IPC boilerplate across 5 stores | \~15 lines using `createStoreAction` per store |
 | 2 dynamic imports to avoid circular deps | 0 — SessionCoordinator owns cross-store coordination |
 | 10 identical session update methods | 1 generic `patchSession` + selectors |
 | Inconsistent error handling (some `instanceof Error`, some `response.message`) | Uniform via `sendOrThrow` |
@@ -199,8 +200,8 @@ Currently, save policy is split between periodic auto-save (line 24–25), manua
 ### Phase 3 Deliverables
 
 | Before | After |
-|---|---|
-| `SpecReader` 587 lines mixing parsing + I/O | `SpecParser` (~200 lines, pure) + `SpecGitGateway` (~100 lines) |
+| --- | --- |
+| `SpecReader` 587 lines mixing parsing + I/O | `SpecParser` (\~200 lines, pure) + `SpecGitGateway` (\~100 lines) |
 | `execSync` in worktreeHandlers | `GitGateway.createWorktree()` |
 | `fs.*` calls in fileHandlers | `FileSystemGateway.read/stat/exists()` |
 | Repeated row mapping in repositories | Shared mappers in `infrastructure/mappers/` |
@@ -240,7 +241,7 @@ The current manual service composition (lines 18–31) and broad handler context
 ### Phase 4 Deliverables
 
 | Before | After |
-|---|---|
+| --- | --- |
 | Manual service assembly in `index.ts` (lines 18–31) | `DaemonContainer` constructs everything |
 | Broad context object in `registerHandlers` | Handlers receive only their application service |
 | Bootstrap mixes wiring + lifecycle | Bootstrap is lifecycle-only |
@@ -353,12 +354,12 @@ Each phase should include tests before merging:
 ## Estimated Scope
 
 | Phase | New Files | Modified Files | Estimated Effort |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | Phase 1 | 6 | 8 | 2–3 days |
 | Phase 2 | 3 | 6 | 1–2 days |
 | Phase 3 | 5 | 4 | 2–3 days |
 | Phase 4 | 1 | 2 | 0.5–1 day |
-| **Total** | **15** | **20** | **~6–9 days** |
+| **Total** | **15** | **20** | **\~6–9 days** |
 
 ---
 

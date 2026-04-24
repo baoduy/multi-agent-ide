@@ -1,6 +1,47 @@
 import React, { useMemo } from "react";
-import { renderInline } from "../notionEditor/inlineMarkdown";
 import { colors } from "../../../utils/colors";
+
+/**
+ * Minimal inline-markdown renderer: `**bold**`, `*em*`/`_em_`, `` `code` ``,
+ * `[text](url)`. Intentionally small — matches the chat-bubble scope.
+ */
+function renderInline(source: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  const regex = /(\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_|`([^`]+)`|\[([^\]]+)\]\(([^)]+)\))/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let key = 0;
+  while ((m = regex.exec(source)) !== null) {
+    if (m.index > last) out.push(source.slice(last, m.index));
+    if (m[2] !== undefined) out.push(<strong key={key++}>{m[2]}</strong>);
+    else if (m[3] !== undefined) out.push(<em key={key++}>{m[3]}</em>);
+    else if (m[4] !== undefined) out.push(<em key={key++}>{m[4]}</em>);
+    else if (m[5] !== undefined)
+      out.push(
+        <code
+          key={key++}
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.92em",
+            padding: "1px 4px",
+            background: colors.bgSurface,
+            borderRadius: 3,
+          }}
+        >
+          {m[5]}
+        </code>,
+      );
+    else if (m[6] !== undefined && m[7] !== undefined)
+      out.push(
+        <a key={key++} href={m[7]} target="_blank" rel="noreferrer">
+          {m[6]}
+        </a>,
+      );
+    last = regex.lastIndex;
+  }
+  if (last < source.length) out.push(source.slice(last));
+  return out;
+}
 
 /**
  * Small block-level Markdown renderer used by AI chat bubbles. It handles

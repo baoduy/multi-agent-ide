@@ -47,7 +47,11 @@
       "mcp__plugin_claude-mem_mcp-search__smart_outline",
       "Bash(pnpm --filter @magenta/shared build)",
       "Bash(pnpm -w typecheck)",
-      "Bash(pnpm -w build)"
+      "Bash(pnpm -w build)",
+      "Bash(rtk read *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:novel.sh)",
+      "Bash(pnpm add *)"
     ]
   }
 }

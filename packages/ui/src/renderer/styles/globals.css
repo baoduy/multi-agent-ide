@@ -459,6 +459,20 @@
     }
   }
 
+  /* Three-dot "AI is thinking" indicator in ChatMessageBubble. */
+  @keyframes nm-chat-dot {
+    0%,
+    60%,
+    100% {
+      opacity: 0.3;
+      transform: translateY(0);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+
   .magenta-terminal-xterm .xterm,
   .magenta-terminal-xterm .xterm-viewport,
   .magenta-terminal-xterm .xterm-screen {
@@ -539,16 +553,239 @@
 }
 
 /*
- * Notion-style block editor surface.
+ * BlockNote editor overrides.
  *
- * The editor's contentEditable blocks live inside `[data-notion-editor]`.
- * Themed entirely from the project's CSS variables, which follow the `.dark`
- * class on <html> — so dark mode drops in automatically.
+ * Two hostile global resets need to be clawed back inside the editor root:
+ *   1. `@layer base { html, body, div, ... { font-family: ... !important } }`
+ *      in this file — overrides BlockNote's Inter stack everywhere.
+ *   2. `* { margin: 0; padding: 0 }` in `packages/main/renderer/index.html` —
+ *      collapses all block spacing and heading hierarchy.
+ *
+ * Restore both inside `.bn-container`, plus give headings a visible weight/
+ * size bump and inter-block margin so the editor reads like a Notion doc.
  */
-[data-notion-editor] {
-  font-family: var(--font-sans);
-  background: transparent;
+
+.bn-container,
+.bn-container *,
+.bn-container div,
+.bn-container button,
+.bn-container input,
+.bn-container textarea,
+.bn-mantine,
+.bn-mantine * {
+  /* Use the app's own font stack (defined at :root as --font-sans) rather
+     than hard-coding Inter. Keeps the markdown editor visually consistent
+     with the rest of the shell when the user customizes typography. */
+  font-family: var(--font-sans) !important;
+}
+
+.bn-container {
   color: var(--foreground);
+  background: transparent;
+  /* Reader body size — kept a touch larger than the app chrome (11–12px)
+     for document readability, but smaller than BlockNote's 16px default.
+     All heading sizes below are `em`-relative, so they scale with this. */
+  font-size: 13px;
+  line-height: 1.55;
+  /* Centered reading column. Widened again now that the Table of Contents
+     has moved to the right sidebar — the file-viewer pane no longer needs
+     to reserve room for an inline TOC, so the document gets more of the
+     width. Horizontal padding trimmed a touch for the same reason. Bottom
+     padding still leaves room for the AI chat bubble at right:16/bottom:16. */
+  max-width: 1040px;
+  margin-inline: auto;
+  padding: 48px 40px 96px;
+  box-sizing: border-box;
+}
+
+/* BlockNote's own editor root sets `padding-inline: 54px` — override it so
+   our `.bn-container` padding is what the reader sees, and vertical padding
+   isn't doubled. */
+.bn-container .bn-editor {
+  padding-inline: 0 !important;
+}
+
+/* Floating menus (formatting toolbar, slash menu, link menu, drag-handle
+   menu, emoji picker) render into a Mantine portal tagged `.bn-mantine`
+   OUTSIDE `.bn-container`. Restore padding/margin there too — the
+   universal `* { margin: 0; padding: 0 }` in index.html wipes the menu
+   layout otherwise — and make sure the popover sits above the rest of
+   the app chrome. */
+.bn-mantine {
+  z-index: 10000;
+}
+.bn-mantine .bn-menu-dropdown,
+.bn-mantine .bn-suggestion-menu,
+.bn-mantine .bn-grid-suggestion-menu,
+.bn-mantine .bn-drag-handle-menu,
+.bn-mantine .bn-formatting-toolbar,
+.bn-mantine .bn-link-toolbar,
+.bn-mantine .bn-file-toolbar,
+.bn-mantine .bn-side-menu {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.bn-mantine button {
+  cursor: pointer;
+}
+
+/* Restore block spacing — the global `* { padding: 0 }` in index.html
+   wipes BlockNote's intrinsic `padding: 3px 0` on `.bn-block-content`. */
+.bn-container .bn-block-content {
+  padding: 3px 0 !important;
+}
+
+/* Vertical rhythm between sibling blocks. A small margin keeps paragraphs
+   from merging; headings get extra top-margin via their own rules below. */
+.bn-container .bn-block-outer {
+  margin: 2px 0;
+}
+
+/* First block in the doc shouldn't push its top margin against the padding. */
+.bn-container .bn-block-group > .bn-block-outer:first-child .bn-block-content {
+  margin-top: 0 !important;
+}
+
+/* Heading hierarchy. BlockNote ships these via a CSS var (`--level`) but
+   Tailwind preflight and the `*` reset can flatten them — restate here.
+   Sizes/weights tuned to match Notion's reading hierarchy:
+     H1 1.875em / 700 / tight tracking
+     H2 1.5em   / 700
+     H3 1.25em  / 600
+     H4 1.1em   / 600
+     H5 1em     / 600
+     H6 0.9em   / 600 / muted */
+.bn-container .bn-block-content[data-content-type="heading"][data-level="1"] {
+  font-size: 1.875em !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+  letter-spacing: -0.01em;
+  margin-top: 1em;
+  margin-bottom: 0.25em;
+}
+.bn-container .bn-block-content[data-content-type="heading"][data-level="2"] {
+  font-size: 1.5em !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+  letter-spacing: -0.005em;
+  margin-top: 0.9em;
+  margin-bottom: 0.2em;
+}
+.bn-container .bn-block-content[data-content-type="heading"][data-level="3"] {
+  font-size: 1.25em !important;
+  font-weight: 600 !important;
+  line-height: 1.35 !important;
+  margin-top: 0.7em;
+  margin-bottom: 0.15em;
+}
+.bn-container .bn-block-content[data-content-type="heading"][data-level="4"] {
+  font-size: 1.1em !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-top: 0.6em;
+  margin-bottom: 0.1em;
+}
+.bn-container .bn-block-content[data-content-type="heading"][data-level="5"] {
+  font-size: 1em !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  margin-top: 0.5em;
+  margin-bottom: 0.1em;
+}
+.bn-container .bn-block-content[data-content-type="heading"][data-level="6"] {
+  font-size: 0.9em !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+  color: var(--muted-foreground);
+  margin-top: 0.5em;
+  margin-bottom: 0.1em;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Restore the natural margin around lists so bullets/numbers don't clip. */
+.bn-container ul,
+.bn-container ol {
+  padding-left: 1.2em;
+  margin: 0;
+}
+.bn-container li {
+  margin: 0;
+}
+
+/* Blockquote — a subtle left bar, Notion-style. */
+.bn-container .bn-block-content[data-content-type="quote"] {
+  border-left: 3px solid var(--border);
+  padding-left: 0.9em !important;
+  color: var(--muted-foreground);
+}
+
+/* Inline code + code block. The index.html `* { margin: 0 }` also hits
+   `<code>` and `<pre>`; restore sensible inline padding. */
+.bn-container code {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Consolas,
+    "Liberation Mono", Menlo, monospace !important;
+  background: var(--code-inline-bg, var(--muted));
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.88em;
+  color: color-mix(in srgb, var(--destructive) 65%, var(--foreground));
+}
+.bn-container pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+/* Inline marks — Notion uses 600 for bold (not 700) which reads cleaner on
+   Inter at body size. Links pick up the primary accent. */
+.bn-container strong,
+.bn-container b {
+  font-weight: 600;
+}
+.bn-container em,
+.bn-container i {
+  font-style: italic;
+}
+.bn-container u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.bn-container s,
+.bn-container del {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  opacity: 0.75;
+}
+.bn-container a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+}
+.bn-container a:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Selection tint — subtle primary wash, matching Notion's blue highlight. */
+.bn-container ::selection {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+/* Completed check-list items: keep the checkbox tick and the muted colour,
+   but drop the strikethrough. BlockNote's core sets `text-decoration:
+   line-through` on `[data-checked="true"] .bn-inline-content` — override
+   here so finished tasks stay legible without the visual noise. */
+.bn-container
+  .bn-block-content[data-content-type="checkListItem"][data-checked="true"]
+  .bn-inline-content {
+  text-decoration: none !important;
+}
+
+/* Neutralize the inherited `border-color` from `@layer base { * { border-border } }`. */
+.bn-container * {
+  border-color: inherit;
 }
 
 [data-notion-editor][data-readonly="true"] .nm-drag-handle {

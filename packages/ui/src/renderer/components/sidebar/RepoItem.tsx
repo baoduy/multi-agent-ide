@@ -180,21 +180,25 @@ export function RepoItem({ repo, active, pinned, onSelect, onTogglePin }: RepoIt
       >
         {/* Inline ★ suppressed here — the pin toggle on the right is the canonical control. */}
         <RepoLabel name={repo.name} size="md" boxed style={{ flex: 1, minWidth: 0 }}>
-          <Tag
-            size="chip"
-            tone={badge.tone}
-            icon={badge.Icon ? <badge.Icon size={9} strokeWidth={2} /> : undefined}
-          >
-            {badge.label}
-          </Tag>
-          {/* Current branch — read-only chip */}
-          <Tag
-            size="chip"
-            tone="branch"
-            icon={<GitBranch size={9} strokeWidth={2} />}
-          >
-            {repo.branch}
-          </Tag>
+          {(hovered || active) && (
+            <>
+              <Tag
+                size="chip"
+                tone={badge.tone}
+                icon={badge.Icon ? <badge.Icon size={9} strokeWidth={2} /> : undefined}
+              >
+                {badge.label}
+              </Tag>
+              {/* Current branch — read-only chip */}
+              <Tag
+                size="chip"
+                tone="branch"
+                icon={<GitBranch size={9} strokeWidth={2} />}
+              >
+                {repo.branch}
+              </Tag>
+            </>
+          )}
         </RepoLabel>
       </button>
 

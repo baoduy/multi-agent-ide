@@ -181,4 +181,42 @@ export class FileSystemGateway {
         return a.name.localeCompare(b.name);
       });
   }
+
+  /**
+   * Check whether a path exists. Returns false if it does not. Respects the
+   * PathGuard allowlist.
+   */
+  pathExists(p: string): boolean {
+    const resolved = this.resolveAllowed(p);
+    return fs.existsSync(resolved);
+  }
+
+  /**
+   * List direct subdirectories of `parent` that are not git repos, not hidden,
+   * and not files/symlinks. Returns absolute paths sorted alphabetically.
+   * A directory is considered a git repo if it contains a top-level `.git`
+   * entry (covers both standard `.git/` dirs and worktree gitlink files).
+   */
+  listDirectNonGitChildren(parent: string): string[] {
+    const resolved = this.resolveAllowed(parent);
+
+    if (!fs.existsSync(resolved)) {
+      throw new AppError("FILE_NOT_FOUND", `Directory not found: ${resolved}`);
+    }
+    const stat = fs.statSync(resolved);
+    if (!stat.isDirectory()) {
+      throw new AppError("VALIDATION_ERROR", `Path is not a directory: ${resolved}`);
+    }
+
+    const entries = fs.readdirSync(resolved, { withFileTypes: true });
+    const out: string[] = [];
+    for (const ent of entries) {
+      if (!ent.isDirectory()) continue;
+      if (ent.name.startsWith(".")) continue;
+      const full = path.join(resolved, ent.name);
+      if (fs.existsSync(path.join(full, ".git"))) continue;
+      out.push(full);
+    }
+    return out.sort();
+  }
 }

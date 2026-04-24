@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Eye, FileCode, Check, ChevronDown, Clipboard } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -7,19 +7,18 @@ import { sendOrThrow } from "../../services/ipcClient";
 import { colors } from "../../utils/colors";
 import { useTheme } from "../../theme/ThemeProvider";
 import {
-  extractHeadings,
   getFileName,
   isGitRefPath,
   isMarkdownFile,
   parseGitRef,
 } from "./fileViewerUtils";
-import {
-  MarkdownTableOfContents,
-  useActiveHeading,
-} from "./MarkdownTableOfContents";
 import { MarkdownEditor, type MarkdownEditorMethods } from "./MarkdownEditor";
+import { useMarkdownPreviewStore } from "../../store/markdownPreviewStore";
+import { useActiveEditorStore } from "../../store/activeEditorStore";
 import { ApproveButton } from "./ApproveButton";
 import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
+import { threeWayMerge } from "../../services/threeWayMerge";
+import { FileChangedBanner, type FileChangedAction } from "./FileChangedBanner";
 
 type ViewMode = "preview" | "edit";
 type SaveStatus = "idle" | "saving" | "saved";
@@ -159,9 +158,24 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>("preview");
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  /**
+   * Set when the watcher observes a disk change that the 3-way merge can't
+   * reconcile with the user's unsaved edits. Holds the new disk content so
+   * the banner's "Take disk" action can replace the buffer in one step.
+   */
+  const [pendingDiskChange, setPendingDiskChange] = useState<
+    { newContent: string; mtime: number } | null
+  >(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const editorRef = useRef<MarkdownEditorMethods>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Latest `content` / `editedContent` exposed to the watcher listener without
+  // re-subscribing every keystroke. Without these refs the effect would either
+  // capture stale state or have to re-run constantly.
+  const contentRefLatest = useRef<string | null>(null);
+  const editedContentRefLatest = useRef<string | null>(null);
+  contentRefLatest.current = content;
+  editedContentRefLatest.current = editedContent;
 
   const isGitRef = isGitRefPath(filePath);
   const canEdit = !isGitRef && isMarkdownFile(filePath);
@@ -230,21 +244,140 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   useEffect(() => () => clearTimeout(saveTimerRef.current), []);
 
+  /**
+   * Watch the open file for external changes. When one arrives, try a 3-way
+   * merge against the user's unsaved edits:
+   *   - `base`   = last content we read from disk (in `content`)
+   *   - `ours`   = current editor buffer (`editedContent`)
+   *   - `theirs` = newContent from the push event
+   *
+   * Clean merge → replace the buffer via `replaceMarkdownPreservingCursor`
+   * so the viewport doesn't snap to the top.
+   * Conflict → stash the new disk content and show a banner; the user picks
+   * a side.
+   *
+   * Skipped for git-ref paths (read-only views of historical content) and
+   * non-markdown files (the editor renders them as plain <pre>).
+   */
+  useEffect(() => {
+    if (isGitRef || !canEdit) return;
+    let cancelled = false;
+    let watchId: string | null = null;
+
+    void (async () => {
+      try {
+        const resp = await sendOrThrow({ type: "file:watch", filePath });
+        if (cancelled) {
+          // If we already unmounted, immediately unwatch; the component will
+          // never read the id back and we don't want a dangling watcher.
+          void sendOrThrow({ type: "file:unwatch", watchId: resp.watchId }).catch(() => {});
+          return;
+        }
+        watchId = resp.watchId;
+      } catch {
+        // Watcher is non-critical — file editing still works without it.
+        // Swallow errors (likely FILE_WATCH_FAILED on a file that was
+        // just deleted, etc.).
+      }
+    })();
+
+    const off = ipc.on("file:changed-on-disk", (evt) => {
+      if (!watchId || evt.watchId !== watchId) return;
+      const base = contentRefLatest.current ?? "";
+      const ours = editedContentRefLatest.current ?? base;
+      const theirs = evt.newContent;
+      // No local edits in flight → just take the disk content.
+      if (ours === base) {
+        setContent(theirs);
+        setEditedContent(theirs);
+        editorRef.current?.replaceMarkdownPreservingCursor(theirs);
+        return;
+      }
+      const result = threeWayMerge(base, ours, theirs);
+      if (result.ok) {
+        setContent(theirs);
+        setEditedContent(result.merged);
+        editorRef.current?.replaceMarkdownPreservingCursor(result.merged);
+      } else {
+        setPendingDiskChange({ newContent: theirs, mtime: evt.mtime });
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      off();
+      if (watchId) {
+        void sendOrThrow({ type: "file:unwatch", watchId }).catch(() => {});
+      }
+    };
+  }, [filePath, isGitRef, canEdit]);
+
+  /**
+   * Banner actions for the conflict case. "Use mine" silently takes the
+   * in-editor buffer and bumps `content` to the pending disk content so
+   * the next merge uses the right base. "Take disk" discards the buffer
+   * and loads the new content.
+   */
+  const handleConflictAction = useCallback(
+    (action: FileChangedAction) => {
+      if (!pendingDiskChange) return;
+      if (action === "use-mine") {
+        // Treat the disk content as the new base — future merges will reason
+        // from here even though we didn't adopt it in the editor.
+        setContent(pendingDiskChange.newContent);
+      } else if (action === "take-disk") {
+        setContent(pendingDiskChange.newContent);
+        setEditedContent(pendingDiskChange.newContent);
+        editorRef.current?.replaceMarkdownPreservingCursor(pendingDiskChange.newContent);
+      }
+      setPendingDiskChange(null);
+    },
+    [pendingDiskChange],
+  );
+
   const displayContent = editedContent ?? content;
 
-  const headings = useMemo(
-    () => (displayContent ? extractHeadings(displayContent) : []),
-    [displayContent],
-  );
-
-  const activeHeadingId = useActiveHeading(
-    contentRef,
-    headings,
-    viewMode === "preview",
-  );
-
   const isMd = displayContent !== null && isMarkdownFile(filePath);
-  const showToc = isMd && viewMode === "preview" && headings.length > 1;
+
+  // Register this pane with the global active-editor store so the app-level
+  // ChatBubble can find which file is currently on screen and attach itself
+  // to the right editor ref. Non-markdown viewers register with `null` so
+  // the bubble still shows (Ask-only) but can't reach for document text /
+  // selection. Unregisters on unmount or when the filePath changes so stale
+  // entries don't linger after a tab close.
+  const registerEditor = useActiveEditorStore((s) => s.register);
+  const unregisterEditor = useActiveEditorStore((s) => s.unregister);
+  useEffect(() => {
+    registerEditor(filePath, {
+      repoPath: repoPath ?? getFileDir(filePath),
+      editorRef: isMd ? editorRef : null,
+      readOnly: viewMode === "preview" || !canEdit,
+    });
+    return () => unregisterEditor(filePath);
+  }, [filePath, repoPath, isMd, viewMode, canEdit, registerEditor, unregisterEditor]);
+
+  // Publish the current preview to the right-sidebar TOC panel. Runs only
+  // when we're in preview mode on a markdown file — cleared otherwise and
+  // on unmount. `clearIf` guards against a late unmount stomping on a
+  // newer preview that just took over (tab switches are fast).
+  const setPreviewActive = useMarkdownPreviewStore((s) => s.setActive);
+  const clearPreviewIf = useMarkdownPreviewStore((s) => s.clearIf);
+  useEffect(() => {
+    const shouldPublish =
+      isMd && viewMode === "preview" && displayContent !== null && contentRef.current !== null;
+    if (!shouldPublish) {
+      clearPreviewIf(filePath);
+      return;
+    }
+    setPreviewActive({
+      filePath,
+      content: displayContent,
+      scrollEl: contentRef.current!,
+    });
+    return () => {
+      clearPreviewIf(filePath);
+    };
+  }, [filePath, isMd, viewMode, displayContent, setPreviewActive, clearPreviewIf]);
 
   if (loading) {
     return (
@@ -278,7 +411,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
   return (
     <div
       data-color-mode={resolved}
-      style={{ height: "100%", display: "flex", flexDirection: "column" }}
+      style={{ height: "100%", display: "flex", flexDirection: "column", position: "relative" }}
     >
       {isMd && (
         <div
@@ -354,32 +487,28 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
         </div>
       )}
 
+      {pendingDiskChange && (
+        <FileChangedBanner
+          ours={editedContent ?? content ?? ""}
+          theirs={pendingDiskChange.newContent}
+          onAction={handleConflictAction}
+        />
+      )}
+
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>
         {isMd ? (
-          <div style={{ display: "flex", minHeight: "100%" }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <MarkdownEditor
-                key={filePath}
-                ref={editorRef}
-                value={displayContent}
-                onChange={(val) => setEditedContent(val)}
-                onBlur={() => {
-                  if (isDirty) void save();
-                }}
-                readOnly={viewMode === "preview" || !canEdit}
-                filePath={filePath}
-                repoPath={repoPath}
-              />
-            </div>
-
-            {showToc && (
-              <MarkdownTableOfContents
-                headings={headings}
-                activeId={activeHeadingId}
-                containerRef={contentRef}
-              />
-            )}
-          </div>
+          <MarkdownEditor
+            key={filePath}
+            ref={editorRef}
+            value={displayContent}
+            onChange={(val) => setEditedContent(val)}
+            onBlur={() => {
+              if (isDirty) void save();
+            }}
+            readOnly={viewMode === "preview" || !canEdit}
+            filePath={filePath}
+            repoPath={repoPath}
+          />
         ) : (
           <pre
             style={{
@@ -400,4 +529,15 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
       </div>
     </div>
   );
+}
+
+/**
+ * Fallback repo path for files opened outside a tracked repo. The daemon's
+ * `.magenta/ai/config.json` resolver walks from this path; if nothing
+ * exists locally it falls back to `~/.magenta/ai/` and built-in defaults.
+ */
+function getFileDir(filePath: string): string {
+  const sep = filePath.includes("/") ? "/" : "\\";
+  const idx = filePath.lastIndexOf(sep);
+  return idx > 0 ? filePath.slice(0, idx) : filePath;
 }

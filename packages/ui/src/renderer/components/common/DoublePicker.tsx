@@ -3,6 +3,7 @@ import { Check, Search, X } from "lucide-react";
 
 import { colors } from "../../utils/colors";
 import { ScrollableText } from "./ScrollableText";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 /* ── Types ── */
 
@@ -154,6 +155,7 @@ function PickerTrigger({
   onClick,
 }: PickerTriggerProps): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const d = useDensityTokens();
   return (
     <button
       type="button"
@@ -170,7 +172,7 @@ function PickerTrigger({
         background: disabled ? "transparent" : (isOpen || hovered ? colors.bgHover : "transparent"),
         border: "none",
         cursor: disabled ? "not-allowed" : "pointer",
-        //fontSize: 11,
+        fontSize: d.font,
         fontWeight: 500,
         color: disabled ? colors.textTertiary : (selected ? colors.text : colors.textTertiary),
         opacity: disabled ? 0.55 : 1,
@@ -209,6 +211,7 @@ function DropdownPanel<T extends string>({
   const { options, value, onChange, searchable, searchPlaceholder, minPanelWidth } = sideConfig;
   const [search, setSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const d = useDensityTokens();
 
   useEffect(() => {
     if (searchable && searchInputRef.current) {
@@ -275,7 +278,7 @@ function DropdownPanel<T extends string>({
               flex: 1,
               border: "none",
               outline: "none",
-              //fontSize: 11,
+              fontSize: d.font,
               color: colors.text,
               background: "transparent",
               fontFamily: "inherit",
@@ -313,7 +316,7 @@ function DropdownPanel<T extends string>({
           <div
             style={{
               padding: 12,
-              //fontSize: 11,
+              fontSize: d.font,
               color: colors.textTertiary,
               textAlign: "center",
             }}
@@ -338,6 +341,7 @@ function DropdownItemComponent<T extends string>({
   onSelect: (value: T) => void;
 }): React.ReactElement {
   const [hovered, setHovered] = useState(false);
+  const d = useDensityTokens();
 
   return (
     <button
@@ -366,7 +370,7 @@ function DropdownItemComponent<T extends string>({
             <span
               style={{
                 display: "block",
-                //fontSize: 11,
+                fontSize: d.font,
                 color: colors.textTertiary,
                 marginTop: 1,
                 lineHeight: 1.3,
@@ -386,7 +390,7 @@ function DropdownItemComponent<T extends string>({
           <span style={{ flex: 1, minWidth: 0 }}>
             <ScrollableText
               style={{
-                //fontSize: 11,
+                fontSize: d.font,
                 fontWeight: 500,
                 color: colors.text,
                 lineHeight: 1.4,
@@ -403,7 +407,7 @@ function DropdownItemComponent<T extends string>({
               <span
                 style={{
                   display: "block",
-                  //fontSize: 11,
+                  fontSize: d.font,
                   color: colors.textTertiary,
                   marginTop: 1,
                   lineHeight: 1.3,

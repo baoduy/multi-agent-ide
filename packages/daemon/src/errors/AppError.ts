@@ -16,7 +16,12 @@ export type AppErrorCode =
   | "GIT_UNSAFE_OPERATION"
   | "CONFIG_ERROR"
   | "SESSION_SYNC_ERROR"
-  | "SESSION_PARSE_ERROR";
+  | "SESSION_PARSE_ERROR"
+  | "AI_CONFIG_INVALID"
+  | "AI_PROVIDER_NOT_AVAILABLE"
+  | "AI_TIMEOUT"
+  | "AI_CLI_FAILED"
+  | "FILE_WATCH_FAILED";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

@@ -14,11 +14,17 @@ export function registerGitCloneHandlers({ bridge, cloneService }: GitCloneHandl
       targetDir: msg.targetDir,
       folderName: msg.folderName,
       depth: msg.depth,
+      cloneId: msg.cloneId,
     });
     return {
       type: "git:clone:started",
       cloneId: result.cloneId,
       targetPath: result.targetPath,
     };
+  });
+
+  safeHandle(bridge, "git:list-clone-destinations", async () => {
+    const roots = cloneService.listCloneDestinations();
+    return { type: "git:clone-destinations", roots };
   });
 }

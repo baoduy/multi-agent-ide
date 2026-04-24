@@ -453,17 +453,24 @@ function registerIpcHandler() {
       console.log(`[main] Forwarding request #${id} (${requestType}) to daemon`);
       daemonProcess!.send({ kind: "request", id, payload: request });
 
-      // Timeout after 30 seconds — gives the daemon enough headroom for
-      // legitimately slow operations (large repo git commands, first-time
-      // spec sync) without masking real hangs.
+      // AI chat requests spawn an external CLI (`claude` / `copilot`) which
+      // streams responses back over push events. Spec-level chats in
+      // particular can take several minutes when the agent explores a
+      // large spec folder. Streaming keeps the user engaged visually so a
+      // generous wall-clock cap is fine; we just want it high enough that
+      // long answers don't 504 mid-stream. Everything else sticks to the
+      // original 30s budget — git, file IO, spec sync should never need
+      // longer, and a generous default would mask real hangs.
+      const timeoutMs = requestType.startsWith("ai-chat:") ? 600_000 : 30_000;
       setTimeout(() => {
         if (pendingRequests.has(id)) {
           pendingRequests.delete(id);
-          console.warn(`[main] Request #${id} (${requestType}) timed out after 30s`);
-          writeLog("WARN", "main", `IPC request #${id} (${requestType}) timed out after 30s`);
+          const secs = Math.round(timeoutMs / 1000);
+          console.warn(`[main] Request #${id} (${requestType}) timed out after ${secs}s`);
+          writeLog("WARN", "main", `IPC request #${id} (${requestType}) timed out after ${secs}s`);
           resolve({ type: "error", message: "Daemon request timed out" });
         }
-      }, 30_000);
+      }, timeoutMs);
     });
   });
 }

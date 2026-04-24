@@ -147,6 +147,13 @@ export function BaseDialog({
         <div
           style={{
             padding: d.dialogBodyPad,
+            // Default font size for dialog body content. Without this, any
+            // inline-styled child that omits its own fontSize falls back to
+            // the browser default (16px), which doesn't follow the xs/sm
+            // density preference. Children may still override per-element.
+            fontSize: d.font,
+            color: colors.text,
+            lineHeight: 1.5,
             ...(scrollable ? { flex: 1, overflowY: "auto" as const, minHeight: 100 } : {}),
           }}
         >

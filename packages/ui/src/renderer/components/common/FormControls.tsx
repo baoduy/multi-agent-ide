@@ -1,6 +1,7 @@
 import React from "react";
 
 import { colors } from "../../utils/colors";
+import { useDensityTokens } from "../../hooks/useComponentSize";
 
 type FormLabelProps = {
   htmlFor?: string;
@@ -10,12 +11,13 @@ type FormLabelProps = {
 
 /** Uppercase form field label consistent across all dialogs. */
 export function FormLabel({ htmlFor, children, style }: FormLabelProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <label
       htmlFor={htmlFor}
       style={{
         display: "block",
-        //fontSize: 11,
+        fontSize: d.headerFont,
         fontWeight: 600,
         color: colors.textSecondary,
         marginBottom: 6,
@@ -49,6 +51,7 @@ export function FormInput({
   error = false,
   inputRef,
 }: FormInputProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <input
       ref={inputRef}
@@ -61,7 +64,7 @@ export function FormInput({
       style={{
         width: "100%",
         padding: "4px 8px",
-        //fontSize: 11,
+        fontSize: d.font,
         border: `1px solid ${error ? colors.error : colors.border}`,
         borderRadius: 4,
         outline: "none",
@@ -109,6 +112,7 @@ export function FormTextarea({
   minHeight = 80,
   textareaRef,
 }: FormTextareaProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <textarea
       ref={textareaRef}
@@ -121,7 +125,7 @@ export function FormTextarea({
       style={{
         width: "100%",
         padding: "4px 8px",
-        //fontSize: 11,
+        fontSize: d.font,
         border: `1px solid ${error ? colors.error : colors.border}`,
         borderRadius: 4,
         outline: "none",
@@ -151,10 +155,11 @@ type SectionHeaderProps = {
 
 /** Uppercase section header used for grouping content (e.g. "Changed files", "Local merge"). */
 export function SectionHeader({ children, style }: SectionHeaderProps): React.ReactElement {
+  const d = useDensityTokens();
   return (
     <div
       style={{
-        //fontSize: 11,
+        fontSize: d.headerFont,
         fontWeight: 600,
         textTransform: "uppercase",
         letterSpacing: "0.08em",
@@ -174,13 +179,14 @@ type FormErrorProps = {
 
 /** Inline error message below a form field. */
 export function FormError({ message }: FormErrorProps): React.ReactElement | null {
+  const d = useDensityTokens();
   if (!message) return null;
   return (
-    <p style={{ 
-      //fontSize: 11, 
-      color: colors.error, 
-      margin: "6px 0 0", 
-      fontWeight: 500 
+    <p style={{
+      fontSize: d.font,
+      color: colors.error,
+      margin: "6px 0 0",
+      fontWeight: 500
     }}>
       {message}
     </p>

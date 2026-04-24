@@ -32,14 +32,12 @@
 
 ## Notes
 
-- All items passed on third validation pass.
-- **v3 enhancements** applied over v2:
-  1. **Global-top / local-bottom layout** (US-2, FR-002): Every category accordion and center grid must group User (Global) extensions at the top and Workspace (Local) at the bottom with labelled dividers.
-  2. **Per-category Inspector UI design** (UI Design section): Detailed field-by-field Inspector layouts specified for all seven extension types — Agents, Skills, MCP Servers, Hooks, Prompts, Instructions, Plugins.
-  3. **Claude-first / Copilot reuse** (US-4, FR-011–FR-013): Agent settings schema is shared across providers; switching from Claude to Copilot carries over compatible fields (system prompt, temperature, max tokens, tools). Provider-specific fields shown only when that provider is selected. Credentials always secret-store backed.
-  4. **Scope switcher** (US-2 AC-4/5, FR-006): Sidebar scope switcher filters all categories to User / Workspace / All.
-  5. **User stories expanded** from 7 to 9; FRs from 26 to 31; SCs from 13 to 15.
-- Scope resolution order: workspace → user → built-in (FR-009, Assumptions).
-- Phase 1 minimum shippable increment: Agents end-to-end (settings, Claude/Copilot provider config, dual-scope, grouping layout) — documented in FR-031 and Assumptions.
-- Ready to proceed to `/speckit.clarify` or `/speckit.plan`.
+- All items passed on fourth validation pass.
+- **v4 enhancements (2026-04-22 clarification session)**:
+  1. **Sidebar integration**: AI Extensions accordion added *below* the existing RepoTree in the left sidebar. RepoTree is unchanged. Resizable divider between the two regions.
+  2. **File-editor model**: All config editing uses the existing IDE code editor. Clicking an extension item opens its MD or JSON source file. No custom settings form. No approval button. A read-only metadata strip appears at the top of the editor tab (name, scope, path, status, enable/disable toggle).
+  3. **Claude scope paths**: User (global) = `~/.claude/`; workspace (project) = `.claude/`; local personal overrides = `.claude/settings.local.json` (git-ignored). The IDE reads/writes Claude Code's own directories directly. Scope resolution order: `settings.local.json` → `.claude/settings.json` → `~/.claude/settings.json` → built-in.
+  4. FRs 007–016 rewritten to reflect file-editor model and Claude paths. Key Entities updated. Assumptions replaced. Clarifications section added.
+- Phase 1 minimum shippable increment: Claude Agents accordion (file-editor model, scope-aware grouping, `~/.claude/` + `.claude/` paths, metadata strip, enable toggle).
+- Ready to proceed to `/speckit.plan`.
 

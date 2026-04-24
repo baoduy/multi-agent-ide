@@ -1,13 +1,24 @@
 import type { IPCBridge } from "../IPCBridge";
 import type { FileSystemGateway } from "../../infrastructure/FileSystemGateway";
+import type { FileWatchService } from "../../application/FileWatchService";
 import { safeHandle } from "../createHandler";
 
 type FileHandlerContext = {
   bridge: IPCBridge;
   fileSystemGateway: FileSystemGateway;
+  /**
+   * Optional — when present, file:write notifies it so the watcher doesn't
+   * re-fire the app's own saves as external changes. Omitting it (e.g. in
+   * unit tests that don't care about watching) just disables that coupling.
+   */
+  fileWatchService?: FileWatchService;
 };
 
-export function registerFileHandlers({ bridge, fileSystemGateway }: FileHandlerContext): void {
+export function registerFileHandlers({
+  bridge,
+  fileSystemGateway,
+  fileWatchService,
+}: FileHandlerContext): void {
   /**
    * Handles "file:read" requests.
    * Reads and returns the text content of a file.
@@ -24,9 +35,15 @@ export function registerFileHandlers({ bridge, fileSystemGateway }: FileHandlerC
   /**
    * Handles "file:write" requests.
    * Writes text content to a file (creates or overwrites).
+   *
+   * After a successful write we tell FileWatchService about the content we
+   * just wrote. Any chokidar event that fires with identical content inside
+   * the suppression window is treated as our own save and swallowed, so the
+   * renderer doesn't see its own save as a "file changed on disk" event.
    */
   safeHandle(bridge, "file:write", async (msg) => {
-    fileSystemGateway.writeFile(msg.filePath, msg.content);
+    const resolved = fileSystemGateway.writeFile(msg.filePath, msg.content);
+    fileWatchService?.noteSelfWrite(resolved, msg.content);
     return {
       type: "file:write:result",
       filePath: msg.filePath,

@@ -43,7 +43,16 @@
       "Bash(rtk wc *)",
       "Bash(pnpm -F ui typecheck)",
       "Bash(pnpm -C packages/ui build)",
-      "Bash(rtk grep *)"
+      "Bash(rtk grep *)",
+      "mcp__plugin_claude-mem_mcp-search__smart_outline",
+      "Bash(pnpm --filter @magenta/shared build)",
+      "Bash(pnpm -w typecheck)",
+      "Bash(pnpm -w build)",
+      "Bash(rtk read *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:novel.sh)",
+      "Bash(pnpm add *)",
+      "Bash(node node_modules/.pnpm/electron@41.3.0/node_modules/electron/install.js)"
     ]
   }
 }

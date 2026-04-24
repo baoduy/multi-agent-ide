@@ -77,6 +77,12 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("file:delete"), filePath: z.string() }),
   z.object({ type: z.literal("file:rename"), oldPath: z.string(), newPath: z.string() }),
+  // Watch a single file for external changes. The daemon opens a chokidar
+  // watcher and pushes `file:changed-on-disk` events whenever the file is
+  // written by someone other than the app itself (self-writes are suppressed
+  // via a short-lived content-match window — see FileWatchService).
+  z.object({ type: z.literal("file:watch"), filePath: z.string() }),
+  z.object({ type: z.literal("file:unwatch"), watchId: z.string() }),
   z.object({ type: z.literal("dir:list"), dirPath: z.string() }),
   // NOTE: session:get / session:update removed — session state now persisted in localStorage
   z.object({ type: z.literal("config:get") }),
@@ -188,6 +194,12 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     targetDir: z.string().min(1),
     folderName: z.string().min(1).max(200).regex(/^[A-Za-z0-9._\-]+$/, "folder name contains invalid characters"),
     depth: z.number().int().positive().max(10000).optional(),
+    cloneId: z.string().uuid().optional(),
+  }),
+  // Lists configured working dirs and their direct non-git subfolders as
+  // valid clone destinations.
+  z.object({
+    type: z.literal("git:list-clone-destinations"),
   }),
   // Commit history — paginated. Limit capped at 500 to avoid blocking the daemon.
   z.object({
@@ -284,6 +296,83 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     repoPath: z.string().optional(),
   }),
   z.object({ type: z.literal("cli:upgrade:cancel"), tool: CliToolIdSchema }),
+  // AI-assisted markdown editor — settings view (resolved config + action list).
+  z.object({ type: z.literal("ai-edit:get-config"), repoPath: z.string() }),
+  z.object({ type: z.literal("ai-edit:list-actions"), repoPath: z.string() }),
+  // AI chat bubble — three explicit modes. `history` is truncated by the
+  // daemon before being rendered into the prompt (see AiEditApplicationService).
+  //
+  // `filePath` is optional: when present and the file is a markdown file
+  // inside `repoPath`, the daemon switches to "repo-aware" ask mode — it
+  // drops `documentText` from the prompt, sets cwd to `repoPath`, pre-
+  // approves Read/Glob/Grep, and instructs the model to read the file (and
+  // any neighbors it needs) itself. When absent, the legacy packed-prompt
+  // flow is used.
+  z.object({
+    type: z.literal("ai-chat:ask"),
+    repoPath: z.string(),
+    filePath: z.string().optional(),
+    userMessage: z.string(),
+    history: z.array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        text: z.string(),
+      }),
+    ),
+    documentText: z.string(),
+    selection: z
+      .object({
+        start: z.number().int().nonnegative(),
+        end: z.number().int().nonnegative(),
+        text: z.string(),
+      })
+      .optional(),
+    /** Per-turn UUID from the UI; used to route streaming deltas back. */
+    streamId: z.string().optional(),
+    /** Claude provider session id from a previous turn — enables `--resume`. */
+    resumeSessionId: z.string().optional(),
+    /** UI-selected provider override; falls back to disk config when absent. */
+    provider: z.enum(AI_PROVIDERS).optional(),
+  }),
+  z.object({
+    type: z.literal("ai-chat:edit-selection"),
+    repoPath: z.string(),
+    instruction: z.string(),
+    documentText: z.string(),
+    selection: z.object({
+      start: z.number().int().nonnegative(),
+      end: z.number().int().nonnegative(),
+      text: z.string(),
+    }),
+  }),
+  z.object({
+    type: z.literal("ai-chat:modify-document"),
+    repoPath: z.string(),
+    instruction: z.string(),
+    documentText: z.string(),
+  }),
+  // Spec-folder review chat — agent-driven read-only Q&A over an entire
+  // spec folder. The daemon spawns `claude -p` with cwd = repoPath and an
+  // appended system prompt telling the agent which folder to focus on;
+  // the agent then reads files itself via its Read/Glob/Grep tools.
+  z.object({
+    type: z.literal("ai-chat:ask-spec"),
+    repoPath: z.string(),
+    specName: z.string(),
+    specRelPath: z.string(),
+    currentFileName: z.string().optional(),
+    userMessage: z.string(),
+    history: z.array(
+      z.object({
+        role: z.enum(["user", "assistant"]),
+        text: z.string(),
+      }),
+    ),
+    /** Per-turn UUID from the UI; used to route streaming deltas back. */
+    streamId: z.string().optional(),
+    /** Claude provider session id from a previous turn — enables `--resume`. */
+    resumeSessionId: z.string().optional(),
+  }),
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -345,6 +434,36 @@ export const BlameLineSchema = z.object({
 
 export type BlameLine = z.infer<typeof BlameLineSchema>;
 
+/**
+ * AI-editor action definitions.
+ * `source` indicates where this action was resolved from — useful for UI display.
+ * `scope` controls which template variables are available to the prompt body.
+ */
+export const AiEditActionSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  icon: z.string().optional(),
+  scope: z.enum(["selection", "document"]).default("selection"),
+  source: z.enum(["builtin", "global", "repo"]),
+});
+export type AiEditAction = z.infer<typeof AiEditActionSchema>;
+
+/**
+ * Resolved AI-editor config. `sourceTrace` records where each field came from
+ * (repo config, global config, or built-in default) so the settings view can
+ * show the user what's active and why.
+ */
+export const AiEditConfigSchema = z.object({
+  provider: z.enum(AI_PROVIDERS),
+  model: z.string(),
+  timeoutMs: z.number().int().positive(),
+  extraArgs: z.array(z.string()),
+  sourceTrace: z.record(z.string(), z.string()),
+  repoConfigPath: z.string(),
+  globalConfigPath: z.string(),
+});
+export type AiEditConfig = z.infer<typeof AiEditConfigSchema>;
+
 export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("repo:list:result"), repos: z.array(RepositorySchema) }),
   z.object({ type: z.literal("repo:scan:started") }),
@@ -376,6 +495,21 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("file:delete:result"), filePath: z.string(), success: z.boolean() }),
   z.object({ type: z.literal("file:rename:result"), oldPath: z.string(), newPath: z.string(), success: z.boolean() }),
+  // File watcher: response for `file:watch` carries the watchId the renderer
+  // must pass back to `file:unwatch`. `file:unwatched` is an ack.
+  z.object({ type: z.literal("file:watched"), filePath: z.string(), watchId: z.string() }),
+  z.object({ type: z.literal("file:unwatched"), watchId: z.string() }),
+  // Push event: emitted when a watched file changes on disk and the change
+  // isn't one of the app's own recent writes. Routed by `watchId` so the
+  // renderer knows which tab to route the event to (handles two tabs open
+  // on the same file independently). `mtime` is ms-since-epoch for dedupe.
+  z.object({
+    type: z.literal("file:changed-on-disk"),
+    watchId: z.string(),
+    filePath: z.string(),
+    newContent: z.string(),
+    mtime: z.number().int().nonnegative(),
+  }),
   z.object({
     type: z.literal("dir:list:result"),
     dirPath: z.string(),
@@ -547,6 +681,15 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     success: z.boolean(),
     error: z.string().optional(),
   }),
+  // Valid clone destinations: each configured working dir plus its direct
+  // non-git subfolders (absolute paths).
+  z.object({
+    type: z.literal("git:clone-destinations"),
+    roots: z.array(z.object({
+      root: z.string(),
+      children: z.array(z.string()),
+    })),
+  }),
   z.object({
     type: z.literal("git:log:result"),
     repoPath: z.string(),
@@ -602,6 +745,33 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   }),
   z.object({ type: z.literal("cli:upgrade:output"), tool: CliToolIdSchema, data: z.string() }),
   z.object({ type: z.literal("cli:upgrade:complete"), tool: CliToolIdSchema, success: z.boolean(), error: z.string().optional() }),
+  // AI-assisted markdown editor — settings.
+  z.object({ type: z.literal("ai-edit:get-config:result"), config: AiEditConfigSchema }),
+  z.object({ type: z.literal("ai-edit:list-actions:result"), actions: z.array(AiEditActionSchema) }),
+  // AI chat bubble.
+  z.object({ type: z.literal("ai-chat:ask:result"), text: z.string() }),
+  z.object({ type: z.literal("ai-chat:edit-selection:result"), newText: z.string() }),
+  z.object({ type: z.literal("ai-chat:modify-document:result"), newDocumentText: z.string() }),
+  z.object({ type: z.literal("ai-chat:ask-spec:result"), text: z.string() }),
+  // Streaming push events for conversational chat turns. Routed by
+  // `streamId` (the UI-generated UUID the request carried).
+  z.object({
+    type: z.literal("ai-chat:stream:delta"),
+    streamId: z.string(),
+    delta: z.string(),
+    /**
+     * Which channel this chunk belongs to. `"text"` is the model's final
+     * answer; `"thinking"` covers extended-thinking text and compact tool
+     * activity (e.g. `→ Read(foo.md)`) surfaced from Claude's stream-json
+     * output. Defaults to `"text"` for back-compat.
+     */
+    kind: z.enum(["text", "thinking"]).optional(),
+  }),
+  z.object({
+    type: z.literal("ai-chat:stream:session"),
+    streamId: z.string(),
+    sessionId: z.string(),
+  }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

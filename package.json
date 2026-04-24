@@ -5,7 +5,7 @@
   "description": "Multi-repo multi-agent IDE for spec-driven development",
   "author": "Steven Hoang <drunkcoding@outlook.com>",
   "main": "packages/main/dist/index.js",
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.33.2",
   "pnpm": {},
   "scripts": {
     "dev": "pnpm build && pnpm -C packages/main dev",
@@ -28,14 +28,14 @@
     "postinstall": "electron-rebuild -f -w node-pty,lmdb"
   },
   "devDependencies": {
-    "@electron/rebuild": "^4.0.3",
+    "@electron/rebuild": "^4.0.4",
     "@types/node": "25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "electron": "41.2.1",
+    "electron": "41.3.0",
     "electron-builder": "26.8.1",
     "esbuild": "^0.28.0",
-    "shadcn": "^4.3.1",
+    "shadcn": "^4.4.0",
     "typescript": "6.0.3"
   }
 }

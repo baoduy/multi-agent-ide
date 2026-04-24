@@ -6,8 +6,9 @@ I walked through every file referenced in the architecture review against the ac
 
 - **validators.ts is 14 lines and completely unused** — Zod schemas exist in `shared/src/ipc.ts` and validators exist in `daemon/src/ipc/validators.ts`, but zero handlers call them. Every handler does raw `payload as Record<string, unknown>` casting instead.
 - **AppError is also unused** — defined in `daemon/src/errors/AppError.ts` but no handler catches or throws it. Errors are ad-hoc string messages.
+- 
 - **sessionStore has 10 nearly identical update methods** (lines 69–147) that each do: set local state → fire-and-forget IPC send → no response validation, no error handling.
-- **repoStore and specStore both use `Promise.resolve().then(() => import(...))` to avoid circular deps** with sessionStore — a clear sign that cross-store ownership needs rethinking.
+- **repoStore and specStore both use** `Promise.resolve().then(() => import(...))` to avoid circular deps with sessionStore — a clear sign that cross-store ownership needs rethinking.
 - **worktreeHandlers.ts at 226 lines** is the worst offender: it contains worktree list parsing logic, `execSync` git calls, `.gitignore` mutation, and IPC event broadcasting all in one handler file.
 
 The existing strengths called out in the review (shared contracts, class-based services, ScanQueue, ConfigManager, IPCBridge) are all confirmed and should be preserved.
@@ -33,6 +34,7 @@ request in → validate with Zod schema → call handler fn → catch errors →
 This eliminates the repeated `payload as Record<string, unknown>` casts in all 6 handler files and the ad-hoc error formatting. Handlers receive a **validated, typed** request object.
 
 **What changes:**
+
 - Each handler function signature changes from `(payload: unknown) => response` to `(request: ValidatedRequest) => response`
 - Error responses are produced by the wrapper, not by individual handlers
 
@@ -45,6 +47,7 @@ Extend the error code enum to cover domain-specific cases (e.g., `REPO_NOT_FOUND
 ### Step 1.3 — Introduce Application Services (daemon side)
 
 **New files:**
+
 - `packages/daemon/src/application/RepoApplicationService.ts`
 - `packages/daemon/src/application/SpecApplicationService.ts`
 - `packages/daemon/src/application/FileApplicationService.ts`
@@ -54,6 +57,7 @@ Extend the error code enum to cover domain-specific cases (e.g., `REPO_NOT_FOUND
 Each application service encapsulates the orchestration logic currently living in handlers. For example, `WorktreeApplicationService.createWorktree()` would own the full sequence: validate inputs → create git worktree → update .gitignore → return result. The handler just calls it and returns.
 
 **What moves out of handlers:**
+
 - `repoHandlers.ts`: `new RepoScanner(3)` construction (line 24), direct `repoRepository` / `configManager` calls
 - `specHandlers.ts`: `new SpecReader()` construction (line 12), spec listing orchestration
 - `fileHandlers.ts`: `fs.existsSync` / `fs.readFileSync` / `fs.statSync` calls (lines 29–52), file size policy
@@ -69,7 +73,7 @@ The current broad context object (lines 17–25) with selective slicing gets rep
 ### Phase 1 Deliverables
 
 | Before | After |
-|--------|-------|
+| --- | --- |
 | 15+ raw `payload as Record<string, unknown>` casts | 0 — wrapper validates with Zod |
 | 6 handler files with ad-hoc error formatting | 1 central error normalizer in wrapper |
 | Service construction inside handlers | Constructor injection via application services |
@@ -110,7 +114,7 @@ createStoreAction({
 })
 ```
 
-This eliminates the ~18 lines of boilerplate repeated 3 times in `configStore`, the incomplete pattern in `repoStore`, and the inconsistent error handling across all stores.
+This eliminates the \~18 lines of boilerplate repeated 3 times in `configStore`, the incomplete pattern in `repoStore`, and the inconsistent error handling across all stores.
 
 ### Step 2.3 — Create SessionCoordinator
 
@@ -123,6 +127,7 @@ Replaces the three places that currently coordinate session state:
 3. `useSessionRestoration.ts` lines 16–64 (orchestrates all three stores)
 
 The coordinator is a standalone module that imports all stores and provides:
+
 - `selectRepo(path)` — updates repoStore + sessionStore atomically
 - `selectSpec(path)` — updates specStore + sessionStore atomically
 - `restoreSession()` — replaces the hook's restoration logic
@@ -144,8 +149,8 @@ that sets local state and sends one `session:update` IPC message. Focused select
 ### Phase 2 Deliverables
 
 | Before | After |
-|--------|-------|
-| ~90 lines of duplicated async/IPC boilerplate across 5 stores | ~15 lines using `createStoreAction` per store |
+| --- | --- |
+| \~90 lines of duplicated async/IPC boilerplate across 5 stores | \~15 lines using `createStoreAction` per store |
 | 2 dynamic imports to avoid circular deps | 0 — SessionCoordinator owns cross-store coordination |
 | 10 identical session update methods | 1 generic `patchSession` + selectors |
 | Inconsistent error handling (some `instanceof Error`, some `response.message`) | Uniform via `sendOrThrow` |
@@ -164,6 +169,7 @@ that sets local state and sends one `session:update` IPC message. Focused select
 **Current:** `SpecReader` (587 lines) mixes spec metadata parsing with `fs.readFileSync`, `execSync('git ...')`, and path resolution.
 
 **Target:**
+
 - `packages/daemon/src/domain/SpecParser.ts` — pure functions for parsing spec metadata, extracting frontmatter, task structure, implementation status. No I/O. Fully unit-testable.
 - `packages/daemon/src/infrastructure/SpecGitGateway.ts` — wraps git and filesystem access for spec files. Returns raw content strings that the parser consumes.
 
@@ -172,6 +178,7 @@ that sets local state and sends one `session:update` IPC message. Focused select
 ### Step 3.2 — Create GitGateway and FileSystemGateway
 
 **New files:**
+
 - `packages/daemon/src/infrastructure/GitGateway.ts` — wraps `simple-git` and `execSync` calls for worktree creation, branch listing, branch checkout. Replaces the inline `execSync` in `worktreeHandlers.ts` (lines 176–193).
 - `packages/daemon/src/infrastructure/FileSystemGateway.ts` — wraps `fs` calls with consistent error handling. Replaces inline `fs.existsSync` / `fs.readFileSync` / `fs.statSync` in `fileHandlers.ts` (lines 29–52).
 
@@ -193,8 +200,8 @@ Currently, save policy is split between periodic auto-save (line 24–25), manua
 ### Phase 3 Deliverables
 
 | Before | After |
-|--------|-------|
-| `SpecReader` 587 lines mixing parsing + I/O | `SpecParser` (~200 lines, pure) + `SpecGitGateway` (~100 lines) |
+| --- | --- |
+| `SpecReader` 587 lines mixing parsing + I/O | `SpecParser` (\~200 lines, pure) + `SpecGitGateway` (\~100 lines) |
 | `execSync` in worktreeHandlers | `GitGateway.createWorktree()` |
 | `fs.*` calls in fileHandlers | `FileSystemGateway.read/stat/exists()` |
 | Repeated row mapping in repositories | Shared mappers in `infrastructure/mappers/` |
@@ -223,6 +230,7 @@ DatabaseService → Gateways → Parsers → Application Services → Handler Re
 **Modified file:** `packages/daemon/src/index.ts`
 
 Bootstrap becomes:
+
 1. Initialize WASM/SQLite
 2. Create `DaemonContainer`
 3. Start lifecycle (file watchers, background jobs, IPC bridge)
@@ -233,7 +241,7 @@ The current manual service composition (lines 18–31) and broad handler context
 ### Phase 4 Deliverables
 
 | Before | After |
-|--------|-------|
+| --- | --- |
 | Manual service assembly in `index.ts` (lines 18–31) | `DaemonContainer` constructs everything |
 | Broad context object in `registerHandlers` | Handlers receive only their application service |
 | Bootstrap mixes wiring + lifecycle | Bootstrap is lifecycle-only |
@@ -346,12 +354,12 @@ Each phase should include tests before merging:
 ## Estimated Scope
 
 | Phase | New Files | Modified Files | Estimated Effort |
-|-------|-----------|---------------|-----------------|
+| --- | --- | --- | --- |
 | Phase 1 | 6 | 8 | 2–3 days |
 | Phase 2 | 3 | 6 | 1–2 days |
 | Phase 3 | 5 | 4 | 2–3 days |
 | Phase 4 | 1 | 2 | 0.5–1 day |
-| **Total** | **15** | **20** | **~6–9 days** |
+| **Total** | **15** | **20** | **\~6–9 days** |
 
 ---
 

@@ -57,7 +57,9 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }): React.
     );
   }
 
-  // assistant — pending with no content yet (show typing dots)
+  // assistant — pending with no visible content yet. If thinking-channel
+  // text has started arriving (tool calls, extended thinking) we surface
+  // that live so the user isn't staring at dots while the model works.
   if (message.status === "pending" && !message.text) {
     return (
       <div
@@ -66,14 +68,22 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }): React.
           background: colors.bgMuted,
           padding: "10px 14px",
           borderRadius: "14px 14px 14px 2px",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 4,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          gap: 6,
+          maxWidth: "100%",
         }}
       >
-        <Dot delay={0} />
-        <Dot delay={150} />
-        <Dot delay={300} />
+        {message.thinking ? (
+          <ThinkingBlock text={message.thinking} defaultOpen />
+        ) : (
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <Dot delay={0} />
+            <Dot delay={150} />
+            <Dot delay={300} />
+          </div>
+        )}
       </div>
     );
   }
@@ -124,7 +134,8 @@ export function ChatMessageBubble({ message }: { message: ChatMessage }): React.
       }}
     >
       <Sparkles size={12} strokeWidth={1.8} color={colors.primary} style={{ marginTop: 3, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+        {message.thinking && <ThinkingBlock text={message.thinking} defaultOpen={isStreaming} />}
         <MarkdownContent source={message.text} />
       </div>
       {!isStreaming && <CopyButton text={message.text} />}
@@ -173,6 +184,61 @@ function CopyButton({ text }: { text: string }): React.ReactElement {
     >
       {copied ? <Check size={12} strokeWidth={2.2} /> : <Copy size={12} strokeWidth={1.8} />}
     </button>
+  );
+}
+
+/* ─── Thinking block ─────────────────────────────────────────────── */
+
+/**
+ * Collapsible preview of the model's intermediate reasoning — extended
+ * thinking text plus tool-activity summaries (`→ Read(...)`). Rendered
+ * smaller and muted so it sits quietly above the final answer.
+ *
+ * Uses a native `<details>` so keyboard toggling, accessibility, and
+ * preserved open state come for free. `defaultOpen` is true while the
+ * turn is still streaming so the user sees progress; once the reply text
+ * arrives the block stays in whatever state the user last set it to.
+ */
+function ThinkingBlock({ text, defaultOpen }: { text: string; defaultOpen: boolean }): React.ReactElement {
+  return (
+    <details
+      open={defaultOpen}
+      style={{
+        alignSelf: "stretch",
+        border: `1px dashed ${colors.border}`,
+        borderRadius: 6,
+        padding: "4px 8px",
+        fontSize: 10,
+        color: colors.textMuted,
+        background: "transparent",
+      }}
+    >
+      <summary
+        style={{
+          cursor: "pointer",
+          listStyle: "none",
+          userSelect: "none",
+          color: colors.textTertiary,
+          fontWeight: 500,
+          outline: "none",
+        }}
+      >
+        Thinking
+      </summary>
+      <div
+        style={{
+          marginTop: 4,
+          whiteSpace: "pre-wrap",
+          wordBreak: "break-word",
+          fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
+          fontSize: 10,
+          lineHeight: 1.4,
+          color: colors.textMuted,
+        }}
+      >
+        {text}
+      </div>
+    </details>
   );
 }
 

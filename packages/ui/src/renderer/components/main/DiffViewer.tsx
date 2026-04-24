@@ -16,6 +16,7 @@ import { colors } from "../../utils/colors";
 import { useTheme } from "../../theme/ThemeProvider";
 import { FileIconBadge } from "../common/fileIcons";
 import { FileStatusBadge } from "../common/FileStatusBadge";
+import { useActiveEditorStore } from "../../store/activeEditorStore";
 
 export type DiffViewerProps = {
   /**
@@ -85,6 +86,17 @@ export function DiffViewer({
   const [newValue, setNewValue] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Register with the global active-editor store so the app-level
+  // ChatBubble appears while a diff is on screen. Diffs have no editor
+  // ref (they're read-only CodeMirrorMerge views), so we register null and
+  // mark the entry readOnly — the chat works in Ask-only mode for diffs.
+  const registerEditor = useActiveEditorStore((s) => s.register);
+  const unregisterEditor = useActiveEditorStore((s) => s.unregister);
+  useEffect(() => {
+    registerEditor(filePath, { repoPath, editorRef: null, readOnly: true });
+    return () => unregisterEditor(filePath);
+  }, [filePath, repoPath, registerEditor, unregisterEditor]);
 
   // Ref-vs-ref mode when both refs are supplied; otherwise HEAD-vs-working.
   const refMode = Boolean(fromRef && toRef);

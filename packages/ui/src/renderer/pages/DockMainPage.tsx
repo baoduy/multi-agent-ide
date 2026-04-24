@@ -34,6 +34,7 @@ import type { ActiveTab, BuiltinTabId } from "../types/tabs";
 import type { AISessionRecord } from "@magenta/shared/aiTerminal";
 import type { SavedDockTab } from "../hooks/usePersistedSnapshots";
 import type { TabState } from "../components/dock/types";
+import { GlobalChatBubble } from "../components/main/aiChat/GlobalChatBubble";
 
 /* ── Register views once at module load ── */
 registerAllViews();
@@ -774,6 +775,8 @@ export function DockMainPage(): React.ReactElement {
         onSettingsClick={() => setShowSettings(true)}
         statusBar={<StatusBar onShowRunningSessions={() => { setMainView("ai-sessions"); handleSelectBuiltinTab("ai"); }} />}
       />
+      {/* App-level AI chat bubble. Renders iff a file/diff is active. */}
+      <GlobalChatBubble />
     </>
   );
 }

@@ -14,7 +14,7 @@ import {
 } from "./fileViewerUtils";
 import { MarkdownEditor, type MarkdownEditorMethods } from "./MarkdownEditor";
 import { useMarkdownPreviewStore } from "../../store/markdownPreviewStore";
-import { ChatBubble } from "./aiChat/ChatBubble";
+import { useActiveEditorStore } from "../../store/activeEditorStore";
 import { ApproveButton } from "./ApproveButton";
 import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
 import { threeWayMerge } from "../../services/threeWayMerge";
@@ -339,6 +339,23 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
 
   const isMd = displayContent !== null && isMarkdownFile(filePath);
 
+  // Register this pane with the global active-editor store so the app-level
+  // ChatBubble can find which file is currently on screen and attach itself
+  // to the right editor ref. Non-markdown viewers register with `null` so
+  // the bubble still shows (Ask-only) but can't reach for document text /
+  // selection. Unregisters on unmount or when the filePath changes so stale
+  // entries don't linger after a tab close.
+  const registerEditor = useActiveEditorStore((s) => s.register);
+  const unregisterEditor = useActiveEditorStore((s) => s.unregister);
+  useEffect(() => {
+    registerEditor(filePath, {
+      repoPath: repoPath ?? getFileDir(filePath),
+      editorRef: isMd ? editorRef : null,
+      readOnly: viewMode === "preview" || !canEdit,
+    });
+    return () => unregisterEditor(filePath);
+  }, [filePath, repoPath, isMd, viewMode, canEdit, registerEditor, unregisterEditor]);
+
   // Publish the current preview to the right-sidebar TOC panel. Runs only
   // when we're in preview mode on a markdown file — cleared otherwise and
   // on unmount. `clearIf` guards against a late unmount stomping on a
@@ -510,19 +527,6 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
           </pre>
         )}
       </div>
-      {/* AI chat bubble — rendered outside the scrollable content so it
-          stays pinned to the bottom-right of the file-viewer pane while
-          the user scrolls. Shown for every Markdown file; in preview mode
-          or on a non-editable file it opens in read-only (Ask-only) mode
-          so the user can still chat about the doc. */}
-      {isMd && (
-        <ChatBubble
-          filePath={filePath}
-          repoPath={repoPath ?? getFileDir(filePath)}
-          editorRef={editorRef}
-          readOnly={viewMode === "preview" || !canEdit}
-        />
-      )}
     </div>
   );
 }

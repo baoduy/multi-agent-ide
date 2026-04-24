@@ -9,13 +9,16 @@ import { ChatPanel } from "./ChatPanel";
 export interface ChatBubbleProps {
   filePath: string;
   repoPath: string;
-  editorRef: React.RefObject<MarkdownEditorMethods | null>;
   /**
-   * When true, the chat is Ask-only — the mode pills are hidden and
-   * "Edit selection" / "Modify document" are unavailable. Used when the
-   * editor is in preview mode or the file is not editable (git-ref paths,
-   * read-only permissions, etc.) so the user can still discuss the doc
-   * without any risk of accidental modification.
+   * Ref to the active markdown editor. Null for diff views and other
+   * non-editable surfaces — chat operations that need the document text
+   * or a selection gracefully no-op when the ref isn't available.
+   */
+  editorRef: React.RefObject<MarkdownEditorMethods | null> | null;
+  /**
+   * When true, the chat is Ask-only — "Edit selection" / "Modify document"
+   * paths are unavailable. Used when the editor is in preview mode or the
+   * file is not editable (git-ref paths, read-only permissions, etc.).
    */
   readOnly?: boolean;
 }
@@ -87,7 +90,7 @@ export function ChatBubble({ filePath, repoPath, editorRef, readOnly = false }: 
         />
       )}
       <div
-        style={{ position: "absolute", right: 16, bottom: 16, zIndex: 900 }}
+        style={{ position: "fixed", right: 16, bottom: 16, zIndex: 900 }}
         onMouseEnter={() => {
           if (!open) {
             cancelHide();

@@ -35,7 +35,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
     // first session_id back as push events the renderer routes by streamId.
     const streamId = msg.streamId;
     const onChunk = streamId
-      ? (delta: string) => bridge.emit({ type: "ai-chat:stream:delta", streamId, delta })
+      ? (delta: string, kind: "text" | "thinking") => bridge.emit({ type: "ai-chat:stream:delta", streamId, delta, kind })
       : undefined;
     const onSessionId = streamId
       ? (sessionId: string) => bridge.emit({ type: "ai-chat:stream:session", streamId, sessionId })
@@ -79,7 +79,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
   safeHandle(bridge, "ai-chat:ask-spec", async (msg) => {
     const streamId = msg.streamId;
     const onChunk = streamId
-      ? (delta: string) => bridge.emit({ type: "ai-chat:stream:delta", streamId, delta })
+      ? (delta: string, kind: "text" | "thinking") => bridge.emit({ type: "ai-chat:stream:delta", streamId, delta, kind })
       : undefined;
     const onSessionId = streamId
       ? (sessionId: string) => bridge.emit({ type: "ai-chat:stream:session", streamId, sessionId })

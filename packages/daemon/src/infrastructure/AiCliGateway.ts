@@ -44,7 +44,12 @@ export interface RunOptions {
    * enables `--output-format stream-json` on the Claude adapter. Ignored
    * by providers that don't support structured streaming.
    */
-  onChunk?: (delta: string) => void;
+  /**
+   * Called for each streamed chunk. `kind` distinguishes the final
+   * assistant reply (`"text"`) from intermediate reasoning + tool activity
+   * (`"thinking"`). Callers that don't care can ignore `kind`.
+   */
+  onChunk?: (delta: string, kind: "text" | "thinking") => void;
   /**
    * Called once with the provider-assigned session id the first time it
    * appears in the stream. Used by the caller to persist the id for
@@ -142,10 +147,12 @@ const claudeAdapter: CliAdapter = {
  */
 const copilotAdapter: CliAdapter = {
   command: "copilot",
-  promptChannel: "stdin",
+  // Copilot's `-p, --prompt <text>` requires the prompt as an argv value;
+  // it does not read the prompt from stdin like Claude does.
+  promptChannel: "argv",
   streamJsonSupported: false,
-  buildArgs(_model, _prompt, extraArgs, _extras) {
-    return ["-p", ...extraArgs];
+  buildArgs(_model, prompt, extraArgs, _extras) {
+    return ["-p", prompt, ...extraArgs];
   },
 };
 
@@ -288,16 +295,25 @@ export class AiCliGateway {
           }
         }
 
-        // Claude stream-json surfaces assistant text inside
-        //   { type: "assistant", message: { content: [{ type: "text", text: "…" }] } }
+        // Claude stream-json surfaces assistant content inside
+        //   { type: "assistant", message: { content: [{ type: "text" | "thinking" | "tool_use", … }] } }
         // events. content_block_delta events also carry deltas on newer versions;
         // handle both shapes defensively.
-        const delta = extractTextDelta(e);
-        if (delta && options.onChunk) {
+        const { text, thinking } = extractDeltas(e);
+        if (text && options.onChunk) {
           deltaFired = true;
-          streamAccum += delta;
+          streamAccum += text;
           try {
-            options.onChunk(delta);
+            options.onChunk(text, "text");
+          } catch {
+            /* consumer-side errors must not crash the stream */
+          }
+        }
+        if (thinking && options.onChunk) {
+          // Don't set deltaFired — thinking alone shouldn't suppress the
+          // full-stdout fallback below if no assistant text ever arrives.
+          try {
+            options.onChunk(thinking, "thinking");
           } catch {
             /* consumer-side errors must not crash the stream */
           }
@@ -365,7 +381,7 @@ export class AiCliGateway {
             if (body) {
               streamAccum = body;
               try {
-                options.onChunk(body);
+                options.onChunk(body, "text");
               } catch {
                 /* ignore */
               }
@@ -387,43 +403,86 @@ export class AiCliGateway {
   }
 }
 
+interface ExtractedDeltas {
+  text: string;
+  thinking: string;
+}
+
 /**
- * Pull text from a Claude stream-json event. Handles:
- *   - { type: "assistant", message: { content: [{ type: "text", text }] } }
- *   - { type: "content_block_delta", delta: { type: "text_delta", text } }
- * Returns empty string when the event carries no visible assistant text
- * (tool-use events, progress pings, etc.).
+ * Classify chunks from a Claude stream-json event into two channels:
+ *   - `text`     → visible assistant reply (`{ type: "text", text }` blocks,
+ *                  or `content_block_delta` events with a text delta)
+ *   - `thinking` → extended-thinking text (`{ type: "thinking", thinking }`)
+ *                  plus a compact summary of any tool calls Claude makes
+ *                  (`→ Read(foo.md)`), so the UI can show what the model is
+ *                  doing between turns without drowning the reply in JSON.
+ *
+ * Tool_result events (from `{ type: "user", ... }` echoes) are skipped — they
+ * are noisy and duplicate what tool_use already communicated.
  */
-function extractTextDelta(event: Record<string, unknown>): string {
+function extractDeltas(event: Record<string, unknown>): ExtractedDeltas {
+  const out: ExtractedDeltas = { text: "", thinking: "" };
   const type = event.type;
 
-  // `assistant` message: full content array. We union all text parts.
   if (type === "assistant") {
     const message = event.message as Record<string, unknown> | undefined;
     const content = message?.content;
     if (Array.isArray(content)) {
-      const parts: string[] = [];
+      const textParts: string[] = [];
+      const thinkingParts: string[] = [];
       for (const part of content) {
-        if (part && typeof part === "object") {
-          const p = part as Record<string, unknown>;
-          if (p.type === "text" && typeof p.text === "string") parts.push(p.text);
+        if (!part || typeof part !== "object") continue;
+        const p = part as Record<string, unknown>;
+        if (p.type === "text" && typeof p.text === "string") {
+          textParts.push(p.text);
+        } else if (p.type === "thinking" && typeof p.thinking === "string") {
+          thinkingParts.push(p.thinking);
+        } else if (p.type === "tool_use") {
+          thinkingParts.push(formatToolUse(p));
         }
       }
-      return parts.join("");
+      out.text = textParts.join("");
+      out.thinking = thinkingParts.join("");
     }
-    return "";
+    return out;
   }
 
   // Per-block delta events used in some versions.
   if (type === "content_block_delta") {
     const delta = event.delta as Record<string, unknown> | undefined;
-    if (delta && (delta.type === "text_delta" || delta.type === "text")) {
-      if (typeof delta.text === "string") return delta.text;
+    if (delta) {
+      if ((delta.type === "text_delta" || delta.type === "text") && typeof delta.text === "string") {
+        out.text = delta.text;
+      } else if (delta.type === "thinking_delta" && typeof delta.thinking === "string") {
+        out.thinking = delta.thinking;
+      }
     }
-    return "";
+    return out;
   }
 
-  return "";
+  return out;
+}
+
+/**
+ * Compact one-line summary of a tool_use block, e.g. `→ Read(foo.md)` or
+ * `→ Grep(pattern=foo)`. Kept short — the intent is to show *that* Claude
+ * is working, not to reproduce the full tool input.
+ */
+function formatToolUse(block: Record<string, unknown>): string {
+  const name = typeof block.name === "string" ? block.name : "tool";
+  const input = block.input as Record<string, unknown> | undefined;
+  let arg = "";
+  if (input && typeof input === "object") {
+    // Prefer common path-like fields so the UI shows something useful.
+    const preview =
+      (typeof input.file_path === "string" && input.file_path) ||
+      (typeof input.path === "string" && input.path) ||
+      (typeof input.pattern === "string" && `pattern=${input.pattern}`) ||
+      "";
+    arg = preview ? String(preview) : "";
+  }
+  const line = arg ? `→ ${name}(${truncate(arg, 80)})` : `→ ${name}`;
+  return `${line}\n`;
 }
 
 /**

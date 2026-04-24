@@ -582,11 +582,11 @@
 .bn-container {
   color: var(--foreground);
   background: transparent;
-  /* Reader body size — smaller than the previous 16px so markdown content
-     sits closer to the app's typography scale. All heading sizes below are
-     `em`-relative, so they scale proportionally with this base. */
-  font-size: var(--font-md);
-  line-height: 1.6;
+  /* Reader body size — kept a touch larger than the app chrome (11–12px)
+     for document readability, but smaller than BlockNote's 16px default.
+     All heading sizes below are `em`-relative, so they scale with this. */
+  font-size: 13px;
+  line-height: 1.55;
   /* Centered reading column. Widened again now that the Table of Contents
      has moved to the right sidebar — the file-viewer pane no longer needs
      to reserve room for an inline TOC, so the document gets more of the

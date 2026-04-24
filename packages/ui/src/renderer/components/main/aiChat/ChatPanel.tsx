@@ -13,7 +13,8 @@ import { RewritePreviewDialog } from "./RewritePreviewDialog";
 export interface ChatPanelProps {
   filePath: string;
   repoPath: string;
-  editorRef: React.RefObject<MarkdownEditorMethods | null>;
+  /** Null when the active surface is a diff or non-markdown viewer. */
+  editorRef: React.RefObject<MarkdownEditorMethods | null> | null;
   onClose: () => void;
   /**
    * When true, force Ask-only mode: mode pills are hidden, selection chip
@@ -75,7 +76,7 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
   // available, and skipping this avoids the chip flashing in preview mode.
   const captureCurrentSelection = useCallback(() => {
     if (readOnly) return;
-    const sel = editorRef.current?.getSelection();
+    const sel = editorRef?.current?.getSelection();
     if (sel) setPendingSelection(filePath, sel);
   }, [editorRef, filePath, setPendingSelection, readOnly]);
 
@@ -100,7 +101,7 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
     if (!canSend) return;
     const text = input.trim();
     setInput("");
-    const documentText = (await editorRef.current?.getMarkdown()) ?? "";
+    const documentText = (await editorRef?.current?.getMarkdown()) ?? "";
 
     if (mode === "ask") {
       await sendAsk(filePath, repoPath, text, documentText);
@@ -123,14 +124,14 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
     if (mode === "modify-document") {
       const newDoc = await requestModifyDocument(filePath, repoPath, text, documentText);
       if (newDoc !== null) {
-        editorRef.current?.setMarkdown(newDoc);
+        editorRef?.current?.setMarkdown(newDoc);
       }
     }
   }, [canSend, input, mode, pendingSelection, filePath, repoPath, editorRef, sendAsk, requestEditSelection, requestModifyDocument]);
 
   const handleApplyPreview = useCallback(() => {
     if (!preview) return;
-    editorRef.current?.replaceRange(preview.selection, preview.proposed);
+    editorRef?.current?.replaceRange(preview.selection, preview.proposed);
     appendSystemMessage(filePath, "Applied edit to selection.", "applied-edit");
     setPendingSelection(filePath, null);
     setPreview(null);
@@ -139,7 +140,7 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
   return (
     <div
       style={{
-        position: "absolute",
+        position: "fixed",
         right: 16,
         bottom: 76, // leaves room for the bubble below
         width: 360,

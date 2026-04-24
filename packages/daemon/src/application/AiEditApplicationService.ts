@@ -29,7 +29,7 @@ export interface AskArgs {
   documentText: string;
   selection?: { start: number; end: number; text: string };
   /** Streaming + session-continuity optionals. Forwarded to the CLI gateway. */
-  onChunk?: (delta: string) => void;
+  onChunk?: (delta: string, kind: "text" | "thinking") => void;
   onSessionId?: (sessionId: string) => void;
   resumeSessionId?: string;
   /** UI-selected provider override; falls back to disk config when absent. */
@@ -57,7 +57,7 @@ export interface AskSpecArgs {
   userMessage: string;
   history: ChatTurn[];
   /** Streaming + session-continuity optionals. Forwarded to the CLI gateway. */
-  onChunk?: (delta: string) => void;
+  onChunk?: (delta: string, kind: "text" | "thinking") => void;
   onSessionId?: (sessionId: string) => void;
   resumeSessionId?: string;
 }
@@ -218,7 +218,7 @@ export class AiEditApplicationService {
     repoPath: string,
     prompt: string,
     streamOpts?: {
-      onChunk?: (delta: string) => void;
+      onChunk?: (delta: string, kind: "text" | "thinking") => void;
       onSessionId?: (sessionId: string) => void;
       resumeSessionId?: string;
       providerOverride?: AIProvider;

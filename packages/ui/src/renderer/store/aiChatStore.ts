@@ -14,6 +14,12 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "system";
   text: string;
+  /**
+   * Separate channel for intermediate reasoning — extended-thinking text
+   * plus compact tool-activity summaries. Accumulated while streaming and
+   * rendered as a collapsible preview above the main reply.
+   */
+  thinking?: string;
   status: "pending" | "done" | "error";
   /** Used for "✓ Applied" / "✓ Updated" confirmation bubbles. */
   kind?: "plain" | "applied-edit" | "applied-document";
@@ -170,13 +176,12 @@ export const useAiChatStore = create<State>((set, get) => ({
     set((s) => ({
       threadsByFile: {
         ...s.threadsByFile,
-        [filePath]: {
-          ...thread,
-          open: true,
-          provider,
-          // Switching providers invalidates the Claude-only session id.
-          sessionId: providerChanged ? null : thread.sessionId,
-        },
+        [filePath]: providerChanged
+          // Switching providers resets the thread: Claude's session id is
+          // meaningless for Copilot (and vice versa), and mixing turns from
+          // two different CLIs in one transcript is confusing.
+          ? { ...emptyThread(), provider, open: true }
+          : { ...thread, open: true },
       },
     }));
   },
@@ -184,10 +189,11 @@ export const useAiChatStore = create<State>((set, get) => ({
   setProvider(filePath, provider) {
     const thread = get().threadsByFile[filePath] ?? emptyThread();
     if (thread.provider === provider) return;
+    // Same reset semantics as openWithProvider — start fresh on each switch.
     set((s) => ({
       threadsByFile: {
         ...s.threadsByFile,
-        [filePath]: { ...thread, provider, sessionId: null },
+        [filePath]: { ...emptyThread(), provider, open: thread.open },
       },
     }));
   },
@@ -518,7 +524,9 @@ export const useAiChatStore = create<State>((set, get) => ({
  * handled by `aiSpecChatStore`) are silently ignored.
  */
 ipc.on("ai-chat:stream:delta", (event) => {
-  const { streamId, delta } = event;
+  const { streamId, delta, kind } = event;
+  // Missing `kind` (older daemon or legacy replay) → treat as text.
+  const channel: "text" | "thinking" = kind ?? "text";
   useAiChatStore.setState((s) => {
     const entry = Object.entries(s.threadsByFile).find(
       ([, t]) => t.pendingStreamId === streamId,
@@ -532,9 +540,13 @@ ipc.on("ai-chat:stream:delta", (event) => {
         ...s.threadsByFile,
         [filePath]: {
           ...thread,
-          messages: thread.messages.map((m) =>
-            m.id === assistantId ? { ...m, text: m.text + delta } : m,
-          ),
+          messages: thread.messages.map((m) => {
+            if (m.id !== assistantId) return m;
+            if (channel === "thinking") {
+              return { ...m, thinking: (m.thinking ?? "") + delta };
+            }
+            return { ...m, text: m.text + delta };
+          }),
         },
       },
     };

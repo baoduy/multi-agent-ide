@@ -759,6 +759,13 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     type: z.literal("ai-chat:stream:delta"),
     streamId: z.string(),
     delta: z.string(),
+    /**
+     * Which channel this chunk belongs to. `"text"` is the model's final
+     * answer; `"thinking"` covers extended-thinking text and compact tool
+     * activity (e.g. `→ Read(foo.md)`) surfaced from Claude's stream-json
+     * output. Defaults to `"text"` for back-compat.
+     */
+    kind: z.enum(["text", "thinking"]).optional(),
   }),
   z.object({
     type: z.literal("ai-chat:stream:session"),

@@ -287,13 +287,6 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
             onClear={() => setPendingSelection(filePath, null)}
           />
         )}
-        {!readOnly && (
-          <ModePills
-            mode={mode}
-            hasSelection={pendingSelection !== null}
-            onChange={(next) => setMode(filePath, next)}
-          />
-        )}
         <div
           style={{
             display: "flex",
@@ -475,62 +468,6 @@ function SelectionChip({ text, onClear }: { text: string; onClear: () => void })
       >
         <X size={10} strokeWidth={2.5} />
       </button>
-    </div>
-  );
-}
-
-const MODE_OPTIONS: { id: ChatMode; label: string; needsSelection: boolean }[] = [
-  { id: "ask", label: "Ask", needsSelection: false },
-  { id: "edit-selection", label: "Edit selection", needsSelection: true },
-  { id: "modify-document", label: "Modify document", needsSelection: false },
-];
-
-function ModePills({
-  mode,
-  hasSelection,
-  onChange,
-}: {
-  mode: ChatMode;
-  hasSelection: boolean;
-  onChange: (mode: ChatMode) => void;
-}): React.ReactElement {
-  return (
-    <div
-      style={{
-        display: "inline-flex",
-        alignSelf: "flex-start",
-        padding: 2,
-        background: colors.bgMuted,
-        border: `1px solid ${colors.border}`,
-        borderRadius: 999,
-      }}
-    >
-      {MODE_OPTIONS.map((opt) => {
-        const active = opt.id === mode;
-        const disabled = opt.needsSelection && !hasSelection;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={() => !disabled && onChange(opt.id)}
-            disabled={disabled}
-            title={disabled ? "Select text in the editor first" : ""}
-            style={{
-              padding: "3px 10px",
-              fontSize: 10,
-              fontWeight: 500,
-              border: "none",
-              borderRadius: 999,
-              cursor: disabled ? "default" : "pointer",
-              background: active ? colors.primary : "transparent",
-              color: active ? "white" : disabled ? colors.textTertiary : colors.textMuted,
-              opacity: disabled ? 0.6 : 1,
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
     </div>
   );
 }

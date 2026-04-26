@@ -118,3 +118,15 @@ export const ProviderMetaSchema = z.object({
 });
 
 export type ProviderMeta = z.infer<typeof ProviderMetaSchema>;
+
+export {
+  AISpawnOptionsSchema,
+  SPAWN_OPTIONS_SCHEMA_VERSION,
+  type AISpawnOptions,
+} from "./aiSpawnOptions";
+export {
+  PROVIDER_CAPABILITIES,
+  getProviderCapability,
+  type ProviderCapability,
+  type SpawnOptionKey,
+} from "./providerCapabilities";

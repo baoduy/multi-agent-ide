@@ -59,6 +59,10 @@
     "./aiPresets": {
       "types": "./dist/aiPresets.d.ts",
       "default": "./dist/aiPresets.js"
+    },
+    "./aiObservability": {
+      "types": "./dist/aiObservability.d.ts",
+      "default": "./dist/aiObservability.js"
     }
   },
   "scripts": {

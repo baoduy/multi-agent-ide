@@ -7,6 +7,13 @@ import { CliToolIdSchema, CliToolStatusSchema } from "./cliTools";
 import { AISpawnOptionsSchema } from "./aiSpawnOptions";
 import { AIStreamEventSchema } from "./aiStreamEvent";
 import { AIPresetSchema } from "./aiPresets";
+import {
+  RetryEventSchema,
+  SessionInitEventSchema,
+  PluginInstallEventSchema,
+  CostUpdateEventSchema,
+  DebugLogChunkSchema,
+} from "./aiObservability";
 
 /** Phase 6 — Subagents/Custom-agents listing model. */
 export const AgentSchema = z.object({
@@ -506,6 +513,10 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     /** Claude provider session id from a previous turn — enables `--resume`. */
     resumeSessionId: z.string().optional(),
   }),
+  // Phase 7 — observability requests.
+  z.object({ type: z.literal("ai-session:debug-log:open"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai-session:debug-log:close"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai:env:otel-status") }),
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -973,6 +984,23 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("plugin-dirs:list:result"), paths: z.array(z.string()) }),
   z.object({ type: z.literal("plugin-dirs:add:result"), paths: z.array(z.string()) }),
   z.object({ type: z.literal("plugin-dirs:remove:result"), paths: z.array(z.string()) }),
+  // Phase 7 — observability push events (daemon → renderer).
+  z.object({ type: z.literal("ai-session:retry"), payload: RetryEventSchema }),
+  z.object({ type: z.literal("ai-session:init"), payload: SessionInitEventSchema }),
+  z.object({ type: z.literal("ai-session:plugin-install"), payload: PluginInstallEventSchema }),
+  z.object({ type: z.literal("ai-session:cost-update"), payload: CostUpdateEventSchema }),
+  z.object({ type: z.literal("ai-session:debug-log"), payload: DebugLogChunkSchema }),
+  // Phase 7 — debug-log open/close + OTel env-status request results.
+  z.object({
+    type: z.literal("ai-session:debug-log:open:result"),
+    filePath: z.string(),
+    seq: z.number().int().nonnegative(),
+  }),
+  z.object({ type: z.literal("ai-session:debug-log:close:result"), ok: z.boolean() }),
+  z.object({
+    type: z.literal("ai:env:otel-status:result"),
+    vars: z.array(z.object({ name: z.string(), present: z.boolean() })),
+  }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

@@ -128,6 +128,10 @@ type ResponseForRequest = {
   "plugin-dirs:list": Extract<IpcResponse, { type: "plugin-dirs:list:result" }>;
   "plugin-dirs:add": Extract<IpcResponse, { type: "plugin-dirs:add:result" }>;
   "plugin-dirs:remove": Extract<IpcResponse, { type: "plugin-dirs:remove:result" }>;
+  // Phase 7 — observability.
+  "ai-session:debug-log:open": Extract<IpcResponse, { type: "ai-session:debug-log:open:result" }>;
+  "ai-session:debug-log:close": Extract<IpcResponse, { type: "ai-session:debug-log:close:result" }>;
+  "ai:env:otel-status": Extract<IpcResponse, { type: "ai:env:otel-status:result" }>;
 };
 
 /**

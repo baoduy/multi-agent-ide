@@ -316,6 +316,48 @@ export class AISessionApplicationService {
   }
 
   /**
+   * FR-7.7 — Fork an existing session into a new canonical row whose
+   * `parentSessionId` points back at the original. Claude only; Copilot
+   * raises `UNSUPPORTED_SPAWN_OPTION`.
+   */
+  async forkSession(
+    parentSessionId: string,
+    childSessionId: string | undefined,
+    cols: number,
+    rows: number,
+  ): Promise<AISessionRecord> {
+    const parent = this.records.get(parentSessionId);
+    if (!parent) {
+      throw new AppError("NOT_FOUND", `Parent session not found: ${parentSessionId}`);
+    }
+    const caps = getProviderCapability(parent.provider);
+    if (!caps.supportsForkSession) {
+      throw new AppError(
+        "UNSUPPORTED_SPAWN_OPTION",
+        `Provider '${parent.provider}' does not support fork-session`,
+      );
+    }
+    // Resolve the parent's provider-side resume token. For Claude this equals
+    // the canonical id (the provider session id is reconciled to match);
+    // fall back to canonical id if reconciliation hasn't happened yet.
+    const parentResumeToken = parent.providerSessionId ?? parent.id;
+
+    const config: AISessionConfig = {
+      provider: parent.provider,
+      repoPath: parent.repoPath ?? undefined,
+      branch: parent.branch ?? undefined,
+      worktreePath: parent.worktreePath ?? undefined,
+      permissionMode: parent.permissionMode,
+      sessionId: childSessionId,
+      parentSessionId: parent.id,
+      forkSession: true,
+      // Threaded into argv assembly's fork branch as the `--resume` token.
+      providerSessionId: parentResumeToken,
+    };
+    return this.createSession(config, cols, rows);
+  }
+
+  /**
    * Checks whether a worktree still exists as a valid git worktree.
    * Used by the UI to decide whether to offer re-creation before resuming.
    */

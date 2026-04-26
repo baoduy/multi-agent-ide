@@ -110,6 +110,16 @@ export function registerAISessionHandlers({ bridge, aiSessionService, permission
     return { type: "ai-session:permission-mode:ack", sessionId: msg.sessionId, permissionMode: msg.permissionMode };
   });
 
+  safeHandle(bridge, "ai-session:fork", async (msg) => {
+    const session = await aiSessionService.forkSession(
+      msg.parentSessionId,
+      msg.sessionId,
+      msg.cols,
+      msg.rows,
+    );
+    return { type: "ai-session:fork:result", session };
+  });
+
   safeHandle(bridge, "ai-session:check-worktree", async (msg) => {
     const result = await aiSessionService.checkWorktreeExists(msg.worktreePath, msg.repoPath);
     return { type: "ai-session:check-worktree:result", ...result };

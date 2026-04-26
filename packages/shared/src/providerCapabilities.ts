@@ -18,6 +18,14 @@ export interface ProviderCapability {
   supportsExplicitSessionId: boolean;
   /** Whether structured stream-json output is parseable for this provider. */
   supportsStreamJson: boolean;
+  /** Phase 5 — true when `--fork-session` is honoured (Claude only). */
+  supportsForkSession: boolean;
+  /** Phase 5 — true when `-n <name>` is honoured (Claude only). */
+  supportsName: boolean;
+  /** Phase 5 — true when `--continue` / `-c` is honoured (Claude + Copilot). */
+  supportsContinueRecent: boolean;
+  /** Phase 5 — true when `--from-pr <num|url>` is honoured (Claude only). */
+  supportsFromPR: boolean;
 }
 
 const CLAUDE_KEYS: readonly SpawnOptionKey[] = [
@@ -88,6 +96,10 @@ export const PROVIDER_CAPABILITIES: Record<AIProvider, ProviderCapability> = {
     toolAllowSyntax: "claude",
     supportsExplicitSessionId: true,
     supportsStreamJson: true,
+    supportsForkSession: true,
+    supportsName: true,
+    supportsContinueRecent: true,
+    supportsFromPR: true,
   },
   copilot: {
     id: "copilot",
@@ -95,6 +107,10 @@ export const PROVIDER_CAPABILITIES: Record<AIProvider, ProviderCapability> = {
     toolAllowSyntax: "copilot",
     supportsExplicitSessionId: false,
     supportsStreamJson: false,
+    supportsForkSession: false,
+    supportsName: false,
+    supportsContinueRecent: true,
+    supportsFromPR: false,
   },
 };
 

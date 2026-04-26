@@ -51,6 +51,8 @@ import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
 import type { SpecifyExtensionApplicationService } from "../application/SpecifyExtensionApplicationService";
 import type { AiEditApplicationService } from "../application/AiEditApplicationService";
 import { registerAiEditHandlers } from "./handlers/aiEditHandlers";
+import type { AIRunOnceApplicationService } from "../application/AIRunOnceApplicationService";
+import { registerAIRunOnceHandlers } from "./handlers/aiRunOnceHandlers";
 import type { FileWatchService } from "../application/FileWatchService";
 import { registerFileWatchHandlers } from "./handlers/fileWatchHandlers";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
@@ -84,6 +86,7 @@ export type HandlerContext = {
   logCache: LruCache<string, LogResult>;
   commitDetailCache: LruCache<string, CommitDetailResult>;
   aiEditService: AiEditApplicationService;
+  aiRunOnceService: AIRunOnceApplicationService;
   fileWatchService: FileWatchService;
 };
 
@@ -122,6 +125,8 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerTerminalHandlers({ bridge, terminalService: context.terminalService, allowlistProvider: context.configManager });
 
   registerAISessionHandlers({ bridge, aiSessionService: context.aiSessionService });
+
+  registerAIRunOnceHandlers({ bridge, runOnceService: context.aiRunOnceService });
 
   registerSyncedSessionHandlers({ bridge, sessionSyncService: context.sessionSyncService });
 

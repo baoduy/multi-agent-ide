@@ -44,6 +44,7 @@ import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensi
 import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
+import { AIRunOnceApplicationService } from "./application/AIRunOnceApplicationService";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
@@ -278,6 +279,7 @@ async function main() {
     const aiConfigRepository = new AiConfigRepository();
     const aiCliGateway = new AiCliGateway();
     const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway);
+    const aiRunOnceService = new AIRunOnceApplicationService(aiCliGateway, ipcBridge);
 
     // File watcher — one watcher per open markdown tab so external writes
     // (AI CLI, teammate, git checkout) land in the editor without reload.
@@ -310,6 +312,7 @@ async function main() {
       logCache,
       commitDetailCache,
       aiEditService,
+      aiRunOnceService,
       fileWatchService,
     });
     console.log("[daemon-worker] All handlers registered");

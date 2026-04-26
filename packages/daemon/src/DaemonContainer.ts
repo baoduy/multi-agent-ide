@@ -34,6 +34,7 @@ import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensi
 import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
+import { AIRunOnceApplicationService } from "./application/AIRunOnceApplicationService";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
 
@@ -82,6 +83,7 @@ export class DaemonContainer {
   readonly cliVersionService: CliVersionApplicationService;
   readonly aiConfigRepository: AiConfigRepository;
   readonly aiCliGateway: AiCliGateway;
+  readonly aiRunOnceService: AIRunOnceApplicationService;
   readonly aiEditService: AiEditApplicationService;
   readonly fileWatcherGateway: FileWatcherGateway;
   readonly fileWatchService: FileWatchService;
@@ -206,6 +208,7 @@ export class DaemonContainer {
     // AI-assisted markdown editor — config/action files + CLI spawn.
     this.aiConfigRepository = new AiConfigRepository();
     this.aiCliGateway = new AiCliGateway();
+    this.aiRunOnceService = new AIRunOnceApplicationService(this.aiCliGateway, this.bridge);
     this.aiEditService = new AiEditApplicationService(
       this.aiConfigRepository,
       this.aiCliGateway,
@@ -253,6 +256,7 @@ export class DaemonContainer {
       logCache: this.logCache,
       commitDetailCache: this.commitDetailCache,
       aiEditService: this.aiEditService,
+      aiRunOnceService: this.aiRunOnceService,
       fileWatchService: this.fileWatchService,
     });
   }

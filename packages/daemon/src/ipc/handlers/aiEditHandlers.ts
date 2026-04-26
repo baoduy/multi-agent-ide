@@ -51,12 +51,12 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
         selection: msg.selection,
         onChunk,
         onSessionId,
-        // Phase 5 — caller-provided canonical sessionId wins; falls back to
-        // the legacy `resumeSessionId` field (still threaded through to the
-        // CLI gateway's `--resume` flag while AiEditApplicationService is
-        // on AiCliGateway.run() — chat engine migration is Phase 8).
+        // Phase 5/8 — `sessionId` is the canonical thread id (also used as
+        // `--resume` token by the legacy CLI gateway path). `resumeSessionId`
+        // remains a back-compat fallback for renderers that haven't migrated.
         resumeSessionId: msg.sessionId ?? msg.resumeSessionId,
         provider: msg.provider,
+        sessionId: msg.sessionId,
       }),
     };
   });

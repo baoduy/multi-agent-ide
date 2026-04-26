@@ -54,6 +54,8 @@ import { AiPresetService } from "./application/AiPresetService";
 import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
 import { SessionObservabilityService } from "./application/SessionObservabilityService";
 import { DebugLogService } from "./application/DebugLogService";
+import { ChatThreadRepository } from "./data/ChatThreadRepository";
+import { ChatThreadService } from "./application/ChatThreadService";
 import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
 import { AgentService } from "./application/AgentService";
 import { PluginDirRepository } from "./services/PluginDirRepository";
@@ -300,7 +302,11 @@ async function main() {
     // AI-assisted markdown editor.
     const aiConfigRepository = new AiConfigRepository();
     const aiCliGateway = new AiCliGateway();
-    const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway);
+    // Phase 8 — resumable chat threads.
+    const chatThreadRepository = new ChatThreadRepository(databaseService);
+    const chatThreadService = new ChatThreadService(chatThreadRepository);
+
+    const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway, chatThreadService);
     const aiRunOnceService = new AIRunOnceApplicationService(
       aiCliGateway,
       ipcBridge,
@@ -363,6 +369,7 @@ async function main() {
       pluginDirService,
       permissionCoordinator,
       debugLogService,
+      chatThreadService,
     });
     console.log("[daemon-worker] All handlers registered");
 

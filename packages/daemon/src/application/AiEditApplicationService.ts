@@ -3,6 +3,7 @@ import type { AiEditAction, AiEditConfig } from "@magenta/shared/ipc";
 import type { AIProvider } from "@magenta/shared/aiTerminal";
 import type { AiCliGateway } from "../infrastructure/AiCliGateway";
 import type { AiConfigRepository } from "../infrastructure/AiConfigRepository";
+import type { ChatThreadService } from "./ChatThreadService";
 import { AppError } from "../errors/AppError";
 import {
   renderAskPrompt,
@@ -34,6 +35,9 @@ export interface AskArgs {
   resumeSessionId?: string;
   /** UI-selected provider override; falls back to disk config when absent. */
   provider?: AIProvider;
+  /** Phase 8 — thread id (UUID) for persisting the resulting turn. */
+  sessionId?: string;
+  /** Phase 8 — absolute file path used for persistence (mirrors `filePath`). */
 }
 
 export interface EditSelectionArgs {
@@ -41,7 +45,7 @@ export interface EditSelectionArgs {
   instruction: string;
   documentText: string;
   selection: { start: number; end: number; text: string };
-  /** Phase 5 — caller-provided canonical sessionId; threaded as `--resume`. */
+  /** Phase 5 — caller-provided canonical sessionId; threaded as `--resume`. Phase 8 — also used as thread id for persistence. */
   sessionId?: string;
 }
 
@@ -49,7 +53,7 @@ export interface ModifyDocumentArgs {
   repoPath: string;
   instruction: string;
   documentText: string;
-  /** Phase 5 — caller-provided canonical sessionId; threaded as `--resume`. */
+  /** Phase 5 — caller-provided canonical sessionId; threaded as `--resume`. Phase 8 — also used as thread id for persistence. */
   sessionId?: string;
 }
 
@@ -80,6 +84,7 @@ export class AiEditApplicationService {
   constructor(
     private readonly configRepo: AiConfigRepository,
     private readonly cliGateway: AiCliGateway,
+    private readonly chatThreadService?: ChatThreadService,
   ) {}
 
   /* ─── Settings view ───────────────────────────────────────────── */
@@ -98,14 +103,19 @@ export class AiEditApplicationService {
     const config = this.configRepo.loadConfig(args.repoPath);
     const provider: AIProvider = args.provider ?? config.provider;
 
+    // Capture provider session id even if caller didn't subscribe — needed
+    // so persistTurn can record it on the thread row.
+    let capturedProviderSessionId: string | undefined;
+    const onSessionId = (sid: string) => {
+      capturedProviderSessionId = sid;
+      args.onSessionId?.(sid);
+    };
+
     // Repo-aware branch: Claude reads the file (and neighbors) itself via
     // its native Read/Glob/Grep tools instead of receiving the whole doc
-    // packed into the prompt. Gives the model real repo visibility without
-    // us building an MCP layer. Triggers when:
-    //   - the file's path is known and sits inside repoPath
-    //   - the provider is Claude (Copilot can't do --append-system-prompt
-    //     or --allowedTools in v1)
+    // packed into the prompt.
     const fileRelPath = resolveRelPathInside(args.repoPath, args.filePath);
+    let text: string;
     if (fileRelPath && provider === "claude") {
       const systemPromptAppend = renderAskRepoAwareSystemPrompt({
         fileRelPath,
@@ -115,7 +125,7 @@ export class AiEditApplicationService {
         userMessage: args.userMessage,
         history: args.history,
       });
-      return this.cliGateway.run(provider, config.model, prompt, {
+      text = await this.cliGateway.run(provider, config.model, prompt, {
         timeoutMs: config.timeoutMs,
         extraArgs: config.extraArgs,
         cwd: args.repoPath,
@@ -124,26 +134,33 @@ export class AiEditApplicationService {
         allowedTools: ["Read", "Glob", "Grep"],
         disallowedTools: ["Bash", "Edit", "Write", "MultiEdit", "NotebookEdit"],
         onChunk: args.onChunk,
-        onSessionId: args.onSessionId,
+        onSessionId,
         resumeSessionId: args.resumeSessionId,
+      });
+    } else {
+      // Legacy packed-prompt fallback.
+      const prompt = renderAskPrompt({
+        userMessage: args.userMessage,
+        history: args.history,
+        documentText: args.documentText,
+        selection: args.selection,
+      });
+      text = await this.run(args.repoPath, prompt, {
+        onChunk: args.onChunk,
+        onSessionId,
+        resumeSessionId: args.resumeSessionId,
+        providerOverride: provider,
       });
     }
 
-    // Legacy packed-prompt fallback. Used when the file path isn't known,
-    // when the file isn't inside the repo (e.g. a stray tab), or when the
-    // provider is Copilot.
-    const prompt = renderAskPrompt({
-      userMessage: args.userMessage,
-      history: args.history,
-      documentText: args.documentText,
-      selection: args.selection,
-    });
-    return this.run(args.repoPath, prompt, {
-      onChunk: args.onChunk,
-      onSessionId: args.onSessionId,
-      resumeSessionId: args.resumeSessionId,
-      providerOverride: provider,
-    });
+    if (args.sessionId && this.chatThreadService) {
+      this.chatThreadService.persistTurn(args.sessionId, {
+        userMessage: args.userMessage,
+        assistantText: text,
+        providerSessionId: capturedProviderSessionId,
+      });
+    }
+    return text;
   }
 
   async editSelection(args: EditSelectionArgs): Promise<string> {
@@ -152,10 +169,20 @@ export class AiEditApplicationService {
       documentText: args.documentText,
       selection: args.selection,
     });
+    let capturedProviderSessionId: string | undefined;
     const raw = await this.run(args.repoPath, prompt, {
       resumeSessionId: args.sessionId,
+      onSessionId: (sid) => { capturedProviderSessionId = sid; },
     });
-    return stripOuterFencing(raw);
+    const newText = stripOuterFencing(raw);
+    if (args.sessionId && this.chatThreadService) {
+      this.chatThreadService.persistTurn(args.sessionId, {
+        userMessage: args.instruction,
+        assistantText: newText,
+        providerSessionId: capturedProviderSessionId,
+      });
+    }
+    return newText;
   }
 
   async modifyDocument(args: ModifyDocumentArgs): Promise<string> {
@@ -163,10 +190,20 @@ export class AiEditApplicationService {
       instruction: args.instruction,
       documentText: args.documentText,
     });
+    let capturedProviderSessionId: string | undefined;
     const raw = await this.run(args.repoPath, prompt, {
       resumeSessionId: args.sessionId,
+      onSessionId: (sid) => { capturedProviderSessionId = sid; },
     });
-    return stripOuterFencing(raw);
+    const newDoc = stripOuterFencing(raw);
+    if (args.sessionId && this.chatThreadService) {
+      this.chatThreadService.persistTurn(args.sessionId, {
+        userMessage: args.instruction,
+        assistantText: newDoc,
+        providerSessionId: capturedProviderSessionId,
+      });
+    }
+    return newDoc;
   }
 
   /**

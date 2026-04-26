@@ -49,6 +49,8 @@ import { PluginDirRepository } from "./services/PluginDirRepository";
 import { PluginDirService } from "./application/PluginDirService";
 import { SessionObservabilityService } from "./application/SessionObservabilityService";
 import { DebugLogService } from "./application/DebugLogService";
+import { ChatThreadRepository } from "./data/ChatThreadRepository";
+import { ChatThreadService } from "./application/ChatThreadService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -110,6 +112,8 @@ export class DaemonContainer {
   readonly pluginDirService: PluginDirService;
   readonly sessionObservabilityService: SessionObservabilityService;
   readonly debugLogService: DebugLogService;
+  readonly chatThreadRepository: ChatThreadRepository;
+  readonly chatThreadService: ChatThreadService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -257,9 +261,14 @@ export class DaemonContainer {
       aiCliGateway: this.aiCliGateway,
       tempFileFactory: () => new TempFileGateway("magenta-aibare"),
     });
+    // Phase 8 — resumable chat threads.
+    this.chatThreadRepository = new ChatThreadRepository(databaseService);
+    this.chatThreadService = new ChatThreadService(this.chatThreadRepository);
+
     this.aiEditService = new AiEditApplicationService(
       this.aiConfigRepository,
       this.aiCliGateway,
+      this.chatThreadService,
     );
 
     // File watcher — the markdown editor opens one watcher per open tab so
@@ -330,6 +339,7 @@ export class DaemonContainer {
       pluginDirService: this.pluginDirService,
       permissionCoordinator: this.permissionCoordinator,
       debugLogService: this.debugLogService,
+      chatThreadService: this.chatThreadService,
     });
   }
 

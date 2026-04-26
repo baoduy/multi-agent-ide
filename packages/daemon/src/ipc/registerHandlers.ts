@@ -51,6 +51,8 @@ import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
 import type { SpecifyExtensionApplicationService } from "../application/SpecifyExtensionApplicationService";
 import type { AiEditApplicationService } from "../application/AiEditApplicationService";
 import { registerAiEditHandlers } from "./handlers/aiEditHandlers";
+import type { ChatThreadService } from "../application/ChatThreadService";
+import { registerChatThreadHandlers } from "./handlers/chatThreadHandlers";
 import type { AIRunOnceApplicationService } from "../application/AIRunOnceApplicationService";
 import { registerAIRunOnceHandlers } from "./handlers/aiRunOnceHandlers";
 import type { AiBareRunApplicationService } from "../application/AiBareRunApplicationService";
@@ -106,6 +108,8 @@ export type HandlerContext = {
   permissionCoordinator: PermissionPromptCoordinator;
   /** Phase 7 — debug-log allocator/tailer. */
   debugLogService: DebugLogService;
+  /** Phase 8 — resumable chat-bubble threads. */
+  chatThreadService: ChatThreadService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -188,6 +192,8 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerCliVersionHandlers({ bridge, cliVersionService: context.cliVersionService });
 
   registerAiEditHandlers({ bridge, aiEditService: context.aiEditService });
+
+  registerChatThreadHandlers({ bridge, chatThreadService: context.chatThreadService });
 
   registerFileWatchHandlers({ bridge, fileWatchService: context.fileWatchService });
 

@@ -24,7 +24,9 @@ export type AppErrorCode =
   | "AI_BUDGET_EXCEEDED"
   | "AI_TURN_LIMIT"
   | "UNSUPPORTED_SPAWN_OPTION"
-  | "FILE_WATCH_FAILED";
+  | "FILE_WATCH_FAILED"
+  | "MCP_CONFIG_INVALID"
+  | "SYSTEM_PROMPT_FILE_MISSING";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

@@ -14,6 +14,16 @@ import {
   CostUpdateEventSchema,
   DebugLogChunkSchema,
 } from "./aiObservability";
+import {
+  AiChatGetActiveThreadRequestSchema,
+  AiChatListThreadsRequestSchema,
+  AiChatStartNewThreadRequestSchema,
+  AiChatArchiveThreadRequestSchema,
+  AiChatGetActiveThreadResultSchema,
+  AiChatListThreadsResultSchema,
+  AiChatStartNewThreadResultSchema,
+  AiChatArchiveThreadResultSchema,
+} from "./chatThread";
 
 /** Phase 6 — Subagents/Custom-agents listing model. */
 export const AgentSchema = z.object({
@@ -517,6 +527,11 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:debug-log:open"), sessionId: z.string() }),
   z.object({ type: z.literal("ai-session:debug-log:close"), sessionId: z.string() }),
   z.object({ type: z.literal("ai:env:otel-status") }),
+  // Phase 8 — resumable chat threads.
+  AiChatGetActiveThreadRequestSchema,
+  AiChatListThreadsRequestSchema,
+  AiChatStartNewThreadRequestSchema,
+  AiChatArchiveThreadRequestSchema,
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -1001,6 +1016,11 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     type: z.literal("ai:env:otel-status:result"),
     vars: z.array(z.object({ name: z.string(), present: z.boolean() })),
   }),
+  // Phase 8 — resumable chat threads.
+  AiChatGetActiveThreadResultSchema,
+  AiChatListThreadsResultSchema,
+  AiChatStartNewThreadResultSchema,
+  AiChatArchiveThreadResultSchema,
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

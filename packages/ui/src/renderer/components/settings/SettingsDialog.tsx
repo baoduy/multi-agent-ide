@@ -8,6 +8,7 @@ import {
   Palette,
   Wand2,
   Boxes,
+  Puzzle,
 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
@@ -18,6 +19,7 @@ import { CliCommandsSettings } from "./CliCommandsSettings";
 import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
 import { SpecifyExtensionsSettings } from "./SpecifyExtensionsSettings";
 import { AiSettingsView } from "./AiSettingsView";
+import { PluginDirsPanel } from "./PluginDirsPanel";
 import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
 import { WorkingDirReproducibility } from "./WorkingDirReproducibility";
@@ -36,6 +38,7 @@ type TabId =
   | "sync"
   | "appearance"
   | "ai"
+  | "plugins"
   | "reproducibility";
 
 type TabDef = {
@@ -51,6 +54,7 @@ const TABS: readonly TabDef[] = [
   { id: "sync", label: "Sync", icon: RefreshCw },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "ai", label: "AI Editor", icon: Wand2 },
+  { id: "plugins", label: "Plugins", icon: Puzzle },
   { id: "reproducibility", label: "AI Reproducibility", icon: Boxes },
 ];
 
@@ -97,6 +101,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
           {activeTab === "sync" && <SyncIntervalSettings />}
           {activeTab === "appearance" && <AppearanceSettings />}
           {activeTab === "ai" && <AiSettingsView />}
+          {activeTab === "plugins" && <PluginDirsPanel />}
           {activeTab === "reproducibility" && <WorkingDirReproducibility />}
 
           {error && (

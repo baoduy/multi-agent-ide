@@ -5,6 +5,7 @@ import { sanitizeWorktreeName } from "@magenta/shared/sanitize";
 import { sendOrThrow } from "../../services/ipcClient";
 import { ipc } from "../../utils/ipc";
 import { useAISessionStore } from "../../store/aiSessionStore";
+import { useAiPresetStore } from "../../store/aiPresetStore";
 import { useRepoStore } from "../../store/repoStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import type { WorktreeInfo } from "../../store/worktreeStore";
@@ -61,6 +62,8 @@ export function NewSessionDialog({
   resumeContext,
 }: NewSessionDialogProps): React.ReactElement | null {
   const createSession = useAISessionStore((s) => s.createSession);
+  const presets = useAiPresetStore((s) => s.presets);
+  const loadPresets = useAiPresetStore((s) => s.loadAll);
   const repos = useRepoStore((s) => s.repos);
   const pinnedPaths = useRepoStore((s) => s.pinnedPaths);
   const worktrees = useWorktreeStore((s) => s.worktrees);
@@ -68,6 +71,8 @@ export function NewSessionDialog({
   /* ── Form state ── */
   const [provider, setProvider] = useState<AIProvider>("claude");
   const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("default");
+  // Phase 4 — Tool preset selection. Empty string = no preset.
+  const [presetId, setPresetId] = useState<string>("");
 
   // Workspace
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(initialRepoPath ?? null);
@@ -248,6 +253,7 @@ export function NewSessionDialog({
       setSelectedRepoPath(initialRepoPath ?? null);
       setProvider(resumeContext?.provider ?? "claude");
       setPermissionMode("default");
+      setPresetId("");
       setWorkspaceTarget("branch");
       setSelectedWorktreePath(null);
       setWorktreeCustomName("");
@@ -258,6 +264,15 @@ export function NewSessionDialog({
       setIsLoadingSpecifyStatus(false);
     }
   }, [open, initialRepoPath, resumeContext]);
+
+  // Phase 4 — Load presets lazily when the dialog first opens.
+  useEffect(() => {
+    if (open && presets.length === 0) {
+      void loadPresets().catch(() => {
+        // Non-fatal: preset dropdown stays empty if the daemon errors.
+      });
+    }
+  }, [open, presets.length, loadPresets]);
 
   // Load branches when repo changes
   useEffect(() => {
@@ -457,6 +472,7 @@ export function NewSessionDialog({
           worktreePath: worktreePathToUse,
           permissionMode: permissionMode as AIPermissionMode,
           providerSessionId: resumeContext?.providerSessionId,
+          presetId: presetId || undefined,
         },
         80,
         24,
@@ -471,6 +487,7 @@ export function NewSessionDialog({
   }, [
     provider,
     permissionMode,
+    presetId,
     selectedRepoPath,
     workspaceTarget,
     selectedBranch,
@@ -560,6 +577,34 @@ export function NewSessionDialog({
               minPanelWidth: 220,
             }}
           />
+        </div>
+
+        {/* ─── Tool preset (Phase 4) ─── */}
+        <div>
+          <FormLabel>Tool preset</FormLabel>
+          <select
+            value={presetId}
+            onChange={(e) => setPresetId(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px 10px",
+              border: `1px solid ${colors.border}`,
+              borderRadius: 6,
+              outline: "none",
+              background: colors.bgSurface,
+              color: colors.text,
+              fontFamily: "var(--font-sans)",
+              boxSizing: "border-box",
+            }}
+          >
+            <option value="">(none)</option>
+            {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+                {p.builtin ? " (built-in)" : ""}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* ─── Workspace ─── */}

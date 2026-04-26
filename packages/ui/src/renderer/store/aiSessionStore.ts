@@ -26,6 +26,11 @@ type AISessionStoreState = {
     permissionMode?: AIPermissionMode;
     /** Reuse an existing agent session UUID (resume of a synced session). */
     providerSessionId?: string;
+    /** Phase 4 — tool/permission granularity. */
+    allowedTools?: string[];
+    disallowedTools?: string[];
+    presetId?: string;
+    permissionPromptTool?: string;
   }, cols: number, rows: number) => Promise<AISessionRecord>;
   resumeSession: (sessionId: string, cols: number, rows: number) => Promise<AISessionRecord>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -72,6 +77,10 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
       worktreePath: config.worktreePath,
       permissionMode: config.permissionMode,
       providerSessionId: config.providerSessionId,
+      allowedTools: config.allowedTools,
+      disallowedTools: config.disallowedTools,
+      presetId: config.presetId,
+      permissionPromptTool: config.permissionPromptTool,
       cols,
       rows,
     });

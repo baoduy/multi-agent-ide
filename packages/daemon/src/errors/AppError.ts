@@ -30,7 +30,10 @@ export type AppErrorCode =
   | "PRESET_NOT_FOUND"
   | "BUILTIN_PRESET_READONLY"
   | "PERMISSION_PROMPT_TIMEOUT"
-  | "AI_RESUME_PENDING_RECONCILIATION";
+  | "AI_RESUME_PENDING_RECONCILIATION"
+  | "AGENTS_MANIFEST_INVALID"
+  | "CLAUDE_AGENTS_ERROR"
+  | "PLUGIN_DIR_INVALID";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

@@ -130,3 +130,11 @@ export {
   type ProviderCapability,
   type SpawnOptionKey,
 } from "./providerCapabilities";
+
+export {
+  AIStreamEventSchema,
+  TokenUsageSchema,
+  type AIStreamEvent,
+  type TokenUsage,
+  type PluginError,
+} from "./aiStreamEvent";

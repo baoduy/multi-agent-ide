@@ -171,6 +171,7 @@ export class AISessionApplicationService {
       status: "active", // Runtime status — not persisted
       permissionMode: mergedPermissionMode,
       title: null,
+      parentSessionId: config.parentSessionId ?? null,
       createdAt: now,
       lastActiveAt: now,
     };

@@ -51,9 +51,17 @@ export const AISessionRecordSchema = z.object({
   permissionMode: z.enum(AI_PERMISSION_MODES),
   /** Human-readable title derived from the user's first input. */
   title: z.string().nullable(),
+  /** Phase 5 — parent canonical sessionId when this row was created via fork. */
+  parentSessionId: z.string().nullable(),
   createdAt: z.number().int().nonnegative(),
   lastActiveAt: z.number().int().nonnegative(),
 });
+
+/** Phase 5 — list response row carries on-disk resumability state (FR-7.6). */
+export const AISessionListEntrySchema = AISessionRecordSchema.extend({
+  resumable: z.boolean(),
+});
+export type AISessionListEntry = z.infer<typeof AISessionListEntrySchema>;
 
 export type AISessionRecord = z.infer<typeof AISessionRecordSchema>;
 
@@ -90,6 +98,18 @@ export interface AISessionConfig {
    * `providerSessionId` once the JSONL/state-dir appears.
    */
   providerSessionId?: string;
+  /** @see FR-7.1 — caller-provided canonical session ID (UUID v4). */
+  sessionId?: string;
+  /** @see FR-7.8 — `-n` plumbing (Claude-only). */
+  name?: string;
+  /** @see FR-7.9 — `--from-pr` plumbing (Claude-only). */
+  resumeFromPR?: string;
+  /** @see Phase 5 §"--continue" — explicit "continue most recent" action. */
+  continueRecent?: boolean;
+  /** @see FR-7.7 — populated by the fork code path; never set by direct create. */
+  parentSessionId?: string;
+  /** @see FR-7.7 — instructs the daemon to add `--fork-session`. */
+  forkSession?: boolean;
 }
 
 type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];

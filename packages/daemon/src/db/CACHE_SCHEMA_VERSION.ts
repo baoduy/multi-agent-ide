@@ -8,5 +8,9 @@
  *
  * Bump this whenever the shape of any msgpack-encoded value changes
  * incompatibly (field renamed, removed, or type-changed).
+ *
+ * v2 (Phase 5): persisted AISessionRecord gains `parentSessionId: string | null`
+ * to support `ai-session:fork`. This is the LMDB equivalent of the spec's
+ * "migration 16" (`ai_sessions.parent_session_id`).
  */
-export const CACHE_SCHEMA_VERSION = 1;
+export const CACHE_SCHEMA_VERSION = 2;

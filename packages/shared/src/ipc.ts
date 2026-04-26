@@ -177,6 +177,33 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     spawn: AISpawnOptionsSchema,
     timeoutMs: z.number().int().positive().optional(),
   }),
+  // `ai:run-bare-once` — Phase 3. One-shot Claude run with `--bare` so
+  // hooks/skills/plugins/MCP/CLAUDE.md auto-discovery is skipped, making the
+  // run reproducible across machines (Spec FR-9.1, AC-4). MCP config and
+  // system prompts are passed explicitly via files materialized by the daemon.
+  z.object({
+    type: z.literal("ai:run-bare-once"),
+    provider: z.enum(["claude", "copilot"]),
+    workingDirPath: z.string().min(1),
+    taskSpecDir: z.string().optional(),
+    prompt: z.string().min(1),
+    spawn: z
+      .object({
+        model: z.string().optional(),
+        mcpConfig: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+        strictMcpConfig: z.boolean().optional(),
+        systemPromptFile: z.string().optional(),
+        appendSystemPromptFile: z.string().optional(),
+        maxTurns: z.number().int().positive().optional(),
+        maxBudgetUsd: z.number().positive().optional(),
+        allowedTools: z.array(z.string()).optional(),
+        disallowedTools: z.array(z.string()).optional(),
+        settings: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+      })
+      .strict()
+      .default({}),
+    timeoutMs: z.number().int().positive().max(10 * 60_000).default(120_000),
+  }),
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   // `repoPath` scopes the sync to one repo (+ its worktrees). Omit to sync
@@ -665,6 +692,22 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     }).optional(),
     costUsd: z.number().nonnegative().optional(),
     retriesSeen: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("ai:run-bare-once:result"),
+    stdout: z.string(),
+    exitCode: z.number().int(),
+    argv: z.array(z.string()),
+    resolution: z.object({
+      mcpConfigSource: z.enum(["spawn", "working-dir", "none"]),
+      systemPromptFileSource: z.enum(["spawn", "task", "working-dir", "none"]),
+      appendSystemPromptFileSource: z.enum([
+        "spawn",
+        "task",
+        "working-dir",
+        "none",
+      ]),
+    }),
   }),
   z.object({
     type: z.literal("ai-session:event"),

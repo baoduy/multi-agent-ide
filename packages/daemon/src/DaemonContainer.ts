@@ -35,6 +35,8 @@ import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
 import { AIRunOnceApplicationService } from "./application/AIRunOnceApplicationService";
+import { AiBareRunApplicationService } from "./application/AiBareRunApplicationService";
+import { TempFileGateway } from "./infrastructure/TempFileGateway";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
 
@@ -84,6 +86,7 @@ export class DaemonContainer {
   readonly aiConfigRepository: AiConfigRepository;
   readonly aiCliGateway: AiCliGateway;
   readonly aiRunOnceService: AIRunOnceApplicationService;
+  readonly aiBareRunService: AiBareRunApplicationService;
   readonly aiEditService: AiEditApplicationService;
   readonly fileWatcherGateway: FileWatcherGateway;
   readonly fileWatchService: FileWatchService;
@@ -209,6 +212,11 @@ export class DaemonContainer {
     this.aiConfigRepository = new AiConfigRepository();
     this.aiCliGateway = new AiCliGateway();
     this.aiRunOnceService = new AIRunOnceApplicationService(this.aiCliGateway, this.bridge);
+    this.aiBareRunService = new AiBareRunApplicationService({
+      configManager: this.configManager,
+      aiCliGateway: this.aiCliGateway,
+      tempFileFactory: () => new TempFileGateway("magenta-aibare"),
+    });
     this.aiEditService = new AiEditApplicationService(
       this.aiConfigRepository,
       this.aiCliGateway,
@@ -257,6 +265,7 @@ export class DaemonContainer {
       commitDetailCache: this.commitDetailCache,
       aiEditService: this.aiEditService,
       aiRunOnceService: this.aiRunOnceService,
+      aiBareRunService: this.aiBareRunService,
       fileWatchService: this.fileWatchService,
     });
   }

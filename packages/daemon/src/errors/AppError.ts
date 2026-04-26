@@ -21,6 +21,7 @@ export type AppErrorCode =
   | "AI_PROVIDER_NOT_AVAILABLE"
   | "AI_TIMEOUT"
   | "AI_CLI_FAILED"
+  | "UNSUPPORTED_SPAWN_OPTION"
   | "FILE_WATCH_FAILED";
 
 export class AppError extends Error {

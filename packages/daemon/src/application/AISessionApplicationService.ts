@@ -411,36 +411,72 @@ export class AISessionApplicationService {
     }
 
     const providerMeta = getProviderMeta(record.provider);
+    const resumeCaps = getProviderCapability(record.provider);
 
-    // Build args for resume.
-    //
-    // Claude:  --resume <id> if the synced UUID is known, else --continue
-    //          (legacy records that never got reconciled).
-    // Copilot: --resume=<id> if known, else --continue.
-    //
-    // We never pass --session-id here: Claude rejects it alongside
-    // --resume/--continue unless --fork-session is specified, which would
-    // create a new conversation branch instead of continuing the original.
-    const resumeId = record.providerSessionId;
+    // FR-7.2.a — resolve the provider-specific resume token from the canonical
+    // sessionId. Claude: canonical id IS the provider session id (provider
+    // emits `--session-id <canonical>` at create-time). Copilot: must look up
+    // provider_session_id; block up to 5s if reconciliation is still pending.
+    let resumeToken: string | null;
+    if (resumeCaps.supportsExplicitSessionId) {
+      // Claude — canonical id equals provider session id.
+      resumeToken = record.id;
+    } else if (record.providerSessionId) {
+      resumeToken = record.providerSessionId;
+    } else {
+      // Copilot pending reconciliation — bounded wait, then fallback to
+      // continueRecent if it never arrives. AI_RESUME_PENDING_RECONCILIATION
+      // is thrown only when the wait helper is invoked and times out.
+      try {
+        resumeToken = await awaitProviderSessionId({
+          sessionId: record.id,
+          lookup: (id) => this.records.get(id)?.providerSessionId ?? null,
+          subscribe: (id, cb) => this.subscribeReconciled(id, cb),
+          timeoutMs: this.resumeReconciliationTimeoutMs,
+        });
+      } catch (err) {
+        // Surface the typed error so the UI can show a "still reconciling"
+        // hint and let the user retry.
+        throw err;
+      }
+    }
+
     const resumeSpawn = sessionConfigToSpawn(record.provider, {
       provider: record.provider,
       permissionMode: record.permissionMode,
-      providerSessionId: resumeId ?? undefined,
+      providerSessionId: resumeToken ?? undefined,
     });
-    // continueRecent fallback when no synced UUID is known (legacy records).
-    if (!resumeId) resumeSpawn.continueRecent = true;
-    const resumeCaps = getProviderCapability(record.provider);
+    if (!resumeToken) resumeSpawn.continueRecent = true;
     const { args: resumeDerived } = getToArgv(record.provider)(resumeSpawn, resumeCaps);
-    const args = [...providerMeta.defaultArgs, ...resumeDerived];
+    const argsWithResume = [...providerMeta.defaultArgs, ...resumeDerived];
 
-    // Spawn PTY
+    // FR-7.10 — try once with --resume; on rejection, retry without resume
+    // and surface a typed `resume-fallback` event.
     const factory = getSessionFactory(record.provider);
     const session = factory.create(sessionId);
-
     this.wireSessionEvents(sessionId, session);
 
-    session.start(record.cwd, args, cols, rows);
-    this.liveSessions.set(sessionId, session);
+    try {
+      session.start(record.cwd, argsWithResume, cols, rows);
+      this.liveSessions.set(sessionId, session);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      const argsNoResume = argsWithResume.filter(
+        (a, i, arr) => a !== "--resume" && arr[i - 1] !== "--resume",
+      );
+      this.bridge.emit({
+        type: "ai-session:event",
+        event: {
+          kind: "resume-fallback",
+          sessionId: record.id,
+          seq: 0,
+          timestamp: Date.now(),
+          reason,
+        },
+      });
+      session.start(record.cwd, argsNoResume, cols, rows);
+      this.liveSessions.set(sessionId, session);
+    }
 
     // Update lastActiveAt (in-memory)
     const now = Date.now();

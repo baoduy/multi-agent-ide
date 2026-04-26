@@ -42,6 +42,7 @@ import { FileWatchService } from "./application/FileWatchService";
 import { AiPresetRepository } from "./services/AiPresetRepository";
 import { AiPresetService } from "./application/AiPresetService";
 import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
+import { PermissionPromptMcpServer } from "./infrastructure/PermissionPromptMcpServer";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -96,6 +97,7 @@ export class DaemonContainer {
   readonly aiPresetRepository: AiPresetRepository;
   readonly aiPresetService: AiPresetService;
   readonly permissionCoordinator: PermissionPromptCoordinator;
+  readonly permissionPromptMcp: PermissionPromptMcpServer;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -244,6 +246,9 @@ export class DaemonContainer {
     // permission event bus: its `emit(IpcResponse)` shape already matches
     // the `ai-session:permission-request` push event payload.
     this.permissionCoordinator = new PermissionPromptCoordinator(this.bridge);
+    this.permissionPromptMcp = new PermissionPromptMcpServer(
+      this.permissionCoordinator,
+    );
   }
 
   /**

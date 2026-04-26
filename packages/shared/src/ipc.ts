@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { MAIN_TABS, PIPELINE_STAGES, REPO_STATUSES, STAGE_STATUSES } from "./constants";
 import { MagentaConfigSchema } from "./config";
-import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
+import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, AISessionListEntrySchema, ProviderMetaSchema } from "./aiTerminal";
 import { SYNCED_SESSION_PROVIDERS, SyncedSessionRecordSchema } from "./syncedSession";
 import { CliToolIdSchema, CliToolStatusSchema } from "./cliTools";
 import { AISpawnOptionsSchema } from "./aiSpawnOptions";
@@ -175,6 +175,25 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     // `noAskUser` is programmatic-only; ignored unless `programmatic: true`.
     noAskUser: z.boolean().optional(),
     programmatic: z.boolean().optional(),
+    // Phase 5 — caller-provided canonical session ID (FR-7.1).
+    sessionId: z.uuid().optional(),
+    // Phase 5 — `-n` plumbing (FR-7.8). Claude only.
+    name: z.string().min(1).max(200).optional(),
+    // Phase 5 — `--from-pr` plumbing (FR-7.9). Claude only.
+    resumeFromPR: z.string().min(1).max(500).optional(),
+    // Phase 5 — `--continue` (Claude `-c`) "continue most recent".
+    continueRecent: z.boolean().optional(),
+  }),
+  // Phase 5 — fork an existing session, creating a new canonical row whose
+  // `parentSessionId` points back at the original (FR-7.7). Claude only;
+  // Copilot raises UNSUPPORTED_SPAWN_OPTION at the application service.
+  z.object({
+    type: z.literal("ai-session:fork"),
+    parentSessionId: z.uuid(),
+    sessionId: z.uuid().optional(),
+    prompt: z.string().optional(),
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
   }),
   z.object({ type: z.literal("ai-session:resume"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:input"), sessionId: z.string(), data: z.string() }),
@@ -692,7 +711,15 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:input:ack") }),
   z.object({ type: z.literal("ai-session:resize:ack") }),
   z.object({ type: z.literal("ai-session:stop:ack") }),
-  z.object({ type: z.literal("ai-session:list:result"), sessions: z.array(AISessionRecordSchema) }),
+  z.object({ type: z.literal("ai-session:list:result"), sessions: z.array(AISessionListEntrySchema) }),
+  // Phase 5 — paired success response for ai-session:fork.
+  z.object({ type: z.literal("ai-session:fork:result"), session: AISessionRecordSchema }),
+  // Phase 5 — push event fired once provider-assigned UUID is known (FR-7.4).
+  z.object({
+    type: z.literal("ai-session:reconciled"),
+    sessionId: z.uuid(),
+    providerSessionId: z.string(),
+  }),
   z.object({ type: z.literal("ai-session:deleted"), sessionId: z.string() }),
   z.object({ type: z.literal("ai-session:providers:result"), providers: z.record(z.enum(AI_PROVIDERS), ProviderMetaSchema) }),
   z.object({ type: z.literal("ai-session:data"), sessionId: z.string(), data: z.string(), seq: z.number().int().nonnegative().optional() }),

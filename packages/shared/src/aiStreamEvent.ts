@@ -98,5 +98,10 @@ export const AIStreamEventSchema = z.discriminatedUnion("kind", [
     ...Base,
     bytes: z.string(),
   }),
+  z.object({
+    kind: z.literal("resume-fallback"),
+    ...Base,
+    reason: z.string(),
+  }),
 ]);
 export type AIStreamEvent = z.infer<typeof AIStreamEventSchema>;

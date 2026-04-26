@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { AIProvider, AISessionRecord, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
+import type { AIProvider, AISessionRecord, AISessionListEntry, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
 import { parseWorkspaceYaml } from "../domain/copilotSessionParser";
 import { extractTitleFromContent } from "../domain/claudeSessionParser";
 import type { IPCBridge } from "../ipc/IPCBridge";
@@ -301,14 +301,25 @@ export class AISessionApplicationService {
    * current daemon process. Historical sessions live in synced_sessions —
    * the renderer merges both lists on the UI side.
    */
-  listSessions(): AISessionRecord[] {
+  listSessions(): AISessionListEntry[] {
     return [...this.records.values()].map((record) => {
       const liveSession = this.liveSessions.get(record.id);
       return {
         ...record,
         status: liveSession ? liveSession.getStatus() : "idle",
+        resumable: this.isResumable(record),
       };
     });
+  }
+
+  /**
+   * FR-7.6 — Claude: canonical id equals provider session id; we treat it as
+   * resumable as long as the record exists (disk presence is verified lazily
+   * on resume). Copilot: resumable iff providerSessionId is reconciled.
+   */
+  private isResumable(record: AISessionRecord): boolean {
+    if (record.provider === "claude") return true;
+    return record.providerSessionId !== null;
   }
 
   deleteSession(sessionId: string): void {

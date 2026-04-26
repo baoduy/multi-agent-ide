@@ -31,7 +31,7 @@ function deriveFolderName(url: string): string {
 }
 
 export function CloneRepoDialog({ defaultTargetDir, onClose }: CloneRepoDialogProps): React.ReactElement {
-  const workingDirs = useConfigStore((s) => s.workingDirs);
+  const workingDirs = useConfigStore((s) => s.workingDirPaths);
   const fetchConfig = useConfigStore((s) => s.fetchConfig);
   const startClone = useGitCloneStore((s) => s.startClone);
   const clearClone = useGitCloneStore((s) => s.clearClone);

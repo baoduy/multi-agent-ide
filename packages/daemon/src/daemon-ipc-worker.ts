@@ -401,7 +401,7 @@ async function main() {
 
     // Start background services after IPC is ready
     // 1. Watch all configured working directories for new/removed repos
-    const workingDirs = configManager.getConfig().workingDirs;
+    const workingDirs = configManager.getAllowedRoots();
     for (const dir of workingDirs) {
       dirWatcher.watchDir(dir);
     }
@@ -411,7 +411,7 @@ async function main() {
     //    is a sequential FIFO queue, so the "repo-scan" job will finish before
     //    the "spec-sync-all" job that start() enqueues next.
     if (workingDirs.length > 0) {
-      void scanQueue.requestScan(workingDirs);
+      void scanQueue.requestScan([...workingDirs]);
     }
 
     // 3. Start the recurring spec sync interval (configurable, default 15 min).

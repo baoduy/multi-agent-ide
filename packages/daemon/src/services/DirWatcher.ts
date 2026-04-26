@@ -62,9 +62,9 @@ export class DirWatcher {
     }
 
     this.debounceTimer = setTimeout(() => {
-      const roots = this.configManager.getConfig().workingDirs;
+      const roots = this.configManager.getAllowedRoots();
       console.log(`${TAG} Repository change detected, scheduling rescan for ${roots.length} roots`);
-      void this.scanQueue.requestScan(roots);
+      void this.scanQueue.requestScan([...roots]);
       this.debounceTimer = null;
     }, DEBOUNCE_MS);
   }

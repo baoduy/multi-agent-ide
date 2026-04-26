@@ -22,8 +22,8 @@ export class RepoApplicationService {
   }
 
   async triggerScan(): Promise<void> {
-    const config = this.configManager.getConfig();
-    void this.scanQueue.requestScan(config.workingDirs).catch((err) => {
+    const workingDirs = this.configManager.getAllowedRoots();
+    void this.scanQueue.requestScan([...workingDirs]).catch((err) => {
       console.error("[repo-service] Scan failed:", err);
     });
   }

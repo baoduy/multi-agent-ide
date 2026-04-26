@@ -16,7 +16,7 @@ export function RepoList(): React.ReactElement {
   const error = useRepoStore((state) => state.error);
   const initializeSubscriptions = useRepoStore((state) => state.initializeSubscriptions);
   const togglePin = useRepoStore((state) => state.togglePin);
-  const workingDirs = useConfigStore((state) => state.workingDirs);
+  const workingDirs = useConfigStore((state) => state.workingDirPaths);
   const searchQuery = useViewSearchStore((s) => s.queries["repos"] ?? "");
 
   useEffect(() => {

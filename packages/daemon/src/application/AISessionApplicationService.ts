@@ -287,6 +287,11 @@ export class AISessionApplicationService {
       parentSessionId: config.parentSessionId ?? null,
       createdAt: now,
       lastActiveAt: now,
+      // Phase 7 — observability counters; rolled forward by SessionObservabilityService.
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCostUsd: 0,
+      retryCount: 0,
     };
     this.records.set(id, record);
 

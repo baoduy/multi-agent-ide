@@ -55,6 +55,11 @@ export const AISessionRecordSchema = z.object({
   parentSessionId: z.string().nullable(),
   createdAt: z.number().int().nonnegative(),
   lastActiveAt: z.number().int().nonnegative(),
+  /** Phase 7 — rolling observability counters persisted from `result` events. */
+  totalInputTokens: z.number().int().nonnegative().default(0),
+  totalOutputTokens: z.number().int().nonnegative().default(0),
+  totalCostUsd: z.number().nonnegative().default(0),
+  retryCount: z.number().int().nonnegative().default(0),
 });
 
 /** Phase 5 — list response row carries on-disk resumability state (FR-7.6). */

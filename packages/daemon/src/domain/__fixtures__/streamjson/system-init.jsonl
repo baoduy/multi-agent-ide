@@ -1,0 +1,1 @@
+{"type":"system","subtype":"init","session_id":"sess-1","model":"claude-sonnet-4-6","tools":["Read","Edit","Bash"],"mcp_servers":[{"name":"github","status":"connected"}],"plugin_errors":[]}

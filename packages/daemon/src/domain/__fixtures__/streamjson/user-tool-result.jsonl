@@ -1,0 +1,2 @@
+{"type":"user","session_id":"sess-1","message":{"content":[{"type":"tool_result","tool_use_id":"tu_1","is_error":false,"content":"file contents here"}]}}
+{"type":"user","session_id":"sess-1","message":{"content":[{"type":"tool_result","tool_use_id":"tu_2","is_error":true,"content":"ENOENT"}]}}

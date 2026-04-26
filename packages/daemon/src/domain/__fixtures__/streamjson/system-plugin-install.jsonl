@@ -1,0 +1,4 @@
+{"type":"system","subtype":"plugin_install","session_id":"sess-1","plugin":"superpowers","status":"started"}
+{"type":"system","subtype":"plugin_install","session_id":"sess-1","plugin":"superpowers","status":"installed"}
+{"type":"system","subtype":"plugin_install","session_id":"sess-1","plugin":"broken-one","status":"failed","error":"checksum mismatch"}
+{"type":"system","subtype":"plugin_install","session_id":"sess-1","plugin":"superpowers","status":"completed"}

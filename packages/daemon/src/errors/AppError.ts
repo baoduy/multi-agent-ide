@@ -26,7 +26,10 @@ export type AppErrorCode =
   | "UNSUPPORTED_SPAWN_OPTION"
   | "FILE_WATCH_FAILED"
   | "MCP_CONFIG_INVALID"
-  | "SYSTEM_PROMPT_FILE_MISSING";
+  | "SYSTEM_PROMPT_FILE_MISSING"
+  | "PRESET_NOT_FOUND"
+  | "BUILTIN_PRESET_READONLY"
+  | "PERMISSION_PROMPT_TIMEOUT";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

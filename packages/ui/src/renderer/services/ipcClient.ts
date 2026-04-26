@@ -123,6 +123,11 @@ type ResponseForRequest = {
   "ai-chat:edit-selection": Extract<IpcResponse, { type: "ai-chat:edit-selection:result" }>;
   "ai-chat:modify-document": Extract<IpcResponse, { type: "ai-chat:modify-document:result" }>;
   "ai-chat:ask-spec": Extract<IpcResponse, { type: "ai-chat:ask-spec:result" }>;
+  // Phase 8 — resumable chat threads.
+  "ai-chat:get-active-thread": Extract<IpcResponse, { type: "ai-chat:get-active-thread:result" }>;
+  "ai-chat:list-threads": Extract<IpcResponse, { type: "ai-chat:list-threads:result" }>;
+  "ai-chat:start-new-thread": Extract<IpcResponse, { type: "ai-chat:start-new-thread:result" }>;
+  "ai-chat:archive-thread": Extract<IpcResponse, { type: "ai-chat:archive-thread:result" }>;
   // Phase 6 — agents + plugin-dirs.
   "ai:list-agents": Extract<IpcResponse, { type: "ai:list-agents:result" }>;
   "plugin-dirs:list": Extract<IpcResponse, { type: "plugin-dirs:list:result" }>;

@@ -67,6 +67,11 @@ export type ChatThread = {
   pendingStreamId: string | null;
   /** Id of the assistant message currently being streamed into. */
   pendingAssistantId: string | null;
+  /**
+   * Phase 8 — UUID of the persisted thread on the daemon side. Null only
+   * between mount and the first openThreadForFile resolution.
+   */
+  threadId: string | null;
 };
 
 const MAX_HISTORY = 20;
@@ -83,6 +88,7 @@ function emptyThread(): ChatThread {
     sessionId: null,
     pendingStreamId: null,
     pendingAssistantId: null,
+    threadId: null,
   };
 }
 
@@ -152,6 +158,19 @@ type State = {
 
   /** Append a system bubble (e.g. "✓ Applied edit") to the thread. */
   appendSystemMessage: (filePath: string, text: string, kind: ChatMessage["kind"]) => void;
+
+  /**
+   * Phase 8 — resolve the active thread on the daemon side and hydrate UI
+   * state. Called automatically when the panel mounts for a file and on
+   * provider switch.
+   */
+  openThreadForFile: (filePath: string, provider: AIProvider) => Promise<void>;
+
+  /** Phase 8 — archive the active thread server-side and replace it. */
+  archiveActiveAndStartNew: (filePath: string, provider: AIProvider) => Promise<void>;
+
+  /** Phase 8 — read-only fetch of all threads (active + archived) for a file. */
+  listThreadsForFile: (filePath: string) => Promise<unknown[]>;
 };
 
 /**
@@ -177,25 +196,20 @@ export const useAiChatStore = create<State>((set, get) => ({
       threadsByFile: {
         ...s.threadsByFile,
         [filePath]: providerChanged
-          // Switching providers resets the thread: Claude's session id is
-          // meaningless for Copilot (and vice versa), and mixing turns from
-          // two different CLIs in one transcript is confusing.
           ? { ...emptyThread(), provider, open: true }
           : { ...thread, open: true },
       },
     }));
+    // Phase 8 — re-resolve the per-(file, provider) thread from LMDB.
+    void get().openThreadForFile(filePath, provider);
   },
 
   setProvider(filePath, provider) {
     const thread = get().threadsByFile[filePath] ?? emptyThread();
     if (thread.provider === provider) return;
-    // Same reset semantics as openWithProvider — start fresh on each switch.
-    set((s) => ({
-      threadsByFile: {
-        ...s.threadsByFile,
-        [filePath]: { ...emptyThread(), provider, open: thread.open },
-      },
-    }));
+    // Phase 8 — switching providers re-resolves to the other provider's
+    // active thread for this file (or creates a fresh one).
+    void get().openThreadForFile(filePath, provider);
   },
 
   setMode(filePath, mode) {
@@ -264,6 +278,7 @@ export const useAiChatStore = create<State>((set, get) => ({
     let historyForApi: { role: "user" | "assistant"; text: string }[] = [];
     let resumeSessionId: string | undefined;
     let provider: AIProvider = "claude";
+    let threadId: string | null = null;
     let pendingSelectionPayload:
       | { start: number; end: number; text: string }
       | undefined;
@@ -275,6 +290,7 @@ export const useAiChatStore = create<State>((set, get) => ({
         .map((m) => ({ role: m.role as "user" | "assistant", text: m.text }));
       resumeSessionId = thread.sessionId ?? undefined;
       provider = thread.provider;
+      threadId = thread.threadId;
       if (thread.pendingSelection) {
         pendingSelectionPayload = {
           start: thread.pendingSelection.localStart,
@@ -309,6 +325,7 @@ export const useAiChatStore = create<State>((set, get) => ({
         streamId,
         resumeSessionId,
         provider,
+        sessionId: threadId ?? undefined,
       });
       set((s) => {
         const thread = s.threadsByFile[filePath];
@@ -383,6 +400,7 @@ export const useAiChatStore = create<State>((set, get) => ({
     });
 
     try {
+      const threadId = get().threadsByFile[filePath]?.threadId ?? undefined;
       const response = await sendOrThrow({
         type: "ai-chat:edit-selection",
         repoPath,
@@ -393,6 +411,7 @@ export const useAiChatStore = create<State>((set, get) => ({
           end: selection.localEnd,
           text: selection.text,
         },
+        sessionId: threadId,
       });
       set((s) => {
         const thread = s.threadsByFile[filePath];
@@ -467,11 +486,13 @@ export const useAiChatStore = create<State>((set, get) => ({
     });
 
     try {
+      const threadId = get().threadsByFile[filePath]?.threadId ?? undefined;
       const response = await sendOrThrow({
         type: "ai-chat:modify-document",
         repoPath,
         instruction,
         documentText,
+        sessionId: threadId,
       });
       set((s) => {
         const thread = s.threadsByFile[filePath];
@@ -511,6 +532,79 @@ export const useAiChatStore = create<State>((set, get) => ({
       });
       return null;
     }
+  },
+
+  async openThreadForFile(filePath, provider) {
+    const response = await sendOrThrow({
+      type: "ai-chat:get-active-thread",
+      filePath,
+      provider,
+    });
+    const wasOpen = get().threadsByFile[filePath]?.open ?? false;
+
+    if (response.thread) {
+      const t = response.thread;
+      set((s) => ({
+        threadsByFile: {
+          ...s.threadsByFile,
+          [filePath]: {
+            ...emptyThread(),
+            open: wasOpen,
+            provider: t.provider,
+            threadId: t.threadId,
+            sessionId: t.providerSessionId,
+            messages: t.messages,
+          },
+        },
+      }));
+      return;
+    }
+
+    // No active thread — create one server-side so subsequent sends carry a sessionId.
+    const created = await sendOrThrow({
+      type: "ai-chat:start-new-thread",
+      filePath,
+      provider,
+    });
+    set((s) => ({
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: {
+          ...emptyThread(),
+          open: wasOpen,
+          provider,
+          threadId: created.thread.threadId,
+        },
+      },
+    }));
+  },
+
+  async archiveActiveAndStartNew(filePath, provider) {
+    const wasOpen = get().threadsByFile[filePath]?.open ?? true;
+    const created = await sendOrThrow({
+      type: "ai-chat:start-new-thread",
+      filePath,
+      provider,
+    });
+    set((s) => ({
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: {
+          ...emptyThread(),
+          open: wasOpen,
+          provider,
+          threadId: created.thread.threadId,
+        },
+      },
+    }));
+  },
+
+  async listThreadsForFile(filePath) {
+    const response = await sendOrThrow({
+      type: "ai-chat:list-threads",
+      filePath,
+    });
+    return response.threads;
   },
 }));
 

@@ -40,7 +40,8 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
   const thread = useAiChatStore((s) => s.threadsByFile[filePath]);
   const setMode = useAiChatStore((s) => s.setMode);
   const setPendingSelection = useAiChatStore((s) => s.setPendingSelection);
-  const clear = useAiChatStore((s) => s.clear);
+  const openThreadForFile = useAiChatStore((s) => s.openThreadForFile);
+  const archiveActiveAndStartNew = useAiChatStore((s) => s.archiveActiveAndStartNew);
   const sendAsk = useAiChatStore((s) => s.sendAsk);
   const requestEditSelection = useAiChatStore((s) => s.requestEditSelection);
   const requestModifyDocument = useAiChatStore((s) => s.requestModifyDocument);
@@ -62,6 +63,14 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
       setMode(filePath, "ask");
     }
   }, [readOnly, storedMode, filePath, setMode]);
+
+  // Phase 8 — auto-resume the per-(file, provider) thread on mount and on
+  // provider switch. The store-level resolver handles fallback to a fresh
+  // thread when none exists.
+  const currentProvider = thread?.provider ?? "claude";
+  useEffect(() => {
+    void openThreadForFile(filePath, currentProvider);
+  }, [filePath, currentProvider, openThreadForFile]);
 
   const [input, setInput] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
@@ -224,9 +233,9 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
               }}
             >
               <MoreMenuItem
-                label="Clear conversation"
+                label="New session"
                 onClick={() => {
-                  clear(filePath);
+                  void archiveActiveAndStartNew(filePath, thread?.provider ?? "claude");
                   setMoreOpen(false);
                 }}
               />

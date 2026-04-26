@@ -6,6 +6,7 @@ import { SYNCED_SESSION_PROVIDERS, SyncedSessionRecordSchema } from "./syncedSes
 import { CliToolIdSchema, CliToolStatusSchema } from "./cliTools";
 import { AISpawnOptionsSchema } from "./aiSpawnOptions";
 import { AIStreamEventSchema } from "./aiStreamEvent";
+import { AIPresetSchema } from "./aiPresets";
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -168,6 +169,23 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:set-permission-mode"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count") }),
   z.object({ type: z.literal("ai-session:check-worktree"), worktreePath: z.string(), repoPath: z.string() }),
+  // Phase 4 — Tool / permission preset CRUD.
+  z.object({ type: z.literal("ai:presets:list") }),
+  z.object({ type: z.literal("ai:presets:create"), preset: AIPresetSchema }),
+  z.object({
+    type: z.literal("ai:presets:update"),
+    id: z.string(),
+    patch: AIPresetSchema.partial(),
+  }),
+  z.object({ type: z.literal("ai:presets:delete"), id: z.string() }),
+  // Phase 4 — Permission prompt protocol (renderer → daemon response).
+  z.object({
+    type: z.literal("ai-session:permission-response"),
+    sessionId: z.string(),
+    requestId: z.string(),
+    allow: z.boolean(),
+    scope: z.enum(["once", "session", "always"]).optional(),
+  }),
   z.object({
     type: z.literal("ai:run-once"),
     provider: z.enum(AI_PROVIDERS),
@@ -677,6 +695,20 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:permission-mode-changed"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count:result"), count: z.number().int().nonnegative() }),
   z.object({ type: z.literal("ai-session:check-worktree:result"), valid: z.boolean(), repoPath: z.string(), worktreeName: z.string() }),
+  // Phase 4 — preset CRUD responses.
+  z.object({ type: z.literal("ai:presets:listed"), presets: z.array(AIPresetSchema) }),
+  z.object({ type: z.literal("ai:presets:created"), preset: AIPresetSchema }),
+  z.object({ type: z.literal("ai:presets:updated"), id: z.string() }),
+  z.object({ type: z.literal("ai:presets:deleted"), id: z.string() }),
+  // Phase 4 — Permission prompt protocol.
+  z.object({ type: z.literal("ai-session:permission-response-ack"), ok: z.boolean() }),
+  z.object({
+    type: z.literal("ai-session:permission-request"),
+    sessionId: z.string(),
+    requestId: z.string(),
+    tool: z.string(),
+    scope: z.string(),
+  }),
   z.object({
     type: z.literal("ai:run-once:result"),
     sessionId: z.string().optional(),

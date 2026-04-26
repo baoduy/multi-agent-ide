@@ -49,6 +49,8 @@ import { AiBareRunApplicationService } from "./application/AiBareRunApplicationS
 import { TempFileGateway } from "./infrastructure/TempFileGateway";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
+import { AiPresetRepository } from "./services/AiPresetRepository";
+import { AiPresetService } from "./application/AiPresetService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -293,6 +295,10 @@ async function main() {
     const fileWatcherGateway = new FileWatcherGateway();
     const fileWatchService = new FileWatchService(fileWatcherGateway, ipcBridge);
 
+    // Phase 4 — AI tool/permission preset CRUD. Built-ins live in shared.
+    const aiPresetRepository = new AiPresetRepository(databaseService);
+    const aiPresetService = new AiPresetService(aiPresetRepository);
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };
 
@@ -322,6 +328,7 @@ async function main() {
       aiRunOnceService,
       aiBareRunService,
       fileWatchService,
+      aiPresetService,
     });
     console.log("[daemon-worker] All handlers registered");
 

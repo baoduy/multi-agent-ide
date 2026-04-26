@@ -57,6 +57,8 @@ import type { AiBareRunApplicationService } from "../application/AiBareRunApplic
 import { registerAiBareRunHandlers } from "./handlers/aiBareRunHandlers";
 import type { FileWatchService } from "../application/FileWatchService";
 import { registerFileWatchHandlers } from "./handlers/fileWatchHandlers";
+import type { AiPresetService } from "../application/AiPresetService";
+import { registerAiPresetHandlers } from "./handlers/aiPresetHandlers";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
 import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
@@ -91,6 +93,7 @@ export type HandlerContext = {
   aiRunOnceService: AIRunOnceApplicationService;
   aiBareRunService: AiBareRunApplicationService;
   fileWatchService: FileWatchService;
+  aiPresetService: AiPresetService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -171,4 +174,6 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerAiEditHandlers({ bridge, aiEditService: context.aiEditService });
 
   registerFileWatchHandlers({ bridge, fileWatchService: context.fileWatchService });
+
+  registerAiPresetHandlers({ bridge, service: context.aiPresetService });
 }

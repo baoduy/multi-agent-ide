@@ -39,6 +39,8 @@ import { AiBareRunApplicationService } from "./application/AiBareRunApplicationS
 import { TempFileGateway } from "./infrastructure/TempFileGateway";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
+import { AiPresetRepository } from "./services/AiPresetRepository";
+import { AiPresetService } from "./application/AiPresetService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -90,6 +92,8 @@ export class DaemonContainer {
   readonly aiEditService: AiEditApplicationService;
   readonly fileWatcherGateway: FileWatcherGateway;
   readonly fileWatchService: FileWatchService;
+  readonly aiPresetRepository: AiPresetRepository;
+  readonly aiPresetService: AiPresetService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -227,6 +231,12 @@ export class DaemonContainer {
     // into the editor via 3-way merge without the user reopening the file.
     this.fileWatcherGateway = new FileWatcherGateway();
     this.fileWatchService = new FileWatchService(this.fileWatcherGateway, this.bridge);
+
+    // Phase 4 — AI tool/permission preset CRUD. Built-ins live in shared;
+    // this repo+service stack handles user-authored persistence and merges
+    // built-ins on top during list().
+    this.aiPresetRepository = new AiPresetRepository(databaseService);
+    this.aiPresetService = new AiPresetService(this.aiPresetRepository);
   }
 
   /**
@@ -267,6 +277,7 @@ export class DaemonContainer {
       aiRunOnceService: this.aiRunOnceService,
       aiBareRunService: this.aiBareRunService,
       fileWatchService: this.fileWatchService,
+      aiPresetService: this.aiPresetService,
     });
   }
 

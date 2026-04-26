@@ -67,6 +67,11 @@ type ResponseForRequest = {
   "ai-session:set-permission-mode": Extract<IpcResponse, { type: "ai-session:permission-mode:ack" }>;
   "ai-session:running-count": Extract<IpcResponse, { type: "ai-session:running-count:result" }>;
   "ai-session:check-worktree": Extract<IpcResponse, { type: "ai-session:check-worktree:result" }>;
+  "ai:presets:list": Extract<IpcResponse, { type: "ai:presets:listed" }>;
+  "ai:presets:create": Extract<IpcResponse, { type: "ai:presets:created" }>;
+  "ai:presets:update": Extract<IpcResponse, { type: "ai:presets:updated" }>;
+  "ai:presets:delete": Extract<IpcResponse, { type: "ai:presets:deleted" }>;
+  "ai-session:permission-response": Extract<IpcResponse, { type: "ai-session:permission-response-ack" }>;
   "ai:run-once": Extract<IpcResponse, { type: "ai:run-once:result" }>;
   "ai:run-bare-once": Extract<IpcResponse, { type: "ai:run-bare-once:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;

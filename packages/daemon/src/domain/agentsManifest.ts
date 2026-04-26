@@ -1,21 +1,13 @@
-import { z } from "zod";
 import { AppError } from "../errors/AppError";
 
-/**
- * Schema for a single agent entry in `<repo>/spec/agents.json`. Strict so an
- * unexpected key surfaces as a validation error rather than silently passing
- * through to the CLI.
- */
-const AgentEntry = z
-  .object({ description: z.string(), prompt: z.string() })
-  .strict();
-
-export const AgentsManifestSchema = z.record(z.string(), AgentEntry);
-export type AgentsManifest = z.infer<typeof AgentsManifestSchema>;
+export type AgentsManifestEntry = { description: string; prompt: string };
+export type AgentsManifest = Record<string, AgentsManifestEntry>;
 
 /**
- * Parses raw JSON content of `spec/agents.json`. Throws AppError on any
- * failure so callers can surface a single error code to the IPC layer.
+ * Parses raw JSON content of `<repo>/spec/agents.json`. Strict — any unknown
+ * key on an entry, missing required field, or non-string value rejects with
+ * `AGENTS_MANIFEST_INVALID`. Pure (no I/O), so callers (gateways, app
+ * services) can wrap a single try/catch around their file-read.
  */
 export function parseAgentsManifest(raw: string): AgentsManifest {
   let json: unknown;
@@ -27,12 +19,43 @@ export function parseAgentsManifest(raw: string): AgentsManifest {
       `agents.json is not valid JSON: ${(e as Error).message}`,
     );
   }
-  const result = AgentsManifestSchema.safeParse(json);
-  if (!result.success) {
+  if (!json || typeof json !== "object" || Array.isArray(json)) {
     throw new AppError(
       "AGENTS_MANIFEST_INVALID",
-      `agents.json schema error: ${result.error.message}`,
+      "agents.json must be a JSON object mapping agent name -> entry",
     );
   }
-  return result.data;
+  const out: AgentsManifest = {};
+  for (const [key, value] of Object.entries(json as Record<string, unknown>)) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new AppError(
+        "AGENTS_MANIFEST_INVALID",
+        `agents.json entry '${key}' must be an object`,
+      );
+    }
+    const v = value as Record<string, unknown>;
+    if (typeof v.description !== "string") {
+      throw new AppError(
+        "AGENTS_MANIFEST_INVALID",
+        `agents.json entry '${key}' is missing 'description'`,
+      );
+    }
+    if (typeof v.prompt !== "string") {
+      throw new AppError(
+        "AGENTS_MANIFEST_INVALID",
+        `agents.json entry '${key}' is missing 'prompt'`,
+      );
+    }
+    const allowed = new Set(["description", "prompt"]);
+    for (const k of Object.keys(v)) {
+      if (!allowed.has(k)) {
+        throw new AppError(
+          "AGENTS_MANIFEST_INVALID",
+          `agents.json entry '${key}' has unknown key '${k}'`,
+        );
+      }
+    }
+    out[key] = { description: v.description, prompt: v.prompt };
+  }
+  return out;
 }

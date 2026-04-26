@@ -59,6 +59,9 @@ import type { FileWatchService } from "../application/FileWatchService";
 import { registerFileWatchHandlers } from "./handlers/fileWatchHandlers";
 import type { AiPresetService } from "../application/AiPresetService";
 import { registerAiPresetHandlers } from "./handlers/aiPresetHandlers";
+import type { AgentService } from "../application/AgentService";
+import type { PluginDirService } from "../application/PluginDirService";
+import { registerAgentsHandlers } from "./handlers/agentsHandlers";
 import type { PermissionPromptCoordinator } from "../application/PermissionPromptCoordinator";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
@@ -95,6 +98,8 @@ export type HandlerContext = {
   aiBareRunService: AiBareRunApplicationService;
   fileWatchService: FileWatchService;
   aiPresetService: AiPresetService;
+  agentService: AgentService;
+  pluginDirService: PluginDirService;
   permissionCoordinator: PermissionPromptCoordinator;
 };
 
@@ -182,4 +187,10 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
   registerFileWatchHandlers({ bridge, fileWatchService: context.fileWatchService });
 
   registerAiPresetHandlers({ bridge, service: context.aiPresetService });
+
+  registerAgentsHandlers({
+    bridge,
+    agentService: context.agentService,
+    pluginDirService: context.pluginDirService,
+  });
 }

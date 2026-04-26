@@ -52,6 +52,10 @@ import { FileWatchService } from "./application/FileWatchService";
 import { AiPresetRepository } from "./services/AiPresetRepository";
 import { AiPresetService } from "./application/AiPresetService";
 import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
+import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
+import { AgentService } from "./application/AgentService";
+import { PluginDirRepository } from "./services/PluginDirRepository";
+import { PluginDirService } from "./application/PluginDirService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -303,6 +307,12 @@ async function main() {
     // Phase 4 — permission-prompt coordinator (used by aiSessionHandlers).
     const permissionCoordinator = new PermissionPromptCoordinator(ipcBridge);
 
+    // Phase 6 — agents listing + plugin-dir CRUD.
+    const claudeAgentsGateway = new ClaudeAgentsGateway();
+    const agentService = new AgentService(claudeAgentsGateway);
+    const pluginDirRepository = new PluginDirRepository(databaseService);
+    const pluginDirService = new PluginDirService(pluginDirRepository);
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };
 
@@ -333,6 +343,8 @@ async function main() {
       aiBareRunService,
       fileWatchService,
       aiPresetService,
+      agentService,
+      pluginDirService,
       permissionCoordinator,
     });
     console.log("[daemon-worker] All handlers registered");

@@ -43,6 +43,10 @@ import { AiPresetRepository } from "./services/AiPresetRepository";
 import { AiPresetService } from "./application/AiPresetService";
 import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
 import { PermissionPromptMcpServer } from "./infrastructure/PermissionPromptMcpServer";
+import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
+import { AgentService } from "./application/AgentService";
+import { PluginDirRepository } from "./services/PluginDirRepository";
+import { PluginDirService } from "./application/PluginDirService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -98,6 +102,10 @@ export class DaemonContainer {
   readonly aiPresetService: AiPresetService;
   readonly permissionCoordinator: PermissionPromptCoordinator;
   readonly permissionPromptMcp: PermissionPromptMcpServer;
+  readonly claudeAgentsGateway: ClaudeAgentsGateway;
+  readonly agentService: AgentService;
+  readonly pluginDirRepository: PluginDirRepository;
+  readonly pluginDirService: PluginDirService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -252,6 +260,12 @@ export class DaemonContainer {
     this.permissionPromptMcp = new PermissionPromptMcpServer(
       this.permissionCoordinator,
     );
+
+    // Phase 6 — agents listing + plugin-dir CRUD.
+    this.claudeAgentsGateway = new ClaudeAgentsGateway();
+    this.agentService = new AgentService(this.claudeAgentsGateway);
+    this.pluginDirRepository = new PluginDirRepository(databaseService);
+    this.pluginDirService = new PluginDirService(this.pluginDirRepository);
   }
 
   /**
@@ -293,6 +307,8 @@ export class DaemonContainer {
       aiBareRunService: this.aiBareRunService,
       fileWatchService: this.fileWatchService,
       aiPresetService: this.aiPresetService,
+      agentService: this.agentService,
+      pluginDirService: this.pluginDirService,
       permissionCoordinator: this.permissionCoordinator,
     });
   }

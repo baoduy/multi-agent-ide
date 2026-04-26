@@ -288,11 +288,22 @@ async function main() {
       specifyExtensionService,
     );
 
+    // Phase 6 — plugin-dir storage is needed by AIRunOnceApplicationService
+    // for settings-driven `--plugin-dir` injection, so construct it first.
+    const claudeAgentsGateway = new ClaudeAgentsGateway();
+    const agentService = new AgentService(claudeAgentsGateway);
+    const pluginDirRepository = new PluginDirRepository(databaseService);
+    const pluginDirService = new PluginDirService(pluginDirRepository);
+
     // AI-assisted markdown editor.
     const aiConfigRepository = new AiConfigRepository();
     const aiCliGateway = new AiCliGateway();
     const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway);
-    const aiRunOnceService = new AIRunOnceApplicationService(aiCliGateway, ipcBridge);
+    const aiRunOnceService = new AIRunOnceApplicationService(
+      aiCliGateway,
+      ipcBridge,
+      pluginDirService,
+    );
     const aiBareRunService = new AiBareRunApplicationService({
       configManager,
       aiCliGateway,
@@ -306,12 +317,6 @@ async function main() {
 
     // Phase 4 — permission-prompt coordinator (used by aiSessionHandlers).
     const permissionCoordinator = new PermissionPromptCoordinator(ipcBridge);
-
-    // Phase 6 — agents listing + plugin-dir CRUD.
-    const claudeAgentsGateway = new ClaudeAgentsGateway();
-    const agentService = new AgentService(claudeAgentsGateway);
-    const pluginDirRepository = new PluginDirRepository(databaseService);
-    const pluginDirService = new PluginDirService(pluginDirRepository);
 
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };

@@ -233,10 +233,21 @@ export class DaemonContainer {
       this.specifyExtensionService,
     );
 
+    // Phase 6 — plugin-dir storage is needed by AIRunOnceApplicationService
+    // for settings-driven `--plugin-dir` injection, so construct it first.
+    this.claudeAgentsGateway = new ClaudeAgentsGateway();
+    this.agentService = new AgentService(this.claudeAgentsGateway);
+    this.pluginDirRepository = new PluginDirRepository(databaseService);
+    this.pluginDirService = new PluginDirService(this.pluginDirRepository);
+
     // AI-assisted markdown editor — config/action files + CLI spawn.
     this.aiConfigRepository = new AiConfigRepository();
     this.aiCliGateway = new AiCliGateway();
-    this.aiRunOnceService = new AIRunOnceApplicationService(this.aiCliGateway, this.bridge);
+    this.aiRunOnceService = new AIRunOnceApplicationService(
+      this.aiCliGateway,
+      this.bridge,
+      this.pluginDirService,
+    );
     this.aiBareRunService = new AiBareRunApplicationService({
       configManager: this.configManager,
       aiCliGateway: this.aiCliGateway,
@@ -260,12 +271,6 @@ export class DaemonContainer {
     this.permissionPromptMcp = new PermissionPromptMcpServer(
       this.permissionCoordinator,
     );
-
-    // Phase 6 — agents listing + plugin-dir CRUD.
-    this.claudeAgentsGateway = new ClaudeAgentsGateway();
-    this.agentService = new AgentService(this.claudeAgentsGateway);
-    this.pluginDirRepository = new PluginDirRepository(databaseService);
-    this.pluginDirService = new PluginDirService(this.pluginDirRepository);
   }
 
   /**

@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { AiCliGateway } from "../infrastructure/AiCliGateway";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import { AppError } from "../errors/AppError";
@@ -14,6 +15,9 @@ import {
   flush,
   type ParserState,
 } from "../domain/streamJsonParser";
+import { enrichSpawnOptions } from "../domain/enrichSpawnOptions";
+import { applyAgentToPrompt } from "../domain/agentPromptInjector";
+import type { PluginDirService } from "./PluginDirService";
 
 export interface RunOnceArgs {
   provider: AIProvider;
@@ -41,13 +45,30 @@ export class AIRunOnceApplicationService {
   constructor(
     private readonly gateway: AiCliGateway,
     private readonly bridge: IPCBridge,
+    private readonly pluginDirService?: PluginDirService,
   ) {}
 
   async runOnce(args: RunOnceArgs): Promise<RunOnceResult> {
+    // Phase 6 — resolve settings-driven spawn fields before capability check
+    // so the enriched payload is what we validate against the manifest.
+    const enrichedSpawn: AISpawnOptions = this.pluginDirService
+      ? enrichSpawnOptions(args.provider, args.repoPath, args.spawn, {
+          listPluginDirs: () => this.pluginDirService!.list(),
+          readFileIfExists: (p) => {
+            try {
+              return fs.readFileSync(p, "utf-8");
+            } catch (err) {
+              if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+              throw err;
+            }
+          },
+        })
+      : args.spawn;
+
     const caps = getProviderCapability(args.provider);
     const supported = new Set<SpawnOptionKey>(caps.supportedKeys);
-    for (const key of Object.keys(args.spawn) as SpawnOptionKey[]) {
-      if ((args.spawn as Record<string, unknown>)[key] === undefined) continue;
+    for (const key of Object.keys(enrichedSpawn) as SpawnOptionKey[]) {
+      if ((enrichedSpawn as Record<string, unknown>)[key] === undefined) continue;
       if (!supported.has(key)) {
         throw new AppError(
           "UNSUPPORTED_SPAWN_OPTION",
@@ -57,9 +78,13 @@ export class AIRunOnceApplicationService {
       }
     }
 
+    // Phase 6 — Copilot agent injection at the prompt layer (Claude uses
+    // `--agent` flag rendered by toArgv).
+    const finalPrompt = applyAgentToPrompt(args.prompt, enrichedSpawn.agent, args.provider);
+
     const cwd = args.worktreePath ?? args.repoPath;
     const useStreamParser =
-      args.provider === "claude" && args.spawn.outputFormat === "stream-json";
+      args.provider === "claude" && enrichedSpawn.outputFormat === "stream-json";
 
     let parser: ParserState = createParserState();
     let sessionId: string | undefined;
@@ -92,8 +117,8 @@ export class AIRunOnceApplicationService {
 
     const gatewayResult = await this.gateway.runOnceWithSpawn(
       args.provider,
-      args.prompt,
-      args.spawn,
+      finalPrompt,
+      enrichedSpawn,
       {
         cwd,
         timeoutMs: args.timeoutMs ?? DEFAULT_TIMEOUT_MS,

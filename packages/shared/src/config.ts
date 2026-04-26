@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { CliToolOverridesSchema } from "./cliTools";
+import { WorkingDirsFieldSchema } from "./workingDir";
 
 /**
  * A Specify CLI extension to auto-install after `specify init` (onboard) or
@@ -55,7 +56,7 @@ export const MIN_SYNC_INTERVAL_MINUTES = 1;
 export const MAX_SYNC_INTERVAL_MINUTES = 24 * 60;
 
 export const MagentaConfigSchema = z.object({
-  workingDirs: z.array(z.string()).default([]),
+  workingDirs: WorkingDirsFieldSchema.default([]),
   /** Command template for running specify init (both onboard and upgrade). */
   specifyCommand: z.string().default(DEFAULT_SPECIFY_COMMAND),
   /** Interval (minutes) for periodic spec sync across all active repos. */
@@ -97,3 +98,11 @@ export const MagentaConfigSchema = z.object({
 });
 
 export type MagentaConfig = z.infer<typeof MagentaConfigSchema>;
+
+export {
+  WorkingDirEntrySchema,
+  WorkingDirsFieldSchema,
+  normalizeWorkingDirs,
+  type WorkingDirEntry,
+  type WorkingDirsField,
+} from "./workingDir";

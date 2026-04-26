@@ -51,6 +51,10 @@
     "./cliTools": {
       "types": "./dist/cliTools.d.ts",
       "default": "./dist/cliTools.js"
+    },
+    "./workingDir": {
+      "types": "./dist/workingDir.d.ts",
+      "default": "./dist/workingDir.js"
     }
   },
   "scripts": {

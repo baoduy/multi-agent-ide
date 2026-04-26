@@ -55,6 +55,10 @@
     "./workingDir": {
       "types": "./dist/workingDir.d.ts",
       "default": "./dist/workingDir.js"
+    },
+    "./aiPresets": {
+      "types": "./dist/aiPresets.d.ts",
+      "default": "./dist/aiPresets.js"
     }
   },
   "scripts": {

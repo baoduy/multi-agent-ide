@@ -31,6 +31,7 @@ type ResponseForRequest = {
   "config:add-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:remove-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:update": Extract<IpcResponse, { type: "config:response" }>;
+  "config:update-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "branch:list": Extract<IpcResponse, { type: "branch:list:result" }>;
   "branch:checkout": Extract<IpcResponse, { type: "branch:checkout:result" }>;
   "gitfile:read": Extract<IpcResponse, { type: "gitfile:read:result" }>;

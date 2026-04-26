@@ -36,4 +36,12 @@ export function registerConfigHandlers({ bridge, configManager }: ConfigHandlerC
 
     return { type: "config:response", config };
   });
+
+  safeHandle(bridge, "config:update-working-dir", async (msg) => {
+    const config = configManager.updateWorkingDir(msg.path, msg.patch);
+
+    bridge.emit({ type: "config:updated", config });
+
+    return { type: "config:response", config };
+  });
 }

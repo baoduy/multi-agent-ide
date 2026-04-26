@@ -94,6 +94,16 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // the canonical schema prevents callers from smuggling arbitrary keys into
   // the persisted config file via the IPC boundary.
   z.object({ type: z.literal("config:update"), config: MagentaConfigSchema.partial() }),
+  z.object({
+    type: z.literal("config:update-working-dir"),
+    path: z.string(),
+    patch: z
+      .object({
+        promptTemplatesPath: z.string().optional(),
+        mcpConfigJson: z.string().optional(),
+      })
+      .strict(),
+  }),
   z.object({ type: z.literal("branch:list"), repoPath: z.string() }),
   z.object({ type: z.literal("branch:checkout"), repoPath: z.string(), branch: z.string() }),
   // `ref` is passed directly to `git show` — restrict it to characters that

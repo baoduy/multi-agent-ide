@@ -28,6 +28,14 @@
       "types": "./dist/aiTerminal.d.ts",
       "default": "./dist/aiTerminal.js"
     },
+    "./aiSpawnOptions": {
+      "types": "./dist/aiSpawnOptions.d.ts",
+      "default": "./dist/aiSpawnOptions.js"
+    },
+    "./providerCapabilities": {
+      "types": "./dist/providerCapabilities.d.ts",
+      "default": "./dist/providerCapabilities.js"
+    },
     "./syncedSession": {
       "types": "./dist/syncedSession.d.ts",
       "default": "./dist/syncedSession.js"

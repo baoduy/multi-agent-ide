@@ -3,9 +3,27 @@ import os from "node:os";
 import path from "node:path";
 import type { AIProvider, AISessionConfig, AISessionStatus } from "@magenta/shared/aiTerminal";
 import type { AISpawnOptions } from "@magenta/shared/aiSpawnOptions";
+import { OTEL_ENV_VAR_NAMES } from "@magenta/shared/aiObservability";
 
 import { SessionCore } from "../terminal/SessionCore";
 import type { AttachResult } from "../terminal/RingBuffer";
+
+/**
+ * Phase 7 — pick the 11 documented OTel env vars out of `source`. Used to
+ * forward Copilot's OpenTelemetry config from the daemon's env into spawned
+ * AI children. Returns only keys present and non-empty so we don't clobber
+ * downstream defaults.
+ */
+export function collectOTelEnv(
+  source: NodeJS.ProcessEnv,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of OTEL_ENV_VAR_NAMES) {
+    const v = source[name];
+    if (typeof v === "string" && v.length > 0) out[name] = v;
+  }
+  return out;
+}
 
 /**
  * Map an AISessionConfig to the unified AISpawnOptions shape consumed by
@@ -185,6 +203,8 @@ export abstract class BaseAISession extends EventEmitter {
         rows,
         env: {
           ...process.env,
+          // Phase 7 — forward Copilot's OTel env vars (no-op for Claude).
+          ...collectOTelEnv(process.env),
           PATH: enrichedPath,
           TERM: "xterm-256color",
           COLORTERM: "truecolor",

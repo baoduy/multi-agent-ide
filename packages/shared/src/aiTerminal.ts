@@ -110,6 +110,10 @@ export interface AISessionConfig {
   parentSessionId?: string;
   /** @see FR-7.7 — instructs the daemon to add `--fork-session`. */
   forkSession?: boolean;
+  /** Phase 6 — agent name (Claude `--agent <v>`). Copilot ignores at spawn. */
+  agent?: string;
+  /** Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle. */
+  enableAllGithubMcpTools?: boolean;
 }
 
 type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];

@@ -6,6 +6,7 @@ import { sendOrThrow } from "../../services/ipcClient";
 import { ipc } from "../../utils/ipc";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useAiPresetStore } from "../../store/aiPresetStore";
+import { AgentSelector } from "./AgentSelector";
 import { useRepoStore } from "../../store/repoStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import type { WorktreeInfo } from "../../store/worktreeStore";
@@ -73,6 +74,10 @@ export function NewSessionDialog({
   const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("default");
   // Phase 4 — Tool preset selection. Empty string = no preset.
   const [presetId, setPresetId] = useState<string>("");
+  // Phase 6 — agent selection (Claude `--agent`, Copilot prompt-injection
+  // hint) and Copilot `--enable-all-github-mcp-tools` toggle.
+  const [agent, setAgent] = useState<string | undefined>(undefined);
+  const [enableGithubMcp, setEnableGithubMcp] = useState(false);
 
   // Workspace
   const [selectedRepoPath, setSelectedRepoPath] = useState<string | null>(initialRepoPath ?? null);
@@ -473,6 +478,8 @@ export function NewSessionDialog({
           permissionMode: permissionMode as AIPermissionMode,
           providerSessionId: resumeContext?.providerSessionId,
           presetId: presetId || undefined,
+          agent,
+          enableAllGithubMcpTools: provider === "copilot" && enableGithubMcp ? true : undefined,
         },
         80,
         24,
@@ -488,6 +495,8 @@ export function NewSessionDialog({
     provider,
     permissionMode,
     presetId,
+    agent,
+    enableGithubMcp,
     selectedRepoPath,
     workspaceTarget,
     selectedBranch,
@@ -565,7 +574,11 @@ export function NewSessionDialog({
             left={{
               options: providerOptions,
               value: provider,
-              onChange: setProvider,
+              onChange: (next: AIProvider) => {
+                setProvider(next);
+                // Reset agent when switching providers — names don't transfer.
+                setAgent(undefined);
+              },
               placeholder: "Provider",
               minPanelWidth: 180,
             }}
@@ -606,6 +619,34 @@ export function NewSessionDialog({
             ))}
           </select>
         </div>
+
+        {/* ─── Agent (Phase 6) ─── */}
+        <div>
+          <FormLabel>Agent</FormLabel>
+          <AgentSelector provider={provider} value={agent} onChange={setAgent} />
+        </div>
+
+        {provider === "copilot" && (
+          <div>
+            <label
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 11,
+                color: colors.text,
+                cursor: "pointer",
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={enableGithubMcp}
+                onChange={(e) => setEnableGithubMcp(e.target.checked)}
+              />
+              Enable all GitHub MCP tools
+            </label>
+          </div>
+        )}
 
         {/* ─── Workspace ─── */}
         <div>

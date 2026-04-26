@@ -39,6 +39,9 @@ export function sessionConfigToSpawn(
   if (config.resumeFromPR) out.fromPR = config.resumeFromPR;
   if (config.continueRecent) out.continueRecent = true;
   if (config.forkSession) out.forkSession = true;
+  // Phase 6 — agent + GitHub MCP toggle.
+  if (config.agent) out.agent = config.agent;
+  if (config.enableAllGithubMcpTools) out.enableAllGithubMcpTools = true;
   return out;
 }
 

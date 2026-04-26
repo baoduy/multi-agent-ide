@@ -31,6 +31,9 @@ export function registerAISessionHandlers({ bridge, aiSessionService, permission
         name: msg.name,
         resumeFromPR: msg.resumeFromPR,
         continueRecent: msg.continueRecent,
+        // Phase 6 — agent selection + Copilot GitHub MCP toggle.
+        agent: msg.agent,
+        enableAllGithubMcpTools: msg.enableAllGithubMcpTools,
       },
       msg.cols,
       msg.rows,

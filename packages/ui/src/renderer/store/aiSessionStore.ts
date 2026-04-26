@@ -31,6 +31,10 @@ type AISessionStoreState = {
     disallowedTools?: string[];
     presetId?: string;
     permissionPromptTool?: string;
+    /** Phase 6 — agent selection (Claude `--agent <v>`). */
+    agent?: string;
+    /** Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle. */
+    enableAllGithubMcpTools?: boolean;
   }, cols: number, rows: number) => Promise<AISessionRecord>;
   resumeSession: (sessionId: string, cols: number, rows: number) => Promise<AISessionRecord>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -81,6 +85,8 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
       disallowedTools: config.disallowedTools,
       presetId: config.presetId,
       permissionPromptTool: config.permissionPromptTool,
+      agent: config.agent,
+      enableAllGithubMcpTools: config.enableAllGithubMcpTools,
       cols,
       rows,
     });

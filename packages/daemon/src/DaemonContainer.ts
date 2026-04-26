@@ -47,6 +47,8 @@ import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
 import { AgentService } from "./application/AgentService";
 import { PluginDirRepository } from "./services/PluginDirRepository";
 import { PluginDirService } from "./application/PluginDirService";
+import { SessionObservabilityService } from "./application/SessionObservabilityService";
+import { DebugLogService } from "./application/DebugLogService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -106,6 +108,8 @@ export class DaemonContainer {
   readonly agentService: AgentService;
   readonly pluginDirRepository: PluginDirRepository;
   readonly pluginDirService: PluginDirService;
+  readonly sessionObservabilityService: SessionObservabilityService;
+  readonly debugLogService: DebugLogService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -271,6 +275,16 @@ export class DaemonContainer {
     this.permissionPromptMcp = new PermissionPromptMcpServer(
       this.permissionCoordinator,
     );
+
+    // Phase 7 — observability + debug-log services. Subscribes to the
+    // bridge's `ai-session:event` push stream and persists usage counters
+    // back onto live `AISessionRecord`s held in memory by the session
+    // service.
+    this.sessionObservabilityService = new SessionObservabilityService(
+      this.bridge,
+      (sessionId, partial) => this.aiSessionService.updateUsage(sessionId, partial),
+    );
+    this.debugLogService = new DebugLogService();
   }
 
   /**

@@ -583,6 +583,26 @@ export class AISessionApplicationService {
     return getAllProviderMeta();
   }
 
+  /**
+   * Phase 7 — update rolling observability counters on a session record.
+   * Called by `SessionObservabilityService` when a `result` stream event
+   * arrives. Silently no-ops for unknown sessions (e.g. run-once flows that
+   * never had a record in the live map).
+   */
+  updateUsage(
+    sessionId: string,
+    partial: {
+      totalInputTokens: number;
+      totalOutputTokens: number;
+      totalCostUsd: number;
+      retryCount: number;
+    },
+  ): void {
+    const current = this.records.get(sessionId);
+    if (!current) return;
+    this.records.set(sessionId, { ...current, ...partial });
+  }
+
   destroyAll(): void {
     for (const [id, session] of this.liveSessions) {
       try {

@@ -52,6 +52,8 @@ import { FileWatchService } from "./application/FileWatchService";
 import { AiPresetRepository } from "./services/AiPresetRepository";
 import { AiPresetService } from "./application/AiPresetService";
 import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
+import { SessionObservabilityService } from "./application/SessionObservabilityService";
+import { DebugLogService } from "./application/DebugLogService";
 import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
 import { AgentService } from "./application/AgentService";
 import { PluginDirRepository } from "./services/PluginDirRepository";
@@ -317,6 +319,16 @@ async function main() {
 
     // Phase 4 — permission-prompt coordinator (used by aiSessionHandlers).
     const permissionCoordinator = new PermissionPromptCoordinator(ipcBridge);
+
+    // Phase 7 — observability service subscribes to `ai-session:event` and
+    // emits typed retry/init/cost-update/plugin-install push events.
+    const sessionObservabilityService = new SessionObservabilityService(
+      ipcBridge,
+      (sessionId, partial) => aiSessionService.updateUsage(sessionId, partial),
+    );
+    const debugLogService = new DebugLogService();
+    void sessionObservabilityService;
+    void debugLogService;
 
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };

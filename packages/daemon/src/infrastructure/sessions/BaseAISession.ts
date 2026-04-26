@@ -16,12 +16,21 @@ import type { AttachResult } from "../terminal/RingBuffer";
  */
 export function sessionConfigToSpawn(
   _provider: AIProvider,
-  config: AISessionConfig & { model?: string },
+  config: AISessionConfig & { model?: string; mcpConfig?: AISpawnOptions["mcpConfig"] },
 ): AISpawnOptions {
   const out: AISpawnOptions = {};
   if (config.model) out.model = config.model;
   if (config.permissionMode) out.permissionMode = config.permissionMode;
   if (config.providerSessionId) out.resumeSessionId = config.providerSessionId;
+  if (config.allowedTools && config.allowedTools.length > 0)
+    out.allowedTools = config.allowedTools;
+  if (config.disallowedTools && config.disallowedTools.length > 0)
+    out.disallowedTools = config.disallowedTools;
+  if (config.permissionPromptTool)
+    out.permissionPromptTool = config.permissionPromptTool;
+  // Programmatic-only: drop `noAskUser` for interactive PTY sessions.
+  if (config.noAskUser && config.programmatic) out.noAskUser = true;
+  if (config.mcpConfig) out.mcpConfig = config.mcpConfig;
   return out;
 }
 

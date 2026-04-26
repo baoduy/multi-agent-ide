@@ -18,6 +18,7 @@ import { getProviderCapability } from "@magenta/shared/providerCapabilities";
 import { getToArgv } from "../domain/providerArgv";
 import type { GitGateway } from "../infrastructure/GitGateway";
 import { AppError } from "../errors/AppError";
+import type { AiPresetService } from "./AiPresetService";
 
 /**
  * AISessionApplicationService is the in-memory home for live AI sessions.
@@ -51,6 +52,8 @@ export class AISessionApplicationService {
     private readonly allowlistProvider: PathAllowlistProvider,
     /** Optional — enables worktree-existence checks on resume. */
     private readonly gitGateway?: GitGateway,
+    /** Optional — resolves Phase 4 tool/permission presets per provider. */
+    private readonly presetService?: AiPresetService,
   ) {}
 
   async createSession(
@@ -99,16 +102,57 @@ export class AISessionApplicationService {
     const id = randomUUID();
     const initialProviderSessionId = explicitId ?? null;
 
+    // Phase 4 — resolve preset, then layer caller-provided fields on top.
+    const caps = getProviderCapability(provider);
+    let mergedAllowedTools = config.allowedTools;
+    let mergedDisallowedTools = config.disallowedTools;
+    let mergedPermissionMode: AIPermissionMode = permissionMode;
+
+    if (config.presetId && this.presetService) {
+      const presetSpawn = this.presetService.resolveForProvider(
+        config.presetId,
+        provider,
+      );
+      // Caller-explicit fields beat the preset; preset fills in undefined.
+      if (mergedAllowedTools === undefined && presetSpawn.allowedTools) {
+        mergedAllowedTools = presetSpawn.allowedTools;
+      }
+      if (mergedDisallowedTools === undefined && presetSpawn.disallowedTools) {
+        mergedDisallowedTools = presetSpawn.disallowedTools;
+      }
+      if (
+        config.permissionMode === undefined &&
+        presetSpawn.permissionMode !== undefined
+      ) {
+        mergedPermissionMode = presetSpawn.permissionMode;
+      }
+    }
+
+    // Reject unsupported permission-prompt-tool on providers without the cap.
+    if (
+      config.permissionPromptTool &&
+      !caps.supportedKeys.includes("permissionPromptTool")
+    ) {
+      throw new AppError(
+        "UNSUPPORTED_SPAWN_OPTION",
+        `${provider} does not support permissionPromptTool`,
+      );
+    }
+
     // Build CLI args via the shared toArgv translator. Provider defaults
     // are prepended so legacy registry behaviour (e.g. always-on flags) is
     // preserved. Arbitrary caller-supplied args are not forwarded: see
     // ai-session:create schema rationale in packages/shared.
     const spawnOpts = sessionConfigToSpawn(provider, {
       ...config,
-      permissionMode,
+      permissionMode: mergedPermissionMode,
       providerSessionId: explicitId,
+      allowedTools: mergedAllowedTools,
+      disallowedTools: mergedDisallowedTools,
+      permissionPromptTool: config.permissionPromptTool,
+      noAskUser: config.noAskUser,
+      programmatic: config.programmatic,
     });
-    const caps = getProviderCapability(provider);
     const { args: derivedArgs } = getToArgv(provider)(spawnOpts, caps);
     const args = [...providerMeta.defaultArgs, ...derivedArgs];
 
@@ -125,7 +169,7 @@ export class AISessionApplicationService {
       cwd,
       providerSessionId: initialProviderSessionId,
       status: "active", // Runtime status — not persisted
-      permissionMode,
+      permissionMode: mergedPermissionMode,
       title: null,
       createdAt: now,
       lastActiveAt: now,

@@ -208,8 +208,12 @@ async function main() {
     // Git gateway (shared across services)
     const gitGateway = new GitGateway();
 
+    // Phase 4 — preset persistence is a dependency of AISessionApplicationService.
+    const aiPresetRepository = new AiPresetRepository(databaseService);
+    const aiPresetService = new AiPresetService(aiPresetRepository);
+
     // AI Terminal session service — in-memory only; the sync layer owns history.
-    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager, gitGateway);
+    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager, gitGateway, aiPresetService);
 
     // Git performance foundation — owned once here, shared everywhere:
     //   - batch gateway = one long-lived `git cat-file --batch` per repo
@@ -295,10 +299,6 @@ async function main() {
     // (AI CLI, teammate, git checkout) land in the editor without reload.
     const fileWatcherGateway = new FileWatcherGateway();
     const fileWatchService = new FileWatchService(fileWatcherGateway, ipcBridge);
-
-    // Phase 4 — AI tool/permission preset CRUD. Built-ins live in shared.
-    const aiPresetRepository = new AiPresetRepository(databaseService);
-    const aiPresetService = new AiPresetService(aiPresetRepository);
 
     // Phase 4 — permission-prompt coordinator (used by aiSessionHandlers).
     const permissionCoordinator = new PermissionPromptCoordinator(ipcBridge);

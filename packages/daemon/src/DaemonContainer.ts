@@ -139,9 +139,18 @@ export class DaemonContainer {
     // Git gateway (shared across services that need git operations)
     this.gitGateway = new GitGateway();
 
+    // Phase 4 — preset persistence is a dependency of AISessionApplicationService.
+    this.aiPresetRepository = new AiPresetRepository(databaseService);
+    this.aiPresetService = new AiPresetService(this.aiPresetRepository);
+
     // AI Session service — purely in-memory; the disk-backed sync layer is
     // the source of truth for session history.
-    this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager, this.gitGateway);
+    this.aiSessionService = new AISessionApplicationService(
+      this.bridge,
+      this.configManager,
+      this.gitGateway,
+      this.aiPresetService,
+    );
 
     // Git performance foundation — owned once here, shared everywhere:
     //   - batch gateway holds one long-lived `git cat-file --batch` per repo
@@ -235,12 +244,6 @@ export class DaemonContainer {
     // into the editor via 3-way merge without the user reopening the file.
     this.fileWatcherGateway = new FileWatcherGateway();
     this.fileWatchService = new FileWatchService(this.fileWatcherGateway, this.bridge);
-
-    // Phase 4 — AI tool/permission preset CRUD. Built-ins live in shared;
-    // this repo+service stack handles user-authored persistence and merges
-    // built-ins on top during list().
-    this.aiPresetRepository = new AiPresetRepository(databaseService);
-    this.aiPresetService = new AiPresetService(this.aiPresetRepository);
 
     // Phase 4 — Claude permission-prompt coordinator. The bridge is the
     // permission event bus: its `emit(IpcResponse)` shape already matches

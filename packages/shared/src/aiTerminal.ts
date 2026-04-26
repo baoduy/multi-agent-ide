@@ -65,6 +65,17 @@ export interface AISessionConfig {
   /** Permission mode to start the session with (defaults to "auto"). */
   permissionMode?: AIPermissionMode;
   env?: Record<string, string>;
+  /** Phase 4 — Optional tool allowlist/denylist passed to the CLI. */
+  allowedTools?: string[];
+  disallowedTools?: string[];
+  /** Phase 4 — Resolved preset id (presets merged in by the app service). */
+  presetId?: string;
+  /** Phase 4 — Claude `--permission-prompt-tool` MCP tool name. */
+  permissionPromptTool?: string;
+  /** Phase 4 — Copilot `--no-ask-user`; programmatic-only (interactive ignores). */
+  noAskUser?: boolean;
+  /** Phase 4 — Whether this is a programmatic spawn (gates `noAskUser`). */
+  programmatic?: boolean;
   /**
    * Optional explicit agent session UUID, present when the caller is
    * resuming a session that was previously synced from disk.

@@ -156,7 +156,26 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // `--dangerously-skip-permissions`) could be smuggled through this vector.
   // Permission controls now go exclusively through `permissionMode`, and the
   // session UUID handoff goes through `providerSessionId`.
-  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), permissionMode: z.enum(AI_PERMISSION_MODES).optional(), providerSessionId: z.string().optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({
+    type: z.literal("ai-session:create"),
+    provider: z.enum(AI_PROVIDERS),
+    repoPath: z.string().optional(),
+    branch: z.string().optional(),
+    worktreePath: z.string().optional(),
+    permissionMode: z.enum(AI_PERMISSION_MODES).optional(),
+    providerSessionId: z.string().optional(),
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
+    // Phase 4 — tool/permission granularity. Optional fields layered on top
+    // of any preset selected via `presetId`.
+    allowedTools: z.array(z.string()).optional(),
+    disallowedTools: z.array(z.string()).optional(),
+    presetId: z.string().optional(),
+    permissionPromptTool: z.string().optional(),
+    // `noAskUser` is programmatic-only; ignored unless `programmatic: true`.
+    noAskUser: z.boolean().optional(),
+    programmatic: z.boolean().optional(),
+  }),
   z.object({ type: z.literal("ai-session:resume"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:input"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("ai-session:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),

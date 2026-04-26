@@ -19,6 +19,13 @@ export function registerAISessionHandlers({ bridge, aiSessionService, permission
         worktreePath: msg.worktreePath,
         permissionMode: msg.permissionMode,
         providerSessionId: msg.providerSessionId,
+        // Phase 4 — tool/permission granularity.
+        allowedTools: msg.allowedTools,
+        disallowedTools: msg.disallowedTools,
+        presetId: msg.presetId,
+        permissionPromptTool: msg.permissionPromptTool,
+        noAskUser: msg.noAskUser,
+        programmatic: msg.programmatic,
       },
       msg.cols,
       msg.rows,

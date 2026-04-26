@@ -9,6 +9,7 @@ import {
   Wand2,
   Boxes,
   Puzzle,
+  Activity,
 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
@@ -23,6 +24,7 @@ import { PluginDirsPanel } from "./PluginDirsPanel";
 import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
 import { WorkingDirReproducibility } from "./WorkingDirReproducibility";
+import { OTelSettingsPanel } from "./OTelSettingsPanel";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton } from "../common/DialogButtons";
 
@@ -39,7 +41,8 @@ type TabId =
   | "appearance"
   | "ai"
   | "plugins"
-  | "reproducibility";
+  | "reproducibility"
+  | "observability";
 
 type TabDef = {
   id: TabId;
@@ -56,6 +59,7 @@ const TABS: readonly TabDef[] = [
   { id: "ai", label: "AI Editor", icon: Wand2 },
   { id: "plugins", label: "Plugins", icon: Puzzle },
   { id: "reproducibility", label: "AI Reproducibility", icon: Boxes },
+  { id: "observability", label: "Observability", icon: Activity },
 ];
 
 const tabId = (id: TabId): string => `settings-tab-${id}`;
@@ -103,6 +107,7 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
           {activeTab === "ai" && <AiSettingsView />}
           {activeTab === "plugins" && <PluginDirsPanel />}
           {activeTab === "reproducibility" && <WorkingDirReproducibility />}
+          {activeTab === "observability" && <OTelSettingsPanel />}
 
           {error && (
             <div

@@ -51,7 +51,11 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
         selection: msg.selection,
         onChunk,
         onSessionId,
-        resumeSessionId: msg.resumeSessionId,
+        // Phase 5 — caller-provided canonical sessionId wins; falls back to
+        // the legacy `resumeSessionId` field (still threaded through to the
+        // CLI gateway's `--resume` flag while AiEditApplicationService is
+        // on AiCliGateway.run() — chat engine migration is Phase 8).
+        resumeSessionId: msg.sessionId ?? msg.resumeSessionId,
         provider: msg.provider,
       }),
     };
@@ -64,6 +68,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
       instruction: msg.instruction,
       documentText: msg.documentText,
       selection: msg.selection,
+      sessionId: msg.sessionId,
     }),
   }));
 
@@ -73,6 +78,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
       repoPath: msg.repoPath,
       instruction: msg.instruction,
       documentText: msg.documentText,
+      sessionId: msg.sessionId,
     }),
   }));
 

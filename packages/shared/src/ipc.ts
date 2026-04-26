@@ -437,6 +437,9 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     resumeSessionId: z.string().optional(),
     /** UI-selected provider override; falls back to disk config when absent. */
     provider: z.enum(AI_PROVIDERS).optional(),
+    // Phase 5 — chat-bubble unification spec FR-3 + Phase 5 sessionId precedence rule.
+    sessionId: z.uuid().optional(),
+    spawn: AISpawnOptionsSchema.partial().optional(),
   }),
   z.object({
     type: z.literal("ai-chat:edit-selection"),
@@ -448,12 +451,18 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
       end: z.number().int().nonnegative(),
       text: z.string(),
     }),
+    // Phase 5 — additive optional canonical sessionId + spawn override.
+    sessionId: z.uuid().optional(),
+    spawn: AISpawnOptionsSchema.partial().optional(),
   }),
   z.object({
     type: z.literal("ai-chat:modify-document"),
     repoPath: z.string(),
     instruction: z.string(),
     documentText: z.string(),
+    // Phase 5 — additive optional canonical sessionId + spawn override.
+    sessionId: z.uuid().optional(),
+    spawn: AISpawnOptionsSchema.partial().optional(),
   }),
   // Spec-folder review chat — agent-driven read-only Q&A over an entire
   // spec folder. The daemon spawns `claude -p` with cwd = repoPath and an

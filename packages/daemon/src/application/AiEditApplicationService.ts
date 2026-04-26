@@ -41,12 +41,16 @@ export interface EditSelectionArgs {
   instruction: string;
   documentText: string;
   selection: { start: number; end: number; text: string };
+  /** Phase 5 — caller-provided canonical sessionId; threaded as `--resume`. */
+  sessionId?: string;
 }
 
 export interface ModifyDocumentArgs {
   repoPath: string;
   instruction: string;
   documentText: string;
+  /** Phase 5 — caller-provided canonical sessionId; threaded as `--resume`. */
+  sessionId?: string;
 }
 
 export interface AskSpecArgs {
@@ -148,7 +152,9 @@ export class AiEditApplicationService {
       documentText: args.documentText,
       selection: args.selection,
     });
-    const raw = await this.run(args.repoPath, prompt);
+    const raw = await this.run(args.repoPath, prompt, {
+      resumeSessionId: args.sessionId,
+    });
     return stripOuterFencing(raw);
   }
 
@@ -157,7 +163,9 @@ export class AiEditApplicationService {
       instruction: args.instruction,
       documentText: args.documentText,
     });
-    const raw = await this.run(args.repoPath, prompt);
+    const raw = await this.run(args.repoPath, prompt, {
+      resumeSessionId: args.sessionId,
+    });
     return stripOuterFencing(raw);
   }
 

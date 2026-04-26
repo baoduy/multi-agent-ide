@@ -1,10 +1,29 @@
 import { EventEmitter } from "node:events";
 import os from "node:os";
 import path from "node:path";
-import type { AIProvider, AISessionStatus } from "@magenta/shared/aiTerminal";
+import type { AIProvider, AISessionConfig, AISessionStatus } from "@magenta/shared/aiTerminal";
+import type { AISpawnOptions } from "@magenta/shared/aiSpawnOptions";
 
 import { SessionCore } from "../terminal/SessionCore";
 import type { AttachResult } from "../terminal/RingBuffer";
+
+/**
+ * Map an AISessionConfig to the unified AISpawnOptions shape consumed by
+ * the shared `toArgv()` translator. PTY sessions historically only honour a
+ * subset of fields (model, permissionMode, providerSessionId → resume);
+ * future phases extend this seam (Phase 4: allowedTools/disallowedTools,
+ * Phase 5: sessionId/forkSession).
+ */
+export function sessionConfigToSpawn(
+  _provider: AIProvider,
+  config: AISessionConfig & { model?: string },
+): AISpawnOptions {
+  const out: AISpawnOptions = {};
+  if (config.model) out.model = config.model;
+  if (config.permissionMode) out.permissionMode = config.permissionMode;
+  if (config.providerSessionId) out.resumeSessionId = config.providerSessionId;
+  return out;
+}
 
 export interface AISessionEvents {
   /** Terminal data with monotonic seq (for attach/replay + UI ack). */

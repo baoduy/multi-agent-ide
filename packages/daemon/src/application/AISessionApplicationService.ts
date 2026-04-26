@@ -10,9 +10,12 @@ import { extractTitleFromContent } from "../domain/claudeSessionParser";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import { buildAllowlist, resolveAndAssert, type PathAllowlistProvider } from "../domain/pathGuard";
 import { resolveSessionCwd } from "../domain/sessionCwdResolver";
-import { getAllProviderMeta, getProviderMeta, getPermissionModeArgs } from "../domain/providerRegistry";
+import { getAllProviderMeta, getProviderMeta } from "../domain/providerRegistry";
 import { getSessionFactory } from "../infrastructure/sessions";
+import { sessionConfigToSpawn } from "../infrastructure/sessions/BaseAISession";
 import type { BaseAISession } from "../infrastructure/sessions";
+import { getProviderCapability } from "@magenta/shared/providerCapabilities";
+import { getToArgv } from "../domain/providerArgv";
 import type { GitGateway } from "../infrastructure/GitGateway";
 import { AppError } from "../errors/AppError";
 
@@ -96,26 +99,18 @@ export class AISessionApplicationService {
     const id = randomUUID();
     const initialProviderSessionId = explicitId ?? null;
 
-    // Build CLI args — permission mode flags first, then provider defaults,
-    // then resume flags when resuming a synced session. Arbitrary caller-
-    // supplied args are not forwarded: see ai-session:create schema
-    // rationale in packages/shared.
-    const permissionArgs = getPermissionModeArgs(provider, permissionMode);
-    const idArgs: string[] = [];
-    if (provider === "claude" && explicitId) {
-      // Claude resume of a synced session. No --session-id: combining it
-      // with --resume requires --fork-session and would start a new
-      // conversation branch instead of continuing the original.
-      idArgs.push("--resume", explicitId);
-    } else if (provider === "copilot" && explicitId) {
-      // Copilot resume of a synced session.
-      idArgs.push(`--resume=${explicitId}`);
-    }
-    const args = [
-      ...permissionArgs,
-      ...providerMeta.defaultArgs,
-      ...idArgs,
-    ];
+    // Build CLI args via the shared toArgv translator. Provider defaults
+    // are prepended so legacy registry behaviour (e.g. always-on flags) is
+    // preserved. Arbitrary caller-supplied args are not forwarded: see
+    // ai-session:create schema rationale in packages/shared.
+    const spawnOpts = sessionConfigToSpawn(provider, {
+      ...config,
+      permissionMode,
+      providerSessionId: explicitId,
+    });
+    const caps = getProviderCapability(provider);
+    const { args: derivedArgs } = getToArgv(provider)(spawnOpts, caps);
+    const args = [...providerMeta.defaultArgs, ...derivedArgs];
 
     // Create DB record (status is NOT persisted)
     const now = Date.now();
@@ -226,21 +221,17 @@ export class AISessionApplicationService {
     // We never pass --session-id here: Claude rejects it alongside
     // --resume/--continue unless --fork-session is specified, which would
     // create a new conversation branch instead of continuing the original.
-    const args = [...providerMeta.defaultArgs];
     const resumeId = record.providerSessionId;
-    if (record.provider === "claude") {
-      if (resumeId) {
-        args.push("--resume", resumeId);
-      } else {
-        args.push("--continue");
-      }
-    } else if (record.provider === "copilot") {
-      if (resumeId) {
-        args.push(`--resume=${resumeId}`);
-      } else {
-        args.push("--continue");
-      }
-    }
+    const resumeSpawn = sessionConfigToSpawn(record.provider, {
+      provider: record.provider,
+      permissionMode: record.permissionMode,
+      providerSessionId: resumeId ?? undefined,
+    });
+    // continueRecent fallback when no synced UUID is known (legacy records).
+    if (!resumeId) resumeSpawn.continueRecent = true;
+    const resumeCaps = getProviderCapability(record.provider);
+    const { args: resumeDerived } = getToArgv(record.provider)(resumeSpawn, resumeCaps);
+    const args = [...providerMeta.defaultArgs, ...resumeDerived];
 
     // Spawn PTY
     const factory = getSessionFactory(record.provider);

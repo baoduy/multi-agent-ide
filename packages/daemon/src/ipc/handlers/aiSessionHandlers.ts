@@ -26,6 +26,11 @@ export function registerAISessionHandlers({ bridge, aiSessionService, permission
         permissionPromptTool: msg.permissionPromptTool,
         noAskUser: msg.noAskUser,
         programmatic: msg.programmatic,
+        // Phase 5 — caller-provided canonical sessionId + lifecycle plumbing.
+        sessionId: msg.sessionId,
+        name: msg.name,
+        resumeFromPR: msg.resumeFromPR,
+        continueRecent: msg.continueRecent,
       },
       msg.cols,
       msg.rows,

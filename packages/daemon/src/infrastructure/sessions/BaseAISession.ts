@@ -31,6 +31,14 @@ export function sessionConfigToSpawn(
   // Programmatic-only: drop `noAskUser` for interactive PTY sessions.
   if (config.noAskUser && config.programmatic) out.noAskUser = true;
   if (config.mcpConfig) out.mcpConfig = config.mcpConfig;
+  // Phase 5 — lifecycle fields plumbed verbatim into AISpawnOptions; the
+  // provider-specific argv builder (claude.ts / copilot.ts) decides which
+  // flags to emit.
+  if (config.sessionId) out.sessionId = config.sessionId;
+  if (config.name) out.sessionName = config.name;
+  if (config.resumeFromPR) out.fromPR = config.resumeFromPR;
+  if (config.continueRecent) out.continueRecent = true;
+  if (config.forkSession) out.forkSession = true;
   return out;
 }
 

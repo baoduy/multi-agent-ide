@@ -4,6 +4,8 @@ import { MagentaConfigSchema } from "./config";
 import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
 import { SYNCED_SESSION_PROVIDERS, SyncedSessionRecordSchema } from "./syncedSession";
 import { CliToolIdSchema, CliToolStatusSchema } from "./cliTools";
+import { AISpawnOptionsSchema } from "./aiSpawnOptions";
+import { AIStreamEventSchema } from "./aiStreamEvent";
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -156,6 +158,15 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:set-permission-mode"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count") }),
   z.object({ type: z.literal("ai-session:check-worktree"), worktreePath: z.string(), repoPath: z.string() }),
+  z.object({
+    type: z.literal("ai:run-once"),
+    provider: z.enum(AI_PROVIDERS),
+    repoPath: z.string(),
+    worktreePath: z.string().optional(),
+    prompt: z.string(),
+    spawn: AISpawnOptionsSchema,
+    timeoutMs: z.number().int().positive().optional(),
+  }),
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   // `repoPath` scopes the sync to one repo (+ its worktrees). Omit to sync
@@ -629,6 +640,26 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:permission-mode-changed"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count:result"), count: z.number().int().nonnegative() }),
   z.object({ type: z.literal("ai-session:check-worktree:result"), valid: z.boolean(), repoPath: z.string(), worktreeName: z.string() }),
+  z.object({
+    type: z.literal("ai:run-once:result"),
+    sessionId: z.string().optional(),
+    exitCode: z.number().int(),
+    stdout: z.string(),
+    stderr: z.string(),
+    structuredOutput: z.unknown().optional(),
+    tokenUsage: z.object({
+      inputTokens: z.number().int().nonnegative(),
+      outputTokens: z.number().int().nonnegative(),
+      cacheCreationInputTokens: z.number().int().nonnegative().optional(),
+      cacheReadInputTokens: z.number().int().nonnegative().optional(),
+    }).optional(),
+    costUsd: z.number().nonnegative().optional(),
+    retriesSeen: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("ai-session:event"),
+    event: AIStreamEventSchema,
+  }),
   // Synced session responses + push events
   z.object({ type: z.literal("synced-session:list:result"), sessions: z.array(SyncedSessionRecordSchema) }),
   z.object({ type: z.literal("synced-session:sync:triggered") }),

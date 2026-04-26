@@ -29,7 +29,8 @@ export type AppErrorCode =
   | "SYSTEM_PROMPT_FILE_MISSING"
   | "PRESET_NOT_FOUND"
   | "BUILTIN_PRESET_READONLY"
-  | "PERMISSION_PROMPT_TIMEOUT";
+  | "PERMISSION_PROMPT_TIMEOUT"
+  | "AI_RESUME_PENDING_RECONCILIATION";
 
 export class AppError extends Error {
   readonly code: AppErrorCode;

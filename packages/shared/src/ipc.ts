@@ -8,6 +8,14 @@ import { AISpawnOptionsSchema } from "./aiSpawnOptions";
 import { AIStreamEventSchema } from "./aiStreamEvent";
 import { AIPresetSchema } from "./aiPresets";
 
+/** Phase 6 — Subagents/Custom-agents listing model. */
+export const AgentSchema = z.object({
+  name: z.string().min(1),
+  source: z.enum(["builtin", "user", "project", "system"]),
+  description: z.string(),
+});
+export type Agent = z.infer<typeof AgentSchema>;
+
 export const RepositorySchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -183,6 +191,11 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     resumeFromPR: z.string().min(1).max(500).optional(),
     // Phase 5 — `--continue` (Claude `-c`) "continue most recent".
     continueRecent: z.boolean().optional(),
+    // Phase 6 — caller-selected agent name. Claude renders as `--agent <v>`;
+    // Copilot prompt-injection happens at the message layer, not here.
+    agent: z.string().min(1).max(200).optional(),
+    // Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle.
+    enableAllGithubMcpTools: z.boolean().optional(),
   }),
   // Phase 5 — fork an existing session, creating a new canonical row whose
   // `parentSessionId` points back at the original (FR-7.7). Claude only;
@@ -468,6 +481,13 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // spec folder. The daemon spawns `claude -p` with cwd = repoPath and an
   // appended system prompt telling the agent which folder to focus on;
   // the agent then reads files itself via its Read/Glob/Grep tools.
+  // Phase 6 — list agents available for a provider. For Claude this shells
+  // out to `claude agents`; for Copilot it returns the static built-in list.
+  z.object({ type: z.literal("ai:list-agents"), provider: z.enum(AI_PROVIDERS) }),
+  // Phase 6 — plugin-dirs CRUD (Claude `--plugin-dir` setting).
+  z.object({ type: z.literal("plugin-dirs:list") }),
+  z.object({ type: z.literal("plugin-dirs:add"), path: z.string().min(1) }),
+  z.object({ type: z.literal("plugin-dirs:remove"), path: z.string().min(1) }),
   z.object({
     type: z.literal("ai-chat:ask-spec"),
     repoPath: z.string(),
@@ -943,6 +963,16 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     streamId: z.string(),
     sessionId: z.string(),
   }),
+  // Phase 6 — agents listing result.
+  z.object({
+    type: z.literal("ai:list-agents:result"),
+    provider: z.enum(AI_PROVIDERS),
+    agents: z.array(AgentSchema),
+  }),
+  // Phase 6 — plugin-dirs CRUD responses.
+  z.object({ type: z.literal("plugin-dirs:list:result"), paths: z.array(z.string()) }),
+  z.object({ type: z.literal("plugin-dirs:add:result"), paths: z.array(z.string()) }),
+  z.object({ type: z.literal("plugin-dirs:remove:result"), paths: z.array(z.string()) }),
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

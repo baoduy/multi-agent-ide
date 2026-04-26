@@ -63,6 +63,9 @@ import type { AgentService } from "../application/AgentService";
 import type { PluginDirService } from "../application/PluginDirService";
 import { registerAgentsHandlers } from "./handlers/agentsHandlers";
 import type { PermissionPromptCoordinator } from "../application/PermissionPromptCoordinator";
+import type { DebugLogService } from "../application/DebugLogService";
+import { registerDebugLogHandlers } from "./handlers/aiSessionDebugLog";
+import { registerAiEnvOtelStatus } from "./handlers/aiEnvOtelStatus";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
 import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
@@ -101,6 +104,8 @@ export type HandlerContext = {
   agentService: AgentService;
   pluginDirService: PluginDirService;
   permissionCoordinator: PermissionPromptCoordinator;
+  /** Phase 7 — debug-log allocator/tailer. */
+  debugLogService: DebugLogService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -193,4 +198,8 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
     agentService: context.agentService,
     pluginDirService: context.pluginDirService,
   });
+
+  // Phase 7 — debug-log tail-follow + OTel env-status panel.
+  registerDebugLogHandlers(bridge, context.debugLogService);
+  registerAiEnvOtelStatus(bridge);
 }

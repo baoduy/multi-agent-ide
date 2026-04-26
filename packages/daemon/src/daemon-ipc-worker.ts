@@ -328,7 +328,6 @@ async function main() {
     );
     const debugLogService = new DebugLogService();
     void sessionObservabilityService;
-    void debugLogService;
 
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };
@@ -363,6 +362,7 @@ async function main() {
       agentService,
       pluginDirService,
       permissionCoordinator,
+      debugLogService,
     });
     console.log("[daemon-worker] All handlers registered");
 

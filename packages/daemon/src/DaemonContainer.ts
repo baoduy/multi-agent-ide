@@ -329,6 +329,7 @@ export class DaemonContainer {
       agentService: this.agentService,
       pluginDirService: this.pluginDirService,
       permissionCoordinator: this.permissionCoordinator,
+      debugLogService: this.debugLogService,
     });
   }
 

@@ -391,6 +391,114 @@ export class AiCliGateway {
       }
     });
   }
+
+  /**
+   * Phase 2 typed entry point. Translates AISpawnOptions to argv via the
+   * provider's pure adapter, spawns, and forwards stdout line-by-line to the
+   * caller. Caller (application service) owns parsing & event emission.
+   */
+  async runOnceWithSpawn(
+    provider: AIProvider,
+    prompt: string,
+    spawnOpts: AISpawnOptions,
+    hooks: {
+      cwd: string;
+      timeoutMs: number;
+      onStdoutLine?: (line: string) => void;
+    },
+  ): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    retriesSeen: number;
+  }> {
+    const caps = getProviderCapability(provider);
+    const { args } = getToArgv(provider)(spawnOpts, caps);
+    const command = provider === "claude" ? "claude" : "copilot";
+
+    if (provider === "claude") {
+      args.unshift("-p");
+    } else {
+      args.unshift("-p", prompt);
+    }
+
+    return new Promise((resolve, reject) => {
+      let child: ReturnType<typeof spawn>;
+      try {
+        child = spawn(command, args, {
+          cwd: hooks.cwd,
+          env: process.env,
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      } catch (err) {
+        reject(
+          new AppError(
+            "AI_PROVIDER_NOT_AVAILABLE",
+            `Could not spawn "${command}": ${(err as Error).message}.`,
+          ),
+        );
+        return;
+      }
+
+      let stdout = "";
+      let stderr = "";
+      let buf = "";
+      let settled = false;
+      const retriesSeen = 0;
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try { child.kill("SIGTERM"); } catch { /* ignore */ }
+        reject(new AppError("AI_TIMEOUT", `${command} did not respond within ${hooks.timeoutMs}ms.`));
+      }, hooks.timeoutMs);
+
+      child.stdout!.on("data", (chunk: Buffer) => {
+        const text = chunk.toString("utf8");
+        stdout += text;
+        buf += text;
+        let nl = buf.indexOf("\n");
+        while (nl !== -1) {
+          const line = buf.slice(0, nl);
+          buf = buf.slice(nl + 1);
+          if (hooks.onStdoutLine) hooks.onStdoutLine(line);
+          nl = buf.indexOf("\n");
+        }
+      });
+      child.stderr!.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString("utf8");
+      });
+      child.on("error", (err: NodeJS.ErrnoException) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (err.code === "ENOENT") {
+          reject(
+            new AppError(
+              "AI_PROVIDER_NOT_AVAILABLE",
+              `"${command}" not found on PATH. Install the ${provider} CLI first.`,
+            ),
+          );
+          return;
+        }
+        reject(new AppError("AI_CLI_FAILED", err.message));
+      });
+      child.on("close", (code) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (buf && hooks.onStdoutLine) hooks.onStdoutLine(buf);
+        resolve({ stdout, stderr, exitCode: code ?? 0, retriesSeen });
+      });
+
+      if (provider === "claude") {
+        // Claude reads the prompt from stdin when -p is given without a value.
+        child.stdin!.end(prompt, "utf8");
+      } else {
+        child.stdin!.end();
+      }
+    });
+  }
 }
 
 interface ExtractedDeltas {

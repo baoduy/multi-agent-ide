@@ -59,6 +59,7 @@ import type { FileWatchService } from "../application/FileWatchService";
 import { registerFileWatchHandlers } from "./handlers/fileWatchHandlers";
 import type { AiPresetService } from "../application/AiPresetService";
 import { registerAiPresetHandlers } from "./handlers/aiPresetHandlers";
+import type { PermissionPromptCoordinator } from "../application/PermissionPromptCoordinator";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
 import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
@@ -94,6 +95,7 @@ export type HandlerContext = {
   aiBareRunService: AiBareRunApplicationService;
   fileWatchService: FileWatchService;
   aiPresetService: AiPresetService;
+  permissionCoordinator: PermissionPromptCoordinator;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -130,7 +132,11 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
 
   registerTerminalHandlers({ bridge, terminalService: context.terminalService, allowlistProvider: context.configManager });
 
-  registerAISessionHandlers({ bridge, aiSessionService: context.aiSessionService });
+  registerAISessionHandlers({
+    bridge,
+    aiSessionService: context.aiSessionService,
+    permissionCoordinator: context.permissionCoordinator,
+  });
 
   registerAIRunOnceHandlers({ bridge, runOnceService: context.aiRunOnceService });
 

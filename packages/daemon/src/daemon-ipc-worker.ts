@@ -51,6 +51,7 @@ import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
 import { AiPresetRepository } from "./services/AiPresetRepository";
 import { AiPresetService } from "./application/AiPresetService";
+import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -299,6 +300,9 @@ async function main() {
     const aiPresetRepository = new AiPresetRepository(databaseService);
     const aiPresetService = new AiPresetService(aiPresetRepository);
 
+    // Phase 4 — permission-prompt coordinator (used by aiSessionHandlers).
+    const permissionCoordinator = new PermissionPromptCoordinator(ipcBridge);
+
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };
 
@@ -329,6 +333,7 @@ async function main() {
       aiBareRunService,
       fileWatchService,
       aiPresetService,
+      permissionCoordinator,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -350,6 +355,7 @@ async function main() {
       "ai-session:status",
       "ai-session:exited",
       "ai-session:updated",
+      "ai-session:permission-request",
       "synced-session:sync:complete",
       "worktree:sync:complete",
       "cli:version-status-changed",

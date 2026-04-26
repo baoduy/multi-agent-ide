@@ -1,13 +1,15 @@
 import type { IPCBridge } from "../IPCBridge";
 import type { AISessionApplicationService } from "../../application/AISessionApplicationService";
+import type { PermissionPromptCoordinator } from "../../application/PermissionPromptCoordinator";
 import { safeHandle } from "../createHandler";
 
 type AISessionHandlerContext = {
   bridge: IPCBridge;
   aiSessionService: AISessionApplicationService;
+  permissionCoordinator: PermissionPromptCoordinator;
 };
 
-export function registerAISessionHandlers({ bridge, aiSessionService }: AISessionHandlerContext): void {
+export function registerAISessionHandlers({ bridge, aiSessionService, permissionCoordinator }: AISessionHandlerContext): void {
   safeHandle(bridge, "ai-session:create", async (msg) => {
     const session = await aiSessionService.createSession(
       {
@@ -99,5 +101,18 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
   safeHandle(bridge, "ai-session:check-worktree", async (msg) => {
     const result = await aiSessionService.checkWorktreeExists(msg.worktreePath, msg.repoPath);
     return { type: "ai-session:check-worktree:result", ...result };
+  });
+
+  // Phase 4 — Renderer answers a Claude permission prompt. Routed through
+  // the coordinator's correlation table; the original requestApproval
+  // promise resolves on match.
+  safeHandle(bridge, "ai-session:permission-response", async (req) => {
+    permissionCoordinator.resolveResponse({
+      sessionId: req.sessionId,
+      requestId: req.requestId,
+      allow: req.allow,
+      scope: req.scope,
+    });
+    return { type: "ai-session:permission-response-ack" as const, ok: true };
   });
 }

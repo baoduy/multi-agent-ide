@@ -41,6 +41,7 @@ import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
 import { AiPresetRepository } from "./services/AiPresetRepository";
 import { AiPresetService } from "./application/AiPresetService";
+import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -94,6 +95,7 @@ export class DaemonContainer {
   readonly fileWatchService: FileWatchService;
   readonly aiPresetRepository: AiPresetRepository;
   readonly aiPresetService: AiPresetService;
+  readonly permissionCoordinator: PermissionPromptCoordinator;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -237,6 +239,11 @@ export class DaemonContainer {
     // built-ins on top during list().
     this.aiPresetRepository = new AiPresetRepository(databaseService);
     this.aiPresetService = new AiPresetService(this.aiPresetRepository);
+
+    // Phase 4 — Claude permission-prompt coordinator. The bridge is the
+    // permission event bus: its `emit(IpcResponse)` shape already matches
+    // the `ai-session:permission-request` push event payload.
+    this.permissionCoordinator = new PermissionPromptCoordinator(this.bridge);
   }
 
   /**
@@ -278,6 +285,7 @@ export class DaemonContainer {
       aiBareRunService: this.aiBareRunService,
       fileWatchService: this.fileWatchService,
       aiPresetService: this.aiPresetService,
+      permissionCoordinator: this.permissionCoordinator,
     });
   }
 

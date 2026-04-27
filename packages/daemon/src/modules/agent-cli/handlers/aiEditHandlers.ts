@@ -51,10 +51,16 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
         selection: msg.selection,
         onChunk,
         onSessionId,
-        // Phase 5/8 — `sessionId` is the canonical thread id (also used as
-        // `--resume` token by the legacy CLI gateway path). `resumeSessionId`
-        // remains a back-compat fallback for renderers that haven't migrated.
-        resumeSessionId: msg.sessionId ?? msg.resumeSessionId,
+        // `resumeSessionId` is the *real* provider session token (Claude /
+        // Copilot's own UUID, captured during the first turn via onSessionId
+        // and persisted as `providerSessionId` on the chat thread row). The
+        // CLI's `--resume <id>` accepts only that token.
+        //
+        // `msg.sessionId` is a *separate* daemon-internal thread UUID used
+        // for persistence; the CLI has never seen it. Passing it to `--resume`
+        // makes Claude exit with "No conversation found" and Copilot exit
+        // silently with code 0 (and an empty response). Keep them distinct.
+        resumeSessionId: msg.resumeSessionId,
         provider: msg.provider,
         sessionId: msg.sessionId,
       }),

@@ -20,10 +20,17 @@ export function toArgvCopilot(
   if (opts.silent) args.push("-s");
   if (opts.outputFormat) {
     if (opts.outputFormat === "json" || opts.outputFormat === "stream-json") {
-      // Copilot's `--output-format json` is JSONL (one event per line),
-      // which is what our streaming code path expects. Map both names
-      // to it so the gateway can request streaming with a single flag.
+      // Copilot's `--output-format=json` is JSONL (one event per line) —
+      // documented in the CLI command reference. Map both `json` and the
+      // shared abstraction `stream-json` to it.
       args.push("--output-format", "json");
+      // `stream-json` is the shared abstraction for "JSONL with token-level
+      // delta events". Copilot only emits `assistant.message_delta` chunks
+      // when `--stream=on` is set; without it we'd just get the terminal
+      // `assistant.message` (works, but no streaming UX). So pair the two.
+      if (opts.outputFormat === "stream-json") {
+        args.push("--stream", "on");
+      }
     } else {
       drop(`outputFormat=${opts.outputFormat}`);
     }

@@ -5,6 +5,9 @@ import { getProviderCapability } from "@magenta/shared/providerCapabilities";
 import { getToArgv } from "../core/providerArgv";
 import { AppError } from "../../../core/errors/AppError";
 import { buildEnrichedPath } from "../../../core/utils/enrichedPath";
+import { createLogger } from "../../../core/observability/Logger";
+
+const log = createLogger("ai-cli-gateway");
 
 /**
  * Options that control how a single AI CLI invocation runs.
@@ -103,7 +106,16 @@ const claudeAdapter: CliAdapter = {
  * GitHub Copilot CLI has a `copilot -p "<prompt>"` non-interactive mode.
  * Copilot does not currently expose a per-call model flag in the public CLI,
  * so `model` is passed only via `extraArgs` if the user wires one up.
- * Copilot ignores streaming / resume extras in v1.
+ *
+ * Streaming is enabled via `--output-format=json` + `--stream=on`, both
+ * documented in the CLI command reference:
+ *   https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference
+ * `--output-format=json` emits JSONL session events (one per line);
+ * `--stream=on` makes Copilot emit `assistant.message_delta` chunks during
+ * the turn so the chat bubble can render tokens as they arrive. Without
+ * `--stream=on`, Copilot emits only the terminal `assistant.message` event,
+ * which still works (the parser falls back to `data.content`) but provides
+ * no token-level streaming UX.
  */
 const copilotAdapter: CliAdapter = {
   command: "copilot",
@@ -128,7 +140,14 @@ export function runOptionsToSpawn(
   extras: { streaming?: boolean; model?: string } = {},
 ): AISpawnOptions {
   const out: AISpawnOptions = {};
-  if (extras.model) out.model = extras.model;
+  // `--model` is intentionally not propagated to either provider here. The
+  // shared chat config historically used Claude-style aliases ("sonnet",
+  // "opus") which Copilot rejects ("Model 'sonnet' from --model flag is
+  // not available."). Letting each CLI use its own default — Claude's via
+  // `~/.claude/...`, Copilot's via `~/.copilot/config.json` — keeps both
+  // providers working out of the box. Callers that need a specific model
+  // can wire it via `extraArgs` (e.g. `["--model", "gpt-5.2"]`).
+  void extras.model;
   if (options.systemPromptAppend) out.appendSystemPrompt = options.systemPromptAppend;
   if (options.permissionMode) out.permissionMode = options.permissionMode;
   if (options.allowedTools && options.allowedTools.length > 0)
@@ -186,7 +205,17 @@ export class AiCliGateway {
         err.code === "AI_CLI_FAILED" &&
         looksLikeResumeFailure(err.message)
       ) {
+        log.warn(`${provider}: --resume failed, retrying without session id`, {
+          resumeSessionId: options.resumeSessionId,
+          errorMessage: err.message.slice(0, 200),
+        });
         return this.runOnce(adapter, provider, model, prompt, options, streaming, undefined);
+      }
+      if (err instanceof AppError) {
+        log.error(`${provider}: run failed`, {
+          code: err.code,
+          message: err.message.slice(0, 300),
+        });
       }
       throw err;
     }
@@ -219,7 +248,24 @@ export class AiCliGateway {
     // `--allow-all-tools` is required for Copilot's non-interactive (`-p`) mode —
     // without it the CLI sits at a permission prompt waiting for stdin input
     // we never send, which manifests as a chat bubble that "never responds".
+    // `-s` is intentionally not added: it suppresses output decoration for
+    // text mode, but in `--output-format=json` mode (the streaming path)
+    // Copilot already emits structured events without decoration, and `-s`
+    // is unnecessary / potentially conflicting.
     if (provider === "copilot") args.unshift("--allow-all-tools", "-p", prompt);
+
+    // Log the exact argv being spawned (mask the prompt body for size). This
+    // is the single most useful diagnostic when a CLI integration produces
+    // "empty response" or unexpected output — confirms which flags landed.
+    const maskedArgs = args.map((a) =>
+      a === prompt ? `<prompt:${prompt.length}ch>` : a,
+    );
+    log.warn(`spawn ${provider}`, {
+      command: adapter.command,
+      args: maskedArgs,
+      streaming,
+      cwd: options.cwd,
+    });
 
     return new Promise<string>((resolve, reject) => {
       let child;
@@ -284,11 +330,30 @@ export class AiCliGateway {
         try {
           event = JSON.parse(trimmed);
         } catch {
-          return; // skip malformed line
+          // Non-JSON line in a streaming JSONL stdout. With `--output-format=json`
+          // this should not happen — log so we can tell whether the CLI is
+          // mixing plain text into the JSONL output (or has switched format
+          // mid-stream).
+          log.warn(`${provider}: non-JSON stream line`, {
+            preview: trimmed.length > 200 ? trimmed.slice(0, 200) + "…" : trimmed,
+          });
+          return;
         }
         if (!event || typeof event !== "object") return;
         parsedAnyEvent = true;
         const e = event as Record<string, unknown>;
+        // Per-event trace: just the type and a brief data shape so the volume
+        // stays manageable. Critical for diagnosing "no text reached the
+        // bubble" cases — we can see whether assistant.message_delta /
+        // assistant.message events are even being emitted.
+        log.warn(`${provider} event`, {
+          type: typeof e.type === "string" ? e.type : "<unknown>",
+          dataKeys:
+            e.data && typeof e.data === "object"
+              ? Object.keys(e.data as Record<string, unknown>)
+              : [],
+          ephemeral: typeof e.ephemeral === "boolean" ? e.ephemeral : undefined,
+        });
 
         // Session id appears at the top level of most Claude stream-json events
         // (snake_case `session_id`). Copilot emits a single `result` event at
@@ -319,6 +384,7 @@ export class AiCliGateway {
         if (text && options.onChunk) {
           deltaFired = true;
           streamAccum += text;
+          log.info(`${provider}: text delta`, { length: text.length });
           try {
             options.onChunk(text, "text");
           } catch {
@@ -375,6 +441,19 @@ export class AiCliGateway {
         settled = true;
         clearTimeout(timer);
 
+        // Summary diagnostic — gives a one-shot picture of the run.
+        log.warn(`${provider} closed`, {
+          exitCode: code,
+          stdoutBytes: stdout.length,
+          stderrBytes: stderr.length,
+          deltaFired,
+          parsedAnyEvent,
+          streamAccumChars: streamAccum.length,
+          stderrPreview: stderr.trim()
+            ? stderr.trim().slice(0, 300)
+            : undefined,
+        });
+
         if (code !== 0) {
           const snippet = stderr.trim() || stdout.trim() || `exit code ${code}`;
           reject(
@@ -403,6 +482,10 @@ export class AiCliGateway {
           if (!deltaFired && !parsedAnyEvent && options.onChunk) {
             const body = stdout.trim();
             if (body) {
+              log.warn(`${provider}: firing raw-stdout fallback`, {
+                stdoutBytes: body.length,
+                preview: body.slice(0, 300),
+              });
               streamAccum = body;
               try {
                 options.onChunk(body, "text");
@@ -411,10 +494,27 @@ export class AiCliGateway {
               }
             }
           }
-          resolve(streamAccum.trim());
+          const finalText = streamAccum.trim();
+          log.info(`${provider}: resolving streaming run`, {
+            chars: finalText.length,
+            empty: finalText.length === 0,
+          });
+          // Targeted diagnostic: when the chat ends up empty after a streaming
+          // run, dump the raw stdout buffer so we can see exactly what the
+          // CLI sent. Truncated to avoid flooding the terminal.
+          if (finalText.length === 0) {
+            const dump = stdout.length > 4000
+              ? stdout.slice(0, 4000) + `\n…[truncated ${stdout.length - 4000} bytes]`
+              : stdout;
+            log.warn(`${provider}: empty streaming result — raw stdout dump:\n${dump}`);
+          }
+          resolve(finalText);
           return;
         }
 
+        log.info(`${provider}: resolving non-streaming run`, {
+          chars: stdout.trim().length,
+        });
         resolve(stdout.trim());
       });
 

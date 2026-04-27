@@ -1,6 +1,55 @@
-# CLAUDE.md — Magenta IDE Development Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 This file is the authoritative reference for AI agents (and human contributors) working on the Magenta IDE codebase. Follow these rules when implementing new features, fixing bugs, or refactoring.
+
+---
+
+## Common Commands
+
+Run from the repo root unless noted. The repo is a pnpm workspace (`pnpm@10.33.2`); install with `pnpm install` (postinstall rebuilds `node-pty` and `lmdb` for Electron's ABI).
+
+```bash
+# Develop the Electron app (builds all packages, then launches the main process)
+pnpm dev
+
+# Watch mode across all packages in parallel (rebuilds on file change)
+pnpm dev:watch
+
+# Build / typecheck / lint / test across all packages (recursive)
+pnpm build
+pnpm typecheck
+pnpm lint
+pnpm test
+
+# Per-package work (use -C to scope a script to one package)
+pnpm -C packages/daemon typecheck
+pnpm -C packages/ui dev          # esbuild watch
+pnpm -C packages/ui dev:css      # Tailwind v4 watch (separate process)
+
+# E2E (Playwright) — requires a fresh build first; the script handles that
+pnpm test:e2e                    # all projects
+pnpm test:e2e:headed             # show the Electron window
+pnpm test:e2e:debug              # Playwright Inspector
+pnpm -C packages/e2e test:smoke  # smoke project only
+pnpm -C packages/e2e exec playwright test path/to/file.spec.ts   # single file
+
+# Electron debug helpers (packages/e2e/scripts, run via tsx)
+pnpm debug:launch                                  # launch Electron with CDP attached
+pnpm -C packages/e2e debug:click '<selector>'
+pnpm -C packages/e2e debug:eval '<expression>'
+pnpm -C packages/e2e debug:snapshot
+pnpm -C packages/e2e debug:stop
+
+# Distribution
+pnpm pack            # unpacked app dir
+pnpm dist[:mac|:win|:linux]
+```
+
+**Verification scope per project convention:** stop at `pnpm typecheck` + `pnpm build`. Don't launch the app — the user tests UI changes manually (see `feedback_verification.md`).
+
+**Linters/unit tests are not wired up in `packages/daemon`, `packages/main`, or `packages/ui` today** — their `lint`/`test` scripts echo placeholders. Automated tests live in `packages/e2e` (Playwright + Playwright-BDD).
 
 ---
 

@@ -59,6 +59,9 @@ export class DebugLogService {
     if (!filePath) {
       throw new Error(`No debug-log path registered for session ${sessionId}`);
     }
+    // Close any existing watcher for this session to prevent FSWatcher leaks
+    // if the renderer mounts/unmounts the tab multiple times.
+    this.close(sessionId);
     let cursor = 0;
     try {
       cursor = statSync(filePath).size;

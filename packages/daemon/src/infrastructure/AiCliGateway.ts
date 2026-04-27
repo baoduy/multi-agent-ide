@@ -204,7 +204,7 @@ export class AiCliGateway {
       { ...options, resumeSessionId },
       {
         streaming,
-        model: provider === "claude" ? model : undefined, // Copilot ignores model in adapter
+        model: model || undefined,
       },
     );
     const caps = getProviderCapability(provider);

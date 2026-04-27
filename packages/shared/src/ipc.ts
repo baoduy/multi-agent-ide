@@ -829,6 +829,7 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("ai:run-bare-once:result"),
     stdout: z.string(),
+    stderr: z.string(),
     exitCode: z.number().int(),
     argv: z.array(z.string()),
     resolution: z.object({

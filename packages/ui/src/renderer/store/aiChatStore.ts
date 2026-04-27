@@ -207,6 +207,14 @@ export const useAiChatStore = create<State>((set, get) => ({
   setProvider(filePath, provider) {
     const thread = get().threadsByFile[filePath] ?? emptyThread();
     if (thread.provider === provider) return;
+    // Update provider synchronously so the UI reflects the change immediately
+    // while the async IPC round-trip resolves the persisted thread.
+    set((s) => ({
+      threadsByFile: {
+        ...s.threadsByFile,
+        [filePath]: { ...emptyThread(), provider, open: thread.open },
+      },
+    }));
     // Phase 8 — switching providers re-resolves to the other provider's
     // active thread for this file (or creates a fresh one).
     void get().openThreadForFile(filePath, provider);

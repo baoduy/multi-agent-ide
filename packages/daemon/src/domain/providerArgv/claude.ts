@@ -80,9 +80,9 @@ export function toArgvClaude(
   if (opts.permissionPromptTool)
     args.push("--permission-prompt-tool", opts.permissionPromptTool);
   if (opts.allowedTools && opts.allowedTools.length > 0)
-    args.push("--allowedTools", opts.allowedTools.join(","));
+    args.push("--allowedTools", ...opts.allowedTools);
   if (opts.disallowedTools && opts.disallowedTools.length > 0)
-    args.push("--disallowedTools", opts.disallowedTools.join(","));
+    args.push("--disallowedTools", ...opts.disallowedTools);
   if (opts.toolsAvailable && opts.toolsAvailable.length > 0)
     args.push("--tools", opts.toolsAvailable.join(","));
   if (opts.noAskUser) drop("noAskUser");

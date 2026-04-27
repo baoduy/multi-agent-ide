@@ -1,13 +1,5 @@
 ---
 description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
-handoffs:
-  - label: Start Implementation
-    agent: speckit.implement
-    prompt: Start the implementation in phases
-    send: true
-  - label: Refine Specification
-    agent: speckit.specify
-    prompt: Refine the specification to address analysis findings
 ---
 
 ## User Input
@@ -254,4 +246,4 @@ After reporting, check if `.specify/extensions.yml` exists in the project root.
 
 ## Context
 
-<!-- User input available above in the User Input section -->
+$ARGUMENTS

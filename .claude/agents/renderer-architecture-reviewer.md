@@ -1,6 +1,6 @@
 ---
 name: renderer-architecture-reviewer
-description: Use when reviewing changes to the React renderer (packages/ui/src/renderer/) before merging — especially edits to Zustand stores, services, or components that touch session/repo/spec state. Verifies the renderer's strict architectural rules: stores never import each other, cross-store ops go through SessionCoordinator, IPC calls use sendOrThrow, and session updates use patchSession. Examples: "review the store changes on this branch", "check the new feature for renderer-architecture violations", invoked after edits to packages/ui/src/renderer/stores/ or services/.
+description: 'Use when reviewing changes to the React renderer (packages/ui/src/renderer/) before merging — especially edits to Zustand stores, services, or components that touch session/repo/spec state. Verifies the renderer strict architectural rules — stores never import each other, cross-store ops go through SessionCoordinator, IPC calls use sendOrThrow, and session updates use patchSession. Example triggers — "review the store changes on this branch", "check the new feature for renderer-architecture violations", or invoked after edits to packages/ui/src/renderer/stores/ or services/.'
 tools: Read, Grep, Glob
 ---
 

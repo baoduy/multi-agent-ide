@@ -135,17 +135,50 @@ IPC Layer  →  Application Layer  →  Domain / Infrastructure  →  Data Acces
 
 Upper layers may call lower layers. **Never the reverse.**
 
+### Source Layout (Feature Modules)
+
+The daemon is organized by feature module, not by architectural layer. Top-level structure:
+
+```
+packages/daemon/src/
+├── core/                # cross-cutting infra (ipc, db, errors, config, utils, observability)
+├── modules/
+│   ├── agent-cli/       # Claude/Copilot CLI integrations
+│   │   ├── core/        # provider-agnostic interfaces & shared logic
+│   │   ├── claude/      # Claude-specific (argv, sessionParser, ClaudeSession, ClaudeAgentsGateway)
+│   │   ├── copilot/     # Copilot-specific (argv, sessionParser, builtinAgents, CopilotSession)
+│   │   ├── sessions/    # BaseAISession, SessionFactory
+│   │   ├── infra/       # AiCliGateway, CliVersionProbe, AiConfigRepository, PermissionPromptMcpServer
+│   │   ├── app/         # AISession/AiEdit/AiBareRun/AIRunOnce/CliVersion/AiPreset/Agent ApplicationServices
+│   │   ├── persistence/ # AiPresetRepository
+│   │   └── handlers/    # ai*Handlers, agentsHandlers, cliVersionHandlers
+│   ├── repos/           # Git*ApplicationServices, Git*Gateways, RepoRepository, repo+git handlers
+│   ├── worktrees/       # Worktree app/persistence/mappers/handlers
+│   ├── specs/           # SpecApplicationService, SpecGitGateway, SpecParser, SpecReader, SpecRepository
+│   ├── synced-sessions/ # SessionSyncApplicationService, SessionSyncGateway, SyncedSessionRepository
+│   ├── filesystem/      # FileSystemGateway, FileWatcherGateway, TempFileGateway, file handlers
+│   ├── terminal/        # TerminalApplicationService, SessionCore (PTY), terminalHandlers
+│   ├── chat/            # ChatThreadService + ChatThreadRepository + chatThreadHandlers
+│   ├── config/          # OnboardApplicationService, PluginDirService + handlers (user config)
+│   └── jobs/            # BackgroundJobManager, IpcEventSink
+├── DaemonContainer.ts   # composition root
+├── daemon-ipc-worker.ts # entry point
+└── index.ts             # bootstrapDaemon export
+```
+
+Each module owns its full vertical slice (`core/` → `infra/` → `app/` → `handlers/`). Subfolder names encode the architectural layer.
+
 ### Adding a New IPC Endpoint
 
 1. **Define the schema** in `packages/shared/src/ipc.ts` — add a new variant to both `IpcRequestSchema` and `IpcResponseSchema` discriminated unions.
-2. **Create or extend an Application Service** in `packages/daemon/src/application/`. The service method should contain all orchestration logic.
-3. **Add a thin handler** in `packages/daemon/src/ipc/handlers/` using `safeHandle()`:
+2. **Create or extend an Application Service** in the relevant module's `app/` folder (e.g. `packages/daemon/src/modules/repos/app/`). The service method should contain all orchestration logic.
+3. **Add a thin handler** in the module's `handlers/` folder (e.g. `packages/daemon/src/modules/repos/handlers/`) using `safeHandle()`:
    ```typescript
    safeHandle(bridge, "my-new-request", async (req) => {
      return myAppService.doSomething(req.someField);
    });
    ```
-4. **Wire dependencies** in `packages/daemon/src/ipc/registerHandlers.ts` — instantiate any new application services there and pass them to the handler registration function.
+4. **Wire dependencies** in `packages/daemon/src/core/ipc/registerHandlers.ts` — instantiate any new application services there and pass them to the handler registration function.
 5. **Update `ResponseForRequest`** in `packages/ui/src/renderer/services/ipcClient.ts` so the renderer gets typed responses.
 
 ### Handler Rules
@@ -163,21 +196,23 @@ Upper layers may call lower layers. **Never the reverse.**
   ```
 - The `createHandler` wrapper catches errors and normalizes them via `toAppError()`.
 - Valid error codes: `INTERNAL_ERROR`, `VALIDATION_ERROR`, `NOT_FOUND`, `IPC_ERROR`, `REPO_NOT_FOUND`, `SPEC_PARSE_ERROR`, `FILE_TOO_LARGE`, `FILE_NOT_FOUND`, `WORKTREE_CONFLICT`, `GIT_ERROR`, `CONFIG_ERROR`.
-- Add new codes to `packages/daemon/src/errors/AppError.ts` when needed.
+- Add new codes to `packages/daemon/src/core/errors/AppError.ts` when needed.
 
-### Domain Layer (packages/daemon/src/domain/)
+### Domain / `core/` Logic
 
 - **Pure logic only** — no `fs`, no `git`, no network, no database.
 - Functions receive data, return data. Side-effect free.
+- Lives in each module's `core/` subfolder (e.g. `modules/specs/core/SpecParser.ts`, `modules/agent-cli/core/streamJsonParser.ts`).
 - Example: `SpecParser.parseTasksContent(content: string)` parses markdown, returns structured data.
 
-### Infrastructure Layer (packages/daemon/src/infrastructure/)
+### Infrastructure (`infra/`) Layer
 
 - **I/O adapters** — wrap external systems (`fs`, `git`, network) behind clean interfaces.
-- `GitGateway` — worktree operations (create, list, gitignore management).
-- `FileSystemGateway` — file read/write/list with `AppError` wrapping.
-- `SpecGitGateway` — git commands for spec access (branches, file reading).
-- Mappers (`infrastructure/mappers/`) — centralize any persistence ↔ model conversion helpers (e.g. legacy SyncedSession and Worktree mapper shapes).
+- Lives in each module's `infra/` subfolder.
+- `GitGateway` (`modules/repos/infra/`) — worktree operations (create, list, gitignore management).
+- `FileSystemGateway` (`modules/filesystem/infra/`) — file read/write/list with `AppError` wrapping.
+- `SpecGitGateway` (`modules/specs/infra/`) — git commands for spec access (branches, file reading).
+- Mappers — each module owns its own `mappers/` folder for persistence ↔ model conversion helpers.
 
 ### Composition Root
 
@@ -278,9 +313,9 @@ Do **not** add individual `updateX()` methods to sessionStore.
 When adding a new feature, verify these locations:
 
 - [ ] Zod schemas added to `packages/shared/src/ipc.ts`
-- [ ] Application Service created/extended in `packages/daemon/src/application/`
-- [ ] Handler added in `packages/daemon/src/ipc/handlers/` using `safeHandle()`
-- [ ] Handler registered in `packages/daemon/src/ipc/registerHandlers.ts`
+- [ ] Application Service created/extended in the relevant module's `app/` folder (e.g. `packages/daemon/src/modules/repos/app/`)
+- [ ] Handler added in the module's `handlers/` folder (e.g. `packages/daemon/src/modules/repos/handlers/`) using `safeHandle()`
+- [ ] Handler registered in `packages/daemon/src/core/ipc/registerHandlers.ts`
 - [ ] `ResponseForRequest` updated in `packages/ui/src/renderer/services/ipcClient.ts`
 - [ ] Store action uses `sendOrThrow()` (not manual error checking)
 - [ ] Cross-store operations go through `SessionCoordinator`
@@ -301,11 +336,6 @@ Electron 41.2.0 · React 19 · Vite · shadcn/ui · Tailwind CSS v4 · Zustand �
 These override defaults in the `obra/superpowers` plugin. Per its `using-superpowers` skill, CLAUDE.md instructions take precedence over skill defaults.
 
 - **Plan location:** Save plans written by the `writing-plans` skill to `supers/plans/YYYY-MM-DD-<feature-name>.md` (repo-relative), **not** the default `docs/superpowers/plans/`. All references to the plan path in subsequent skills (`executing-plans`, `subagent-driven-development`, etc.) should use this location.
-
-<!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
-<!-- SPECKIT END -->
 
 <!-- rtk-instructions v2 -->
 # RTK (Rust Token Killer) - Token-Optimized Commands

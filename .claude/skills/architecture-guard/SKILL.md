@@ -14,24 +14,24 @@ For each modified file, run the matching checks below. Report the FULL list of v
 
 ### Daemon checks (`packages/daemon/src/`)
 
-Run these greps and report any matches inside `packages/daemon/src/ipc/handlers/`:
+Handlers now live in each feature module's `handlers/` folder (`packages/daemon/src/modules/*/handlers/`). Run these greps and report any matches:
 
 ```bash
 # Forbidden casts on already-typed IPC payloads
-grep -nE 'as Record<string, unknown>|as any|as unknown as' packages/daemon/src/ipc/handlers/
+grep -rnE 'as Record<string, unknown>|as any|as unknown as' packages/daemon/src/modules/*/handlers/
 
 # try/catch is banned in handlers — safeHandle wraps errors
-grep -nE '\btry\s*\{|\bcatch\s*\(' packages/daemon/src/ipc/handlers/
+grep -rnE '\btry\s*\{|\bcatch\s*\(' packages/daemon/src/modules/*/handlers/
 ```
 
 Run these against all daemon handler files:
 
 ```bash
 # Direct I/O bypassing the gateway layer
-grep -nE "from\s+['\"]node:fs|from\s+['\"]fs['\"]|from\s+['\"]simple-git['\"]" packages/daemon/src/ipc/handlers/
+grep -rnE "from\s+['\"]node:fs|from\s+['\"]fs['\"]|from\s+['\"]simple-git['\"]" packages/daemon/src/modules/*/handlers/
 
 # Direct LMDB usage in handlers
-grep -nE "from\s+['\"]lmdb['\"]" packages/daemon/src/ipc/handlers/
+grep -rnE "from\s+['\"]lmdb['\"]" packages/daemon/src/modules/*/handlers/
 ```
 
 ### Renderer checks (`packages/ui/src/renderer/`)
@@ -68,8 +68,8 @@ grep -nE "^\s*update[A-Z][A-Za-z]+:\s*\(.*\)\s*=>" packages/ui/src/renderer/stor
 Service-constructs-service pattern (services should be wired in `DaemonContainer`, not constructed inline):
 
 ```bash
-grep -nE "new [A-Z][A-Za-z]+Service\(" packages/daemon/src/application/
-grep -nE "new [A-Z][A-Za-z]+Gateway\(" packages/daemon/src/application/
+grep -rnE "new [A-Z][A-Za-z]+Service\(" packages/daemon/src/modules/*/app/
+grep -rnE "new [A-Z][A-Za-z]+Gateway\(" packages/daemon/src/modules/*/app/
 # Hits inside DaemonContainer.ts are fine; flag hits elsewhere.
 ```
 

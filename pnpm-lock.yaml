@@ -171,8 +171,8 @@ importers:
         specifier: ^6.41.1
         version: 6.41.1
       '@iconify-json/material-icon-theme':
-        specifier: ^1.2.60
-        version: 1.2.60
+        specifier: ^1.2.61
+        version: 1.2.61
       '@iconify/react':
         specifier: ^6.0.2
         version: 6.0.2(react@19.2.5)
@@ -919,8 +919,8 @@ packages:
     peerDependencies:
       hono: ^4
 
-  '@iconify-json/material-icon-theme@1.2.60':
-    resolution: {integrity: sha512-gCn3w5ON8TiX80K+HHVwQNYDjZhe/swk6vQopS9gn5VyuJsmCNUfzHKhT2cBK8krVqt5bzI2MuTKLofVLNB9OA==}
+  '@iconify-json/material-icon-theme@1.2.61':
+    resolution: {integrity: sha512-g/JUDumQ0h7wdUffYSmeMP8qSi+iKRK9DUtIttHG9gIlz2KJFbu1bakx9B2qzk8n3mw7FE/tZPMNCwIPksVr0g==}
 
   '@iconify/react@6.0.2':
     resolution: {integrity: sha512-SMmC2sactfpJD427WJEDN6PMyznTFMhByK9yLW0gOTtnjzzbsi/Ke/XqsumsavFPwNiXs8jSiYeZTmLCLwO+Fg==}
@@ -5521,7 +5521,7 @@ snapshots:
     dependencies:
       hono: 4.12.14
 
-  '@iconify-json/material-icon-theme@1.2.60':
+  '@iconify-json/material-icon-theme@1.2.61':
     dependencies:
       '@iconify/types': 2.0.0
 

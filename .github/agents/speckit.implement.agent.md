@@ -2,23 +2,6 @@
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 ---
 
-## Project Architecture Constraints (CLAUDE.md)
-
-Before writing any code, enforce these rules. Violations must not be introduced:
-
-| Anti-Pattern | Correct Approach |
-|---|---|
-| `try/catch` in IPC handlers | `createHandler` wrapper handles errors automatically |
-| `payload as Record<string, unknown>` in handlers | Use typed `IpcRequest` variants via `safeHandle()` |
-| Store A imports Store B | Use `SessionCoordinator` for cross-store operations |
-| `Promise.resolve().then(() => import(...))` in stores | Use `SessionCoordinator` |
-| `fs.readFile()` / `git.raw(...)` in a handler | Delegate via `FileSystemGateway`/`GitGateway` through an Application Service |
-| Manual `if (response.type === 'error')` in UI | Use `sendOrThrow()` which throws `IpcError` |
-| `updateSpecificField()` methods on sessionStore | Use `patchSession({ field: value })` |
-| Constructing services inside other services | Wire all dependencies in `DaemonContainer` |
-
-New IPC endpoints require all 5 steps: schema in `shared/src/ipc.ts`, Application Service in `daemon/src/application/`, thin handler via `safeHandle()` in `daemon/src/ipc/handlers/`, registration in `registerHandlers.ts`, and `ResponseForRequest` update in `ipcClient.ts`.
-
 ## User Input
 
 ```text
@@ -185,10 +168,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
 
-## Post-Execution Checks
-
-**Check for extension hooks (after implementation)**:
-Check if `.specify/extensions.yml` exists in the project root.
+10. **Check for extension hooks**: After completion validation, check if `.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_implement` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
     - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.

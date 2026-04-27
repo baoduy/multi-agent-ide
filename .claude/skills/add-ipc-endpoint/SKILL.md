@@ -27,9 +27,9 @@ const MyNewResponseSchema = z.object({
 
 Update the discriminated unions to include both. The error variant is shared.
 
-## Step 2 — Application Service (`packages/daemon/src/application/`)
+## Step 2 — Application Service (`packages/daemon/src/modules/<module>/app/`)
 
-Either extend an existing service or create a new one in `packages/daemon/src/application/`. The service method contains ALL orchestration logic for this endpoint.
+Either extend an existing service or create a new one in the relevant module's `app/` folder (e.g. `packages/daemon/src/modules/repos/app/`, `modules/agent-cli/app/`, `modules/specs/app/`). The service method contains ALL orchestration logic for this endpoint.
 
 ```typescript
 export class MyService {
@@ -46,11 +46,11 @@ export class MyService {
 ```
 
 Rules:
-- No `fs.*`, `git.*`, or LMDB calls directly — delegate to a Gateway in `packages/daemon/src/infrastructure/`.
-- Errors are `AppError` with a code from `AppErrorCode` (`packages/daemon/src/errors/AppError.ts`). Add a new code if needed.
-- Domain logic (pure functions over data) goes in `packages/daemon/src/domain/`, NOT in the service.
+- No `fs.*`, `git.*`, or LMDB calls directly — delegate to a Gateway in the relevant module's `infra/` folder (e.g. `modules/repos/infra/GitGateway.ts`, `modules/filesystem/infra/FileSystemGateway.ts`).
+- Errors are `AppError` with a code from `AppErrorCode` (`packages/daemon/src/core/errors/AppError.ts`). Add a new code if needed.
+- Domain logic (pure functions over data) goes in the module's `core/` folder (e.g. `modules/specs/core/SpecParser.ts`), NOT in the service.
 
-## Step 3 — Handler (`packages/daemon/src/ipc/handlers/`)
+## Step 3 — Handler (`packages/daemon/src/modules/<module>/handlers/`)
 
 Create a thin handler using `safeHandle()`:
 
@@ -68,7 +68,7 @@ Hard rules (anti-patterns from CLAUDE.md):
 - NO direct `fs`, `git`, or LMDB calls.
 - One service call per handler. If you need orchestration, that goes in the service.
 
-## Step 4 — Wire into composition root (`packages/daemon/src/ipc/registerHandlers.ts`)
+## Step 4 — Wire into composition root (`packages/daemon/src/core/ipc/registerHandlers.ts`)
 
 - Instantiate any new application service inside `DaemonContainer` (NOT inside another service).
 - Expose it as a `readonly` property on the container.

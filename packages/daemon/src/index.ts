@@ -1,8 +1,8 @@
 import { DaemonContainer } from "./DaemonContainer";
-import { ConfigManager } from "./config/ConfigManager";
-import type { IPCBridge } from "./ipc/IPCBridge";
-import type { SpecSyncService } from "./services/SpecSyncService";
-import type { DirWatcher } from "./services/DirWatcher";
+import { ConfigManager } from "./core/config/ConfigManager";
+import type { IPCBridge } from "./core/ipc/IPCBridge";
+import type { SpecSyncService } from "./modules/specs/persistence/SpecSyncService";
+import type { DirWatcher } from "./modules/repos/persistence/DirWatcher";
 
 export type DaemonBootstrapResult = {
   startedAt: number;

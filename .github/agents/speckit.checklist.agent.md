@@ -113,7 +113,6 @@ You **MUST** consider the user input before proceeding (if not empty).
    - spec.md: Feature requirements and scope
    - plan.md (if exists): Technical details, dependencies
    - tasks.md (if exists): Implementation tasks
-   - constitution.md (if exists): `.specify/memory/constitution.md` — extract MUST principles; add checklist items for any mandatory sections or quality gates not already covered by the generated checklist
 
    **Context Loading Strategy**:
    - Load only necessary portions relevant to active focus areas (avoid full-file dumping)

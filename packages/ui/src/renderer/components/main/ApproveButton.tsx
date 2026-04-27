@@ -327,10 +327,10 @@ export function ApproveButton({
             fontWeight: 600,
             color: colors.primaryForeground,
             background: approving
-              ? colors.successMuted
+              ? colors.primaryAlpha
               : hovered
-                ? colors.successHover
-                : colors.success,
+                ? `color-mix(in srgb, ${colors.primary} 88%, black)`
+                : colors.primary,
             border: "none",
             borderRadius: leftRadius,
             cursor: approving ? "wait" : "pointer",

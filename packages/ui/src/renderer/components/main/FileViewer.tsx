@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Eye, FileCode, Check, ChevronDown, Clipboard } from "lucide-react";
+import { Eye, FileCode, Check, ChevronDown, Clipboard, Code } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { ipc } from "../../utils/ipc";
@@ -20,7 +20,7 @@ import { ContextMenu, type ContextMenuPosition } from "../common/ContextMenu";
 import { threeWayMerge } from "../../services/threeWayMerge";
 import { FileChangedBanner, type FileChangedAction } from "./FileChangedBanner";
 
-type ViewMode = "preview" | "edit";
+type ViewMode = "preview" | "edit" | "raw";
 type SaveStatus = "idle" | "saving" | "saved";
 
 type FileViewerProps = {
@@ -76,8 +76,10 @@ function ApproveActionsChevron({
     });
   }, [content]);
 
-  const baseBg = approved ? colors.successSoft : colors.success;
-  const hoverBg = approved ? colors.successSoftBorder : colors.successHover;
+  const baseBg = approved ? colors.successSoft : colors.primary;
+  const hoverBg = approved
+    ? colors.successSoftBorder
+    : `color-mix(in srgb, ${colors.primary} 88%, black)`;
   const fg = approved ? colors.success : colors.primaryForeground;
   const seam = approved
     ? `1px solid ${colors.successSoftBorder}`
@@ -100,6 +102,12 @@ function ApproveActionsChevron({
           },
         ]
       : []),
+    {
+      label: "Raw",
+      Icon: (viewMode === "raw" ? Check : Code) as LucideIcon,
+      iconColor: viewMode === "raw" ? colors.primary : undefined,
+      action: () => onViewModeChange("raw"),
+    },
     {
       label: copied ? "Copied!" : "Copy content",
       Icon: (copied ? Check : Clipboard) as LucideIcon,
@@ -180,7 +188,7 @@ function DoneButton({
           fontSize: 11,
           fontWeight: 600,
           color: colors.primaryForeground,
-          background: hovered ? colors.successHover : colors.success,
+          background: hovered ? `color-mix(in srgb, ${colors.primary} 88%, black)` : colors.primary,
           border: "none",
           borderRadius: leftRadius,
           cursor: "pointer",
@@ -566,7 +574,7 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
       )}
 
       <div ref={contentRef} style={{ flex: 1, overflow: "auto" }}>
-        {isMd ? (
+        {isMd && viewMode !== "raw" ? (
           <MarkdownEditor
             key={filePath}
             ref={editorRef}
@@ -584,7 +592,10 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
             style={{
               margin: 0,
               padding: "10px 14px",
-              fontFamily: "var(--font-sans)",
+              fontFamily:
+                isMd && viewMode === "raw"
+                  ? "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                  : "var(--font-sans)",
               fontSize: 11,
               lineHeight: 1.55,
               color: colors.text,

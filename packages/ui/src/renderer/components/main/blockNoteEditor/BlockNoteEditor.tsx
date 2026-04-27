@@ -8,6 +8,7 @@ import interCss from "@blocknote/core/fonts/inter.css";
 import mantineCss from "@blocknote/mantine/style.css";
 import { useTheme } from "../../../theme/ThemeProvider";
 import { makeImageUploadHandler } from "../markdownImageUpload";
+import { absolutizeImagePaths, relativizeImagePaths } from "../markdownImagePaths";
 
 /** Inject BlockNote stylesheets once, at module load. */
 function injectStyle(id: string, css: string): void {
@@ -104,12 +105,14 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
     const lastEmittedRef = useRef<string | null>(null);
 
     // Seed + sync: whenever `value` changes and differs from what we last
-    // emitted, parse markdown → blocks and replace.
+    // emitted, parse markdown → blocks and replace. Relative image refs are
+    // rewritten to absolute file:// URLs so Electron can actually load them.
     useEffect(() => {
       let cancelled = false;
       void (async () => {
         if (value === lastEmittedRef.current) return;
-        const blocks = await editor.tryParseMarkdownToBlocks(value);
+        const expanded = absolutizeImagePaths(value, filePath);
+        const blocks = await editor.tryParseMarkdownToBlocks(expanded);
         if (cancelled) return;
         applyingExternalRef.current = true;
         editor.replaceBlocks(editor.document, blocks);
@@ -122,25 +125,28 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
       return () => {
         cancelled = true;
       };
-    }, [value, editor]);
+    }, [value, editor, filePath]);
 
-    // Emit markdown on every edit.
+    // Emit markdown on every edit. Image URLs are relativized so the saved
+    // file stays portable across clones (no machine-specific file:// paths).
     useEffect(() => {
       return editor.onChange(() => {
         if (applyingExternalRef.current) return;
-        void Promise.resolve(editor.blocksToMarkdownLossy()).then((md: string) => {
+        void Promise.resolve(editor.blocksToMarkdownLossy()).then((raw: string) => {
+          const md = relativizeImagePaths(raw, filePath);
           lastEmittedRef.current = md;
           onChange(md);
         });
       });
-    }, [editor, onChange]);
+    }, [editor, onChange, filePath]);
 
     useImperativeHandle(
       ref,
       (): BlockNoteEditorMethods => ({
         setMarkdown: (md) => {
           void (async () => {
-            const blocks = await editor.tryParseMarkdownToBlocks(md);
+            const expanded = absolutizeImagePaths(md, filePath);
+            const blocks = await editor.tryParseMarkdownToBlocks(expanded);
             applyingExternalRef.current = true;
             editor.replaceBlocks(editor.document, blocks);
             setTimeout(() => {
@@ -160,7 +166,8 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
             const scrollEl = rootEl ? findScrollParent(rootEl) : null;
             const prevScrollTop = scrollEl?.scrollTop ?? null;
 
-            const blocks = await editor.tryParseMarkdownToBlocks(md);
+            const expanded = absolutizeImagePaths(md, filePath);
+            const blocks = await editor.tryParseMarkdownToBlocks(expanded);
             applyingExternalRef.current = true;
             editor.replaceBlocks(editor.document, blocks);
             setTimeout(() => {
@@ -172,7 +179,10 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
             lastEmittedRef.current = md;
           })();
         },
-        getMarkdown: () => Promise.resolve(editor.blocksToMarkdownLossy()),
+        getMarkdown: () =>
+          Promise.resolve(editor.blocksToMarkdownLossy()).then((raw) =>
+            relativizeImagePaths(raw, filePath),
+          ),
         getSelection: () => {
           const tt = (editor as unknown as { _tiptapEditor: TiptapEditor })._tiptapEditor;
           const pm = tt.state.selection;
@@ -219,7 +229,7 @@ export const BlockNoteEditor = forwardRef<BlockNoteEditorMethods, BlockNoteEdito
           })();
         },
       }),
-      [editor],
+      [editor, filePath],
     );
 
     return (

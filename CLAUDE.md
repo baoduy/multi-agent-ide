@@ -541,3 +541,8 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 | Network          | curl, wget                     | 65-70%          |
 
 Overall average: **60-90% token reduction** on common development operations.
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->

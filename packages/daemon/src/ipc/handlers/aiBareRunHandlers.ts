@@ -23,6 +23,7 @@ export function registerAiBareRunHandlers({
     return {
       type: "ai:run-bare-once:result",
       stdout: result.stdout,
+      stderr: result.stderr,
       exitCode: result.exitCode,
       argv: result.argv,
       resolution: result.resolution,

@@ -41,6 +41,7 @@ export interface AiBareRunResolution {
 
 export interface AiBareRunResult {
   stdout: string;
+  stderr: string;
   exitCode: number;
   argv: string[];
   resolution: AiBareRunResolution;
@@ -186,21 +187,21 @@ export class AiBareRunApplicationService {
       const caps = getProviderCapability(req.provider);
       const { args } = toArgv(merged, caps);
 
-      // 5. Spawn via AiCliGateway.run, passing argv via extraArgs.
-      const stdout = await this.deps.aiCliGateway.run(
+      // 5. Spawn via AiCliGateway.runOnceWithSpawn using the fully merged options.
+      const result = await this.deps.aiCliGateway.runOnceWithSpawn(
         req.provider,
-        req.spawn.model ?? "",
         req.prompt,
+        merged,
         {
           timeoutMs: req.timeoutMs,
-          extraArgs: args,
           cwd: req.workingDirPath,
         },
       );
 
       return {
-        stdout,
-        exitCode: 0,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exitCode: result.exitCode,
         argv: args,
         resolution: {
           mcpConfigSource: mcpSource,

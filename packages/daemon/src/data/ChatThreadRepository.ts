@@ -18,12 +18,16 @@ export class ChatThreadRepository {
     this.db = databaseService.getDb<unknown>("chat_threads");
   }
 
+  private static encodeFilePath(filePath: string): string {
+    return encodeURIComponent(filePath);
+  }
+
   private rowKey(filePath: string, provider: AIProvider, threadId: string): string {
-    return `row:${filePath}::${provider}::${threadId}`;
+    return `row:${ChatThreadRepository.encodeFilePath(filePath)}::${provider}::${threadId}`;
   }
 
   private activeKey(filePath: string, provider: AIProvider): string {
-    return `active:${filePath}::${provider}`;
+    return `active:${ChatThreadRepository.encodeFilePath(filePath)}::${provider}`;
   }
 
   private idKey(threadId: string): string {
@@ -83,9 +87,10 @@ export class ChatThreadRepository {
    * — useful for a future picker UI.
    */
   listForFile(filePath: string, provider?: AIProvider): ChatThreadRecord[] {
+    const encoded = ChatThreadRepository.encodeFilePath(filePath);
     const prefix = provider
-      ? `row:${filePath}::${provider}::`
-      : `row:${filePath}::`;
+      ? `row:${encoded}::${provider}::`
+      : `row:${encoded}::`;
     const out: ChatThreadRecord[] = [];
     for (const entry of this.db.range({ prefix })) {
       out.push(entry.value as ChatThreadRecord);

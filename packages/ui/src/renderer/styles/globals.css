@@ -579,6 +579,18 @@
   font-family: var(--font-sans) !important;
 }
 
+/* BlockNote ships its own bundled CSS that paints `.bn-editor` with
+   `var(--bn-colors-editor-background)` and sets that variable via
+   `.bn-root[data-color-scheme=…]`. Its bundled stylesheet is injected at
+   module-load time (after globals.css), so plain selectors lose the cascade
+   tie. Hard-paint the editor surface with the app background instead — the
+   `!important` is the minimum sledgehammer that beats both BlockNote's late
+   stylesheet and any inline theme variables Mantine might apply. */
+.bn-container .bn-editor {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+}
+
 .bn-container {
   color: var(--foreground);
   background: transparent;

@@ -51,8 +51,12 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
         selection: msg.selection,
         onChunk,
         onSessionId,
-        resumeSessionId: msg.resumeSessionId,
+        // Phase 5/8 — `sessionId` is the canonical thread id (also used as
+        // `--resume` token by the legacy CLI gateway path). `resumeSessionId`
+        // remains a back-compat fallback for renderers that haven't migrated.
+        resumeSessionId: msg.sessionId ?? msg.resumeSessionId,
         provider: msg.provider,
+        sessionId: msg.sessionId,
       }),
     };
   });
@@ -64,6 +68,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
       instruction: msg.instruction,
       documentText: msg.documentText,
       selection: msg.selection,
+      sessionId: msg.sessionId,
     }),
   }));
 
@@ -73,6 +78,7 @@ export function registerAiEditHandlers({ bridge, aiEditService }: AiEditHandlerC
       repoPath: msg.repoPath,
       instruction: msg.instruction,
       documentText: msg.documentText,
+      sessionId: msg.sessionId,
     }),
   }));
 

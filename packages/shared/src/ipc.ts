@@ -1,9 +1,37 @@
 import { z } from "zod";
 import { MAIN_TABS, PIPELINE_STAGES, REPO_STATUSES, STAGE_STATUSES } from "./constants";
 import { MagentaConfigSchema } from "./config";
-import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, ProviderMetaSchema } from "./aiTerminal";
+import { AI_PROVIDERS, AI_SESSION_STATUSES, AI_PERMISSION_MODES, AISessionRecordSchema, AISessionListEntrySchema, ProviderMetaSchema } from "./aiTerminal";
 import { SYNCED_SESSION_PROVIDERS, SyncedSessionRecordSchema } from "./syncedSession";
 import { CliToolIdSchema, CliToolStatusSchema } from "./cliTools";
+import { AISpawnOptionsSchema } from "./aiSpawnOptions";
+import { AIStreamEventSchema } from "./aiStreamEvent";
+import { AIPresetSchema } from "./aiPresets";
+import {
+  RetryEventSchema,
+  SessionInitEventSchema,
+  PluginInstallEventSchema,
+  CostUpdateEventSchema,
+  DebugLogChunkSchema,
+} from "./aiObservability";
+import {
+  AiChatGetActiveThreadRequestSchema,
+  AiChatListThreadsRequestSchema,
+  AiChatStartNewThreadRequestSchema,
+  AiChatArchiveThreadRequestSchema,
+  AiChatGetActiveThreadResultSchema,
+  AiChatListThreadsResultSchema,
+  AiChatStartNewThreadResultSchema,
+  AiChatArchiveThreadResultSchema,
+} from "./chatThread";
+
+/** Phase 6 — Subagents/Custom-agents listing model. */
+export const AgentSchema = z.object({
+  name: z.string().min(1),
+  source: z.enum(["builtin", "user", "project", "system"]),
+  description: z.string(),
+});
+export type Agent = z.infer<typeof AgentSchema>;
 
 export const RepositorySchema = z.object({
   id: z.string(),
@@ -92,6 +120,16 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // the canonical schema prevents callers from smuggling arbitrary keys into
   // the persisted config file via the IPC boundary.
   z.object({ type: z.literal("config:update"), config: MagentaConfigSchema.partial() }),
+  z.object({
+    type: z.literal("config:update-working-dir"),
+    path: z.string(),
+    patch: z
+      .object({
+        promptTemplatesPath: z.string().optional(),
+        mcpConfigJson: z.string().optional(),
+      })
+      .strict(),
+  }),
   z.object({ type: z.literal("branch:list"), repoPath: z.string() }),
   z.object({ type: z.literal("branch:checkout"), repoPath: z.string(), branch: z.string() }),
   // `ref` is passed directly to `git show` — restrict it to characters that
@@ -143,7 +181,50 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   // `--dangerously-skip-permissions`) could be smuggled through this vector.
   // Permission controls now go exclusively through `permissionMode`, and the
   // session UUID handoff goes through `providerSessionId`.
-  z.object({ type: z.literal("ai-session:create"), provider: z.enum(AI_PROVIDERS), repoPath: z.string().optional(), branch: z.string().optional(), worktreePath: z.string().optional(), permissionMode: z.enum(AI_PERMISSION_MODES).optional(), providerSessionId: z.string().optional(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
+  z.object({
+    type: z.literal("ai-session:create"),
+    provider: z.enum(AI_PROVIDERS),
+    repoPath: z.string().optional(),
+    branch: z.string().optional(),
+    worktreePath: z.string().optional(),
+    permissionMode: z.enum(AI_PERMISSION_MODES).optional(),
+    providerSessionId: z.string().optional(),
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
+    // Phase 4 — tool/permission granularity. Optional fields layered on top
+    // of any preset selected via `presetId`.
+    allowedTools: z.array(z.string()).optional(),
+    disallowedTools: z.array(z.string()).optional(),
+    presetId: z.string().optional(),
+    permissionPromptTool: z.string().optional(),
+    // `noAskUser` is programmatic-only; ignored unless `programmatic: true`.
+    noAskUser: z.boolean().optional(),
+    programmatic: z.boolean().optional(),
+    // Phase 5 — caller-provided canonical session ID (FR-7.1).
+    sessionId: z.uuid().optional(),
+    // Phase 5 — `-n` plumbing (FR-7.8). Claude only.
+    name: z.string().min(1).max(200).optional(),
+    // Phase 5 — `--from-pr` plumbing (FR-7.9). Claude only.
+    resumeFromPR: z.string().min(1).max(500).optional(),
+    // Phase 5 — `--continue` (Claude `-c`) "continue most recent".
+    continueRecent: z.boolean().optional(),
+    // Phase 6 — caller-selected agent name. Claude renders as `--agent <v>`;
+    // Copilot prompt-injection happens at the message layer, not here.
+    agent: z.string().min(1).max(200).optional(),
+    // Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle.
+    enableAllGithubMcpTools: z.boolean().optional(),
+  }),
+  // Phase 5 — fork an existing session, creating a new canonical row whose
+  // `parentSessionId` points back at the original (FR-7.7). Claude only;
+  // Copilot raises UNSUPPORTED_SPAWN_OPTION at the application service.
+  z.object({
+    type: z.literal("ai-session:fork"),
+    parentSessionId: z.uuid(),
+    sessionId: z.uuid().optional(),
+    prompt: z.string().optional(),
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
+  }),
   z.object({ type: z.literal("ai-session:resume"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
   z.object({ type: z.literal("ai-session:input"), sessionId: z.string(), data: z.string() }),
   z.object({ type: z.literal("ai-session:resize"), sessionId: z.string(), cols: z.number().int().positive(), rows: z.number().int().positive() }),
@@ -156,6 +237,59 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:set-permission-mode"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count") }),
   z.object({ type: z.literal("ai-session:check-worktree"), worktreePath: z.string(), repoPath: z.string() }),
+  // Phase 4 — Tool / permission preset CRUD.
+  z.object({ type: z.literal("ai:presets:list") }),
+  z.object({ type: z.literal("ai:presets:create"), preset: AIPresetSchema }),
+  z.object({
+    type: z.literal("ai:presets:update"),
+    id: z.string(),
+    patch: AIPresetSchema.partial(),
+  }),
+  z.object({ type: z.literal("ai:presets:delete"), id: z.string() }),
+  // Phase 4 — Permission prompt protocol (renderer → daemon response).
+  z.object({
+    type: z.literal("ai-session:permission-response"),
+    sessionId: z.string(),
+    requestId: z.string(),
+    allow: z.boolean(),
+    scope: z.enum(["once", "session", "always"]).optional(),
+  }),
+  z.object({
+    type: z.literal("ai:run-once"),
+    provider: z.enum(AI_PROVIDERS),
+    repoPath: z.string(),
+    worktreePath: z.string().optional(),
+    prompt: z.string(),
+    spawn: AISpawnOptionsSchema,
+    timeoutMs: z.number().int().positive().optional(),
+  }),
+  // `ai:run-bare-once` — Phase 3. One-shot Claude run with `--bare` so
+  // hooks/skills/plugins/MCP/CLAUDE.md auto-discovery is skipped, making the
+  // run reproducible across machines (Spec FR-9.1, AC-4). MCP config and
+  // system prompts are passed explicitly via files materialized by the daemon.
+  z.object({
+    type: z.literal("ai:run-bare-once"),
+    provider: z.enum(["claude", "copilot"]),
+    workingDirPath: z.string().min(1),
+    taskSpecDir: z.string().optional(),
+    prompt: z.string().min(1),
+    spawn: z
+      .object({
+        model: z.string().optional(),
+        mcpConfig: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+        strictMcpConfig: z.boolean().optional(),
+        systemPromptFile: z.string().optional(),
+        appendSystemPromptFile: z.string().optional(),
+        maxTurns: z.number().int().positive().optional(),
+        maxBudgetUsd: z.number().positive().optional(),
+        allowedTools: z.array(z.string()).optional(),
+        disallowedTools: z.array(z.string()).optional(),
+        settings: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+      })
+      .strict()
+      .default({}),
+    timeoutMs: z.number().int().positive().max(10 * 60_000).default(120_000),
+  }),
   // Synced session scanning
   z.object({ type: z.literal("synced-session:list"), provider: z.enum(SYNCED_SESSION_PROVIDERS).optional() }),
   // `repoPath` scopes the sync to one repo (+ its worktrees). Omit to sync
@@ -333,6 +467,9 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     resumeSessionId: z.string().optional(),
     /** UI-selected provider override; falls back to disk config when absent. */
     provider: z.enum(AI_PROVIDERS).optional(),
+    // Phase 5 — chat-bubble unification spec FR-3 + Phase 5 sessionId precedence rule.
+    sessionId: z.uuid().optional(),
+    spawn: AISpawnOptionsSchema.partial().optional(),
   }),
   z.object({
     type: z.literal("ai-chat:edit-selection"),
@@ -344,17 +481,30 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
       end: z.number().int().nonnegative(),
       text: z.string(),
     }),
+    // Phase 5 — additive optional canonical sessionId + spawn override.
+    sessionId: z.uuid().optional(),
+    spawn: AISpawnOptionsSchema.partial().optional(),
   }),
   z.object({
     type: z.literal("ai-chat:modify-document"),
     repoPath: z.string(),
     instruction: z.string(),
     documentText: z.string(),
+    // Phase 5 — additive optional canonical sessionId + spawn override.
+    sessionId: z.uuid().optional(),
+    spawn: AISpawnOptionsSchema.partial().optional(),
   }),
   // Spec-folder review chat — agent-driven read-only Q&A over an entire
   // spec folder. The daemon spawns `claude -p` with cwd = repoPath and an
   // appended system prompt telling the agent which folder to focus on;
   // the agent then reads files itself via its Read/Glob/Grep tools.
+  // Phase 6 — list agents available for a provider. For Claude this shells
+  // out to `claude agents`; for Copilot it returns the static built-in list.
+  z.object({ type: z.literal("ai:list-agents"), provider: z.enum(AI_PROVIDERS) }),
+  // Phase 6 — plugin-dirs CRUD (Claude `--plugin-dir` setting).
+  z.object({ type: z.literal("plugin-dirs:list") }),
+  z.object({ type: z.literal("plugin-dirs:add"), path: z.string().min(1) }),
+  z.object({ type: z.literal("plugin-dirs:remove"), path: z.string().min(1) }),
   z.object({
     type: z.literal("ai-chat:ask-spec"),
     repoPath: z.string(),
@@ -373,6 +523,15 @@ export const IpcRequestSchema = z.discriminatedUnion("type", [
     /** Claude provider session id from a previous turn — enables `--resume`. */
     resumeSessionId: z.string().optional(),
   }),
+  // Phase 7 — observability requests.
+  z.object({ type: z.literal("ai-session:debug-log:open"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai-session:debug-log:close"), sessionId: z.string() }),
+  z.object({ type: z.literal("ai:env:otel-status") }),
+  // Phase 8 — resumable chat threads.
+  AiChatGetActiveThreadRequestSchema,
+  AiChatListThreadsRequestSchema,
+  AiChatStartNewThreadRequestSchema,
+  AiChatArchiveThreadRequestSchema,
 ]);
 
 export const GitFileStatusSchema = z.object({
@@ -607,7 +766,15 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:input:ack") }),
   z.object({ type: z.literal("ai-session:resize:ack") }),
   z.object({ type: z.literal("ai-session:stop:ack") }),
-  z.object({ type: z.literal("ai-session:list:result"), sessions: z.array(AISessionRecordSchema) }),
+  z.object({ type: z.literal("ai-session:list:result"), sessions: z.array(AISessionListEntrySchema) }),
+  // Phase 5 — paired success response for ai-session:fork.
+  z.object({ type: z.literal("ai-session:fork:result"), session: AISessionRecordSchema }),
+  // Phase 5 — push event fired once provider-assigned UUID is known (FR-7.4).
+  z.object({
+    type: z.literal("ai-session:reconciled"),
+    sessionId: z.uuid(),
+    providerSessionId: z.string(),
+  }),
   z.object({ type: z.literal("ai-session:deleted"), sessionId: z.string() }),
   z.object({ type: z.literal("ai-session:providers:result"), providers: z.record(z.enum(AI_PROVIDERS), ProviderMetaSchema) }),
   z.object({ type: z.literal("ai-session:data"), sessionId: z.string(), data: z.string(), seq: z.number().int().nonnegative().optional() }),
@@ -629,6 +796,57 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("ai-session:permission-mode-changed"), sessionId: z.string(), permissionMode: z.enum(AI_PERMISSION_MODES) }),
   z.object({ type: z.literal("ai-session:running-count:result"), count: z.number().int().nonnegative() }),
   z.object({ type: z.literal("ai-session:check-worktree:result"), valid: z.boolean(), repoPath: z.string(), worktreeName: z.string() }),
+  // Phase 4 — preset CRUD responses.
+  z.object({ type: z.literal("ai:presets:listed"), presets: z.array(AIPresetSchema) }),
+  z.object({ type: z.literal("ai:presets:created"), preset: AIPresetSchema }),
+  z.object({ type: z.literal("ai:presets:updated"), id: z.string() }),
+  z.object({ type: z.literal("ai:presets:deleted"), id: z.string() }),
+  // Phase 4 — Permission prompt protocol.
+  z.object({ type: z.literal("ai-session:permission-response-ack"), ok: z.boolean() }),
+  z.object({
+    type: z.literal("ai-session:permission-request"),
+    sessionId: z.string(),
+    requestId: z.string(),
+    tool: z.string(),
+    scope: z.string(),
+  }),
+  z.object({
+    type: z.literal("ai:run-once:result"),
+    sessionId: z.string().optional(),
+    exitCode: z.number().int(),
+    stdout: z.string(),
+    stderr: z.string(),
+    structuredOutput: z.unknown().optional(),
+    tokenUsage: z.object({
+      inputTokens: z.number().int().nonnegative(),
+      outputTokens: z.number().int().nonnegative(),
+      cacheCreationInputTokens: z.number().int().nonnegative().optional(),
+      cacheReadInputTokens: z.number().int().nonnegative().optional(),
+    }).optional(),
+    costUsd: z.number().nonnegative().optional(),
+    retriesSeen: z.number().int().nonnegative(),
+  }),
+  z.object({
+    type: z.literal("ai:run-bare-once:result"),
+    stdout: z.string(),
+    stderr: z.string(),
+    exitCode: z.number().int(),
+    argv: z.array(z.string()),
+    resolution: z.object({
+      mcpConfigSource: z.enum(["spawn", "working-dir", "none"]),
+      systemPromptFileSource: z.enum(["spawn", "task", "working-dir", "none"]),
+      appendSystemPromptFileSource: z.enum([
+        "spawn",
+        "task",
+        "working-dir",
+        "none",
+      ]),
+    }),
+  }),
+  z.object({
+    type: z.literal("ai-session:event"),
+    event: AIStreamEventSchema,
+  }),
   // Synced session responses + push events
   z.object({ type: z.literal("synced-session:list:result"), sessions: z.array(SyncedSessionRecordSchema) }),
   z.object({ type: z.literal("synced-session:sync:triggered") }),
@@ -772,6 +990,38 @@ export const IpcResponseSchema = z.discriminatedUnion("type", [
     streamId: z.string(),
     sessionId: z.string(),
   }),
+  // Phase 6 — agents listing result.
+  z.object({
+    type: z.literal("ai:list-agents:result"),
+    provider: z.enum(AI_PROVIDERS),
+    agents: z.array(AgentSchema),
+  }),
+  // Phase 6 — plugin-dirs CRUD responses.
+  z.object({ type: z.literal("plugin-dirs:list:result"), paths: z.array(z.string()) }),
+  z.object({ type: z.literal("plugin-dirs:add:result"), paths: z.array(z.string()) }),
+  z.object({ type: z.literal("plugin-dirs:remove:result"), paths: z.array(z.string()) }),
+  // Phase 7 — observability push events (daemon → renderer).
+  z.object({ type: z.literal("ai-session:retry"), payload: RetryEventSchema }),
+  z.object({ type: z.literal("ai-session:init"), payload: SessionInitEventSchema }),
+  z.object({ type: z.literal("ai-session:plugin-install"), payload: PluginInstallEventSchema }),
+  z.object({ type: z.literal("ai-session:cost-update"), payload: CostUpdateEventSchema }),
+  z.object({ type: z.literal("ai-session:debug-log"), payload: DebugLogChunkSchema }),
+  // Phase 7 — debug-log open/close + OTel env-status request results.
+  z.object({
+    type: z.literal("ai-session:debug-log:open:result"),
+    filePath: z.string(),
+    seq: z.number().int().nonnegative(),
+  }),
+  z.object({ type: z.literal("ai-session:debug-log:close:result"), ok: z.boolean() }),
+  z.object({
+    type: z.literal("ai:env:otel-status:result"),
+    vars: z.array(z.object({ name: z.string(), present: z.boolean() })),
+  }),
+  // Phase 8 — resumable chat threads.
+  AiChatGetActiveThreadResultSchema,
+  AiChatListThreadsResultSchema,
+  AiChatStartNewThreadResultSchema,
+  AiChatArchiveThreadResultSchema,
 ]);
 
 export type GitFileStatus = z.infer<typeof GitFileStatusSchema>;

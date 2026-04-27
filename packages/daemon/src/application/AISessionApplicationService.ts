@@ -4,17 +4,24 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import type { AIProvider, AISessionRecord, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
+import type { AIProvider, AISessionRecord, AISessionListEntry, AISessionConfig, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
 import { parseWorkspaceYaml } from "../domain/copilotSessionParser";
 import { extractTitleFromContent } from "../domain/claudeSessionParser";
 import type { IPCBridge } from "../ipc/IPCBridge";
 import { buildAllowlist, resolveAndAssert, type PathAllowlistProvider } from "../domain/pathGuard";
 import { resolveSessionCwd } from "../domain/sessionCwdResolver";
-import { getAllProviderMeta, getProviderMeta, getPermissionModeArgs } from "../domain/providerRegistry";
+import { getAllProviderMeta, getProviderMeta } from "../domain/providerRegistry";
 import { getSessionFactory } from "../infrastructure/sessions";
+import { sessionConfigToSpawn } from "../infrastructure/sessions/BaseAISession";
 import type { BaseAISession } from "../infrastructure/sessions";
+import { getProviderCapability } from "@magenta/shared/providerCapabilities";
+import { getToArgv } from "../domain/providerArgv";
+import { resolveSessionId } from "../domain/sessionIdResolver";
+import { buildForkArgv } from "../domain/forkArgvBuilder";
+import { awaitProviderSessionId } from "./awaitProviderSessionId";
 import type { GitGateway } from "../infrastructure/GitGateway";
 import { AppError } from "../errors/AppError";
+import type { AiPresetService } from "./AiPresetService";
 
 /**
  * AISessionApplicationService is the in-memory home for live AI sessions.
@@ -37,6 +44,14 @@ import { AppError } from "../errors/AppError";
 export class AISessionApplicationService {
   private readonly records = new Map<string, AISessionRecord>();
   private readonly liveSessions = new Map<string, BaseAISession>();
+  /**
+   * Phase 5 — subscribers waiting for a provider-assigned session UUID.
+   * Populated by `awaitProviderSessionId` callers (e.g. `resumeSession`
+   * for Copilot); fired from the Claude / Copilot reconciliation patches.
+   */
+  private readonly reconcileWaiters = new Map<string, Set<(p: string) => void>>();
+  /** FR-7.2.c — bounded wait for provider-assigned UUID. Default 5s. */
+  private readonly resumeReconciliationTimeoutMs: number;
 
   constructor(
     private readonly bridge: IPCBridge,
@@ -48,7 +63,59 @@ export class AISessionApplicationService {
     private readonly allowlistProvider: PathAllowlistProvider,
     /** Optional — enables worktree-existence checks on resume. */
     private readonly gitGateway?: GitGateway,
-  ) {}
+    /** Optional — resolves Phase 4 tool/permission presets per provider. */
+    private readonly presetService?: AiPresetService,
+    options?: { resumeReconciliationTimeoutMs?: number },
+  ) {
+    this.resumeReconciliationTimeoutMs =
+      options?.resumeReconciliationTimeoutMs ?? 5_000;
+  }
+
+  /**
+   * Subscribe to a one-shot notification when this canonical sessionId gets
+   * its provider-assigned UUID reconciled. Returns an unsubscribe function.
+   */
+  private subscribeReconciled(
+    sessionId: string,
+    cb: (providerSessionId: string) => void,
+  ): () => void {
+    let set = this.reconcileWaiters.get(sessionId);
+    if (!set) {
+      set = new Set();
+      this.reconcileWaiters.set(sessionId, set);
+    }
+    set.add(cb);
+    return () => {
+      const s = this.reconcileWaiters.get(sessionId);
+      if (!s) return;
+      s.delete(cb);
+      if (s.size === 0) this.reconcileWaiters.delete(sessionId);
+    };
+  }
+
+  /**
+   * Internal entry point invoked by Claude / Copilot reconciliation paths
+   * once the provider-assigned UUID is known. Emits the
+   * `ai-session:reconciled` push event (FR-7.4) and notifies any pending
+   * `awaitProviderSessionId` waiters.
+   */
+  private onProviderSessionIdReconciled(
+    sessionId: string,
+    providerSessionId: string,
+  ): void {
+    this.bridge.emit({
+      type: "ai-session:reconciled",
+      sessionId,
+      providerSessionId,
+    });
+    const waiters = this.reconcileWaiters.get(sessionId);
+    if (waiters) {
+      for (const cb of waiters) {
+        try { cb(providerSessionId); } catch { /* best effort */ }
+      }
+      this.reconcileWaiters.delete(sessionId);
+    }
+  }
 
   async createSession(
     config: AISessionConfig,
@@ -93,29 +160,114 @@ export class AISessionApplicationService {
     // config.providerSessionId → the CLI is invoked with `--resume <id>`
     // (Claude) or `--resume=<id>` (Copilot), no `--session-id` involved.
     const explicitId = config.providerSessionId;
-    const id = randomUUID();
+    // FR-7.1 — caller-provided sessionId wins; otherwise generate UUID v4.
+    const id = resolveSessionId({
+      callerProvided: config.sessionId,
+      generate: randomUUID,
+    });
+
+    // FR-7.3 — idempotent reconnect: if a row already exists for the same
+    // canonical sessionId AND the same repoPath/worktreePath, treat the create
+    // as resume.
+    const existingRecord = this.records.get(id);
+    if (
+      existingRecord &&
+      (existingRecord.repoPath ?? null) === (config.repoPath ?? null) &&
+      (existingRecord.worktreePath ?? null) === (config.worktreePath ?? null)
+    ) {
+      return this.resumeSession(id, cols, rows);
+    }
+
     const initialProviderSessionId = explicitId ?? null;
 
-    // Build CLI args — permission mode flags first, then provider defaults,
-    // then resume flags when resuming a synced session. Arbitrary caller-
-    // supplied args are not forwarded: see ai-session:create schema
-    // rationale in packages/shared.
-    const permissionArgs = getPermissionModeArgs(provider, permissionMode);
-    const idArgs: string[] = [];
-    if (provider === "claude" && explicitId) {
-      // Claude resume of a synced session. No --session-id: combining it
-      // with --resume requires --fork-session and would start a new
-      // conversation branch instead of continuing the original.
-      idArgs.push("--resume", explicitId);
-    } else if (provider === "copilot" && explicitId) {
-      // Copilot resume of a synced session.
-      idArgs.push(`--resume=${explicitId}`);
+    // Phase 4 — resolve preset, then layer caller-provided fields on top.
+    const caps = getProviderCapability(provider);
+    let mergedAllowedTools = config.allowedTools;
+    let mergedDisallowedTools = config.disallowedTools;
+    let mergedPermissionMode: AIPermissionMode = permissionMode;
+
+    if (config.presetId && this.presetService) {
+      const presetSpawn = this.presetService.resolveForProvider(
+        config.presetId,
+        provider,
+      );
+      // Caller-explicit fields beat the preset; preset fills in undefined.
+      if (mergedAllowedTools === undefined && presetSpawn.allowedTools) {
+        mergedAllowedTools = presetSpawn.allowedTools;
+      }
+      if (mergedDisallowedTools === undefined && presetSpawn.disallowedTools) {
+        mergedDisallowedTools = presetSpawn.disallowedTools;
+      }
+      if (
+        config.permissionMode === undefined &&
+        presetSpawn.permissionMode !== undefined
+      ) {
+        mergedPermissionMode = presetSpawn.permissionMode;
+      }
     }
-    const args = [
-      ...permissionArgs,
-      ...providerMeta.defaultArgs,
-      ...idArgs,
-    ];
+
+    // Reject unsupported permission-prompt-tool on providers without the cap.
+    if (
+      config.permissionPromptTool &&
+      !caps.supportedKeys.includes("permissionPromptTool")
+    ) {
+      throw new AppError(
+        "UNSUPPORTED_SPAWN_OPTION",
+        `${provider} does not support permissionPromptTool`,
+      );
+    }
+
+    // Build CLI args via the shared toArgv translator. Provider defaults
+    // are prepended so legacy registry behaviour (e.g. always-on flags) is
+    // preserved. Arbitrary caller-supplied args are not forwarded: see
+    // ai-session:create schema rationale in packages/shared.
+    const spawnOpts = sessionConfigToSpawn(provider, {
+      ...config,
+      permissionMode: mergedPermissionMode,
+      providerSessionId: explicitId,
+      allowedTools: mergedAllowedTools,
+      disallowedTools: mergedDisallowedTools,
+      permissionPromptTool: config.permissionPromptTool,
+      noAskUser: config.noAskUser,
+      programmatic: config.programmatic,
+    });
+
+    // FR-7.1.c — emit `--session-id` for providers that honour it. Use the
+    // canonical Magenta id so the provider session file equals the canonical
+    // row id (Claude). Skip for fork (the fork builder owns argv shape) and
+    // for resume paths (caller already provided `providerSessionId`).
+    if (caps.supportsExplicitSessionId && !config.forkSession && !explicitId) {
+      spawnOpts.sessionId = id;
+    }
+
+    const { args: derivedArgs } = getToArgv(provider)(spawnOpts, caps);
+    let args = [...providerMeta.defaultArgs, ...derivedArgs];
+
+    // FR-7.7 — fork path overrides the lifecycle argv block. The fork
+    // translator emits `--resume <parent> --fork-session [--session-id <child>]`
+    // verbatim; everything else (model, tools, permissions) still comes
+    // from the standard argv builder above.
+    if (config.forkSession && config.providerSessionId) {
+      // Strip out lifecycle flags emitted by the standard builder so we don't
+      // double up `--session-id` / `--resume`.
+      args = args.filter((a, i, arr) => {
+        const prev = i > 0 ? arr[i - 1] : null;
+        if (a === "--session-id" || a === "--resume" || a === "--fork-session") return false;
+        if (prev === "--session-id" || prev === "--resume") return false;
+        return true;
+      });
+      args.push(
+        ...buildForkArgv({
+          parentResumeToken: config.providerSessionId,
+          childCanonicalId: id,
+          capability: {
+            supportsForkSession: caps.supportsForkSession,
+            supportsExplicitSessionId: caps.supportsExplicitSessionId,
+            provider,
+          },
+        }),
+      );
+    }
 
     // Create DB record (status is NOT persisted)
     const now = Date.now();
@@ -130,10 +282,16 @@ export class AISessionApplicationService {
       cwd,
       providerSessionId: initialProviderSessionId,
       status: "active", // Runtime status — not persisted
-      permissionMode,
+      permissionMode: mergedPermissionMode,
       title: null,
+      parentSessionId: config.parentSessionId ?? null,
       createdAt: now,
       lastActiveAt: now,
+      // Phase 7 — observability counters; rolled forward by SessionObservabilityService.
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalCostUsd: 0,
+      retryCount: 0,
     };
     this.records.set(id, record);
 
@@ -160,6 +318,48 @@ export class AISessionApplicationService {
     }
 
     return record;
+  }
+
+  /**
+   * FR-7.7 — Fork an existing session into a new canonical row whose
+   * `parentSessionId` points back at the original. Claude only; Copilot
+   * raises `UNSUPPORTED_SPAWN_OPTION`.
+   */
+  async forkSession(
+    parentSessionId: string,
+    childSessionId: string | undefined,
+    cols: number,
+    rows: number,
+  ): Promise<AISessionRecord> {
+    const parent = this.records.get(parentSessionId);
+    if (!parent) {
+      throw new AppError("NOT_FOUND", `Parent session not found: ${parentSessionId}`);
+    }
+    const caps = getProviderCapability(parent.provider);
+    if (!caps.supportsForkSession) {
+      throw new AppError(
+        "UNSUPPORTED_SPAWN_OPTION",
+        `Provider '${parent.provider}' does not support fork-session`,
+      );
+    }
+    // Resolve the parent's provider-side resume token. For Claude this equals
+    // the canonical id (the provider session id is reconciled to match);
+    // fall back to canonical id if reconciliation hasn't happened yet.
+    const parentResumeToken = parent.providerSessionId ?? parent.id;
+
+    const config: AISessionConfig = {
+      provider: parent.provider,
+      repoPath: parent.repoPath ?? undefined,
+      branch: parent.branch ?? undefined,
+      worktreePath: parent.worktreePath ?? undefined,
+      permissionMode: parent.permissionMode,
+      sessionId: childSessionId,
+      parentSessionId: parent.id,
+      forkSession: true,
+      // Threaded into argv assembly's fork branch as the `--resume` token.
+      providerSessionId: parentResumeToken,
+    };
+    return this.createSession(config, cols, rows);
   }
 
   /**
@@ -216,40 +416,72 @@ export class AISessionApplicationService {
     }
 
     const providerMeta = getProviderMeta(record.provider);
+    const resumeCaps = getProviderCapability(record.provider);
 
-    // Build args for resume.
-    //
-    // Claude:  --resume <id> if the synced UUID is known, else --continue
-    //          (legacy records that never got reconciled).
-    // Copilot: --resume=<id> if known, else --continue.
-    //
-    // We never pass --session-id here: Claude rejects it alongside
-    // --resume/--continue unless --fork-session is specified, which would
-    // create a new conversation branch instead of continuing the original.
-    const args = [...providerMeta.defaultArgs];
-    const resumeId = record.providerSessionId;
-    if (record.provider === "claude") {
-      if (resumeId) {
-        args.push("--resume", resumeId);
-      } else {
-        args.push("--continue");
-      }
-    } else if (record.provider === "copilot") {
-      if (resumeId) {
-        args.push(`--resume=${resumeId}`);
-      } else {
-        args.push("--continue");
+    // FR-7.2.a — resolve the provider-specific resume token from the canonical
+    // sessionId. Claude: canonical id IS the provider session id (provider
+    // emits `--session-id <canonical>` at create-time). Copilot: must look up
+    // provider_session_id; block up to 5s if reconciliation is still pending.
+    let resumeToken: string | null;
+    if (resumeCaps.supportsExplicitSessionId) {
+      // Claude — canonical id equals provider session id.
+      resumeToken = record.id;
+    } else if (record.providerSessionId) {
+      resumeToken = record.providerSessionId;
+    } else {
+      // Copilot pending reconciliation — bounded wait, then fallback to
+      // continueRecent if it never arrives. AI_RESUME_PENDING_RECONCILIATION
+      // is thrown only when the wait helper is invoked and times out.
+      try {
+        resumeToken = await awaitProviderSessionId({
+          sessionId: record.id,
+          lookup: (id) => this.records.get(id)?.providerSessionId ?? null,
+          subscribe: (id, cb) => this.subscribeReconciled(id, cb),
+          timeoutMs: this.resumeReconciliationTimeoutMs,
+        });
+      } catch (err) {
+        // Surface the typed error so the UI can show a "still reconciling"
+        // hint and let the user retry.
+        throw err;
       }
     }
 
-    // Spawn PTY
+    const resumeSpawn = sessionConfigToSpawn(record.provider, {
+      provider: record.provider,
+      permissionMode: record.permissionMode,
+      providerSessionId: resumeToken ?? undefined,
+    });
+    if (!resumeToken) resumeSpawn.continueRecent = true;
+    const { args: resumeDerived } = getToArgv(record.provider)(resumeSpawn, resumeCaps);
+    const argsWithResume = [...providerMeta.defaultArgs, ...resumeDerived];
+
+    // FR-7.10 — try once with --resume; on rejection, retry without resume
+    // and surface a typed `resume-fallback` event.
     const factory = getSessionFactory(record.provider);
     const session = factory.create(sessionId);
-
     this.wireSessionEvents(sessionId, session);
 
-    session.start(record.cwd, args, cols, rows);
-    this.liveSessions.set(sessionId, session);
+    try {
+      session.start(record.cwd, argsWithResume, cols, rows);
+      this.liveSessions.set(sessionId, session);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      const argsNoResume = argsWithResume.filter(
+        (a, i, arr) => a !== "--resume" && arr[i - 1] !== "--resume",
+      );
+      this.bridge.emit({
+        type: "ai-session:event",
+        event: {
+          kind: "resume-fallback",
+          sessionId: record.id,
+          seq: 0,
+          timestamp: Date.now(),
+          reason,
+        },
+      });
+      session.start(record.cwd, argsNoResume, cols, rows);
+      this.liveSessions.set(sessionId, session);
+    }
 
     // Update lastActiveAt (in-memory)
     const now = Date.now();
@@ -265,14 +497,25 @@ export class AISessionApplicationService {
    * current daemon process. Historical sessions live in synced_sessions —
    * the renderer merges both lists on the UI side.
    */
-  listSessions(): AISessionRecord[] {
+  listSessions(): AISessionListEntry[] {
     return [...this.records.values()].map((record) => {
       const liveSession = this.liveSessions.get(record.id);
       return {
         ...record,
         status: liveSession ? liveSession.getStatus() : "idle",
+        resumable: this.isResumable(record),
       };
     });
+  }
+
+  /**
+   * FR-7.6 — Claude: canonical id equals provider session id; we treat it as
+   * resumable as long as the record exists (disk presence is verified lazily
+   * on resume). Copilot: resumable iff providerSessionId is reconciled.
+   */
+  private isResumable(record: AISessionRecord): boolean {
+    if (record.provider === "claude") return true;
+    return record.providerSessionId !== null;
   }
 
   deleteSession(sessionId: string): void {
@@ -338,6 +581,26 @@ export class AISessionApplicationService {
 
   getProviders(): Record<AIProvider, ProviderMeta> {
     return getAllProviderMeta();
+  }
+
+  /**
+   * Phase 7 — update rolling observability counters on a session record.
+   * Called by `SessionObservabilityService` when a `result` stream event
+   * arrives. Silently no-ops for unknown sessions (e.g. run-once flows that
+   * never had a record in the live map).
+   */
+  updateUsage(
+    sessionId: string,
+    partial: {
+      totalInputTokens: number;
+      totalOutputTokens: number;
+      totalCostUsd: number;
+      retryCount: number;
+    },
+  ): void {
+    const current = this.records.get(sessionId);
+    if (!current) return;
+    this.records.set(sessionId, { ...current, ...partial });
   }
 
   destroyAll(): void {
@@ -444,6 +707,9 @@ export class AISessionApplicationService {
           type: "ai-session:updated",
           session: { ...updated, status: liveRuntime ? liveRuntime.getStatus() : updated.status },
         });
+        // FR-7.4 — surface provider-assigned UUID for resumability checks +
+        // wake any pending bounded-wait awaitProviderSessionId callers.
+        this.onProviderSessionIdReconciled(liveId, match.sessionId);
         if (title) {
           this.bridge.emit({ type: "ai-session:title", sessionId: liveId, title });
         }
@@ -573,6 +839,8 @@ export class AISessionApplicationService {
             status: liveRuntime ? liveRuntime.getStatus() : updated.status,
           },
         });
+        // FR-7.4 — surface provider-assigned UUID for resumability checks.
+        this.onProviderSessionIdReconciled(liveId, match.sessionId);
         if (title) {
           this.bridge.emit({ type: "ai-session:title", sessionId: liveId, title });
         }

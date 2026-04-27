@@ -7,6 +7,9 @@ import {
   RefreshCw,
   Palette,
   Wand2,
+  Boxes,
+  Puzzle,
+  Activity,
 } from "lucide-react";
 
 import { colors } from "../../utils/colors";
@@ -17,8 +20,11 @@ import { CliCommandsSettings } from "./CliCommandsSettings";
 import { SpecifyCommandSetting } from "./SpecifyCommandSetting";
 import { SpecifyExtensionsSettings } from "./SpecifyExtensionsSettings";
 import { AiSettingsView } from "./AiSettingsView";
+import { PluginDirsPanel } from "./PluginDirsPanel";
 import { SyncIntervalSettings } from "./SyncIntervalSettings";
 import { WorkingDirList } from "./WorkingDirList";
+import { WorkingDirReproducibility } from "./WorkingDirReproducibility";
+import { OTelSettingsPanel } from "./OTelSettingsPanel";
 import { BaseDialog } from "../common/BaseDialog";
 import { CancelButton } from "../common/DialogButtons";
 
@@ -27,7 +33,16 @@ type SettingsDialogProps = {
   onClose: () => void;
 };
 
-type TabId = "directories" | "specify" | "cli" | "sync" | "appearance" | "ai";
+type TabId =
+  | "directories"
+  | "specify"
+  | "cli"
+  | "sync"
+  | "appearance"
+  | "ai"
+  | "plugins"
+  | "reproducibility"
+  | "observability";
 
 type TabDef = {
   id: TabId;
@@ -42,6 +57,9 @@ const TABS: readonly TabDef[] = [
   { id: "sync", label: "Sync", icon: RefreshCw },
   { id: "appearance", label: "Appearance", icon: Palette },
   { id: "ai", label: "AI Editor", icon: Wand2 },
+  { id: "plugins", label: "Plugins", icon: Puzzle },
+  { id: "reproducibility", label: "AI Reproducibility", icon: Boxes },
+  { id: "observability", label: "Observability", icon: Activity },
 ];
 
 const tabId = (id: TabId): string => `settings-tab-${id}`;
@@ -87,6 +105,9 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps): React.
           {activeTab === "sync" && <SyncIntervalSettings />}
           {activeTab === "appearance" && <AppearanceSettings />}
           {activeTab === "ai" && <AiSettingsView />}
+          {activeTab === "plugins" && <PluginDirsPanel />}
+          {activeTab === "reproducibility" && <WorkingDirReproducibility />}
+          {activeTab === "observability" && <OTelSettingsPanel />}
 
           {error && (
             <div

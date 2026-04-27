@@ -44,8 +44,22 @@ import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensi
 import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
+import { AIRunOnceApplicationService } from "./application/AIRunOnceApplicationService";
+import { AiBareRunApplicationService } from "./application/AiBareRunApplicationService";
+import { TempFileGateway } from "./infrastructure/TempFileGateway";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
+import { AiPresetRepository } from "./services/AiPresetRepository";
+import { AiPresetService } from "./application/AiPresetService";
+import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
+import { SessionObservabilityService } from "./application/SessionObservabilityService";
+import { DebugLogService } from "./application/DebugLogService";
+import { ChatThreadRepository } from "./data/ChatThreadRepository";
+import { ChatThreadService } from "./application/ChatThreadService";
+import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
+import { AgentService } from "./application/AgentService";
+import { PluginDirRepository } from "./services/PluginDirRepository";
+import { PluginDirService } from "./application/PluginDirService";
 import { GitBatchGateway } from "./infrastructure/GitBatchGateway";
 import { GitRepoWatcher } from "./infrastructure/GitRepoWatcher";
 import { LruCache } from "./infrastructure/utils/LruCache";
@@ -202,8 +216,12 @@ async function main() {
     // Git gateway (shared across services)
     const gitGateway = new GitGateway();
 
+    // Phase 4 — preset persistence is a dependency of AISessionApplicationService.
+    const aiPresetRepository = new AiPresetRepository(databaseService);
+    const aiPresetService = new AiPresetService(aiPresetRepository);
+
     // AI Terminal session service — in-memory only; the sync layer owns history.
-    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager, gitGateway);
+    const aiSessionService = new AISessionApplicationService(ipcBridge, configManager, gitGateway, aiPresetService);
 
     // Git performance foundation — owned once here, shared everywhere:
     //   - batch gateway = one long-lived `git cat-file --batch` per repo
@@ -274,15 +292,48 @@ async function main() {
       specifyExtensionService,
     );
 
+    // Phase 6 — plugin-dir storage is needed by AIRunOnceApplicationService
+    // for settings-driven `--plugin-dir` injection, so construct it first.
+    const claudeAgentsGateway = new ClaudeAgentsGateway();
+    const agentService = new AgentService(claudeAgentsGateway);
+    const pluginDirRepository = new PluginDirRepository(databaseService);
+    const pluginDirService = new PluginDirService(pluginDirRepository);
+
     // AI-assisted markdown editor.
     const aiConfigRepository = new AiConfigRepository();
     const aiCliGateway = new AiCliGateway();
-    const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway);
+    // Phase 8 — resumable chat threads.
+    const chatThreadRepository = new ChatThreadRepository(databaseService);
+    const chatThreadService = new ChatThreadService(chatThreadRepository);
+
+    const aiEditService = new AiEditApplicationService(aiConfigRepository, aiCliGateway, chatThreadService);
+    const aiRunOnceService = new AIRunOnceApplicationService(
+      aiCliGateway,
+      ipcBridge,
+      pluginDirService,
+    );
+    const aiBareRunService = new AiBareRunApplicationService({
+      configManager,
+      aiCliGateway,
+      tempFileFactory: () => new TempFileGateway("magenta-aibare"),
+    });
 
     // File watcher — one watcher per open markdown tab so external writes
     // (AI CLI, teammate, git checkout) land in the editor without reload.
     const fileWatcherGateway = new FileWatcherGateway();
     const fileWatchService = new FileWatchService(fileWatcherGateway, ipcBridge);
+
+    // Phase 4 — permission-prompt coordinator (used by aiSessionHandlers).
+    const permissionCoordinator = new PermissionPromptCoordinator(ipcBridge);
+
+    // Phase 7 — observability service subscribes to `ai-session:event` and
+    // emits typed retry/init/cost-update/plugin-install push events.
+    const sessionObservabilityService = new SessionObservabilityService(
+      ipcBridge,
+      (sessionId, partial) => aiSessionService.updateUsage(sessionId, partial),
+    );
+    const debugLogService = new DebugLogService();
+    void sessionObservabilityService;
 
     // Store references for graceful shutdown
     shutdownServices = { dirWatcher, specSyncService, sessionSyncService, sessionFileWatcher, worktreeSyncService, databaseService, terminalService, aiSessionService, gitRepoWatcher, gitBatchGateway, fileWatchService };
@@ -310,7 +361,15 @@ async function main() {
       logCache,
       commitDetailCache,
       aiEditService,
+      aiRunOnceService,
+      aiBareRunService,
       fileWatchService,
+      aiPresetService,
+      agentService,
+      pluginDirService,
+      permissionCoordinator,
+      debugLogService,
+      chatThreadService,
     });
     console.log("[daemon-worker] All handlers registered");
 
@@ -332,6 +391,7 @@ async function main() {
       "ai-session:status",
       "ai-session:exited",
       "ai-session:updated",
+      "ai-session:permission-request",
       "synced-session:sync:complete",
       "worktree:sync:complete",
       "cli:version-status-changed",
@@ -398,7 +458,7 @@ async function main() {
 
     // Start background services after IPC is ready
     // 1. Watch all configured working directories for new/removed repos
-    const workingDirs = configManager.getConfig().workingDirs;
+    const workingDirs = configManager.getAllowedRoots();
     for (const dir of workingDirs) {
       dirWatcher.watchDir(dir);
     }
@@ -408,7 +468,7 @@ async function main() {
     //    is a sequential FIFO queue, so the "repo-scan" job will finish before
     //    the "spec-sync-all" job that start() enqueues next.
     if (workingDirs.length > 0) {
-      void scanQueue.requestScan(workingDirs);
+      void scanQueue.requestScan([...workingDirs]);
     }
 
     // 3. Start the recurring spec sync interval (configurable, default 15 min).

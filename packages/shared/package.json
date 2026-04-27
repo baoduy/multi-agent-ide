@@ -28,6 +28,18 @@
       "types": "./dist/aiTerminal.d.ts",
       "default": "./dist/aiTerminal.js"
     },
+    "./aiSpawnOptions": {
+      "types": "./dist/aiSpawnOptions.d.ts",
+      "default": "./dist/aiSpawnOptions.js"
+    },
+    "./aiStreamEvent": {
+      "types": "./dist/aiStreamEvent.d.ts",
+      "default": "./dist/aiStreamEvent.js"
+    },
+    "./providerCapabilities": {
+      "types": "./dist/providerCapabilities.d.ts",
+      "default": "./dist/providerCapabilities.js"
+    },
     "./syncedSession": {
       "types": "./dist/syncedSession.d.ts",
       "default": "./dist/syncedSession.js"
@@ -39,6 +51,22 @@
     "./cliTools": {
       "types": "./dist/cliTools.d.ts",
       "default": "./dist/cliTools.js"
+    },
+    "./workingDir": {
+      "types": "./dist/workingDir.d.ts",
+      "default": "./dist/workingDir.js"
+    },
+    "./aiPresets": {
+      "types": "./dist/aiPresets.d.ts",
+      "default": "./dist/aiPresets.js"
+    },
+    "./aiObservability": {
+      "types": "./dist/aiObservability.d.ts",
+      "default": "./dist/aiObservability.js"
+    },
+    "./chatThread": {
+      "types": "./dist/chatThread.d.ts",
+      "default": "./dist/chatThread.js"
     }
   },
   "scripts": {

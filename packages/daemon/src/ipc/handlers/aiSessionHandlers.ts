@@ -1,13 +1,15 @@
 import type { IPCBridge } from "../IPCBridge";
 import type { AISessionApplicationService } from "../../application/AISessionApplicationService";
+import type { PermissionPromptCoordinator } from "../../application/PermissionPromptCoordinator";
 import { safeHandle } from "../createHandler";
 
 type AISessionHandlerContext = {
   bridge: IPCBridge;
   aiSessionService: AISessionApplicationService;
+  permissionCoordinator: PermissionPromptCoordinator;
 };
 
-export function registerAISessionHandlers({ bridge, aiSessionService }: AISessionHandlerContext): void {
+export function registerAISessionHandlers({ bridge, aiSessionService, permissionCoordinator }: AISessionHandlerContext): void {
   safeHandle(bridge, "ai-session:create", async (msg) => {
     const session = await aiSessionService.createSession(
       {
@@ -17,6 +19,21 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
         worktreePath: msg.worktreePath,
         permissionMode: msg.permissionMode,
         providerSessionId: msg.providerSessionId,
+        // Phase 4 — tool/permission granularity.
+        allowedTools: msg.allowedTools,
+        disallowedTools: msg.disallowedTools,
+        presetId: msg.presetId,
+        permissionPromptTool: msg.permissionPromptTool,
+        noAskUser: msg.noAskUser,
+        programmatic: msg.programmatic,
+        // Phase 5 — caller-provided canonical sessionId + lifecycle plumbing.
+        sessionId: msg.sessionId,
+        name: msg.name,
+        resumeFromPR: msg.resumeFromPR,
+        continueRecent: msg.continueRecent,
+        // Phase 6 — agent selection + Copilot GitHub MCP toggle.
+        agent: msg.agent,
+        enableAllGithubMcpTools: msg.enableAllGithubMcpTools,
       },
       msg.cols,
       msg.rows,
@@ -96,8 +113,31 @@ export function registerAISessionHandlers({ bridge, aiSessionService }: AISessio
     return { type: "ai-session:permission-mode:ack", sessionId: msg.sessionId, permissionMode: msg.permissionMode };
   });
 
+  safeHandle(bridge, "ai-session:fork", async (msg) => {
+    const session = await aiSessionService.forkSession(
+      msg.parentSessionId,
+      msg.sessionId,
+      msg.cols,
+      msg.rows,
+    );
+    return { type: "ai-session:fork:result", session };
+  });
+
   safeHandle(bridge, "ai-session:check-worktree", async (msg) => {
     const result = await aiSessionService.checkWorktreeExists(msg.worktreePath, msg.repoPath);
     return { type: "ai-session:check-worktree:result", ...result };
+  });
+
+  // Phase 4 — Renderer answers a Claude permission prompt. Routed through
+  // the coordinator's correlation table; the original requestApproval
+  // promise resolves on match.
+  safeHandle(bridge, "ai-session:permission-response", async (req) => {
+    permissionCoordinator.resolveResponse({
+      sessionId: req.sessionId,
+      requestId: req.requestId,
+      allow: req.allow,
+      scope: req.scope,
+    });
+    return { type: "ai-session:permission-response-ack" as const, ok: true };
   });
 }

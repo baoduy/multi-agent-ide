@@ -1,10 +1,67 @@
 import { EventEmitter } from "node:events";
 import os from "node:os";
 import path from "node:path";
-import type { AIProvider, AISessionStatus } from "@magenta/shared/aiTerminal";
+import type { AIProvider, AISessionConfig, AISessionStatus } from "@magenta/shared/aiTerminal";
+import type { AISpawnOptions } from "@magenta/shared/aiSpawnOptions";
+import { OTEL_ENV_VAR_NAMES } from "@magenta/shared/aiObservability";
 
 import { SessionCore } from "../terminal/SessionCore";
 import type { AttachResult } from "../terminal/RingBuffer";
+
+/**
+ * Phase 7 — pick the 11 documented OTel env vars out of `source`. Used to
+ * forward Copilot's OpenTelemetry config from the daemon's env into spawned
+ * AI children. Returns only keys present and non-empty so we don't clobber
+ * downstream defaults.
+ */
+export function collectOTelEnv(
+  source: NodeJS.ProcessEnv,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const name of OTEL_ENV_VAR_NAMES) {
+    const v = source[name];
+    if (typeof v === "string" && v.length > 0) out[name] = v;
+  }
+  return out;
+}
+
+/**
+ * Map an AISessionConfig to the unified AISpawnOptions shape consumed by
+ * the shared `toArgv()` translator. PTY sessions historically only honour a
+ * subset of fields (model, permissionMode, providerSessionId → resume);
+ * future phases extend this seam (Phase 4: allowedTools/disallowedTools,
+ * Phase 5: sessionId/forkSession).
+ */
+export function sessionConfigToSpawn(
+  _provider: AIProvider,
+  config: AISessionConfig & { model?: string; mcpConfig?: AISpawnOptions["mcpConfig"] },
+): AISpawnOptions {
+  const out: AISpawnOptions = {};
+  if (config.model) out.model = config.model;
+  if (config.permissionMode) out.permissionMode = config.permissionMode;
+  if (config.providerSessionId) out.resumeSessionId = config.providerSessionId;
+  if (config.allowedTools && config.allowedTools.length > 0)
+    out.allowedTools = config.allowedTools;
+  if (config.disallowedTools && config.disallowedTools.length > 0)
+    out.disallowedTools = config.disallowedTools;
+  if (config.permissionPromptTool)
+    out.permissionPromptTool = config.permissionPromptTool;
+  // Programmatic-only: drop `noAskUser` for interactive PTY sessions.
+  if (config.noAskUser && config.programmatic) out.noAskUser = true;
+  if (config.mcpConfig) out.mcpConfig = config.mcpConfig;
+  // Phase 5 — lifecycle fields plumbed verbatim into AISpawnOptions; the
+  // provider-specific argv builder (claude.ts / copilot.ts) decides which
+  // flags to emit.
+  if (config.sessionId) out.sessionId = config.sessionId;
+  if (config.name) out.sessionName = config.name;
+  if (config.resumeFromPR) out.fromPR = config.resumeFromPR;
+  if (config.continueRecent) out.continueRecent = true;
+  if (config.forkSession) out.forkSession = true;
+  // Phase 6 — agent + GitHub MCP toggle.
+  if (config.agent) out.agent = config.agent;
+  if (config.enableAllGithubMcpTools) out.enableAllGithubMcpTools = true;
+  return out;
+}
 
 export interface AISessionEvents {
   /** Terminal data with monotonic seq (for attach/replay + UI ack). */
@@ -146,6 +203,8 @@ export abstract class BaseAISession extends EventEmitter {
         rows,
         env: {
           ...process.env,
+          // Phase 7 — forward Copilot's OTel env vars (no-op for Claude).
+          ...collectOTelEnv(process.env),
           PATH: enrichedPath,
           TERM: "xterm-256color",
           COLORTERM: "truecolor",

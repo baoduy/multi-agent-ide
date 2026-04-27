@@ -2,6 +2,53 @@ import { create } from "zustand";
 import { sendOrThrow, onEvent } from "../services/ipcClient";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 import type { AISessionRecord, AIProvider, AISessionStatus, AIPermissionMode, ProviderMeta } from "@magenta/shared/aiTerminal";
+import type { TokenUsage } from "@magenta/shared/aiStreamEvent";
+import type {
+  CostUpdateEvent,
+  DebugLogChunk,
+  PluginInstallEvent,
+  PluginInstallStatus,
+  RetryEvent,
+  SessionInitEvent,
+} from "@magenta/shared/aiObservability";
+
+/**
+ * Phase 7 — per-session observability slice. Stored in a sibling map keyed
+ * by session id so we don't touch the existing `sessions: AISessionRecord[]`
+ * shape (which is replaced wholesale on `ai-session:updated`).
+ */
+export interface AiSessionObservability {
+  initMetadata?: {
+    model: string;
+    tools: string[];
+    mcpServers: string[];
+    pluginErrors?: { name: string; message: string }[];
+  };
+  lastRetryEvent?: {
+    attempt: number;
+    max: number;
+    delayMs: number;
+    category: string;
+    status?: number;
+    observedAt: number;
+  };
+  retryCount: number;
+  tokenUsage: TokenUsage;
+  costUsd: number;
+  pluginInstalls: Record<string, { plugin: string; status: PluginInstallStatus; message?: string }>;
+  debugLogChunks: { seq: number; bytes: string }[];
+}
+
+const ZERO_OBSERVABILITY: AiSessionObservability = {
+  retryCount: 0,
+  tokenUsage: { inputTokens: 0, outputTokens: 0 },
+  costUsd: 0,
+  pluginInstalls: {},
+  debugLogChunks: [],
+};
+
+/** ~5 MB ceiling for retained debug-log bytes per session. */
+const DEBUG_LOG_BUDGET_BYTES = 5 * 1024 * 1024;
 
 /**
  * AI session metadata store. Terminal output is owned by TerminalHub —
@@ -12,9 +59,18 @@ import type { AISessionRecord, AIProvider, AISessionStatus, AIPermissionMode, Pr
 
 type AISessionStoreState = {
   sessions: AISessionRecord[];
+  /** Phase 7 — sibling map keyed by session id; populated lazily by push events. */
+  observability: Record<string, AiSessionObservability>;
   activeSessionId: string | null;
   providers: Record<AIProvider, ProviderMeta> | null;
   subscriptionsReady: boolean;
+
+  // Phase 7 — observability apply actions, called from coordinator on push events.
+  applyInitEvent: (ev: SessionInitEvent) => void;
+  applyRetryEvent: (ev: RetryEvent) => void;
+  applyCostUpdate: (ev: CostUpdateEvent) => void;
+  applyPluginInstall: (ev: PluginInstallEvent) => void;
+  appendDebugLogChunk: (chunk: DebugLogChunk) => void;
 
   // ── Session CRUD ──
   fetchSessions: () => Promise<void>;
@@ -26,6 +82,15 @@ type AISessionStoreState = {
     permissionMode?: AIPermissionMode;
     /** Reuse an existing agent session UUID (resume of a synced session). */
     providerSessionId?: string;
+    /** Phase 4 — tool/permission granularity. */
+    allowedTools?: string[];
+    disallowedTools?: string[];
+    presetId?: string;
+    permissionPromptTool?: string;
+    /** Phase 6 — agent selection (Claude `--agent <v>`). */
+    agent?: string;
+    /** Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle. */
+    enableAllGithubMcpTools?: boolean;
   }, cols: number, rows: number) => Promise<AISessionRecord>;
   resumeSession: (sessionId: string, cols: number, rows: number) => Promise<AISessionRecord>;
   deleteSession: (sessionId: string) => Promise<void>;
@@ -54,9 +119,109 @@ type AISessionStoreState = {
 
 export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
   sessions: [],
+  observability: {},
   activeSessionId: null,
   providers: null,
   subscriptionsReady: false,
+
+  applyInitEvent: (ev) => {
+    set((state) => ({
+      observability: {
+        ...state.observability,
+        [ev.sessionId]: {
+          ...(state.observability[ev.sessionId] ?? ZERO_OBSERVABILITY),
+          initMetadata: {
+            model: ev.model,
+            tools: ev.tools,
+            mcpServers: ev.mcpServers,
+            pluginErrors: ev.pluginErrors,
+          },
+        },
+      },
+    }));
+  },
+
+  applyRetryEvent: (ev) => {
+    set((state) => {
+      const slot = state.observability[ev.sessionId] ?? ZERO_OBSERVABILITY;
+      return {
+        observability: {
+          ...state.observability,
+          [ev.sessionId]: {
+            ...slot,
+            retryCount: slot.retryCount + 1,
+            lastRetryEvent: {
+              attempt: ev.attempt,
+              max: ev.max,
+              delayMs: ev.delayMs,
+              category: ev.category,
+              status: ev.status,
+              observedAt: Date.now(),
+            },
+          },
+        },
+      };
+    });
+  },
+
+  applyCostUpdate: (ev) => {
+    set((state) => {
+      const slot = state.observability[ev.sessionId] ?? ZERO_OBSERVABILITY;
+      return {
+        observability: {
+          ...state.observability,
+          [ev.sessionId]: {
+            ...slot,
+            tokenUsage: ev.tokenUsage,
+            costUsd: ev.costUsd,
+            retryCount: ev.retryCount,
+            lastRetryEvent: undefined, // result observed → spinner stops.
+          },
+        },
+      };
+    });
+  },
+
+  applyPluginInstall: (ev) => {
+    set((state) => {
+      const slot = state.observability[ev.sessionId] ?? ZERO_OBSERVABILITY;
+      return {
+        observability: {
+          ...state.observability,
+          [ev.sessionId]: {
+            ...slot,
+            pluginInstalls: {
+              ...slot.pluginInstalls,
+              [ev.plugin]: {
+                plugin: ev.plugin,
+                status: ev.status,
+                message: ev.message,
+              },
+            },
+          },
+        },
+      };
+    });
+  },
+
+  appendDebugLogChunk: (chunk) => {
+    set((state) => {
+      const slot = state.observability[chunk.sessionId] ?? ZERO_OBSERVABILITY;
+      const next = [...slot.debugLogChunks, { seq: chunk.seq, bytes: chunk.bytes }];
+      // Trim FIFO once we've exceeded the byte budget.
+      let total = next.reduce((n, c) => n + c.bytes.length, 0);
+      while (total > DEBUG_LOG_BUDGET_BYTES && next.length > 1) {
+        total -= next[0].bytes.length;
+        next.shift();
+      }
+      return {
+        observability: {
+          ...state.observability,
+          [chunk.sessionId]: { ...slot, debugLogChunks: next },
+        },
+      };
+    });
+  },
 
   fetchSessions: async () => {
     const response = await sendOrThrow({ type: "ai-session:list" });
@@ -72,6 +237,12 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
       worktreePath: config.worktreePath,
       permissionMode: config.permissionMode,
       providerSessionId: config.providerSessionId,
+      allowedTools: config.allowedTools,
+      disallowedTools: config.disallowedTools,
+      presetId: config.presetId,
+      permissionPromptTool: config.permissionPromptTool,
+      agent: config.agent,
+      enableAllGithubMcpTools: config.enableAllGithubMcpTools,
       cols,
       rows,
     });
@@ -208,6 +379,23 @@ export const useAISessionStore = create<AISessionStoreState>((set, get) => ({
           ? state.sessions.map((s) => (s.id === event.session.id ? event.session : s))
           : [event.session, ...state.sessions],
       }));
+    });
+
+    // Phase 7 — observability push events.
+    onEvent("ai-session:init", (event) => {
+      get().applyInitEvent(event.payload);
+    });
+    onEvent("ai-session:retry", (event) => {
+      get().applyRetryEvent(event.payload);
+    });
+    onEvent("ai-session:cost-update", (event) => {
+      get().applyCostUpdate(event.payload);
+    });
+    onEvent("ai-session:plugin-install", (event) => {
+      get().applyPluginInstall(event.payload);
+    });
+    onEvent("ai-session:debug-log", (event) => {
+      get().appendDebugLogChunk(event.payload);
     });
   }),
 }));

@@ -9,6 +9,48 @@ import {
 import type { MarkdownEditorMethods } from "../MarkdownEditor";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { RewritePreviewDialog } from "./RewritePreviewDialog";
+import { localStore } from "../../../services/localStorage";
+
+/* ── Resizable panel: persist size across sessions ── */
+const PANEL_W_DEFAULT = 360;
+const PANEL_H_DEFAULT = 520;
+const PANEL_W_MIN = 320;
+const PANEL_H_MIN = 360;
+const PANEL_W_MAX = 900;
+const PANEL_H_MAX = 900;
+/** Reserved space at the right edge (panel anchor) and bottom (above the
+ *  ChatBubble). Used to clamp the panel against the viewport. */
+const PANEL_ANCHOR_RIGHT = 16;
+const PANEL_ANCHOR_BOTTOM = 76;
+
+type PanelSize = { width: number; height: number };
+
+function clampPanelSize(s: PanelSize): PanelSize {
+  const maxW =
+    typeof window !== "undefined"
+      ? Math.min(PANEL_W_MAX, Math.max(PANEL_W_MIN, window.innerWidth - PANEL_ANCHOR_RIGHT - 8))
+      : PANEL_W_MAX;
+  const maxH =
+    typeof window !== "undefined"
+      ? Math.min(PANEL_H_MAX, Math.max(PANEL_H_MIN, window.innerHeight - PANEL_ANCHOR_BOTTOM - 8))
+      : PANEL_H_MAX;
+  return {
+    width: Math.round(Math.max(PANEL_W_MIN, Math.min(maxW, s.width))),
+    height: Math.round(Math.max(PANEL_H_MIN, Math.min(maxH, s.height))),
+  };
+}
+
+const chatPanelSizeStore = localStore<PanelSize>({
+  key: "magenta:chat-panel-size",
+  fallback: { width: PANEL_W_DEFAULT, height: PANEL_H_DEFAULT },
+  validate: (raw) => {
+    if (!raw || typeof raw !== "object") return undefined;
+    const r = raw as { width?: unknown; height?: unknown };
+    if (typeof r.width !== "number" || !Number.isFinite(r.width)) return undefined;
+    if (typeof r.height !== "number" || !Number.isFinite(r.height)) return undefined;
+    return clampPanelSize({ width: r.width, height: r.height });
+  },
+});
 
 export interface ChatPanelProps {
   filePath: string;
@@ -40,7 +82,8 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
   const thread = useAiChatStore((s) => s.threadsByFile[filePath]);
   const setMode = useAiChatStore((s) => s.setMode);
   const setPendingSelection = useAiChatStore((s) => s.setPendingSelection);
-  const clear = useAiChatStore((s) => s.clear);
+  const openThreadForFile = useAiChatStore((s) => s.openThreadForFile);
+  const archiveActiveAndStartNew = useAiChatStore((s) => s.archiveActiveAndStartNew);
   const sendAsk = useAiChatStore((s) => s.sendAsk);
   const requestEditSelection = useAiChatStore((s) => s.requestEditSelection);
   const requestModifyDocument = useAiChatStore((s) => s.requestModifyDocument);
@@ -63,8 +106,30 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
     }
   }, [readOnly, storedMode, filePath, setMode]);
 
+  // Phase 8 — auto-resume the per-(file, provider) thread on mount and on
+  // provider switch. The store-level resolver handles fallback to a fresh
+  // thread when none exists.
+  const currentProvider = thread?.provider ?? "claude";
+  useEffect(() => {
+    void openThreadForFile(filePath, currentProvider);
+  }, [filePath, currentProvider, openThreadForFile]);
+
   const [input, setInput] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
+  const [size, setSize] = useState<PanelSize>(() => clampPanelSize(chatPanelSizeStore.get()));
+
+  // Persist size when it settles. The localStore already debounces writes,
+  // so it's safe to call on every change.
+  useEffect(() => {
+    chatPanelSizeStore.set(size);
+  }, [size]);
+
+  // Re-clamp if the window shrinks below the panel's current size.
+  useEffect(() => {
+    const onResize = () => setSize((s) => clampPanelSize(s));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [preview, setPreview] = useState<{ selection: CapturedSelection; proposed: string } | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -141,10 +206,10 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
     <div
       style={{
         position: "fixed",
-        right: 16,
-        bottom: 76, // leaves room for the bubble below
-        width: 360,
-        height: 520,
+        right: PANEL_ANCHOR_RIGHT,
+        bottom: PANEL_ANCHOR_BOTTOM, // leaves room for the bubble below
+        width: size.width,
+        height: size.height,
         display: "flex",
         flexDirection: "column",
         background: colors.dialogBg,
@@ -155,21 +220,22 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
         overflow: "hidden",
       }}
     >
+      <ResizeGrip size={size} setSize={setSize} />
       {/* Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 10,
-          padding: "10px 12px",
+          gap: 8,
+          padding: "5px 10px",
           borderBottom: `1px solid ${colors.border}`,
           background: colors.bgSurface,
         }}
       >
         <span
           style={{
-            width: 32,
-            height: 32,
+            width: 22,
+            height: 22,
             borderRadius: "50%",
             display: "inline-flex",
             alignItems: "center",
@@ -179,30 +245,32 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
             flexShrink: 0,
           }}
         >
-          <Sparkles size={16} strokeWidth={2} />
+          <Sparkles size={12} strokeWidth={2} />
         </span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            overflowX: "auto",
+            overflowY: "hidden",
+            whiteSpace: "nowrap",
+            scrollbarWidth: "thin",
+          }}
+          title={filePath}
+        >
+          <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
             AI Assistant
-            {thread?.provider && (
-              <span style={{ color: colors.textMuted, fontWeight: 400 }}>
-                {" · "}
-                {thread.provider === "claude" ? "Claude" : "Copilot"}
-              </span>
-            )}
-          </div>
-          <div
-            style={{
-              fontSize: 10,
-              color: colors.textMuted,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-            title={filePath}
-          >
+          </span>
+          {thread?.provider && (
+            <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 400 }}>
+              {" · "}
+              {thread.provider === "claude" ? "Claude" : "Copilot"}
+            </span>
+          )}
+          <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 400 }}>
+            {" · "}
             {fileName}
-          </div>
+          </span>
         </div>
         <div style={{ position: "relative" }}>
           <IconButton title="More" onClick={() => setMoreOpen((v) => !v)}>
@@ -224,9 +292,9 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
               }}
             >
               <MoreMenuItem
-                label="Clear conversation"
+                label="New session"
                 onClick={() => {
-                  clear(filePath);
+                  void archiveActiveAndStartNew(filePath, thread?.provider ?? "claude");
                   setMoreOpen(false);
                 }}
               />
@@ -486,4 +554,84 @@ function canSendTitle(mode: ChatMode, hasSelection: boolean, input: string, send
   if (!input.trim()) return "Type a message";
   if (mode === "edit-selection" && !hasSelection) return "Select text in the editor first";
   return "Send (Enter)";
+}
+
+/* ── ResizeGrip ─────────────────────────────────────────────────────────────
+ * Top-left corner grip. Panel is anchored bottom-right, so growing the panel
+ * means subtracting cursor delta from the start position (drag up-left → bigger).
+ * ────────────────────────────────────────────────────────────────────────── */
+function ResizeGrip({
+  size,
+  setSize,
+}: {
+  size: PanelSize;
+  setSize: React.Dispatch<React.SetStateAction<PanelSize>>;
+}): React.ReactElement {
+  const [hovered, setHovered] = useState(false);
+  const draggingRef = useRef(false);
+
+  const onMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      draggingRef.current = true;
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = size.width;
+      const startH = size.height;
+      document.body.style.cursor = "nwse-resize";
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev: MouseEvent) => {
+        if (!draggingRef.current) return;
+        const next = clampPanelSize({
+          width: startW + (startX - ev.clientX),
+          height: startH + (startY - ev.clientY),
+        });
+        setSize(next);
+      };
+      const onUp = () => {
+        draggingRef.current = false;
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [size.width, size.height, setSize]
+  );
+
+  return (
+    <div
+      role="separator"
+      aria-label="Resize chat panel"
+      onMouseDown={onMouseDown}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        width: 14,
+        height: 14,
+        cursor: "nwse-resize",
+        zIndex: 20,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: 3,
+          left: 3,
+          width: 8,
+          height: 8,
+          borderTop: `2px solid ${hovered ? colors.primary : colors.border}`,
+          borderLeft: `2px solid ${hovered ? colors.primary : colors.border}`,
+          borderTopLeftRadius: 2,
+          transition: "border-color 0.15s",
+        }}
+      />
+    </div>
+  );
 }

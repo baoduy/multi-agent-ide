@@ -68,6 +68,7 @@ export function MarkdownContent({ source }: { source: string }): React.ReactElem
 
 /* ─── Parser ──────────────────────────────────────────────────────── */
 
+type Align = "left" | "center" | "right" | null;
 type Block =
   | { kind: "heading"; level: 1 | 2 | 3 | 4 | 5 | 6; text: string }
   | { kind: "paragraph"; text: string }
@@ -75,7 +76,52 @@ type Block =
   | { kind: "ol"; items: string[] }
   | { kind: "code"; language?: string; body: string }
   | { kind: "quote"; text: string }
+  | { kind: "table"; header: string[]; align: Align[]; rows: string[][] }
   | { kind: "hr" };
+
+/** Split a single GFM table row on unescaped pipes, trimming the optional
+ *  leading/trailing pipe so `| a | b |` and `a | b` both yield ["a","b"]. */
+function splitTableRow(line: string): string[] {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  // Honour `\|` escapes inside cells.
+  const cells: string[] = [];
+  let buf = "";
+  for (let i = 0; i < trimmed.length; i++) {
+    const ch = trimmed[i];
+    if (ch === "\\" && trimmed[i + 1] === "|") {
+      buf += "|";
+      i++;
+      continue;
+    }
+    if (ch === "|") {
+      cells.push(buf.trim());
+      buf = "";
+      continue;
+    }
+    buf += ch;
+  }
+  cells.push(buf.trim());
+  return cells;
+}
+
+/** Parse a GFM separator row like `|---|:---:|---:|` into per-column
+ *  alignments. Returns null if the row is not a valid separator. */
+function parseAlignRow(line: string): Align[] | null {
+  const cells = splitTableRow(line);
+  if (cells.length === 0) return null;
+  const aligns: Align[] = [];
+  for (const cell of cells) {
+    const m = /^(:?)-{3,}(:?)$/.exec(cell);
+    if (!m) return null;
+    const left = m[1] === ":";
+    const right = m[2] === ":";
+    if (left && right) aligns.push("center");
+    else if (right) aligns.push("right");
+    else if (left) aligns.push("left");
+    else aligns.push(null);
+  }
+  return aligns;
+}
 
 function parseBlocks(source: string): Block[] {
   const lines = source.replace(/\r\n/g, "\n").split("\n");
@@ -105,6 +151,30 @@ function parseBlocks(source: string): Block[] {
       out.push({ kind: "hr" });
       i++;
       continue;
+    }
+
+    // GFM table — header row + separator row + zero-or-more body rows.
+    // Detected only when the next line is a valid separator (`|---|---|`).
+    if (/\|/.test(line) && i + 1 < lines.length) {
+      const aligns = parseAlignRow(lines[i + 1]);
+      if (aligns) {
+        const header = splitTableRow(line);
+        const colCount = Math.max(header.length, aligns.length);
+        // Pad header / align to the wider count so cells line up.
+        while (header.length < colCount) header.push("");
+        while (aligns.length < colCount) aligns.push(null);
+        i += 2;
+        const rows: string[][] = [];
+        while (i < lines.length && /\|/.test(lines[i]) && !/^\s*$/.test(lines[i])) {
+          const cells = splitTableRow(lines[i]);
+          while (cells.length < colCount) cells.push("");
+          if (cells.length > colCount) cells.length = colCount;
+          rows.push(cells);
+          i++;
+        }
+        out.push({ kind: "table", header, align: aligns, rows });
+        continue;
+      }
     }
 
     // Heading
@@ -261,6 +331,58 @@ function RenderedBlock({ block }: { block: Block }): React.ReactElement {
         >
           {renderInline(block.text)}
         </blockquote>
+      );
+    case "table":
+      return (
+        <div style={{ overflowX: "auto", maxWidth: "100%" }}>
+          <table
+            style={{
+              borderCollapse: "collapse",
+              fontSize: 12,
+              lineHeight: 1.4,
+              color: colors.text,
+            }}
+          >
+            <thead>
+              <tr>
+                {block.header.map((cell, i) => (
+                  <th
+                    key={i}
+                    style={{
+                      textAlign: block.align[i] ?? "left",
+                      padding: "4px 8px",
+                      borderBottom: `1px solid ${colors.border}`,
+                      background: colors.bgSurface,
+                      fontWeight: 600,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {renderInline(cell)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {block.rows.map((row, r) => (
+                <tr key={r}>
+                  {row.map((cell, c) => (
+                    <td
+                      key={c}
+                      style={{
+                        textAlign: block.align[c] ?? "left",
+                        padding: "4px 8px",
+                        borderBottom: `1px solid ${colors.border}`,
+                        verticalAlign: "top",
+                      }}
+                    >
+                      {renderInline(cell)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       );
     case "hr":
       return <hr style={{ border: "none", borderTop: `1px solid ${colors.border}`, margin: 0 }} />;

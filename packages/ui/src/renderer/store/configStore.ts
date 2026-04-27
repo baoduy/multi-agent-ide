@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-import type { MagentaConfig, SpecifyExtension } from "@magenta/shared/config";
+import type { MagentaConfig, SpecifyExtension, WorkingDirEntry } from "@magenta/shared/config";
 import {
   DEFAULT_SPECIFY_COMMAND,
   DEFAULT_SPECIFY_EXTENSIONS,
@@ -14,7 +14,8 @@ import { createAsyncAction } from "../services/createStoreAction";
 import { createSubscriptionInitializer } from "../services/createSubscriptionInitializer";
 
 type ConfigStoreState = {
-  workingDirs: string[];
+  workingDirs: WorkingDirEntry[];
+  workingDirPaths: string[];
   specifyCommand: string;
   specSyncIntervalMinutes: number;
   sessionSyncIntervalMinutes: number;
@@ -32,13 +33,21 @@ type ConfigStoreState = {
   updateFallbackApproverName: (name: string) => Promise<void>;
   updateCliToolOverride: (tool: CliToolId, override: CliToolOverride | null) => Promise<void>;
   updateSpecifyExtensions: (extensions: SpecifyExtension[]) => Promise<void>;
+  updateWorkingDir: (
+    path: string,
+    patch: { promptTemplatesPath?: string; mcpConfigJson?: string },
+  ) => Promise<void>;
   fetchConfig: () => Promise<void>;
   initializeSubscriptions: () => void;
 };
 
 function applyConfig(config: MagentaConfig): Partial<ConfigStoreState> {
+  const entries = (
+    config.workingDirs as readonly (string | WorkingDirEntry)[]
+  ).map((e) => (typeof e === "string" ? { path: e } : e));
   return {
-    workingDirs: config.workingDirs,
+    workingDirs: entries,
+    workingDirPaths: entries.map((e) => e.path),
     specifyCommand: config.specifyCommand ?? DEFAULT_SPECIFY_COMMAND,
     specSyncIntervalMinutes:
       config.specSyncIntervalMinutes ?? DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
@@ -52,6 +61,7 @@ function applyConfig(config: MagentaConfig): Partial<ConfigStoreState> {
 
 export const useConfigStore = create<ConfigStoreState>((set, get) => ({
   workingDirs: [],
+  workingDirPaths: [],
   specifyCommand: DEFAULT_SPECIFY_COMMAND,
   specSyncIntervalMinutes: DEFAULT_SPEC_SYNC_INTERVAL_MINUTES,
   sessionSyncIntervalMinutes: DEFAULT_SESSION_SYNC_INTERVAL_MINUTES,
@@ -155,6 +165,15 @@ export const useConfigStore = create<ConfigStoreState>((set, get) => ({
           type: "config:update",
           config: { specifyExtensions: extensions },
         }),
+      onSuccess: (response) => applyConfig(response.config),
+    })();
+  },
+
+  updateWorkingDir(path, patch) {
+    return createAsyncAction<ConfigStoreState, { config: MagentaConfig }>({
+      set,
+      action: () =>
+        sendOrThrow({ type: "config:update-working-dir", path, patch }),
       onSuccess: (response) => applyConfig(response.config),
     })();
   },

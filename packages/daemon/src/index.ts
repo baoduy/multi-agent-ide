@@ -42,7 +42,7 @@ if (require.main === module) {
 
       // Start background services
       const configManager = ConfigManager.getInstance();
-      for (const dir of configManager.getConfig().workingDirs) {
+      for (const dir of configManager.getAllowedRoots()) {
         result.dirWatcher.watchDir(dir);
       }
       result.specSyncService.start();

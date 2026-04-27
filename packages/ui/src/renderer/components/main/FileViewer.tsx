@@ -145,6 +145,57 @@ function ApproveActionsChevron({
   );
 }
 
+/**
+ * Replaces the Approve button while the markdown editor is in edit mode.
+ * Clicking commits the same path as the chevron menu's Preview entry —
+ * `handleViewModeChange("preview")` — which auto-saves any pending edits
+ * and flips back to preview, where the Approve button reappears.
+ *
+ * Visually mirrors the green ApproveButton + rightSlot chevron pair so the
+ * header doesn't shift when toggling modes.
+ */
+function DoneButton({
+  onClick,
+  rightSlot,
+}: {
+  onClick: () => void;
+  rightSlot?: React.ReactNode;
+}): React.ReactElement {
+  const grouped = rightSlot != null;
+  const leftRadius = grouped ? "6px 0 0 6px" : "6px";
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div style={{ display: "inline-flex" }}>
+      <button
+        type="button"
+        title="Finish editing and return to preview"
+        onClick={onClick}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 5,
+          padding: "4px 10px",
+          fontSize: 11,
+          fontWeight: 600,
+          color: colors.primaryForeground,
+          background: hovered ? colors.successHover : colors.success,
+          border: "none",
+          borderRadius: leftRadius,
+          cursor: "pointer",
+          transition: "all 0.15s",
+          fontFamily: "inherit",
+        }}
+      >
+        <Check size={13} strokeWidth={2} />
+        <span>Done</span>
+      </button>
+      {rightSlot}
+    </div>
+  );
+}
+
 /* ─────────────────────────────────────────────
    FileViewer
    ───────────────────────────────────────────── */
@@ -464,25 +515,44 @@ export function FileViewer({ filePath, repoPath }: FileViewerProps): React.React
                 read-only
               </span>
             )}
-            <ApproveButton
-              filePath={filePath}
-              content={displayContent}
-              repoPath={repoPath}
-              onApproved={(newContent) => {
-                setContent(newContent);
-                setEditedContent(newContent);
-                editorRef.current?.setMarkdown(newContent);
-              }}
-              rightSlot={
-                <ApproveActionsChevron
-                  content={displayContent}
-                  approved={/\*\*Approved by:\*\*/.test(displayContent)}
-                  viewMode={viewMode}
-                  onViewModeChange={handleViewModeChange}
-                  canEdit={canEdit}
-                />
-              }
-            />
+            {viewMode === "edit" && canEdit ? (
+              // While editing, the primary header action is "Done" — it
+              // saves any pending edits and flips back to preview mode.
+              // The Approve action only matters once the user is reading
+              // the rendered document, so we hide it during editing.
+              <DoneButton
+                onClick={() => handleViewModeChange("preview")}
+                rightSlot={
+                  <ApproveActionsChevron
+                    content={displayContent}
+                    approved={/\*\*Approved by:\*\*/.test(displayContent)}
+                    viewMode={viewMode}
+                    onViewModeChange={handleViewModeChange}
+                    canEdit={canEdit}
+                  />
+                }
+              />
+            ) : (
+              <ApproveButton
+                filePath={filePath}
+                content={displayContent}
+                repoPath={repoPath}
+                onApproved={(newContent) => {
+                  setContent(newContent);
+                  setEditedContent(newContent);
+                  editorRef.current?.setMarkdown(newContent);
+                }}
+                rightSlot={
+                  <ApproveActionsChevron
+                    content={displayContent}
+                    approved={/\*\*Approved by:\*\*/.test(displayContent)}
+                    viewMode={viewMode}
+                    onViewModeChange={handleViewModeChange}
+                    canEdit={canEdit}
+                  />
+                }
+              />
+            )}
           </div>
         </div>
       )}

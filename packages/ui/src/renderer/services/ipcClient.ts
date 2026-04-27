@@ -31,6 +31,7 @@ type ResponseForRequest = {
   "config:add-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:remove-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "config:update": Extract<IpcResponse, { type: "config:response" }>;
+  "config:update-working-dir": Extract<IpcResponse, { type: "config:response" }>;
   "branch:list": Extract<IpcResponse, { type: "branch:list:result" }>;
   "branch:checkout": Extract<IpcResponse, { type: "branch:checkout:result" }>;
   "gitfile:read": Extract<IpcResponse, { type: "gitfile:read:result" }>;
@@ -66,6 +67,14 @@ type ResponseForRequest = {
   "ai-session:set-permission-mode": Extract<IpcResponse, { type: "ai-session:permission-mode:ack" }>;
   "ai-session:running-count": Extract<IpcResponse, { type: "ai-session:running-count:result" }>;
   "ai-session:check-worktree": Extract<IpcResponse, { type: "ai-session:check-worktree:result" }>;
+  "ai-session:fork": Extract<IpcResponse, { type: "ai-session:fork:result" }>;
+  "ai:presets:list": Extract<IpcResponse, { type: "ai:presets:listed" }>;
+  "ai:presets:create": Extract<IpcResponse, { type: "ai:presets:created" }>;
+  "ai:presets:update": Extract<IpcResponse, { type: "ai:presets:updated" }>;
+  "ai:presets:delete": Extract<IpcResponse, { type: "ai:presets:deleted" }>;
+  "ai-session:permission-response": Extract<IpcResponse, { type: "ai-session:permission-response-ack" }>;
+  "ai:run-once": Extract<IpcResponse, { type: "ai:run-once:result" }>;
+  "ai:run-bare-once": Extract<IpcResponse, { type: "ai:run-bare-once:result" }>;
   "synced-session:list": Extract<IpcResponse, { type: "synced-session:list:result" }>;
   "synced-session:trigger-sync": Extract<IpcResponse, { type: "synced-session:sync:triggered" }>;
   "synced-session:archive": Extract<IpcResponse, { type: "synced-session:archived" }>;
@@ -114,6 +123,20 @@ type ResponseForRequest = {
   "ai-chat:edit-selection": Extract<IpcResponse, { type: "ai-chat:edit-selection:result" }>;
   "ai-chat:modify-document": Extract<IpcResponse, { type: "ai-chat:modify-document:result" }>;
   "ai-chat:ask-spec": Extract<IpcResponse, { type: "ai-chat:ask-spec:result" }>;
+  // Phase 8 — resumable chat threads.
+  "ai-chat:get-active-thread": Extract<IpcResponse, { type: "ai-chat:get-active-thread:result" }>;
+  "ai-chat:list-threads": Extract<IpcResponse, { type: "ai-chat:list-threads:result" }>;
+  "ai-chat:start-new-thread": Extract<IpcResponse, { type: "ai-chat:start-new-thread:result" }>;
+  "ai-chat:archive-thread": Extract<IpcResponse, { type: "ai-chat:archive-thread:result" }>;
+  // Phase 6 — agents + plugin-dirs.
+  "ai:list-agents": Extract<IpcResponse, { type: "ai:list-agents:result" }>;
+  "plugin-dirs:list": Extract<IpcResponse, { type: "plugin-dirs:list:result" }>;
+  "plugin-dirs:add": Extract<IpcResponse, { type: "plugin-dirs:add:result" }>;
+  "plugin-dirs:remove": Extract<IpcResponse, { type: "plugin-dirs:remove:result" }>;
+  // Phase 7 — observability.
+  "ai-session:debug-log:open": Extract<IpcResponse, { type: "ai-session:debug-log:open:result" }>;
+  "ai-session:debug-log:close": Extract<IpcResponse, { type: "ai-session:debug-log:close:result" }>;
+  "ai:env:otel-status": Extract<IpcResponse, { type: "ai:env:otel-status:result" }>;
 };
 
 /**

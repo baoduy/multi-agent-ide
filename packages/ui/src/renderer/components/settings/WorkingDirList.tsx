@@ -8,7 +8,7 @@ import { useConfigStore } from "../../store/configStore";
  */
 export function WorkingDirList(): React.ReactElement {
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
-  const workingDirs = useConfigStore((state) => state.workingDirs);
+  const workingDirs = useConfigStore((state) => state.workingDirPaths);
   const isLoading = useConfigStore((state) => state.isLoading);
   const removeWorkingDir = useConfigStore((state) => state.removeWorkingDir);
 

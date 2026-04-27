@@ -1,6 +1,55 @@
-# CLAUDE.md — Magenta IDE Development Guide
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 This file is the authoritative reference for AI agents (and human contributors) working on the Magenta IDE codebase. Follow these rules when implementing new features, fixing bugs, or refactoring.
+
+---
+
+## Common Commands
+
+Run from the repo root unless noted. The repo is a pnpm workspace (`pnpm@10.33.2`); install with `pnpm install` (postinstall rebuilds `node-pty` and `lmdb` for Electron's ABI).
+
+```bash
+# Develop the Electron app (builds all packages, then launches the main process)
+pnpm dev
+
+# Watch mode across all packages in parallel (rebuilds on file change)
+pnpm dev:watch
+
+# Build / typecheck / lint / test across all packages (recursive)
+pnpm build
+pnpm typecheck
+pnpm lint
+pnpm test
+
+# Per-package work (use -C to scope a script to one package)
+pnpm -C packages/daemon typecheck
+pnpm -C packages/ui dev          # esbuild watch
+pnpm -C packages/ui dev:css      # Tailwind v4 watch (separate process)
+
+# E2E (Playwright) — requires a fresh build first; the script handles that
+pnpm test:e2e                    # all projects
+pnpm test:e2e:headed             # show the Electron window
+pnpm test:e2e:debug              # Playwright Inspector
+pnpm -C packages/e2e test:smoke  # smoke project only
+pnpm -C packages/e2e exec playwright test path/to/file.spec.ts   # single file
+
+# Electron debug helpers (packages/e2e/scripts, run via tsx)
+pnpm debug:launch                                  # launch Electron with CDP attached
+pnpm -C packages/e2e debug:click '<selector>'
+pnpm -C packages/e2e debug:eval '<expression>'
+pnpm -C packages/e2e debug:snapshot
+pnpm -C packages/e2e debug:stop
+
+# Distribution
+pnpm pack            # unpacked app dir
+pnpm dist[:mac|:win|:linux]
+```
+
+**Verification scope per project convention:** stop at `pnpm typecheck` + `pnpm build`. Don't launch the app — the user tests UI changes manually (see `feedback_verification.md`).
+
+**Linters/unit tests are not wired up in `packages/daemon`, `packages/main`, or `packages/ui` today** — their `lint`/`test` scripts echo placeholders. Automated tests live in `packages/e2e` (Playwright + Playwright-BDD).
 
 ---
 
@@ -257,3 +306,142 @@ These override defaults in the `obra/superpowers` plugin. Per its `using-superpo
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
 <!-- SPECKIT END -->
+
+<!-- rtk-instructions v2 -->
+# RTK (Rust Token Killer) - Token-Optimized Commands
+
+## Golden Rule
+
+**Always prefix commands with `rtk`**. If RTK has a dedicated filter, it uses it. If not, it passes through unchanged. This means RTK is always safe to use.
+
+**Important**: Even in command chains with `&&`, use `rtk`:
+```bash
+# ❌ Wrong
+git add . && git commit -m "msg" && git push
+
+# ✅ Correct
+rtk git add . && rtk git commit -m "msg" && rtk git push
+```
+
+## RTK Commands by Workflow
+
+### Build & Compile (80-90% savings)
+```bash
+rtk cargo build         # Cargo build output
+rtk cargo check         # Cargo check output
+rtk cargo clippy        # Clippy warnings grouped by file (80%)
+rtk tsc                 # TypeScript errors grouped by file/code (83%)
+rtk lint                # ESLint/Biome violations grouped (84%)
+rtk prettier --check    # Files needing format only (70%)
+rtk next build          # Next.js build with route metrics (87%)
+```
+
+### Test (60-99% savings)
+```bash
+rtk cargo test          # Cargo test failures only (90%)
+rtk go test             # Go test failures only (90%)
+rtk jest                # Jest failures only (99.5%)
+rtk vitest              # Vitest failures only (99.5%)
+rtk playwright test     # Playwright failures only (94%)
+rtk pytest              # Python test failures only (90%)
+rtk rake test           # Ruby test failures only (90%)
+rtk rspec               # RSpec test failures only (60%)
+rtk test <cmd>          # Generic test wrapper - failures only
+```
+
+### Git (59-80% savings)
+```bash
+rtk git status          # Compact status
+rtk git log             # Compact log (works with all git flags)
+rtk git diff            # Compact diff (80%)
+rtk git show            # Compact show (80%)
+rtk git add             # Ultra-compact confirmations (59%)
+rtk git commit          # Ultra-compact confirmations (59%)
+rtk git push            # Ultra-compact confirmations
+rtk git pull            # Ultra-compact confirmations
+rtk git branch          # Compact branch list
+rtk git fetch           # Compact fetch
+rtk git stash           # Compact stash
+rtk git worktree        # Compact worktree
+```
+
+Note: Git passthrough works for ALL subcommands, even those not explicitly listed.
+
+### GitHub (26-87% savings)
+```bash
+rtk gh pr view <num>    # Compact PR view (87%)
+rtk gh pr checks        # Compact PR checks (79%)
+rtk gh run list         # Compact workflow runs (82%)
+rtk gh issue list       # Compact issue list (80%)
+rtk gh api              # Compact API responses (26%)
+```
+
+### JavaScript/TypeScript Tooling (70-90% savings)
+```bash
+rtk pnpm list           # Compact dependency tree (70%)
+rtk pnpm outdated       # Compact outdated packages (80%)
+rtk pnpm install        # Compact install output (90%)
+rtk npm run <script>    # Compact npm script output
+rtk npx <cmd>           # Compact npx command output
+rtk prisma              # Prisma without ASCII art (88%)
+```
+
+### Files & Search (60-75% savings)
+```bash
+rtk ls <path>           # Tree format, compact (65%)
+rtk read <file>         # Code reading with filtering (60%)
+rtk grep <pattern>      # Search grouped by file (75%)
+rtk find <pattern>      # Find grouped by directory (70%)
+```
+
+### Analysis & Debug (70-90% savings)
+```bash
+rtk err <cmd>           # Filter errors only from any command
+rtk log <file>          # Deduplicated logs with counts
+rtk json <file>         # JSON structure without values
+rtk deps                # Dependency overview
+rtk env                 # Environment variables compact
+rtk summary <cmd>       # Smart summary of command output
+rtk diff                # Ultra-compact diffs
+```
+
+### Infrastructure (85% savings)
+```bash
+rtk docker ps           # Compact container list
+rtk docker images       # Compact image list
+rtk docker logs <c>     # Deduplicated logs
+rtk kubectl get         # Compact resource list
+rtk kubectl logs        # Deduplicated pod logs
+```
+
+### Network (65-70% savings)
+```bash
+rtk curl <url>          # Compact HTTP responses (70%)
+rtk wget <url>          # Compact download output (65%)
+```
+
+### Meta Commands
+```bash
+rtk gain                # View token savings statistics
+rtk gain --history      # View command history with savings
+rtk discover            # Analyze Claude Code sessions for missed RTK usage
+rtk proxy <cmd>         # Run command without filtering (for debugging)
+rtk init                # Add RTK instructions to CLAUDE.md
+rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
+```
+
+## Token Savings Overview
+
+| Category | Commands | Typical Savings |
+|----------|----------|-----------------|
+| Tests | vitest, playwright, cargo test | 90-99% |
+| Build | next, tsc, lint, prettier | 70-87% |
+| Git | status, log, diff, add, commit | 59-80% |
+| GitHub | gh pr, gh run, gh issue | 26-87% |
+| Package Managers | pnpm, npm, npx | 70-90% |
+| Files | ls, read, grep, find | 60-75% |
+| Infrastructure | docker, kubectl | 85% |
+| Network | curl, wget | 65-70% |
+
+Overall average: **60-90% token reduction** on common development operations.
+<!-- /rtk-instructions -->

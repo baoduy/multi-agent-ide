@@ -51,8 +51,23 @@ import { registerCliVersionHandlers } from "./handlers/cliVersionHandlers";
 import type { SpecifyExtensionApplicationService } from "../application/SpecifyExtensionApplicationService";
 import type { AiEditApplicationService } from "../application/AiEditApplicationService";
 import { registerAiEditHandlers } from "./handlers/aiEditHandlers";
+import type { ChatThreadService } from "../application/ChatThreadService";
+import { registerChatThreadHandlers } from "./handlers/chatThreadHandlers";
+import type { AIRunOnceApplicationService } from "../application/AIRunOnceApplicationService";
+import { registerAIRunOnceHandlers } from "./handlers/aiRunOnceHandlers";
+import type { AiBareRunApplicationService } from "../application/AiBareRunApplicationService";
+import { registerAiBareRunHandlers } from "./handlers/aiBareRunHandlers";
 import type { FileWatchService } from "../application/FileWatchService";
 import { registerFileWatchHandlers } from "./handlers/fileWatchHandlers";
+import type { AiPresetService } from "../application/AiPresetService";
+import { registerAiPresetHandlers } from "./handlers/aiPresetHandlers";
+import type { AgentService } from "../application/AgentService";
+import type { PluginDirService } from "../application/PluginDirService";
+import { registerAgentsHandlers } from "./handlers/agentsHandlers";
+import type { PermissionPromptCoordinator } from "../application/PermissionPromptCoordinator";
+import type { DebugLogService } from "../application/DebugLogService";
+import { registerDebugLogHandlers } from "./handlers/aiSessionDebugLog";
+import { registerAiEnvOtelStatus } from "./handlers/aiEnvOtelStatus";
 import type { GitBatchGateway } from "../infrastructure/GitBatchGateway";
 import type { GitRepoWatcher } from "../infrastructure/GitRepoWatcher";
 import type { LogResult, CommitDetailResult } from "../infrastructure/GitHistoryGateway";
@@ -84,7 +99,17 @@ export type HandlerContext = {
   logCache: LruCache<string, LogResult>;
   commitDetailCache: LruCache<string, CommitDetailResult>;
   aiEditService: AiEditApplicationService;
+  aiRunOnceService: AIRunOnceApplicationService;
+  aiBareRunService: AiBareRunApplicationService;
   fileWatchService: FileWatchService;
+  aiPresetService: AiPresetService;
+  agentService: AgentService;
+  pluginDirService: PluginDirService;
+  permissionCoordinator: PermissionPromptCoordinator;
+  /** Phase 7 — debug-log allocator/tailer. */
+  debugLogService: DebugLogService;
+  /** Phase 8 — resumable chat-bubble threads. */
+  chatThreadService: ChatThreadService;
 };
 
 export function registerHandlers(bridge: IPCBridge, context: HandlerContext): void {
@@ -121,7 +146,18 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
 
   registerTerminalHandlers({ bridge, terminalService: context.terminalService, allowlistProvider: context.configManager });
 
-  registerAISessionHandlers({ bridge, aiSessionService: context.aiSessionService });
+  registerAISessionHandlers({
+    bridge,
+    aiSessionService: context.aiSessionService,
+    permissionCoordinator: context.permissionCoordinator,
+  });
+
+  registerAIRunOnceHandlers({ bridge, runOnceService: context.aiRunOnceService });
+
+  registerAiBareRunHandlers({
+    bridge,
+    aiBareRunApplicationService: context.aiBareRunService,
+  });
 
   registerSyncedSessionHandlers({ bridge, sessionSyncService: context.sessionSyncService });
 
@@ -157,5 +193,19 @@ export function registerHandlers(bridge: IPCBridge, context: HandlerContext): vo
 
   registerAiEditHandlers({ bridge, aiEditService: context.aiEditService });
 
+  registerChatThreadHandlers({ bridge, chatThreadService: context.chatThreadService });
+
   registerFileWatchHandlers({ bridge, fileWatchService: context.fileWatchService });
+
+  registerAiPresetHandlers({ bridge, service: context.aiPresetService });
+
+  registerAgentsHandlers({
+    bridge,
+    agentService: context.agentService,
+    pluginDirService: context.pluginDirService,
+  });
+
+  // Phase 7 — debug-log tail-follow + OTel env-status panel.
+  registerDebugLogHandlers(bridge, context.debugLogService);
+  registerAiEnvOtelStatus(bridge);
 }

@@ -1,5 +1,8 @@
 import { spawn } from "node:child_process";
 import type { AIProvider } from "@magenta/shared/aiTerminal";
+import type { AISpawnOptions } from "@magenta/shared/aiSpawnOptions";
+import { getProviderCapability } from "@magenta/shared/providerCapabilities";
+import { getToArgv } from "../domain/providerArgv";
 import { AppError } from "../errors/AppError";
 
 /**
@@ -64,33 +67,15 @@ export interface RunOptions {
 }
 
 /**
- * Per-adapter extras that the gateway may pass through when the caller
- * opts in (spec review chat uses these; the basic chat endpoints do not).
- */
-interface AdapterExtras {
-  systemPromptAppend?: string;
-  permissionMode?: RunOptions["permissionMode"];
-  allowedTools?: readonly string[];
-  disallowedTools?: readonly string[];
-  streaming?: boolean;
-  resumeSessionId?: string;
-}
-
-/**
- * Shape of a per-provider CLI adapter. Each adapter owns its own argv /
- * stdin-vs-argument convention; the gateway just spawns and collects output.
+ * Shape of a per-provider CLI adapter. Each adapter owns its `command` and
+ * stdin-vs-argument prompt convention; argv is built by the shared
+ * `toArgv()` translator instead of an adapter-local builder.
  */
 interface CliAdapter {
   command: string;
-  buildArgs(
-    model: string,
-    prompt: string,
-    extraArgs: readonly string[],
-    extras?: AdapterExtras,
-  ): string[];
   /**
-   * How the prompt is delivered. "argv" passes via a CLI argument the adapter
-   * already added to `buildArgs`; "stdin" means the gateway writes the prompt
+   * How the prompt is delivered. "argv" passes via a CLI argument the
+   * gateway prepends to argv; "stdin" means the gateway writes the prompt
    * to the child's stdin (safer for long prompts).
    */
   promptChannel: "argv" | "stdin";
@@ -111,32 +96,6 @@ const claudeAdapter: CliAdapter = {
   command: "claude",
   promptChannel: "stdin",
   streamJsonSupported: true,
-  buildArgs(model, _prompt, extraArgs, extras) {
-    const args: string[] = ["-p", "--model", model];
-    if (extras?.systemPromptAppend) {
-      args.push("--append-system-prompt", extras.systemPromptAppend);
-    }
-    if (extras?.permissionMode) {
-      args.push("--permission-mode", extras.permissionMode);
-    }
-    if (extras?.allowedTools && extras.allowedTools.length > 0) {
-      args.push("--allowedTools", ...extras.allowedTools);
-    }
-    if (extras?.disallowedTools && extras.disallowedTools.length > 0) {
-      args.push("--disallowedTools", ...extras.disallowedTools);
-    }
-    if (extras?.resumeSessionId) {
-      args.push("--resume", extras.resumeSessionId);
-    }
-    if (extras?.streaming) {
-      // stream-json emits one NDJSON event per stdout line. Requires
-      // --verbose per the Claude Code reference so full event payloads are
-      // produced (without it, the CLI errors or prints minimal output).
-      args.push("--verbose", "--output-format", "stream-json");
-    }
-    args.push(...extraArgs);
-    return args;
-  },
 };
 
 /**
@@ -151,15 +110,38 @@ const copilotAdapter: CliAdapter = {
   // it does not read the prompt from stdin like Claude does.
   promptChannel: "argv",
   streamJsonSupported: false,
-  buildArgs(_model, prompt, extraArgs, _extras) {
-    return ["-p", prompt, ...extraArgs];
-  },
 };
 
 const ADAPTERS: Record<AIProvider, CliAdapter> = {
   claude: claudeAdapter,
   copilot: copilotAdapter,
 };
+
+/**
+ * Map the gateway-level `RunOptions` (legacy public API) to the unified
+ * `AISpawnOptions` shape consumed by the shared `toArgv()` translator.
+ * Phase 1 refactor seam — exported for direct unit testing.
+ */
+export function runOptionsToSpawn(
+  options: RunOptions,
+  extras: { streaming?: boolean; model?: string } = {},
+): AISpawnOptions {
+  const out: AISpawnOptions = {};
+  if (extras.model) out.model = extras.model;
+  if (options.systemPromptAppend) out.appendSystemPrompt = options.systemPromptAppend;
+  if (options.permissionMode) out.permissionMode = options.permissionMode;
+  if (options.allowedTools && options.allowedTools.length > 0)
+    out.allowedTools = [...options.allowedTools];
+  if (options.disallowedTools && options.disallowedTools.length > 0)
+    out.disallowedTools = [...options.disallowedTools];
+  if (options.resumeSessionId) out.resumeSessionId = options.resumeSessionId;
+  if (extras.streaming) {
+    out.outputFormat = "stream-json";
+    out.verbose = true;
+  }
+  if (options.extraArgs.length > 0) out.extraArgs = [...options.extraArgs];
+  return out;
+}
 
 /**
  * Thin wrapper around `child_process.spawn` that runs an AI provider CLI
@@ -218,14 +200,22 @@ export class AiCliGateway {
     streaming: boolean,
     resumeSessionId: string | undefined,
   ): Promise<string> {
-    const args = adapter.buildArgs(model, prompt, options.extraArgs, {
-      systemPromptAppend: options.systemPromptAppend,
-      permissionMode: options.permissionMode,
-      allowedTools: options.allowedTools,
-      disallowedTools: options.disallowedTools,
-      streaming,
-      resumeSessionId,
-    });
+    const spawnOpts = runOptionsToSpawn(
+      { ...options, resumeSessionId },
+      {
+        streaming,
+        model: model || undefined,
+      },
+    );
+    const caps = getProviderCapability(provider);
+    const { args, warnings } = getToArgv(provider)(spawnOpts, caps);
+    // Phase 1: warnings are not surfaced upstream; Phase 2 wires them through a debug logger.
+    void warnings;
+    // Claude historically receives the prompt via stdin AFTER `-p` argv flag.
+    // Preserve that: prepend `-p` for Claude here so behaviour is unchanged.
+    if (provider === "claude") args.unshift("-p");
+    // Copilot still receives the prompt via argv `-p <prompt>` (its old buildArgs did this).
+    if (provider === "copilot") args.unshift("-p", prompt);
 
     return new Promise<string>((resolve, reject) => {
       let child;
@@ -398,6 +388,114 @@ export class AiCliGateway {
         child.stdin.end(prompt, "utf8");
       } else {
         child.stdin.end();
+      }
+    });
+  }
+
+  /**
+   * Phase 2 typed entry point. Translates AISpawnOptions to argv via the
+   * provider's pure adapter, spawns, and forwards stdout line-by-line to the
+   * caller. Caller (application service) owns parsing & event emission.
+   */
+  async runOnceWithSpawn(
+    provider: AIProvider,
+    prompt: string,
+    spawnOpts: AISpawnOptions,
+    hooks: {
+      cwd: string;
+      timeoutMs: number;
+      onStdoutLine?: (line: string) => void;
+    },
+  ): Promise<{
+    stdout: string;
+    stderr: string;
+    exitCode: number;
+    retriesSeen: number;
+  }> {
+    const caps = getProviderCapability(provider);
+    const { args } = getToArgv(provider)(spawnOpts, caps);
+    const command = provider === "claude" ? "claude" : "copilot";
+
+    if (provider === "claude") {
+      args.unshift("-p");
+    } else {
+      args.unshift("-p", prompt);
+    }
+
+    return new Promise((resolve, reject) => {
+      let child: ReturnType<typeof spawn>;
+      try {
+        child = spawn(command, args, {
+          cwd: hooks.cwd,
+          env: process.env,
+          stdio: ["pipe", "pipe", "pipe"],
+        });
+      } catch (err) {
+        reject(
+          new AppError(
+            "AI_PROVIDER_NOT_AVAILABLE",
+            `Could not spawn "${command}": ${(err as Error).message}.`,
+          ),
+        );
+        return;
+      }
+
+      let stdout = "";
+      let stderr = "";
+      let buf = "";
+      let settled = false;
+      const retriesSeen = 0;
+
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try { child.kill("SIGTERM"); } catch { /* ignore */ }
+        reject(new AppError("AI_TIMEOUT", `${command} did not respond within ${hooks.timeoutMs}ms.`));
+      }, hooks.timeoutMs);
+
+      child.stdout!.on("data", (chunk: Buffer) => {
+        const text = chunk.toString("utf8");
+        stdout += text;
+        buf += text;
+        let nl = buf.indexOf("\n");
+        while (nl !== -1) {
+          const line = buf.slice(0, nl);
+          buf = buf.slice(nl + 1);
+          if (hooks.onStdoutLine) hooks.onStdoutLine(line);
+          nl = buf.indexOf("\n");
+        }
+      });
+      child.stderr!.on("data", (chunk: Buffer) => {
+        stderr += chunk.toString("utf8");
+      });
+      child.on("error", (err: NodeJS.ErrnoException) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (err.code === "ENOENT") {
+          reject(
+            new AppError(
+              "AI_PROVIDER_NOT_AVAILABLE",
+              `"${command}" not found on PATH. Install the ${provider} CLI first.`,
+            ),
+          );
+          return;
+        }
+        reject(new AppError("AI_CLI_FAILED", err.message));
+      });
+      child.on("close", (code) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (buf && hooks.onStdoutLine) hooks.onStdoutLine(buf);
+        resolve({ stdout, stderr, exitCode: code ?? 0, retriesSeen });
+      });
+
+      if (provider === "claude") {
+        // Claude reads the prompt from stdin when -p is given without a value.
+        child.stdin!.end(prompt, "utf8");
+      } else {
+        child.stdin!.end();
       }
     });
   }

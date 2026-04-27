@@ -416,8 +416,7 @@ export class SessionSyncApplicationService {
       .filter((r) => r.status === "active")
       .map((r) => r.path);
 
-    const config = this.configManager.getConfig();
-    const workingDirs = config.workingDirs;
+    const workingDirs = this.configManager.getAllowedRoots();
 
     // Collect worktree paths for each active repo
     const worktreePaths: string[] = [];

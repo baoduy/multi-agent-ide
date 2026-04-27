@@ -1,0 +1,4 @@
+{"type":"assistant","session_id":"sess-1","message":{"content":[{"type":"thinking","thinking":"let me plan"}]}}
+{"type":"assistant","session_id":"sess-1","message":{"content":[{"type":"text","text":"Hello, "}]}}
+{"type":"assistant","session_id":"sess-1","message":{"content":[{"type":"text","text":"world."}]}}
+{"type":"assistant","session_id":"sess-1","message":{"content":[{"type":"tool_use","id":"tu_1","name":"Read","input":{"path":"/tmp/x"}}]}}

@@ -37,7 +37,7 @@ export class GitCloneApplicationService {
    * whose children are unreadable/missing.
    */
   listCloneDestinations(): { root: string; children: string[] }[] {
-    const { workingDirs } = this.configManager.getConfig();
+    const workingDirs = this.configManager.getAllowedRoots();
     const results: { root: string; children: string[] }[] = [];
     for (const root of workingDirs) {
       const resolvedRoot = path.resolve(root);
@@ -66,8 +66,9 @@ export class GitCloneApplicationService {
     // Parent directory must be either a configured working dir OR a direct,
     // non-git subfolder of one. Grandchildren and repos are rejected so the
     // scan allowlist stays stable.
-    const config = this.configManager.getConfig();
-    const workingDirs = config.workingDirs.map((wd) => path.resolve(wd));
+    const workingDirs = this.configManager
+      .getAllowedRoots()
+      .map((wd) => path.resolve(wd));
     const isWorkingDir = workingDirs.includes(normalizedParent);
     const isDirectNonGitChild =
       workingDirs.some((wd) => path.dirname(normalizedParent) === wd) &&
@@ -120,8 +121,8 @@ export class GitCloneApplicationService {
         success: true,
       });
 
-      const { workingDirs } = this.configManager.getConfig();
-      void this.scanQueue.requestScan(workingDirs).catch(() => {
+      const workingDirs = this.configManager.getAllowedRoots();
+      void this.scanQueue.requestScan([...workingDirs]).catch(() => {
         // Scan errors are non-fatal — clone already succeeded on disk.
       });
     } catch (err) {

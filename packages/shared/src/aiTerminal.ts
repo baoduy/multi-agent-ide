@@ -51,9 +51,22 @@ export const AISessionRecordSchema = z.object({
   permissionMode: z.enum(AI_PERMISSION_MODES),
   /** Human-readable title derived from the user's first input. */
   title: z.string().nullable(),
+  /** Phase 5 — parent canonical sessionId when this row was created via fork. */
+  parentSessionId: z.string().nullable(),
   createdAt: z.number().int().nonnegative(),
   lastActiveAt: z.number().int().nonnegative(),
+  /** Phase 7 — rolling observability counters persisted from `result` events. */
+  totalInputTokens: z.number().int().nonnegative().default(0),
+  totalOutputTokens: z.number().int().nonnegative().default(0),
+  totalCostUsd: z.number().nonnegative().default(0),
+  retryCount: z.number().int().nonnegative().default(0),
 });
+
+/** Phase 5 — list response row carries on-disk resumability state (FR-7.6). */
+export const AISessionListEntrySchema = AISessionRecordSchema.extend({
+  resumable: z.boolean(),
+});
+export type AISessionListEntry = z.infer<typeof AISessionListEntrySchema>;
 
 export type AISessionRecord = z.infer<typeof AISessionRecordSchema>;
 
@@ -65,6 +78,17 @@ export interface AISessionConfig {
   /** Permission mode to start the session with (defaults to "auto"). */
   permissionMode?: AIPermissionMode;
   env?: Record<string, string>;
+  /** Phase 4 — Optional tool allowlist/denylist passed to the CLI. */
+  allowedTools?: string[];
+  disallowedTools?: string[];
+  /** Phase 4 — Resolved preset id (presets merged in by the app service). */
+  presetId?: string;
+  /** Phase 4 — Claude `--permission-prompt-tool` MCP tool name. */
+  permissionPromptTool?: string;
+  /** Phase 4 — Copilot `--no-ask-user`; programmatic-only (interactive ignores). */
+  noAskUser?: boolean;
+  /** Phase 4 — Whether this is a programmatic spawn (gates `noAskUser`). */
+  programmatic?: boolean;
   /**
    * Optional explicit agent session UUID, present when the caller is
    * resuming a session that was previously synced from disk.
@@ -79,6 +103,22 @@ export interface AISessionConfig {
    * `providerSessionId` once the JSONL/state-dir appears.
    */
   providerSessionId?: string;
+  /** @see FR-7.1 — caller-provided canonical session ID (UUID v4). */
+  sessionId?: string;
+  /** @see FR-7.8 — `-n` plumbing (Claude-only). */
+  name?: string;
+  /** @see FR-7.9 — `--from-pr` plumbing (Claude-only). */
+  resumeFromPR?: string;
+  /** @see Phase 5 §"--continue" — explicit "continue most recent" action. */
+  continueRecent?: boolean;
+  /** @see FR-7.7 — populated by the fork code path; never set by direct create. */
+  parentSessionId?: string;
+  /** @see FR-7.7 — instructs the daemon to add `--fork-session`. */
+  forkSession?: boolean;
+  /** Phase 6 — agent name (Claude `--agent <v>`). Copilot ignores at spawn. */
+  agent?: string;
+  /** Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle. */
+  enableAllGithubMcpTools?: boolean;
 }
 
 type SlashCommandCategory = (typeof SLASH_COMMAND_CATEGORIES)[number];
@@ -118,3 +158,23 @@ export const ProviderMetaSchema = z.object({
 });
 
 export type ProviderMeta = z.infer<typeof ProviderMetaSchema>;
+
+export {
+  AISpawnOptionsSchema,
+  SPAWN_OPTIONS_SCHEMA_VERSION,
+  type AISpawnOptions,
+} from "./aiSpawnOptions";
+export {
+  PROVIDER_CAPABILITIES,
+  getProviderCapability,
+  type ProviderCapability,
+  type SpawnOptionKey,
+} from "./providerCapabilities";
+
+export {
+  AIStreamEventSchema,
+  TokenUsageSchema,
+  type AIStreamEvent,
+  type TokenUsage,
+  type PluginError,
+} from "./aiStreamEvent";

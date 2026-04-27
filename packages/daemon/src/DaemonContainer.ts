@@ -34,8 +34,23 @@ import { SpecifyExtensionApplicationService } from "./application/SpecifyExtensi
 import { AiConfigRepository } from "./infrastructure/AiConfigRepository";
 import { AiCliGateway } from "./infrastructure/AiCliGateway";
 import { AiEditApplicationService } from "./application/AiEditApplicationService";
+import { AIRunOnceApplicationService } from "./application/AIRunOnceApplicationService";
+import { AiBareRunApplicationService } from "./application/AiBareRunApplicationService";
+import { TempFileGateway } from "./infrastructure/TempFileGateway";
 import { FileWatcherGateway } from "./infrastructure/FileWatcherGateway";
 import { FileWatchService } from "./application/FileWatchService";
+import { AiPresetRepository } from "./services/AiPresetRepository";
+import { AiPresetService } from "./application/AiPresetService";
+import { PermissionPromptCoordinator } from "./application/PermissionPromptCoordinator";
+import { PermissionPromptMcpServer } from "./infrastructure/PermissionPromptMcpServer";
+import { ClaudeAgentsGateway } from "./infrastructure/ClaudeAgentsGateway";
+import { AgentService } from "./application/AgentService";
+import { PluginDirRepository } from "./services/PluginDirRepository";
+import { PluginDirService } from "./application/PluginDirService";
+import { SessionObservabilityService } from "./application/SessionObservabilityService";
+import { DebugLogService } from "./application/DebugLogService";
+import { ChatThreadRepository } from "./data/ChatThreadRepository";
+import { ChatThreadService } from "./application/ChatThreadService";
 
 /**
  * DaemonContainer is the single composition root for the daemon process.
@@ -82,9 +97,23 @@ export class DaemonContainer {
   readonly cliVersionService: CliVersionApplicationService;
   readonly aiConfigRepository: AiConfigRepository;
   readonly aiCliGateway: AiCliGateway;
+  readonly aiRunOnceService: AIRunOnceApplicationService;
+  readonly aiBareRunService: AiBareRunApplicationService;
   readonly aiEditService: AiEditApplicationService;
   readonly fileWatcherGateway: FileWatcherGateway;
   readonly fileWatchService: FileWatchService;
+  readonly aiPresetRepository: AiPresetRepository;
+  readonly aiPresetService: AiPresetService;
+  readonly permissionCoordinator: PermissionPromptCoordinator;
+  readonly permissionPromptMcp: PermissionPromptMcpServer;
+  readonly claudeAgentsGateway: ClaudeAgentsGateway;
+  readonly agentService: AgentService;
+  readonly pluginDirRepository: PluginDirRepository;
+  readonly pluginDirService: PluginDirService;
+  readonly sessionObservabilityService: SessionObservabilityService;
+  readonly debugLogService: DebugLogService;
+  readonly chatThreadRepository: ChatThreadRepository;
+  readonly chatThreadService: ChatThreadService;
 
   private constructor(databaseService: DatabaseService) {
     this.databaseService = databaseService;
@@ -126,9 +155,18 @@ export class DaemonContainer {
     // Git gateway (shared across services that need git operations)
     this.gitGateway = new GitGateway();
 
+    // Phase 4 — preset persistence is a dependency of AISessionApplicationService.
+    this.aiPresetRepository = new AiPresetRepository(databaseService);
+    this.aiPresetService = new AiPresetService(this.aiPresetRepository);
+
     // AI Session service — purely in-memory; the disk-backed sync layer is
     // the source of truth for session history.
-    this.aiSessionService = new AISessionApplicationService(this.bridge, this.configManager, this.gitGateway);
+    this.aiSessionService = new AISessionApplicationService(
+      this.bridge,
+      this.configManager,
+      this.gitGateway,
+      this.aiPresetService,
+    );
 
     // Git performance foundation — owned once here, shared everywhere:
     //   - batch gateway holds one long-lived `git cat-file --batch` per repo
@@ -203,12 +241,34 @@ export class DaemonContainer {
       this.specifyExtensionService,
     );
 
+    // Phase 6 — plugin-dir storage is needed by AIRunOnceApplicationService
+    // for settings-driven `--plugin-dir` injection, so construct it first.
+    this.claudeAgentsGateway = new ClaudeAgentsGateway();
+    this.agentService = new AgentService(this.claudeAgentsGateway);
+    this.pluginDirRepository = new PluginDirRepository(databaseService);
+    this.pluginDirService = new PluginDirService(this.pluginDirRepository);
+
     // AI-assisted markdown editor — config/action files + CLI spawn.
     this.aiConfigRepository = new AiConfigRepository();
     this.aiCliGateway = new AiCliGateway();
+    this.aiRunOnceService = new AIRunOnceApplicationService(
+      this.aiCliGateway,
+      this.bridge,
+      this.pluginDirService,
+    );
+    this.aiBareRunService = new AiBareRunApplicationService({
+      configManager: this.configManager,
+      aiCliGateway: this.aiCliGateway,
+      tempFileFactory: () => new TempFileGateway("magenta-aibare"),
+    });
+    // Phase 8 — resumable chat threads.
+    this.chatThreadRepository = new ChatThreadRepository(databaseService);
+    this.chatThreadService = new ChatThreadService(this.chatThreadRepository);
+
     this.aiEditService = new AiEditApplicationService(
       this.aiConfigRepository,
       this.aiCliGateway,
+      this.chatThreadService,
     );
 
     // File watcher — the markdown editor opens one watcher per open tab so
@@ -216,6 +276,24 @@ export class DaemonContainer {
     // into the editor via 3-way merge without the user reopening the file.
     this.fileWatcherGateway = new FileWatcherGateway();
     this.fileWatchService = new FileWatchService(this.fileWatcherGateway, this.bridge);
+
+    // Phase 4 — Claude permission-prompt coordinator. The bridge is the
+    // permission event bus: its `emit(IpcResponse)` shape already matches
+    // the `ai-session:permission-request` push event payload.
+    this.permissionCoordinator = new PermissionPromptCoordinator(this.bridge);
+    this.permissionPromptMcp = new PermissionPromptMcpServer(
+      this.permissionCoordinator,
+    );
+
+    // Phase 7 — observability + debug-log services. Subscribes to the
+    // bridge's `ai-session:event` push stream and persists usage counters
+    // back onto live `AISessionRecord`s held in memory by the session
+    // service.
+    this.sessionObservabilityService = new SessionObservabilityService(
+      this.bridge,
+      (sessionId, partial) => this.aiSessionService.updateUsage(sessionId, partial),
+    );
+    this.debugLogService = new DebugLogService();
   }
 
   /**
@@ -253,7 +331,15 @@ export class DaemonContainer {
       logCache: this.logCache,
       commitDetailCache: this.commitDetailCache,
       aiEditService: this.aiEditService,
+      aiRunOnceService: this.aiRunOnceService,
+      aiBareRunService: this.aiBareRunService,
       fileWatchService: this.fileWatchService,
+      aiPresetService: this.aiPresetService,
+      agentService: this.agentService,
+      pluginDirService: this.pluginDirService,
+      permissionCoordinator: this.permissionCoordinator,
+      debugLogService: this.debugLogService,
+      chatThreadService: this.chatThreadService,
     });
   }
 

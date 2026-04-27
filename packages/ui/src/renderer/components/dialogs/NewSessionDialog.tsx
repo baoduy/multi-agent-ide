@@ -6,7 +6,6 @@ import { sendOrThrow } from "../../services/ipcClient";
 import { ipc } from "../../utils/ipc";
 import { useAISessionStore } from "../../store/aiSessionStore";
 import { useAiPresetStore } from "../../store/aiPresetStore";
-import { AgentSelector } from "./AgentSelector";
 import { useRepoStore } from "../../store/repoStore";
 import { useWorktreeStore } from "../../store/worktreeStore";
 import type { WorktreeInfo } from "../../store/worktreeStore";
@@ -31,6 +30,27 @@ type WorkspaceTarget = "branch" | "existing-worktree" | "new-worktree";
 
 /** Simplified permission modes exposed in the UI (mapped to AIPermissionMode). */
 type SimplifiedPermission = "default" | "auto" | "bypassPermissions";
+
+/**
+ * Encoded value for the unified Mode dropdown. Either a built-in permission
+ * (`permission:default` etc.) or a tool preset (`preset:<id>`). When a preset
+ * is selected, the preset's bundled permissionMode wins inside the daemon
+ * (Phase 4 merge), so the renderer only needs to forward `presetId`.
+ */
+type ModeValue = `permission:${SimplifiedPermission}` | `preset:${string}`;
+
+function decodeMode(v: ModeValue): {
+  permissionMode: SimplifiedPermission;
+  presetId: string | undefined;
+} {
+  if (v.startsWith("preset:")) {
+    return { permissionMode: "default", presetId: v.slice("preset:".length) };
+  }
+  return {
+    permissionMode: v.slice("permission:".length) as SimplifiedPermission,
+    presetId: undefined,
+  };
+}
 
 type NewSessionDialogProps = {
   open: boolean;
@@ -71,12 +91,11 @@ export function NewSessionDialog({
 
   /* ── Form state ── */
   const [provider, setProvider] = useState<AIProvider>("claude");
-  const [permissionMode, setPermissionMode] = useState<SimplifiedPermission>("default");
-  // Phase 4 — Tool preset selection. Empty string = no preset.
-  const [presetId, setPresetId] = useState<string>("");
-  // Phase 6 — agent selection (Claude `--agent`, Copilot prompt-injection
-  // hint) and Copilot `--enable-all-github-mcp-tools` toggle.
-  const [agent, setAgent] = useState<string | undefined>(undefined);
+  // Unified Mode dropdown — encodes both raw permission modes and tool presets.
+  const [mode, setMode] = useState<ModeValue>("permission:default");
+  // Phase 6 — Copilot `--enable-all-github-mcp-tools` toggle. Sub-agent
+  // selection is intentionally NOT exposed here; switch agents inside the
+  // PTY terminal once the session is running.
   const [enableGithubMcp, setEnableGithubMcp] = useState(false);
 
   // Workspace
@@ -164,29 +183,40 @@ export function NewSessionDialog({
     [],
   );
 
-  /** Permission dropdown options. */
-  const permissionOptions = useMemo(
-    (): readonly DoublePickerOption<SimplifiedPermission>[] => [
+  /**
+   * Unified Mode dropdown — built-in permission modes followed by any
+   * available tool presets. Picking a preset implies the preset's bundled
+   * allow/deny lists + permissionMode (resolved daemon-side).
+   */
+  const modeOptions = useMemo(
+    (): readonly DoublePickerOption<ModeValue>[] => [
       {
-        value: "default",
+        value: "permission:default",
         label: "Default",
         description: "Asks before file edits",
         icon: <Shield size={14} color={colors.textSecondary} strokeWidth={1.8} />,
       },
       {
-        value: "auto",
+        value: "permission:auto",
         label: "Auto",
         description: "Auto-accepts safe actions",
         icon: <Zap size={14} color={colors.textSecondary} strokeWidth={1.8} />,
       },
       {
-        value: "bypassPermissions",
+        value: "permission:bypassPermissions",
         label: "Bypass",
         description: "Skips all permission checks",
         icon: <ShieldOff size={14} color={colors.error} strokeWidth={1.8} />,
       },
+      ...presets.map((p): DoublePickerOption<ModeValue> => ({
+        value: `preset:${p.id}` as ModeValue,
+        label: p.name,
+        description:
+          p.description ?? (p.builtin ? "Built-in preset" : "Custom preset"),
+        icon: <Sparkles size={14} color={colors.primary} strokeWidth={1.8} />,
+      })),
     ],
-    [],
+    [presets],
   );
 
   /** Branch dropdown options with "(current)" suffix. */
@@ -257,8 +287,7 @@ export function NewSessionDialog({
     if (open) {
       setSelectedRepoPath(initialRepoPath ?? null);
       setProvider(resumeContext?.provider ?? "claude");
-      setPermissionMode("default");
-      setPresetId("");
+      setMode("permission:default");
       setWorkspaceTarget("branch");
       setSelectedWorktreePath(null);
       setWorktreeCustomName("");
@@ -469,6 +498,7 @@ export function NewSessionDialog({
 
       /* ── Create the agent session ── */
 
+      const { permissionMode, presetId } = decodeMode(mode);
       const session = await createSession(
         {
           provider,
@@ -477,8 +507,7 @@ export function NewSessionDialog({
           worktreePath: worktreePathToUse,
           permissionMode: permissionMode as AIPermissionMode,
           providerSessionId: resumeContext?.providerSessionId,
-          presetId: presetId || undefined,
-          agent,
+          presetId,
           enableAllGithubMcpTools: provider === "copilot" && enableGithubMcp ? true : undefined,
         },
         80,
@@ -493,9 +522,7 @@ export function NewSessionDialog({
     }
   }, [
     provider,
-    permissionMode,
-    presetId,
-    agent,
+    mode,
     enableGithubMcp,
     selectedRepoPath,
     workspaceTarget,
@@ -567,63 +594,25 @@ export function NewSessionDialog({
       }
     >
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {/* ─── Agent ─── */}
+        {/* ─── Agent (provider + mode) ─── */}
         <div>
           <FormLabel>Agent</FormLabel>
-          <DoublePicker<AIProvider, SimplifiedPermission>
+          <DoublePicker<AIProvider, ModeValue>
             left={{
               options: providerOptions,
               value: provider,
-              onChange: (next: AIProvider) => {
-                setProvider(next);
-                // Reset agent when switching providers — names don't transfer.
-                setAgent(undefined);
-              },
+              onChange: setProvider,
               placeholder: "Provider",
               minPanelWidth: 180,
             }}
             right={{
-              options: permissionOptions,
-              value: permissionMode,
-              onChange: setPermissionMode,
-              placeholder: "Permission",
-              minPanelWidth: 220,
+              options: modeOptions,
+              value: mode,
+              onChange: setMode,
+              placeholder: "Mode",
+              minPanelWidth: 240,
             }}
           />
-        </div>
-
-        {/* ─── Tool preset (Phase 4) ─── */}
-        <div>
-          <FormLabel>Tool preset</FormLabel>
-          <select
-            value={presetId}
-            onChange={(e) => setPresetId(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px 10px",
-              border: `1px solid ${colors.border}`,
-              borderRadius: 6,
-              outline: "none",
-              background: colors.bgSurface,
-              color: colors.text,
-              fontFamily: "var(--font-sans)",
-              boxSizing: "border-box",
-            }}
-          >
-            <option value="">(none)</option>
-            {presets.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-                {p.builtin ? " (built-in)" : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* ─── Agent (Phase 6) ─── */}
-        <div>
-          <FormLabel>Agent</FormLabel>
-          <AgentSelector provider={provider} value={agent} onChange={setAgent} />
         </div>
 
         {provider === "copilot" && (

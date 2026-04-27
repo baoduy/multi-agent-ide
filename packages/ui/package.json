@@ -12,9 +12,9 @@
     "update": "npx npm-check-updates -u && pnpm install"
   },
   "dependencies": {
-    "@blocknote/core": "^0.48.1",
-    "@blocknote/mantine": "^0.48.1",
-    "@blocknote/react": "^0.48.1",
+    "@blocknote/core": "^0.49.0",
+    "@blocknote/mantine": "^0.49.0",
+    "@blocknote/react": "^0.49.0",
     "@codemirror/lang-css": "^6.3.1",
     "@codemirror/lang-html": "^6.4.11",
     "@codemirror/lang-javascript": "^6.2.5",
@@ -23,7 +23,7 @@
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/state": "^6.6.0",
     "@codemirror/view": "^6.41.1",
-    "@iconify-json/material-icon-theme": "^1.2.60",
+    "@iconify-json/material-icon-theme": "^1.2.61",
     "@iconify/react": "^6.0.2",
     "@magenta/shared": "workspace:^0.1.0",
     "@uiw/codemirror-theme-github": "^4.25.9",
@@ -31,7 +31,7 @@
     "@xterm/xterm": "^6.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.9.0",
+    "lucide-react": "^1.11.0",
     "mermaid": "^11.14.0",
     "react": "^19.2.5",
     "react-codemirror-merge": "^4.25.9",
@@ -48,7 +48,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "esbuild": "^0.28.0",
-    "shadcn": "^4.4.0",
+    "shadcn": "^4.5.0",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3"
   }

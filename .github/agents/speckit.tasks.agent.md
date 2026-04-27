@@ -123,6 +123,8 @@ You **MUST** consider the user input before proceeding (if not empty).
        ```
    - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
+Context for task generation: $ARGUMENTS
+
 The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
 
 ## Task Generation Rules

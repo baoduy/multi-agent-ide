@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles, X, Send, MoreHorizontal, Scissors } from "lucide-react";
+import { X, Send, MoreHorizontal, Scissors } from "lucide-react";
 import { colors } from "../../../utils/colors";
+import { ProviderIcon } from "../../common/ProviderIcon";
 import {
   useAiChatStore,
   type CapturedSelection,
@@ -232,21 +233,7 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
           background: colors.bgSurface,
         }}
       >
-        <span
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: "50%",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: colors.primary,
-            color: "white",
-            flexShrink: 0,
-          }}
-        >
-          <Sparkles size={12} strokeWidth={2} />
-        </span>
+        <ProviderIcon provider={thread?.provider ?? "claude"} size={16} />
         <div
           style={{
             flex: 1,
@@ -259,14 +246,8 @@ export function ChatPanel({ filePath, repoPath, editorRef, onClose, readOnly = f
           title={filePath}
         >
           <span style={{ fontSize: 12, fontWeight: 600, color: colors.text }}>
-            AI Assistant
+            {(thread?.provider ?? "claude") === "claude" ? "Claude" : "Copilot"}
           </span>
-          {thread?.provider && (
-            <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 400 }}>
-              {" · "}
-              {thread.provider === "claude" ? "Claude" : "Copilot"}
-            </span>
-          )}
           <span style={{ fontSize: 12, color: colors.textMuted, fontWeight: 400 }}>
             {" · "}
             {fileName}
